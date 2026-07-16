@@ -1,23 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { products, comparisonFeatures } from "@/lib/data/site";
+import { coreModules } from "@/lib/data/core";
+import { comparisonFeatures } from "@/lib/data/site";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
-import { ProductCard } from "@/components/shared/cards";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CTASection } from "@/components/shared/cta-section";
+import { getIcon } from "@/lib/icons";
 import { Check, Minus } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Products",
-  description: "Explore WaamTech ERP, Inventory, POS, CRM, Finance, HR, Property, Pharmacy, Warehouse, Maps, WhatsApp, and future products.",
+  description:
+    "Explore WaamTech SaaS Core modules: Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and more.",
 };
 
 export default function ProductsPage() {
-  const available = products.filter((p) => p.status === "available");
-  const future = products.filter((p) => p.status === "coming-soon");
-
   return (
     <>
       <Section className="!pb-10 !pt-12 md:!pt-16">
@@ -25,9 +25,9 @@ export default function ProductsPage() {
           <Breadcrumbs items={[{ label: "Products" }]} />
           <SectionHeader
             align="left"
-            eyebrow="Products"
-            title="The WaamTech product suite"
-            description="Enterprise-grade modules that share one design system, one data model, and one operational truth."
+            eyebrow="Modules"
+            title="The WaamTech SaaS Core suite"
+            description="Installable business modules on a clean platform core — activate only what your operations need."
             className="mb-0 max-w-3xl"
           />
         </Container>
@@ -36,57 +36,43 @@ export default function ProductsPage() {
       <Section muted className="!pt-10">
         <Container>
           <div className="mb-8 flex items-center justify-between gap-4">
-            <h2 className="text-2xl font-semibold tracking-tight">All products</h2>
-            <Badge variant="outline">{available.length} available</Badge>
+            <h2 className="text-2xl font-semibold tracking-tight">Core modules</h2>
+            <Badge variant="outline">{coreModules.length} modules</Badge>
           </div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {available.map((p, i) => (
-              <div key={p.id} id={p.slug}>
-                <AnimateIn delay={i * 0.04}>
-                  <ProductCard
-                    name={p.name}
-                    tagline={p.tagline}
-                    description={p.description}
-                    icon={p.icon}
-                    href={`/products#${p.slug}`}
-                    status={p.status}
-                    features={p.features}
-                  />
-                </AnimateIn>
-              </div>
-            ))}
+            {coreModules.map((m, i) => {
+              const Icon = getIcon(m.icon);
+              return (
+                <div key={m.id} id={m.id}>
+                  <AnimateIn delay={i * 0.04}>
+                    <Card className="h-full hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)] hover:border-primary/20">
+                      <CardHeader>
+                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/8 text-primary">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <CardTitle>{m.name}</CardTitle>
+                        <p className="text-sm font-medium text-foreground/70">{m.tagline}</p>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{m.description}</p>
+                        <ul className="mt-5 flex flex-wrap gap-2">
+                          {m.highlights.map((h) => (
+                            <li key={h}>
+                              <Badge variant="muted">{h}</Badge>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  </AnimateIn>
+                </div>
+              );
+            })}
           </div>
         </Container>
       </Section>
 
       <Section>
-        <Container>
-          <SectionHeader
-            eyebrow="Roadmap"
-            title="Future products"
-            description="We're expanding the platform with intelligence layers that help leaders anticipate demand and risk."
-          />
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {future.map((p, i) => (
-              <div key={p.id} id={p.slug}>
-                <AnimateIn delay={i * 0.04}>
-                  <ProductCard
-                    name={p.name}
-                    tagline={p.tagline}
-                    description={p.description}
-                    icon={p.icon}
-                    href={`/products#${p.slug}`}
-                    status={p.status}
-                    features={p.features}
-                  />
-                </AnimateIn>
-              </div>
-            ))}
-          </div>
-        </Container>
-      </Section>
-
-      <Section muted>
         <Container>
           <SectionHeader
             eyebrow="Compare"
@@ -99,7 +85,9 @@ export default function ProductsPage() {
                 <tr className="border-b border-border bg-muted/60">
                   <th className="px-5 py-4 text-left font-semibold">Capability</th>
                   {["Starter", "Professional", "Business", "Enterprise"].map((h) => (
-                    <th key={h} className="px-5 py-4 text-center font-semibold">{h}</th>
+                    <th key={h} className="px-5 py-4 text-center font-semibold">
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>

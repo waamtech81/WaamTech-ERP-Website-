@@ -77,6 +77,11 @@ const iconMap: Record<string, LucideIcon> = {
   Wallet,
   Warehouse,
   Zap,
+  // aliases used by SaaS Core profile icons
+  store: Store,
+  pill: Pill,
+  utensils: UtensilsCrossed,
+  briefcase: Boxes,
 };
 
 export function getIcon(name: string): LucideIcon {

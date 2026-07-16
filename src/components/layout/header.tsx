@@ -156,11 +156,11 @@ export function Header() {
             >
               <Search className="h-4 w-4" />
             </Button>
-            <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
+            <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex rounded-full">
               <Link href="/login">Log in</Link>
             </Button>
-            <Button asChild size="sm" className="hidden sm:inline-flex">
-              <Link href="/signup">Start free trial</Link>
+            <Button asChild size="sm" className="hidden sm:inline-flex rounded-full px-5 shadow-sm shadow-primary/15">
+              <Link href="/signup">Create account</Link>
             </Button>
             <Button
               variant="ghost"

@@ -142,3 +142,12 @@ h6 {
     radial-gradient(ellipse 40% 40% at 20% 80%, rgba(79, 70, 229, 0.06), transparent 55%),
     radial-gradient(ellipse 30% 30% at 85% 75%, rgba(16, 185, 129, 0.05), transparent 50%);
 }
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

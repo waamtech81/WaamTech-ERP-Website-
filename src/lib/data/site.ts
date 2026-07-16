@@ -14,9 +14,9 @@ import type {
 export const siteConfig = {
   name: "WaamTech",
   fullName: "WaamTech Technologies",
-  tagline: "Enterprise business software, engineered for clarity.",
+  tagline: "Control your business. Optimize operations. Unlock growth.",
   description:
-    "WaamTech builds premium ERP, inventory, POS, CRM, finance, and industry solutions that help modern businesses operate with precision.",
+    "WaamTech SaaS Core is a modular ERP platform for Inventory, POS, Sales, Purchasing, Finance, CRM, HR, and Manufacturing — configured for 30+ business profiles.",
   url: "https://waamtech.com",
   email: "hello@waamtech.com",
   supportEmail: "support@waamtech.com",

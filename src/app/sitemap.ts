@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { blogPosts, siteConfig } from "@/lib/data/site";
+import { industriesServing } from "@/lib/data/industries";
 
 const routes = [
   "",
@@ -36,6 +37,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.5,
+    })),
+    ...industriesServing.map((industry) => ({
+      url: `${siteConfig.url}/industries/${industry.id}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.65,
     })),
   ];
 }

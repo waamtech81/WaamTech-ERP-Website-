@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import { coreBusinesses, coreCapabilities, homeStats } from "@/lib/data/core";
+import { coreCapabilities, homeStats } from "@/lib/data/core";
+import { industriesServing } from "@/lib/data/industries";
 import { getIcon } from "@/lib/icons";
 import { Container, Section } from "@/components/shared/section";
 import { AnimateIn } from "@/components/shared/animate-in";
@@ -74,43 +76,54 @@ export function CapabilitiesSection() {
 }
 
 export function BusinessesSection() {
+  const featured = industriesServing.slice(0, 8);
+
   return (
     <Section muted>
       <Container>
         <div className="mx-auto mb-12 max-w-3xl text-center">
-          <p className="mb-3 text-sm font-medium text-primary tracking-wide uppercase">Businesses</p>
+          <p className="mb-3 text-sm font-medium text-primary tracking-wide uppercase">
+            Industries we serve
+          </p>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
-            Designed for the businesses you actually run
+            {industriesServing.length}+ businesses from our SaaS Core
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
-            Each profile from our SaaS Core maps the right modules, feature packs, workflows, and KPIs
-            for your industry.
+            Real industry profiles with modules, feature packs, workflows, and KPIs — not generic
+            marketing labels.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {coreBusinesses.map((biz, i) => {
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {featured.map((biz, i) => {
             const Icon = getIcon(biz.icon);
             return (
               <AnimateIn key={biz.id} delay={(i % 4) * 0.04}>
-                <Link href={`/industries#${biz.id}`} className="group block h-full">
-                  <Card className="h-full hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(15,23,42,0.08)] hover:border-primary/20 transition-all duration-300">
-                    <CardHeader className="pb-3">
-                      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-border text-primary group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-colors duration-300">
+                <Link href={`/industries/${biz.id}`} className="group block h-full">
+                  <Card className="h-full overflow-hidden hover:-translate-y-1.5 hover:shadow-[0_16px_40px_rgba(15,23,42,0.1)] hover:border-primary/20 transition-all duration-500">
+                    <div className="relative aspect-[16/10] overflow-hidden">
+                      <Image
+                        src={biz.image}
+                        alt={biz.imageAlt}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 25vw"
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/70 to-transparent" />
+                      <div
+                        className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl text-white"
+                        style={{ backgroundColor: `${biz.color}dd` }}
+                      >
                         <Icon className="h-4 w-4" />
                       </div>
-                      <CardTitle className="text-base group-hover:text-primary transition-colors">
+                      <p className="absolute bottom-3 left-3 right-3 text-sm font-semibold text-white">
                         {biz.name}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground leading-relaxed mb-3">{biz.description}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {biz.modules.slice(0, 3).map((m) => (
-                          <Badge key={m} variant="outline" className="text-[10px]">
-                            {m}
-                          </Badge>
-                        ))}
-                      </div>
+                      </p>
+                    </div>
+                    <CardContent className="p-4">
+                      <p className="text-xs font-medium text-primary mb-1 line-clamp-1">{biz.headline}</p>
+                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                        {biz.short}
+                      </p>
                     </CardContent>
                   </Card>
                 </Link>
@@ -121,7 +134,7 @@ export function BusinessesSection() {
         <div className="mt-10 text-center">
           <Button asChild variant="outline" className="rounded-full">
             <Link href="/industries">
-              View all industries
+              Explore all industries
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>

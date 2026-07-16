@@ -1,73 +1,92 @@
 import type { Metadata } from "next";
-import { coreBusinesses } from "@/lib/data/core";
+import { industriesServing } from "@/lib/data/industries";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
-import { AnimateIn } from "@/components/shared/animate-in";
+import { IndustriesGallery } from "@/components/sections/industries-gallery";
 import { CTASection } from "@/components/shared/cta-section";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getIcon } from "@/lib/icons";
+import { AnimateIn } from "@/components/shared/animate-in";
 
 export const metadata: Metadata = {
-  title: "Industries",
+  title: "Industries We Serve",
   description:
-    "WaamTech business profiles for retail, pharmacy, restaurant, manufacturing, wholesale, warehouse, property, and more — mapped from SaaS Core.",
+    "WaamTech serves 30+ business profiles from SaaS Core — retail, pharmacy, restaurant, manufacturing, wholesale, warehouse, property, and more.",
 };
 
 export default function IndustriesPage() {
   return (
     <>
-      <Section className="!pb-10 !pt-12 md:!pt-16">
-        <Container>
+      <Section className="relative !pb-8 !pt-12 md:!pt-16 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(37,99,235,0.08),transparent_70%)]" />
+        <Container className="relative">
           <Breadcrumbs items={[{ label: "Industries" }]} />
-          <SectionHeader
-            align="left"
-            eyebrow="Business profiles"
-            title="Software shaped by real industry workflows"
-            description="Every profile comes from WaamTech SaaS Core — modules, feature packs, workflows, and KPIs pre-mapped for your business type."
-            className="mb-0 max-w-3xl"
-          />
+          <AnimateIn>
+            <div className="mx-auto max-w-3xl text-center mb-6">
+              <p className="mb-3 text-sm font-medium tracking-wide text-primary uppercase">
+                Industries we serve
+              </p>
+              <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
+                Built for the businesses inside our SaaS Core
+              </h1>
+              <p className="mt-5 text-lg text-muted-foreground leading-relaxed">
+                Every industry below is a real business profile from WaamTech SaaS Core — with modules,
+                feature packs, workflows, and KPIs pre-mapped for how you operate.
+              </p>
+              <p className="mt-4 text-sm font-medium text-[#0b1f3a]">
+                {industriesServing.length} industries · Retail to manufacturing · Services to supply chain
+              </p>
+            </div>
+          </AnimateIn>
         </Container>
       </Section>
 
-      <Section muted className="!pt-10">
+      <Section muted className="!pt-4">
         <Container>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {coreBusinesses.map((biz, i) => {
-              const Icon = getIcon(biz.icon);
-              return (
-                <div key={biz.id} id={biz.id}>
-                  <AnimateIn delay={(i % 4) * 0.04}>
-                    <Card className="h-full hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
-                      <CardHeader>
-                        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary">
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <CardTitle className="text-base">{biz.name}</CardTitle>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{biz.description}</p>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-1.5">
-                          {biz.modules.map((m) => (
-                            <Badge key={m} variant="outline">
-                              {m}
-                            </Badge>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </AnimateIn>
-                </div>
-              );
-            })}
+          <IndustriesGallery />
+        </Container>
+      </Section>
+
+      <Section>
+        <Container>
+          <SectionHeader
+            eyebrow="How it works"
+            title="Pick a profile. Activate the right stack."
+            description="When you choose an industry, WaamTech recommends modules, feature packs, POS layouts, dashboards, and automations — so go-live is faster and cleaner."
+          />
+          <div className="grid gap-5 md:grid-cols-3">
+            {[
+              {
+                step: "01",
+                title: "Choose your industry",
+                text: "Select from 30+ SaaS Core business profiles — pharmacy, retail, restaurant, wholesale, and more.",
+              },
+              {
+                step: "02",
+                title: "Get the module map",
+                text: "Inventory, POS, Sales, Finance, HR, Manufacturing — only what your profile needs.",
+              },
+              {
+                step: "03",
+                title: "Turn on feature packs",
+                text: "Batch, expiry, kitchen, IMEI, route delivery, rentals — capability without custom chaos.",
+              },
+            ].map((item) => (
+              <div
+                key={item.step}
+                className="rounded-3xl border border-border bg-white p-6 md:p-8 shadow-sm"
+              >
+                <p className="text-sm font-semibold text-primary">{item.step}</p>
+                <h3 className="mt-3 text-xl font-semibold tracking-tight">{item.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{item.text}</p>
+              </div>
+            ))}
           </div>
         </Container>
       </Section>
 
       <CTASection
-        title="Don't see your industry?"
-        description="Enterprise deployments can be tailored with custom feature packs and module combinations."
-        primaryLabel="Contact sales"
+        title="Ready for your industry profile?"
+        description="We'll map WaamTech to your business type and show a clear path from pilot to production."
+        primaryLabel="Talk to sales"
         primaryHref="/contact?intent=industry"
         secondaryLabel="Explore modules"
         secondaryHref="/products"

@@ -5,6 +5,7 @@ import {
   Building,
   Building2,
   Car,
+  Coffee,
   Cog,
   Cpu,
   Factory,
@@ -46,6 +47,7 @@ const iconMap: Record<string, LucideIcon> = {
   Building,
   Building2,
   Car,
+  Coffee,
   Cog,
   Cpu,
   Factory,
@@ -77,11 +79,11 @@ const iconMap: Record<string, LucideIcon> = {
   Wallet,
   Warehouse,
   Zap,
-  // aliases used by SaaS Core profile icons
   store: Store,
   pill: Pill,
   utensils: UtensilsCrossed,
   briefcase: Boxes,
+  coffee: Coffee,
 };
 
 export function getIcon(name: string): LucideIcon {

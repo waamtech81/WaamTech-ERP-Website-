@@ -1,16 +1,103 @@
 "use client";
 
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { Boxes } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Boxes, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { siteConfig } from "@/lib/data/site";
+import { authConfig, buildHandoffUrl } from "@/lib/auth/config";
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const prefill = searchParams.get("username") || searchParams.get("email") || "";
+  const registered = searchParams.get("registered") === "1";
+
+  const [username, setUsername] = useState(prefill);
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState(
+    registered ? "Account created. Please log in to open your WaamTech app." : ""
+  );
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotMsg, setForgotMsg] = useState("");
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setInfo("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const json = await res.json();
+
+      if (!json.success) {
+        setError(json.message || "Login failed.");
+        setLoading(false);
+        return;
+      }
+
+      if (json.requiresSecurity) {
+        // 2FA — send user to the app login which supports full security challenge UI
+        setInfo("Extra security is enabled on your account. Continue in the WaamTech app.");
+        window.location.assign(
+          `${authConfig.appUrl.replace(/\/+$/, "")}/login?username=${encodeURIComponent(username)}`
+        );
+        return;
+      }
+
+      const accessToken = json.data?.accessToken as string | undefined;
+      const refreshToken = json.data?.refreshToken as string | undefined;
+
+      if (accessToken && refreshToken) {
+        if (remember) {
+          try {
+            localStorage.setItem("waamtech_last_user", username);
+          } catch {
+            /* ignore */
+          }
+        }
+        const url = buildHandoffUrl({
+          accessToken,
+          refreshToken,
+          user: json.data?.user || { username },
+        });
+        window.location.assign(url);
+        return;
+      }
+
+      setError("Login succeeded but no session tokens were returned. Please try the app login.");
+      setLoading(false);
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  function onForgot(e: React.FormEvent) {
+    e.preventDefault();
+    if (!forgotEmail) {
+      setForgotMsg("Enter your email first.");
+      return;
+    }
+    // Password reset lives in the SaaS app — deep-link there
+    setForgotMsg("Opening WaamTech app password recovery...");
+    window.location.assign(
+      `${authConfig.appUrl.replace(/\/+$/, "")}/login?forgot=1&email=${encodeURIComponent(forgotEmail)}`
+    );
+  }
+
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
@@ -26,70 +113,115 @@ export default function LoginPage() {
               </span>
             </Link>
             <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>Log in to your WaamTech workspace.</CardDescription>
+            <CardDescription>
+              Log in and continue into your WaamTech workspace.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3 mb-6">
-              <Button variant="outline" type="button" className="w-full">
-                Continue with Google
-              </Button>
-              <Button variant="outline" type="button" className="w-full">
-                Continue with Microsoft
-              </Button>
-            </div>
-            <div className="relative mb-6">
-              <Separator />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-xs text-muted-foreground">
-                or email
-              </span>
-            </div>
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-4" onSubmit={onSubmit}>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="alex@company.com" required />
+                <Label htmlFor="username">Email or username</Label>
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="alex@company.com"
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link href="/login#forgot" className="text-xs text-primary hover:underline">
+                  <a href="#forgot" className="text-xs text-primary hover:underline">
                     Forgot password?
-                  </Link>
+                  </a>
                 </div>
-                <Input id="password" type="password" placeholder="••••••••" required />
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
               </div>
               <div className="flex items-center gap-2">
-                <Checkbox id="remember" />
+                <Checkbox
+                  id="remember"
+                  checked={remember}
+                  onCheckedChange={(v) => setRemember(v === true)}
+                />
                 <Label htmlFor="remember" className="text-sm font-normal text-muted-foreground">
                   Remember me
                 </Label>
               </div>
-              <Button type="submit" className="w-full" size="lg">
-                Log in
+
+              {error ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {error}
+                </div>
+              ) : null}
+              {info ? (
+                <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                  {info}
+                </div>
+              ) : null}
+
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Log in to WaamTech"
+                )}
               </Button>
             </form>
 
             <div id="forgot" className="mt-8 rounded-2xl border border-border bg-muted p-4">
               <p className="text-sm font-medium">Forgot password</p>
               <p className="mt-1 text-xs text-muted-foreground mb-3">
-                Enter your email and we&apos;ll send a reset link.
+                We&apos;ll open password recovery in the WaamTech app.
               </p>
-              <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
-                <Input type="email" placeholder="Work email" className="bg-white" />
+              <form className="flex gap-2" onSubmit={onForgot}>
+                <Input
+                  type="email"
+                  placeholder="Work email"
+                  className="bg-white"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                />
                 <Button type="submit" variant="outline">
-                  Send
+                  Continue
                 </Button>
               </form>
+              {forgotMsg ? <p className="mt-2 text-xs text-muted-foreground">{forgotMsg}</p> : null}
             </div>
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               New to WaamTech?{" "}
               <Link href="/signup" className="text-primary font-medium hover:underline">
-                Create an account
+                Start {authConfig.trialDays}-day free trial
               </Link>
             </p>
           </CardContent>
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
+          Loading login...
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

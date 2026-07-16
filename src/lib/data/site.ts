@@ -425,7 +425,7 @@ export const faqs: FaqItem[] = [
     id: "3",
     question: "Is there a free trial?",
     answer:
-      "Yes. Starter, Professional, and Business plans include a free trial so your team can evaluate workflows before committing.",
+      "Yes. New workspaces start with a 14-day free trial. Pick your business profile at signup — no credit card required to begin.",
     category: "Billing",
   },
   {

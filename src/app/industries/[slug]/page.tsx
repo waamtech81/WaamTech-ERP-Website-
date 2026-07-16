@@ -8,6 +8,7 @@ import {
   industriesServing,
   industryCategories,
 } from "@/lib/data/industries";
+import { getIndustryDetails } from "@/lib/data/industry-details";
 import { getIcon } from "@/lib/icons";
 import { Container, Section } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
@@ -15,6 +16,7 @@ import { AnimateIn } from "@/components/shared/animate-in";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { authConfig } from "@/lib/auth/config";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -38,11 +40,13 @@ export default async function IndustryDetailPage({ params }: Props) {
   if (!industry) notFound();
 
   const Icon = getIcon(industry.icon);
+  const details = getIndustryDetails(industry.id);
   const categoryLabel =
     industryCategories.find((c) => c.id === industry.category)?.label ?? industry.category;
   const related = industriesServing
     .filter((i) => i.category === industry.category && i.id !== industry.id)
     .slice(0, 3);
+  const trialDays = authConfig.trialDays;
 
   return (
     <>
@@ -90,8 +94,8 @@ export default async function IndustryDetailPage({ params }: Props) {
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <Button asChild size="lg" className="rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100">
-                  <Link href="/signup">
-                    Start free trial
+                  <Link href={`/signup?profile=${industry.id}`}>
+                    Start {trialDays}-day free trial
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -116,6 +120,9 @@ export default async function IndustryDetailPage({ params }: Props) {
               <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="text-2xl">Why {industry.name} teams choose WaamTech</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Simple tools that match how your business actually works.
+                  </p>
                 </CardHeader>
                 <CardContent>
                   <ul className="grid gap-3 sm:grid-cols-2">
@@ -157,14 +164,67 @@ export default async function IndustryDetailPage({ params }: Props) {
                     <p className="font-medium">{industry.featurePacks.length} capability packs</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Profile ID</p>
-                    <p className="font-mono text-xs bg-muted rounded-lg px-2 py-1.5 inline-block">
-                      {industry.id}
-                    </p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Free trial</p>
+                    <p className="font-medium">{trialDays} days included</p>
                   </div>
                 </CardContent>
               </Card>
             </AnimateIn>
+          </div>
+        </Container>
+      </Section>
+
+      <Section muted>
+        <Container>
+          <div className="mb-10 max-w-2xl">
+            <p className="text-sm font-medium text-primary uppercase tracking-wide mb-2">Features</p>
+            <h2 className="text-3xl font-semibold tracking-tight text-[#0b1f3a]">
+              Everything {industry.name} needs — without the clutter
+            </h2>
+            <p className="mt-3 text-muted-foreground leading-relaxed">
+              Built from our SaaS Core profile for {industry.name.toLowerCase()}. Clear features your team
+              can use from day one.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {details.features.map((feature, i) => (
+              <div
+                key={feature}
+                className="rounded-2xl border border-border bg-white p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-300"
+              >
+                <span
+                  className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
+                  style={{ backgroundColor: industry.color }}
+                >
+                  {i + 1}
+                </span>
+                <p className="text-sm font-medium text-[#0b1f3a] leading-relaxed">{feature}</p>
+              </div>
+            ))}
+          </div>
+        </Container>
+      </Section>
+
+      <Section>
+        <Container>
+          <div className="mb-10 max-w-2xl">
+            <p className="text-sm font-medium text-primary uppercase tracking-wide mb-2">Results</p>
+            <h2 className="text-3xl font-semibold tracking-tight text-[#0b1f3a]">
+              What you get in practice
+            </h2>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            {details.outcomes.map((outcome) => (
+              <Card key={outcome} className="h-full border-border/80">
+                <CardContent className="pt-6">
+                  <div
+                    className="mb-4 h-1.5 w-10 rounded-full"
+                    style={{ backgroundColor: industry.color }}
+                  />
+                  <p className="text-base font-medium text-[#0b1f3a] leading-relaxed">{outcome}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </Container>
       </Section>
@@ -268,7 +328,9 @@ export default async function IndustryDetailPage({ params }: Props) {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
               <Button asChild size="lg" className="rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100">
-                <Link href={`/signup?profile=${industry.id}`}>Use this profile</Link>
+                <Link href={`/signup?profile=${industry.id}`}>
+                  Start {trialDays}-day free trial
+                </Link>
               </Button>
               <Button
                 asChild

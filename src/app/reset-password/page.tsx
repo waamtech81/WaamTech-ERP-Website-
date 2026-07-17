@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { siteConfig } from "@/lib/data/site";
 
 const rules = [
   { id: "length", label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -97,7 +96,11 @@ function ResetPasswordForm() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Request a new link, or contact {siteConfig.supportEmail} if you need help.
+                Request a new link, or use the{" "}
+                <Link href="/contact" className="text-primary hover:underline">
+                  contact form
+                </Link>{" "}
+                if you need help.
               </p>
               <Button asChild className="w-full rounded-full">
                 <Link href="/forgot-password">Request reset link</Link>

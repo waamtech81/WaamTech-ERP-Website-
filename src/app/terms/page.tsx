@@ -34,7 +34,11 @@ export default function TermsPage() {
           </p>
           <h2 className="text-xl font-semibold text-foreground">Contact</h2>
           <p>
-            Questions about these Terms can be sent to {siteConfig.email}.
+            Questions about these Terms can be sent through our{" "}
+            <a href="/contact" className="text-primary hover:underline">
+              secure contact form
+            </a>
+            .
           </p>
         </div>
       </Container>

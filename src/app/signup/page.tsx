@@ -18,19 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  getBusinessCategory,
-  getBusinessIndustry,
-  getCategoriesForIndustry,
-  getFeaturedIndustries,
-  getIndustryForCategory,
-  getIndustryLucideIcon,
-  hierarchyStats,
-  resolveBusinessCategoryId,
-  type BusinessIndustry,
-} from "@/lib/data/business-hierarchy";
 import { authConfig, getAppLoginUrl } from "@/lib/auth/config";
-import { MobileAppProfileCallout } from "@/components/shared/mobile-app-callout";
 import { useLocale } from "@/components/providers/locale-provider";
 import {
   COUNTRIES,
@@ -41,12 +29,15 @@ import {
 } from "@/lib/data/countries";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-
-const plans = [
-  { id: "starter", name: "Starter" },
-  { id: "professional", name: "Professional" },
-  { id: "business", name: "Business" },
-];
+import {
+  useCatalogBusinessCategories,
+  useCatalogBusinessProfiles,
+  useCatalogIndustries,
+  useCatalogPlans,
+  useCatalogProducts,
+} from "@/hooks/use-commercial";
+import { CatalogLoadingInline } from "@/components/commercial/catalog-states";
+import { industryDisplayIcon } from "@/lib/commercial/mappers";
 
 type StrengthRule = { id: string; label: string; test: (v: string) => boolean };
 
@@ -57,10 +48,6 @@ const passwordRules: StrengthRule[] = [
   { id: "number", label: "One number", test: (v) => /\d/.test(v) },
   { id: "special", label: "One special character (!@#$…)", test: (v) => /[^A-Za-z0-9]/.test(v) },
 ];
-
-function orderedIndustries(): BusinessIndustry[] {
-  return getFeaturedIndustries().all;
-}
 
 function FancySelect({
   label,
@@ -162,21 +149,13 @@ function FancySelect({
 function SignUpForm() {
   const searchParams = useSearchParams();
   const { country: detectedCountry } = useLocale();
-  const defaultCategoryId = resolveBusinessCategoryId(
-    searchParams.get("profile") || searchParams.get("category") || ""
-  );
-  const defaultIndustryFromQuery = searchParams.get("industry");
-  const hasPrefill =
-    Boolean(defaultIndustryFromQuery && getBusinessIndustry(defaultIndustryFromQuery)) ||
-    Boolean(searchParams.get("profile") || searchParams.get("category"));
 
-  const defaultIndustryId = hasPrefill
-    ? defaultIndustryFromQuery && getBusinessIndustry(defaultIndustryFromQuery)
-      ? defaultIndustryFromQuery
-      : getIndustryForCategory(defaultCategoryId)?.id || ""
-    : "";
-
-  const defaultPlan = searchParams.get("plan") || "professional";
+  const defaultProductSlug = searchParams.get("product") || "";
+  const defaultPlanSlug = searchParams.get("plan") || "";
+  const defaultPlanId = searchParams.get("plan_id") || "";
+  const defaultIndustryId = searchParams.get("industry") || "";
+  const defaultCategoryId = searchParams.get("category") || "";
+  const defaultProfileId = searchParams.get("profile") || "";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -198,11 +177,13 @@ function SignUpForm() {
     detectedCountry && getCountryByCode(detectedCountry) ? detectedCountry.toUpperCase() : ""
   );
   const [countrySearch, setCountrySearch] = useState("");
+  const [productId, setProductId] = useState("");
+  const [productSlug, setProductSlug] = useState(defaultProductSlug);
+  const [planId, setPlanId] = useState(defaultPlanId);
+  const [planSlug, setPlanSlug] = useState(defaultPlanSlug);
   const [industryId, setIndustryId] = useState(defaultIndustryId);
-  const [categoryId, setCategoryId] = useState(
-    searchParams.get("profile") || searchParams.get("category") ? defaultCategoryId : ""
-  );
-  const [plan, setPlan] = useState(defaultPlan);
+  const [categoryId, setCategoryId] = useState(defaultCategoryId);
+  const [profileId, setProfileId] = useState(defaultProfileId);
   const [agree, setAgree] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -218,12 +199,24 @@ function SignUpForm() {
   const [honeypot, setHoneypot] = useState("");
   const [formStartedAt] = useState(() => Date.now());
   const [openSelect, setOpenSelect] = useState<
-    "country" | "phoneDial" | "industry" | "category" | "plan" | null
+    | "country"
+    | "phoneDial"
+    | "product"
+    | "plan"
+    | "industry"
+    | "category"
+    | "profile"
+    | null
   >(null);
   const countryTouchedRef = useRef(false);
   const phoneDialTouchedRef = useRef(false);
 
-  const industries = useMemo(() => orderedIndustries(), []);
+  const productsQuery = useCatalogProducts();
+  const plansQuery = useCatalogPlans(productSlug || null);
+  const industriesQuery = useCatalogIndustries();
+  const categoriesQuery = useCatalogBusinessCategories(industryId || null);
+  const profilesQuery = useCatalogBusinessProfiles(categoryId || null);
+
   const countryOptions = useMemo(() => {
     const q = countrySearch.trim().toLowerCase();
     if (!q) return COUNTRIES;
@@ -252,23 +245,65 @@ function SignUpForm() {
     () => getCountryByCode(phoneDialCode) || getCountryByCode("PK"),
     [phoneDialCode]
   );
-  const categoryOptions = useMemo(
-    () => (industryId ? getCategoriesForIndustry(industryId) : []),
-    [industryId]
+
+  const signupPlans = useMemo(
+    () =>
+      plansQuery.data.filter(
+        (p) =>
+          !p.contact_sales &&
+          p.pricing_type !== "custom" &&
+          String(p.tier || p.slug).toLowerCase() !== "enterprise"
+      ),
+    [plansQuery.data]
   );
 
-  const selectedIndustry = useMemo(
-    () => (industryId ? getBusinessIndustry(industryId) : undefined),
-    [industryId]
-  );
-  const selectedCategory = useMemo(
-    () => (categoryId ? getBusinessCategory(categoryId) : undefined),
-    [categoryId]
+  const selectedProduct = useMemo(
+    () => productsQuery.data.find((p) => p.id === productId || p.slug === productSlug),
+    [productsQuery.data, productId, productSlug]
   );
   const selectedPlan = useMemo(
-    () => plans.find((p) => p.id === plan) || plans[1],
-    [plan]
+    () => signupPlans.find((p) => p.id === planId || p.slug === planSlug),
+    [signupPlans, planId, planSlug]
   );
+  const selectedIndustry = useMemo(
+    () => industriesQuery.data.find((i) => i.id === industryId),
+    [industriesQuery.data, industryId]
+  );
+  const selectedCategory = useMemo(
+    () => categoriesQuery.data.find((c) => c.id === categoryId),
+    [categoriesQuery.data, categoryId]
+  );
+  const selectedProfile = useMemo(
+    () => profilesQuery.data.find((p) => p.id === profileId),
+    [profilesQuery.data, profileId]
+  );
+
+  useEffect(() => {
+    if (!productsQuery.data.length) return;
+    if (productId && productsQuery.data.some((p) => p.id === productId)) return;
+    const fromSlug = defaultProductSlug
+      ? productsQuery.data.find((p) => p.slug === defaultProductSlug)
+      : null;
+    const next = fromSlug || productsQuery.data[0];
+    if (next) {
+      setProductId(next.id);
+      setProductSlug(next.slug);
+    }
+  }, [productsQuery.data, productId, defaultProductSlug]);
+
+  useEffect(() => {
+    if (!signupPlans.length) return;
+    if (planId && signupPlans.some((p) => p.id === planId)) return;
+    const fromSlug = planSlug
+      ? signupPlans.find((p) => p.slug === planSlug)
+      : null;
+    const business = signupPlans.find((p) => p.slug === "business" || p.tier === "business");
+    const next = fromSlug || business || signupPlans[0];
+    if (next) {
+      setPlanId(next.id);
+      setPlanSlug(next.slug);
+    }
+  }, [signupPlans, planId, planSlug]);
 
   const ruleStatus = useMemo(
     () => passwordRules.map((r) => ({ ...r, ok: r.test(password) })),
@@ -279,10 +314,18 @@ function SignUpForm() {
 
   useEffect(() => {
     if (!industryId) return;
-    if (categoryId && !categoryOptions.some((c) => c.id === categoryId)) {
+    if (categoryId && !categoriesQuery.data.some((c) => c.id === categoryId)) {
       setCategoryId("");
+      setProfileId("");
     }
-  }, [categoryOptions, categoryId, industryId]);
+  }, [categoriesQuery.data, categoryId, industryId]);
+
+  useEffect(() => {
+    if (!categoryId) return;
+    if (profileId && !profilesQuery.data.some((p) => p.id === profileId)) {
+      setProfileId("");
+    }
+  }, [profilesQuery.data, profileId, categoryId]);
 
   useEffect(() => {
     const detected = detectedCountry?.toUpperCase();
@@ -313,10 +356,25 @@ function SignUpForm() {
     };
   }, [openSelect]);
 
+  function onProductSelect(nextId: string, nextSlug: string) {
+    setProductId(nextId);
+    setProductSlug(nextSlug);
+    setPlanId("");
+    setPlanSlug("");
+    setOpenSelect("plan");
+  }
+
   function onIndustrySelect(nextIndustryId: string) {
     setIndustryId(nextIndustryId);
     setCategoryId("");
+    setProfileId("");
     setOpenSelect("category");
+  }
+
+  function onCategorySelect(nextCategoryId: string) {
+    setCategoryId(nextCategoryId);
+    setProfileId("");
+    setOpenSelect("profile");
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -339,6 +397,16 @@ function SignUpForm() {
       return;
     }
 
+    if (!productId) {
+      setError("Please choose a product.");
+      return;
+    }
+
+    if (!planId || !planSlug) {
+      setError("Please choose a plan.");
+      return;
+    }
+
     if (!industryId) {
       setError("Please choose an industry.");
       return;
@@ -346,6 +414,11 @@ function SignUpForm() {
 
     if (!categoryId) {
       setError("Please select a business category.");
+      return;
+    }
+
+    if (!profileId) {
+      setError("Please select a business profile.");
       return;
     }
 
@@ -385,10 +458,14 @@ function SignUpForm() {
           phone_country_code: selectedPhoneDial?.code || phoneDialCode || undefined,
           company_name: companyName,
           country: countryCode,
-          profile_id: categoryId,
-          business_category_id: categoryId,
+          product_id: productId,
+          product_slug: productSlug,
+          plan_id: planId,
+          plan: planSlug,
           industry_id: industryId,
-          plan,
+          category_id: categoryId,
+          business_category_id: categoryId,
+          profile_id: profileId,
           marketing_opt_in: marketingOptIn,
           website: honeypot,
           _t: formStartedAt,
@@ -643,16 +720,15 @@ function SignUpForm() {
             Create your workspace in minutes
           </h1>
           <p className="mt-3 sm:mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
-            Choose your industry and business category, then verify your email to start
-            your trial — {hierarchyStats.industries} industries · {hierarchyStats.categories}+
-            categories.
+            Select product → plan → industry → category → profile from the License Engine catalog,
+            then verify your email to start your trial.
           </p>
           <ul className="mt-6 sm:mt-8 space-y-3 text-sm text-muted-foreground">
             {[
               `${authConfig.trialDays}-day free trial after email verification`,
-              "Industry → business category auto-provisions modules",
+              "All commercial selections come from License Engine (SSOT)",
               "Responsive web on desktop, tablet & phone",
-              "Native mobile app when your category needs field work",
+              "Enterprise plans use Contact Sales — never fixed pricing",
             ].map((item) => (
               <li key={item} className="flex gap-2">
                 <span className="mt-2 h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
@@ -660,23 +736,19 @@ function SignUpForm() {
               </li>
             ))}
           </ul>
-          {selectedIndustry && selectedCategory ? (
+          {selectedProduct && selectedPlan && selectedIndustry && selectedCategory && selectedProfile ? (
             <div className="mt-6 sm:mt-8 space-y-4 hidden lg:block">
               <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Selected profile
+                  Selected commercial profile
                 </p>
-                <p className="mt-1 font-semibold text-[#0b1f3a]">
-                  {selectedIndustry.name}
-                  <span className="mx-2 text-muted-foreground font-normal">→</span>
-                  {selectedCategory.name}
+                <p className="mt-1 font-semibold text-[#0b1f3a] text-sm leading-relaxed">
+                  {selectedProduct.name} · {selectedPlan.name}
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">{selectedIndustry.description}</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {selectedIndustry.name} → {selectedCategory.name} → {selectedProfile.name}
+                </p>
               </div>
-              <MobileAppProfileCallout
-                industryId={selectedCategory.id}
-                industryName={selectedCategory.name}
-              />
             </div>
           ) : null}
         </div>
@@ -689,22 +761,19 @@ function SignUpForm() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {selectedIndustry && selectedCategory ? (
+            {selectedProduct && selectedPlan && selectedIndustry && selectedCategory && selectedProfile ? (
               <div className="mb-5 space-y-4 lg:hidden">
                 <div className="rounded-2xl border border-border bg-slate-50 p-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Selected profile
+                    Selected commercial profile
                   </p>
-                  <p className="mt-1 font-semibold text-[#0b1f3a]">
-                    {selectedIndustry.name}
-                    <span className="mx-2 text-muted-foreground font-normal">→</span>
-                    {selectedCategory.name}
+                  <p className="mt-1 font-semibold text-[#0b1f3a] text-sm">
+                    {selectedProduct.name} · {selectedPlan.name}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {selectedIndustry.name} → {selectedCategory.name} → {selectedProfile.name}
                   </p>
                 </div>
-                <MobileAppProfileCallout
-                  industryId={selectedCategory.id}
-                  industryName={selectedCategory.name}
-                />
               </div>
             ) : null}
             <form className="relative space-y-5" onSubmit={onSubmit}>
@@ -939,16 +1008,126 @@ function SignUpForm() {
               </FancySelect>
 
               <FancySelect
+                label="Product"
+                placeholder="Select a product"
+                valueLabel={selectedProduct?.name}
+                open={openSelect === "product"}
+                onToggle={() => setOpenSelect((v) => (v === "product" ? null : "product"))}
+                onClose={() => setOpenSelect(null)}
+                required
+              >
+                <ul className="max-h-64 overflow-y-auto p-1.5">
+                  {productsQuery.loading ? (
+                    <li className="px-3 py-4">
+                      <CatalogLoadingInline label="Loading products…" />
+                    </li>
+                  ) : null}
+                  {productsQuery.error ? (
+                    <li className="px-3 py-4 text-sm text-rose-600">{productsQuery.error}</li>
+                  ) : null}
+                  {productsQuery.data.map((prod) => {
+                    const selected = productId === prod.id;
+                    return (
+                      <li key={prod.id}>
+                        <button
+                          type="button"
+                          onClick={() => onProductSelect(prod.id, prod.slug)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors",
+                            selected ? "bg-primary/8 text-primary" : "hover:bg-muted"
+                          )}
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-medium truncate">{prod.name}</span>
+                            <span className="block text-[11px] text-muted-foreground truncate">
+                              {prod.description || prod.slug}
+                            </span>
+                          </span>
+                          {selected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </FancySelect>
+
+              <FancySelect
+                label="Plan"
+                placeholder="Select a plan"
+                valueLabel={
+                  selectedPlan ? (
+                    <span className="flex items-center gap-2 truncate">
+                      <span className="truncate">{selectedPlan.name}</span>
+                      {selectedPlan.has_free_trial ? (
+                        <span className="shrink-0 text-muted-foreground font-normal">
+                          {selectedPlan.trial_days || authConfig.trialDays}-day trial
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : undefined
+                }
+                open={openSelect === "plan"}
+                onToggle={() => setOpenSelect((v) => (v === "plan" ? null : "plan"))}
+                onClose={() => setOpenSelect(null)}
+                required
+                disabled={!productId}
+              >
+                <ul className="max-h-64 overflow-y-auto p-1.5">
+                  {plansQuery.loading ? (
+                    <li className="px-3 py-4">
+                      <CatalogLoadingInline label="Loading plans…" />
+                    </li>
+                  ) : null}
+                  {!plansQuery.loading && signupPlans.length === 0 ? (
+                    <li className="px-3 py-4 text-sm text-muted-foreground">
+                      No self-serve plans for this product. Enterprise requires Contact Sales.
+                    </li>
+                  ) : null}
+                  {signupPlans.map((p) => {
+                    const selected = planId === p.id;
+                    return (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlanId(p.id);
+                            setPlanSlug(p.slug);
+                            setOpenSelect("industry");
+                          }}
+                          className={cn(
+                            "flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm transition-colors",
+                            selected ? "bg-primary/8 text-primary" : "hover:bg-muted"
+                          )}
+                        >
+                          <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
+                          {selected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </FancySelect>
+
+              <FancySelect
                 label="Choose industry"
                 placeholder="Select your industry"
                 valueLabel={selectedIndustry?.name}
                 open={openSelect === "industry"}
                 onToggle={() => setOpenSelect((v) => (v === "industry" ? null : "industry"))}
                 onClose={() => setOpenSelect(null)}
+                required
               >
                 <ul className="max-h-64 overflow-y-auto p-1.5">
-                  {industries.map((ind) => {
-                    const Icon = getIcon(getIndustryLucideIcon(ind));
+                  {industriesQuery.loading ? (
+                    <li className="px-3 py-4">
+                      <CatalogLoadingInline label="Loading industries…" />
+                    </li>
+                  ) : null}
+                  {industriesQuery.error ? (
+                    <li className="px-3 py-4 text-sm text-rose-600">{industriesQuery.error}</li>
+                  ) : null}
+                  {industriesQuery.data.map((ind) => {
+                    const Icon = getIcon(industryDisplayIcon(ind));
                     const selected = industryId === ind.id;
                     return (
                       <li key={ind.id}>
@@ -960,16 +1139,13 @@ function SignUpForm() {
                             selected ? "bg-primary/8 text-primary" : "hover:bg-muted"
                           )}
                         >
-                          <span
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
-                            style={{ backgroundColor: ind.color }}
-                          >
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
                             <Icon className="h-3.5 w-3.5" />
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm font-medium truncate">{ind.name}</span>
-                            <span className="block text-[11px] text-muted-foreground">
-                              {getCategoriesForIndustry(ind.id).length} categories
+                            <span className="block text-[11px] text-muted-foreground truncate">
+                              {ind.description || ind.code}
                             </span>
                           </span>
                           {selected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
@@ -988,18 +1164,26 @@ function SignUpForm() {
                   open={openSelect === "category"}
                   onToggle={() => setOpenSelect((v) => (v === "category" ? null : "category"))}
                   onClose={() => setOpenSelect(null)}
+                  required
                 >
                   <ul className="max-h-64 overflow-y-auto p-1.5">
-                    {categoryOptions.map((cat) => {
+                    {categoriesQuery.loading ? (
+                      <li className="px-3 py-4">
+                        <CatalogLoadingInline label="Loading categories…" />
+                      </li>
+                    ) : null}
+                    {!categoriesQuery.loading && categoriesQuery.data.length === 0 ? (
+                      <li className="px-3 py-4 text-sm text-muted-foreground">
+                        No categories for this industry.
+                      </li>
+                    ) : null}
+                    {categoriesQuery.data.map((cat) => {
                       const selected = categoryId === cat.id;
                       return (
                         <li key={cat.id}>
                           <button
                             type="button"
-                            onClick={() => {
-                              setCategoryId(cat.id);
-                              setOpenSelect(null);
-                            }}
+                            onClick={() => onCategorySelect(cat.id)}
                             className={cn(
                               "flex w-full items-start gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors",
                               selected ? "bg-primary/8 text-primary" : "hover:bg-muted"
@@ -1018,8 +1202,7 @@ function SignUpForm() {
                             <span className="min-w-0 flex-1">
                               <span className="block text-sm font-medium">{cat.name}</span>
                               <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                                POS {cat.pos_mode}
-                                {cat.mobile_mode === "required" ? " · Mobile included" : ""}
+                                {cat.description || cat.code}
                               </span>
                             </span>
                           </button>
@@ -1030,60 +1213,65 @@ function SignUpForm() {
                 </FancySelect>
               ) : null}
 
-              {selectedCategory ? (
-                <div className="lg:hidden">
-                  <MobileAppProfileCallout
-                    industryId={selectedCategory.id}
-                    industryName={selectedCategory.name}
-                    compact
-                  />
-                </div>
-              ) : null}
-
-              <FancySelect
-                label="Preferred plan"
-                placeholder="Select a plan"
-                valueLabel={
-                  selectedPlan ? (
-                    <span className="flex items-center gap-2 truncate">
-                      <span className="truncate">{selectedPlan.name}</span>
-                      <span className="shrink-0 text-muted-foreground font-normal">
-                        {authConfig.trialDays}-day trial
-                      </span>
-                    </span>
-                  ) : undefined
-                }
-                open={openSelect === "plan"}
-                onToggle={() => setOpenSelect((v) => (v === "plan" ? null : "plan"))}
-                onClose={() => setOpenSelect(null)}
-              >
-                <ul className="max-h-64 overflow-y-auto p-1.5">
-                  {plans.map((p) => {
-                    const selected = plan === p.id;
-                    return (
-                      <li key={p.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPlan(p.id);
-                            setOpenSelect(null);
-                          }}
-                          className={cn(
-                            "flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm transition-colors",
-                            selected ? "bg-primary/8 text-primary" : "hover:bg-muted"
-                          )}
-                        >
-                          <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
-                          <span className="shrink-0 text-muted-foreground">
-                            {authConfig.trialDays}-day trial
-                          </span>
-                          {selected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
-                        </button>
+              {categoryId ? (
+                <FancySelect
+                  label="Business profile"
+                  placeholder="Select business profile"
+                  valueLabel={selectedProfile?.name}
+                  open={openSelect === "profile"}
+                  onToggle={() => setOpenSelect((v) => (v === "profile" ? null : "profile"))}
+                  onClose={() => setOpenSelect(null)}
+                  required
+                >
+                  <ul className="max-h-64 overflow-y-auto p-1.5">
+                    {profilesQuery.loading ? (
+                      <li className="px-3 py-4">
+                        <CatalogLoadingInline label="Loading profiles…" />
                       </li>
-                    );
-                  })}
-                </ul>
-              </FancySelect>
+                    ) : null}
+                    {!profilesQuery.loading && profilesQuery.data.length === 0 ? (
+                      <li className="px-3 py-4 text-sm text-muted-foreground">
+                        No profiles for this category.
+                      </li>
+                    ) : null}
+                    {profilesQuery.data.map((prof) => {
+                      const selected = profileId === prof.id;
+                      return (
+                        <li key={prof.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileId(prof.id);
+                              setOpenSelect(null);
+                            }}
+                            className={cn(
+                              "flex w-full items-start gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors",
+                              selected ? "bg-primary/8 text-primary" : "hover:bg-muted"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                                selected
+                                  ? "border-primary bg-primary text-white"
+                                  : "border-slate-300 bg-white"
+                              )}
+                            >
+                              {selected ? <Check className="h-3 w-3" /> : null}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-medium">{prof.name}</span>
+                              <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                                {prof.description || prof.code}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </FancySelect>
+              ) : null}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -1243,7 +1431,17 @@ function SignUpForm() {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={loading || !countryCode || !categoryId || !passwordStrong || !passwordsMatch}
+                disabled={
+                  loading ||
+                  !countryCode ||
+                  !productId ||
+                  !planId ||
+                  !industryId ||
+                  !categoryId ||
+                  !profileId ||
+                  !passwordStrong ||
+                  !passwordsMatch
+                }
               >
                 {loading ? (
                   <>

@@ -548,4 +548,81 @@ html.portal-dark .portal-topbar {
   background: color-mix(in srgb, var(--portal-panel) 92%, transparent) !important;
 }
 
+/* ── WaamTech custom trust badges (original seals — not certifications) ── */
+.wt-trust-badge {
+  --wt-trust-ink: #0549a4;
+  --wt-trust-label: #0b1f3a;
+  --wt-trust-fill: rgba(255, 255, 255, 0.92);
+  --wt-trust-inner: rgba(5, 73, 164, 0.04);
+  --wt-trust-tooltip-bg: #ffffff;
+  --wt-trust-tooltip-border: #e2e8f0;
+  --wt-trust-tooltip-fg: #0b1f3a;
+  color: var(--wt-trust-ink);
+}
+
+.wt-trust-badge[data-tone="dark"] {
+  --wt-trust-ink: #93c5fd;
+  --wt-trust-label: #e2e8f0;
+  --wt-trust-fill: rgba(255, 255, 255, 0.04);
+  --wt-trust-inner: rgba(147, 197, 253, 0.06);
+  --wt-trust-tooltip-bg: #0d1626;
+  --wt-trust-tooltip-border: #1c2d45;
+  --wt-trust-tooltip-fg: #e8eef7;
+}
+
+.wt-trust-badge[data-tone="light"] {
+  --wt-trust-ink: #0549a4;
+  --wt-trust-label: #0b1f3a;
+  --wt-trust-fill: rgba(255, 255, 255, 0.95);
+  --wt-trust-inner: rgba(5, 73, 164, 0.04);
+}
+
+html.portal-dark .wt-trust-badge[data-tone="auto"] {
+  --wt-trust-ink: #93c5fd;
+  --wt-trust-label: #e2e8f0;
+  --wt-trust-fill: rgba(15, 23, 42, 0.55);
+  --wt-trust-inner: rgba(147, 197, 253, 0.08);
+  --wt-trust-tooltip-bg: #0d1626;
+  --wt-trust-tooltip-border: #1c2d45;
+  --wt-trust-tooltip-fg: #e8eef7;
+}
+
+.wt-trust-svg {
+  color: var(--wt-trust-ink);
+  overflow: visible;
+}
+
+.wt-trust-fill {
+  fill: var(--wt-trust-fill);
+}
+
+.wt-trust-inner {
+  fill: var(--wt-trust-inner);
+}
+
+.wt-trust-label-text {
+  fill: var(--wt-trust-label);
+}
+
+.wt-trust-caption {
+  color: var(--wt-trust-label);
+}
+
+.wt-trust-tooltip {
+  background: var(--wt-trust-tooltip-bg);
+  border-color: var(--wt-trust-tooltip-border);
+  color: var(--wt-trust-tooltip-fg);
+}
+
+.wt-trust-tooltip-arrow {
+  background: var(--wt-trust-tooltip-bg);
+  border-color: var(--wt-trust-tooltip-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-trust-badge {
+    transition: none !important;
+  }
+}
+
 

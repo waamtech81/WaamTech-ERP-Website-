@@ -85,8 +85,8 @@ export default function ProductsPage() {
               </thead>
               <tbody>
                 {comparisonFeatures.map((row) => (
-                  <tr key={row.name} className="border-b border-border last:border-0">
-                    <td className="px-5 py-4 font-medium">{row.name}</td>
+                  <tr key={String(row.name)} className="border-b border-border last:border-0">
+                    <td className="px-5 py-4 font-medium">{String(row.name)}</td>
                     {(["starter", "business", "lifetime", "enterprise"] as const).map((key) => {
                       const val = row[key];
                       return (

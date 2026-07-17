@@ -177,3 +177,102 @@ export async function sendNewsletterSubscriptionNotice(opts: {
     text: `New newsletter subscription\n\nEmail: ${email}\n\nSource: website footer`,
   });
 }
+
+const CONTACT_INBOX = process.env.CONTACT_INBOX || siteConfig.email;
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function contactHtml(data: {
+  name: string;
+  email: string;
+  company: string;
+  phone: string;
+  subject: string;
+  message: string;
+}) {
+  const safe = {
+    name: escapeHtml(data.name),
+    email: escapeHtml(data.email),
+    company: escapeHtml(data.company),
+    phone: escapeHtml(data.phone),
+    subject: escapeHtml(data.subject),
+    message: escapeHtml(data.message),
+  };
+  const rows = [
+    ["Name", safe.name],
+    ["Email", safe.email],
+    ["Company", safe.company],
+    ["Phone", safe.phone],
+    ["Subject", safe.subject],
+  ]
+    .map(
+      ([label, value]) =>
+        `<tr><td style="padding:8px 0;color:#64748b;font-size:13px;width:110px;">${label}</td><td style="padding:8px 0;color:#0b1f3a;font-size:14px;font-weight:600;">${value}</td></tr>`
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f7fb;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+          <tr>
+            <td style="background:#0b1f3a;padding:24px 28px;">
+              <div style="color:#ffffff;font-size:22px;font-weight:700;">${siteConfig.name}</div>
+              <div style="color:#93c5fd;font-size:13px;margin-top:4px;">Website contact form</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px;">
+              <h1 style="margin:0 0 16px;font-size:20px;color:#0b1f3a;">New contact message</h1>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${rows}</table>
+              <div style="margin-top:16px;padding:14px 16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">
+                <div style="color:#64748b;font-size:12px;margin-bottom:6px;">Message</div>
+                <div style="color:#0b1f3a;font-size:14px;line-height:1.6;white-space:pre-wrap;">${safe.message}</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+export async function sendContactFormMessage(opts: {
+  name: string;
+  email: string;
+  company: string;
+  phone: string;
+  subject: string;
+  message: string;
+}): Promise<SendResult> {
+  const email = opts.email.trim().toLowerCase();
+  return sendEmail({
+    to: CONTACT_INBOX,
+    replyTo: email,
+    subject: `Contact: ${opts.subject} — ${opts.name}`,
+    html: contactHtml(opts),
+    text: [
+      "New contact form message",
+      "",
+      `Name: ${opts.name}`,
+      `Email: ${email}`,
+      `Company: ${opts.company}`,
+      `Phone: ${opts.phone}`,
+      `Subject: ${opts.subject}`,
+      "",
+      opts.message,
+    ].join("\n"),
+  });
+}

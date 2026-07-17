@@ -10,6 +10,10 @@ export type TrialRegistrationInput = {
   country: string;
   profile_id: string;
   industry_id?: string;
+  category_id?: string;
+  product_id?: string;
+  product_slug?: string;
+  plan_id?: string;
   plan?: string;
   marketing_opt_in?: boolean;
 };
@@ -121,9 +125,13 @@ export async function startRegistrationOnLicenseServer(
       country: input.country,
       country_code: input.country,
       profile_id: input.profile_id,
-      business_category_id: input.profile_id,
       industry_id: input.industry_id,
-      plan: input.plan || "professional",
+      category_id: input.category_id,
+      business_category_id: input.category_id,
+      product_id: input.product_id,
+      product_slug: input.product_slug,
+      plan_id: input.plan_id,
+      plan: input.plan || undefined,
       marketing_opt_in: Boolean(input.marketing_opt_in),
       trial_days: authConfig.trialDays,
       source: "waamto-website",

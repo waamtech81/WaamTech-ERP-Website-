@@ -7,12 +7,11 @@ import { AnimateIn } from "@/components/shared/animate-in";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { siteConfig } from "@/lib/data/site";
 
 export const metadata: Metadata = {
   title: "Support",
   description:
-    "Get help from WAAMTO — email support@waamto.com, live chat coming soon, and support tickets in the Customer Portal.",
+    "Get help from WAAMTO — secure contact form, live chat coming soon, and support tickets in the Customer Portal.",
 };
 
 export default function SupportPage() {
@@ -44,11 +43,13 @@ export default function SupportPage() {
                 </CardHeader>
                 <CardContent className="flex flex-1 flex-col">
                   <p className="text-sm text-muted-foreground leading-relaxed flex-1">
-                    Reach our team for account help, billing questions, and non-urgent issues.
+                    Reach our team for account help, billing questions, and non-urgent issues via the secure contact form.
                   </p>
-                  <p className="mt-4 text-sm font-medium text-foreground">{siteConfig.supportEmail}</p>
+                  <p className="mt-4 text-sm font-medium text-foreground">
+                    Sign in to view support email, or use the contact form.
+                  </p>
                   <Button asChild variant="outline" className="mt-6 w-full rounded-full">
-                    <a href={`mailto:${siteConfig.supportEmail}`}>Email us</a>
+                    <Link href="/contact">Contact us</Link>
                   </Button>
                 </CardContent>
               </Card>

@@ -7,9 +7,11 @@ import {
   SocialProofSection,
   PricingTeaser,
   SoftCTA,
+  FeaturedProductsSection,
 } from "@/components/sections/home-swiver";
 import { MobileAccessSection } from "@/components/sections/mobile-access-section";
 import { AiHighlightSection } from "@/components/sections/ai-highlight-section";
+import { TrustBadgesBand } from "@/components/sections/trust-badges-band";
 
 const ModuleShowcase = dynamic(
   () =>
@@ -23,6 +25,7 @@ export default function HomePage() {
   return (
     <>
       <SwiverHero />
+      <FeaturedProductsSection />
       <ModuleShowcase />
       <AiHighlightSection />
       <StatsBand />
@@ -30,6 +33,7 @@ export default function HomePage() {
       <MobileAccessSection />
       <BusinessesSection />
       <SocialProofSection />
+      <TrustBadgesBand />
       <PricingTeaser />
       <SoftCTA />
     </>

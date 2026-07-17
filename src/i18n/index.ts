@@ -23,7 +23,7 @@ export const SUPPORTED_LANGUAGES: {
   direction: TextDirection;
 }[] = [
   { code: "en", short: "EN", label: "English", nativeLabel: "English", direction: "ltr" },
-  { code: "ar", short: "العربية", label: "Arabic", nativeLabel: "العربية", direction: "rtl" },
+  { code: "ar", short: "AR", label: "Arabic", nativeLabel: "العربية", direction: "rtl" },
   { code: "fr", short: "FR", label: "French", nativeLabel: "Français", direction: "ltr" },
   { code: "es", short: "ES", label: "Spanish", nativeLabel: "Español", direction: "ltr" },
   { code: "de", short: "DE", label: "German", nativeLabel: "Deutsch", direction: "ltr" },

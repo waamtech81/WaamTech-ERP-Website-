@@ -81,6 +81,7 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
       { title: "Support", href: "/support", type: "Page" },
       { title: "Contact", href: "/contact", type: "Page" },
       { title: "Mobile App", href: "/mobile-app", type: "Page" },
+      { title: "Security & Trust", href: "/security", type: "Page" },
     ].filter((i) => i.title.toLowerCase().includes(q));
 
     const seen = new Set(catalog.map((c) => `${c.type}:${c.title}`));

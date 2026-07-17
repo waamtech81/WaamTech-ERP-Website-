@@ -1,3 +1,13 @@
+/**
+ * DEPRECATED as commercial SSOT.
+ * Industry/category ID catalogs must come from License Engine public APIs
+ * (`/api/v1/public/catalog/*`). This file retains presentation helpers only
+ * (icon name maps + Unsplash image URLs) for UI chrome.
+ *
+ * Prefer: `useCatalogIndustries`, `useCatalogBusinessCategories`,
+ * `useCatalogBusinessProfiles` from `@/hooks/use-commercial`.
+ */
+
 /** SaaS Core Business Profile hierarchy — Industry (parent) → Business Category (child)
  * Source: WaamTech SaaS Core backend/src/config/businessProfiles
  * profile_id / business_category_id for signup = category.id

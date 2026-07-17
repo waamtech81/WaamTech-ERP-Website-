@@ -10,6 +10,19 @@ import {
 } from "@/lib/license/identity";
 import { maskLicenseKey } from "@/lib/auth/session";
 import { authConfig, normalizeApiBase } from "@/lib/auth/config";
+import {
+  fetchMyBillingHistory,
+  fetchMyInvoices,
+  fetchMyPayments,
+  fetchMyRenewals,
+  fetchMySubscriptions,
+} from "@/lib/commercial/client";
+import type {
+  CommercialInvoice,
+  CommercialPayment,
+  CommercialRenewal,
+  CommercialSubscription,
+} from "@/lib/commercial/types";
 
 export type PortalLicense = {
   id: string;
@@ -66,6 +79,15 @@ export type PortalDashboard = {
     outstandingBalance: string | null;
   } | null;
   invoices: PortalInvoice[] | null;
+  subscriptions: CommercialSubscription[];
+  payments: CommercialPayment[];
+  renewals: CommercialRenewal[];
+  billingHistory: {
+    subscriptions: CommercialSubscription[];
+    invoices: CommercialInvoice[];
+    payments: CommercialPayment[];
+    renewals: CommercialRenewal[];
+  } | null;
   counts: {
     licensedUsers: number | null;
     registeredUsers: number | null;
@@ -353,8 +375,52 @@ export async function loadPortalDashboard(
           : null,
   };
 
+  const [subsRes, invoicesRes, paymentsRes, renewalsRes, historyRes] = await Promise.all([
+    fetchMySubscriptions(token, { limit: 50 }),
+    fetchMyInvoices(token, { limit: 50 }),
+    fetchMyPayments(token, { limit: 50 }),
+    fetchMyRenewals(token),
+    fetchMyBillingHistory(token),
+  ]);
+
+  const commercialSubs = subsRes.ok ? subsRes.data.data : [];
+  const commercialInvoices = invoicesRes.ok ? invoicesRes.data.data : [];
+  const commercialPayments = paymentsRes.ok ? paymentsRes.data.data : [];
+  const commercialRenewals = renewalsRes.ok ? renewalsRes.data : [];
+  const history = historyRes.ok ? historyRes.data : null;
+
+  const primarySub =
+    commercialSubs.find((s) =>
+      ["active", "trial", "grace", "pending"].includes(String(s.status).toLowerCase())
+    ) || commercialSubs[0];
+
+  const openInvoices = commercialInvoices.filter((inv) =>
+    ["open", "sent", "overdue", "partial"].includes(String(inv.status).toLowerCase())
+  );
+  const outstanding = openInvoices.reduce((sum, inv) => {
+    const due =
+      typeof inv.amount_due === "number"
+        ? inv.amount_due
+        : typeof inv.total === "number"
+          ? inv.total
+          : 0;
+    return sum + due;
+  }, 0);
+
+  const billingFromCommercial =
+    primarySub || outstanding > 0
+      ? {
+          nextInvoice: primarySub?.renewal_date || primarySub?.expiry_date || null,
+          outstandingBalance:
+            outstanding > 0
+              ? `${openInvoices[0]?.currency || primarySub?.currency || "USD"} ${outstanding.toFixed(2)}`
+              : null,
+        }
+      : null;
+
   const billing =
-    erpCounts.next_invoice ||
+    billingFromCommercial ||
+    (erpCounts.next_invoice ||
     erpCounts.nextInvoice ||
     erpCounts.outstanding_balance ||
     erpCounts.outstandingBalance
@@ -366,9 +432,40 @@ export async function loadPortalDashboard(
             erpCounts.outstanding_balance || erpCounts.outstandingBalance || ""
           ).trim() || null,
         }
-      : null;
+      : null);
 
-  const invoices = mapInvoices(erpCounts.invoices || erpCounts.invoice_list);
+  const invoicesFromCommercial: PortalInvoice[] = commercialInvoices.map((inv, index) => ({
+    id: inv.id || String(index),
+    number: inv.invoice_number || inv.id || `INV-${index + 1}`,
+    status: inv.status || null,
+    paymentStatus:
+      typeof inv.amount_due === "number" && inv.amount_due <= 0 ? "paid" : inv.status || null,
+    date: inv.issue_date || null,
+    dueDate: inv.due_date || null,
+    amount:
+      inv.total != null
+        ? `${inv.currency || "USD"} ${Number(inv.total).toFixed(2)}`
+        : inv.amount_due != null
+          ? `${inv.currency || "USD"} ${Number(inv.amount_due).toFixed(2)}`
+          : null,
+    pdfUrl: inv.pdf_url || null,
+  }));
+
+  const invoices =
+    invoicesFromCommercial.length > 0
+      ? invoicesFromCommercial
+      : mapInvoices(erpCounts.invoices || erpCounts.invoice_list);
+
+  const subscriptionFromCommercial = primarySub
+    ? {
+        status: primarySub.status || null,
+        currentPlan: primarySub.plan_name || customer?.preferred_plan || null,
+        trialStatus:
+          primarySub.status === "trial" || primarySub.trial_ends_at ? "trial" : trial.trialStatus,
+        trialRemainingDays: trial.trialRemainingDays,
+        renewalDate: primarySub.renewal_date || primarySub.expiry_date || null,
+      }
+    : subscription;
   const notifications = mapNotifications(
     erpCounts.notifications || erpCounts.alerts
   );
@@ -443,12 +540,28 @@ export async function loadPortalDashboard(
     identity,
     customer,
     overview,
-    subscription,
+    subscription: subscriptionFromCommercial,
     license,
     licenses,
     sessions,
     billing,
     invoices,
+    subscriptions: commercialSubs,
+    payments: commercialPayments,
+    renewals: commercialRenewals,
+    billingHistory: history
+      ? {
+          subscriptions: history.subscriptions || commercialSubs,
+          invoices: history.invoices || commercialInvoices,
+          payments: history.payments || commercialPayments,
+          renewals: history.renewals || commercialRenewals,
+        }
+      : {
+          subscriptions: commercialSubs,
+          invoices: commercialInvoices,
+          payments: commercialPayments,
+          renewals: commercialRenewals,
+        },
     counts,
     modules: [...modules, ...erpModules].filter(Boolean),
     featurePacks,

@@ -3,36 +3,186 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, ChevronDown, Smartphone } from "lucide-react";
-import {
-  featuredIndustryIds,
-  getCategoriesForIndustry,
-  getFeaturedIndustries,
-  getIndustryLucideIcon,
-  getIndustryMedia,
-  hierarchyStats,
-  type BusinessIndustry,
-} from "@/lib/data/business-hierarchy";
+import { ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
+import { getIndustryMedia } from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { AnimateIn } from "@/components/shared/animate-in";
+import {
+  useCatalogBusinessCategories,
+  useCatalogBusinessProfiles,
+  useCatalogIndustries,
+} from "@/hooks/use-commercial";
+import {
+  CatalogEmptyState,
+  CatalogErrorState,
+  CatalogSkeleton,
+} from "@/components/commercial/catalog-states";
+import { industryDisplayIcon } from "@/lib/commercial/mappers";
+import type { CatalogIndustry } from "@/lib/commercial/types";
 
 type Filter = "featured" | "all";
+
+function IndustryCard({
+  industry,
+  expanded,
+  onToggle,
+  featured,
+}: {
+  industry: CatalogIndustry;
+  expanded: boolean;
+  onToggle: () => void;
+  featured?: boolean;
+}) {
+  const categories = useCatalogBusinessCategories(expanded ? industry.id : null);
+  const Icon = getIcon(industryDisplayIcon(industry));
+  const media = getIndustryMedia(industry.slug || industry.id);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full text-left"
+        aria-expanded={expanded}
+      >
+        <div className="relative aspect-[16/10] overflow-hidden">
+          <Image
+            src={media.image}
+            alt={media.imageAlt}
+            fill
+            quality={70}
+            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/75 to-transparent" />
+          <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white/90 text-primary">
+            <Icon className="h-4 w-4" />
+          </div>
+          {featured ? (
+            <Badge className="absolute right-3 top-3 bg-white/90 text-[#0b1f3a] hover:bg-white text-[10px]">
+              Featured
+            </Badge>
+          ) : null}
+          <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2">
+            <p className="text-base font-semibold text-white">{industry.name}</p>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-white/80 transition-transform",
+                expanded && "rotate-180"
+              )}
+            />
+          </div>
+        </div>
+      </button>
+      <div className="p-4">
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+          {industry.description || `Business categories for ${industry.name}.`}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href={`/industries/${industry.slug || industry.id}`}
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            View industry <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+          <Link
+            href={`/signup?industry=${encodeURIComponent(industry.id)}`}
+            className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-primary"
+          >
+            Start trial <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </div>
+      {expanded ? (
+        <div className="border-t border-border bg-slate-50/70 px-4 py-4">
+          {categories.loading ? (
+            <p className="text-sm text-muted-foreground">Loading categories…</p>
+          ) : null}
+          {categories.error ? (
+            <CatalogErrorState message={categories.error} onRetry={categories.retry} />
+          ) : null}
+          {!categories.loading && !categories.error && categories.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No public categories for this industry.</p>
+          ) : null}
+          <div className="grid gap-2">
+            {categories.data.map((cat) => (
+              <CategoryRow key={cat.id} categoryId={cat.id} name={cat.name} industryId={industry.id} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CategoryRow({
+  categoryId,
+  name,
+  industryId,
+}: {
+  categoryId: string;
+  name: string;
+  industryId: string;
+}) {
+  const profiles = useCatalogBusinessProfiles(categoryId);
+  return (
+    <div className="rounded-xl border border-border bg-white px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-[#0b1f3a]">{name}</p>
+        <Link
+          href={`/signup?industry=${encodeURIComponent(industryId)}&category=${encodeURIComponent(categoryId)}`}
+          className="text-xs font-medium text-primary hover:underline"
+        >
+          Select
+        </Link>
+      </div>
+      {profiles.loading ? (
+        <p className="mt-1 text-xs text-muted-foreground">Loading profiles…</p>
+      ) : null}
+      {profiles.data.length > 0 ? (
+        <ul className="mt-2 flex flex-wrap gap-1.5">
+          {profiles.data.map((p) => (
+            <li key={p.id}>
+              <Link
+                href={`/signup?industry=${encodeURIComponent(industryId)}&category=${encodeURIComponent(categoryId)}&profile=${encodeURIComponent(p.id)}`}
+                className="inline-flex rounded-full bg-primary/8 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/15"
+              >
+                {p.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
 
 export function IndustriesGallery() {
   const [filter, setFilter] = useState<Filter>("featured");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const industriesQuery = useCatalogIndustries();
 
-  const { featured, all } = useMemo(() => getFeaturedIndustries(), []);
+  const all = industriesQuery.data;
+  const featured = useMemo(() => all.slice(0, 8), [all]);
   const items = filter === "featured" ? featured : all;
+
+  if (industriesQuery.loading) return <CatalogSkeleton rows={6} />;
+  if (industriesQuery.error) {
+    return (
+      <CatalogErrorState message={industriesQuery.error} onRetry={industriesQuery.retry} />
+    );
+  }
+  if (all.length === 0) {
+    return <CatalogEmptyState message="No industries are published in License Engine yet." />;
+  }
 
   return (
     <div>
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          Showing {items.length} of {hierarchyStats.industries} industries ·{" "}
-          {hierarchyStats.categories} business categories
+          Showing {items.length} of {all.length} industries from License Engine
         </p>
         <div className="inline-flex rounded-full border border-border bg-white p-1 shadow-sm">
           {(
@@ -70,138 +220,11 @@ export function IndustriesGallery() {
               onToggle={() =>
                 setExpandedId((prev) => (prev === industry.id ? null : industry.id))
               }
-              featured={featuredIndustryIds.includes(
-                industry.id as (typeof featuredIndustryIds)[number]
-              )}
+              featured={featured.some((f) => f.id === industry.id)}
             />
           </AnimateIn>
         ))}
       </div>
     </div>
-  );
-}
-
-function IndustryCard({
-  industry,
-  expanded,
-  onToggle,
-  featured,
-}: {
-  industry: BusinessIndustry;
-  expanded: boolean;
-  onToggle: () => void;
-  featured: boolean;
-}) {
-  const Icon = getIcon(getIndustryLucideIcon(industry));
-  const media = getIndustryMedia(industry.id);
-  const categories = getCategoriesForIndustry(industry.id);
-  const preview = categories.slice(0, 6);
-
-  return (
-    <article
-      className={cn(
-        "flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow",
-        expanded
-          ? "border-primary/25 shadow-[0_12px_40px_rgba(15,23,42,0.1)]"
-          : "border-border hover:border-primary/20 hover:shadow-md"
-      )}
-    >
-      <div className="relative aspect-[16/10] overflow-hidden">
-        <Image
-          src={media.image}
-          alt={media.imageAlt}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/90 via-[#0b1f3a]/35 to-transparent" />
-        <div
-          className="absolute left-3.5 top-3.5 flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md"
-          style={{ backgroundColor: industry.color }}
-        >
-          <Icon className="h-4.5 w-4.5" />
-        </div>
-        <div className="absolute right-3.5 top-3.5 flex flex-col items-end gap-1.5">
-          {featured ? (
-            <Badge className="bg-accent text-white hover:bg-accent text-[10px] px-2 py-0.5">
-              Featured
-            </Badge>
-          ) : null}
-          <Badge className="bg-white/95 text-[#0b1f3a] hover:bg-white text-[10px] px-2 py-0.5">
-            {categories.length}
-          </Badge>
-        </div>
-        <div className="absolute bottom-3.5 left-3.5 right-3.5">
-          <h3 className="text-lg font-semibold tracking-tight text-white">{industry.name}</h3>
-          <p className="mt-0.5 text-sm text-white/75 line-clamp-2">{industry.description}</p>
-        </div>
-      </div>
-
-      <div className="flex flex-1 flex-col p-4">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-slate-50/80 px-3 py-2.5 text-left transition-colors hover:border-primary/25 hover:bg-white"
-          aria-expanded={expanded}
-        >
-          <span className="text-sm font-medium text-[#0b1f3a]">
-            {expanded ? "Hide categories" : "Show categories"}
-          </span>
-          <ChevronDown
-            className={cn(
-              "h-4 w-4 text-muted-foreground transition-transform",
-              expanded && "rotate-180"
-            )}
-          />
-        </button>
-
-        {expanded ? (
-          <div className="mt-3 space-y-2">
-            <div className="grid gap-2">
-              {preview.map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={`/signup?industry=${industry.id}&profile=${cat.id}`}
-                  className="rounded-xl border border-border px-3 py-2.5 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors"
-                >
-                  <span className="block text-sm font-medium text-[#0b1f3a]">{cat.name}</span>
-                  <span className="mt-0.5 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
-                    <span>POS {cat.pos_mode}</span>
-                    {cat.mobile_mode === "required" ? (
-                      <span className="inline-flex items-center gap-0.5 text-rose-600">
-                        <Smartphone className="h-3 w-3" />
-                        Mobile
-                      </span>
-                    ) : null}
-                  </span>
-                </Link>
-              ))}
-            </div>
-            {categories.length > preview.length ? (
-              <p className="text-xs text-muted-foreground px-0.5">
-                +{categories.length - preview.length} more on the industry page
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3 mt-3">
-          <Link
-            href={`/industries/${industry.id}`}
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-          >
-            Details
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-          <Link
-            href={`/signup?industry=${industry.id}`}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors"
-            aria-label={`Start trial for ${industry.name}`}
-          >
-            <ArrowUpRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </div>
-    </article>
   );
 }

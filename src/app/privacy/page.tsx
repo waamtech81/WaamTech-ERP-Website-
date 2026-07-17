@@ -34,7 +34,11 @@ export default function PrivacyPage() {
           </p>
           <h2 className="text-xl font-semibold text-foreground">Contact</h2>
           <p>
-            For privacy requests, email {siteConfig.email}.
+            For privacy requests, use our{" "}
+            <a href="/contact" className="text-primary hover:underline">
+              secure contact form
+            </a>
+            .
           </p>
         </div>
       </Container>

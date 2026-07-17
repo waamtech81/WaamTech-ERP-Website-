@@ -105,7 +105,7 @@ function SimpleDropdown({
             "absolute z-[60] overflow-hidden rounded-xl border border-border/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.16)] ring-1 ring-black/[0.03]",
             placement === "top" ? "bottom-full mb-2" : "top-full mt-2",
             align === "end" ? "right-0" : "left-0",
-            panelClassName ?? "w-[11rem]"
+            panelClassName ?? "w-auto min-w-max"
           )}
         >
           <ul id={listId} role="listbox" aria-label={ariaLabel} className="max-h-72 overflow-y-auto py-1">
@@ -172,7 +172,7 @@ export function LanguageSwitcher({ align = "end" }: { align?: "start" | "end" })
       onSelect={(v) => setLanguage(v as UiLanguage)}
       align={align}
       placement="bottom"
-      panelClassName="w-[8.5rem]"
+      panelClassName="w-auto min-w-max"
     />
   );
 }

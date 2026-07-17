@@ -1,0 +1,105 @@
+import { NextResponse } from "next/server";
+import {
+  fetchPublicBusinessCategories,
+  fetchPublicBusinessProfiles,
+  fetchPublicIndustries,
+  fetchPublicPlans,
+  fetchPublicPricing,
+  fetchPublicProducts,
+  fetchPublicCatalogBundle,
+} from "@/lib/commercial/client";
+import {
+  cardPlans,
+  enterprisePlan,
+  mapCatalogPlanToPricingPlan,
+  mapCatalogProductToUi,
+  mapPricingRowsToPlans,
+  popularPlans,
+  sortPlansByTier,
+} from "@/lib/commercial/mappers";
+
+function jsonOk(data: unknown, init?: { status?: number; cacheSeconds?: number }) {
+  const cacheSeconds = init?.cacheSeconds ?? 60;
+  return NextResponse.json(
+    { success: true, data },
+    {
+      status: init?.status ?? 200,
+      headers: {
+        "Cache-Control": `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 5}`,
+      },
+    }
+  );
+}
+
+function jsonFail(message: string, status = 502) {
+  return NextResponse.json({ success: false, message, data: [] }, { status });
+}
+
+export async function GET_products() {
+  const result = await fetchPublicProducts();
+  if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
+  return jsonOk(result.data);
+}
+
+export async function GET_plans(req: Request) {
+  const product = new URL(req.url).searchParams.get("product") || undefined;
+  const result = await fetchPublicPlans(product);
+  if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
+  return jsonOk(sortPlansByTier(result.data));
+}
+
+export async function GET_pricing(req: Request) {
+  const product = new URL(req.url).searchParams.get("product") || undefined;
+  const result = await fetchPublicPricing(product);
+  if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
+  return jsonOk(result.data);
+}
+
+export async function GET_industries() {
+  const result = await fetchPublicIndustries();
+  if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
+  return jsonOk(result.data);
+}
+
+export async function GET_businessCategories(req: Request) {
+  const industryId = new URL(req.url).searchParams.get("industry_id") || undefined;
+  const result = await fetchPublicBusinessCategories(industryId);
+  if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
+  return jsonOk(result.data);
+}
+
+export async function GET_businessProfiles(req: Request) {
+  const categoryId = new URL(req.url).searchParams.get("category_id") || undefined;
+  const result = await fetchPublicBusinessProfiles(categoryId);
+  if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
+  return jsonOk(result.data);
+}
+
+export async function GET_catalog(req: Request) {
+  const product = new URL(req.url).searchParams.get("product") || undefined;
+  const bundle = await fetchPublicCatalogBundle(product);
+  const pricingPlans =
+    bundle.pricing.length > 0
+      ? mapPricingRowsToPlans(bundle.pricing, bundle.plans)
+      : sortPlansByTier(bundle.plans).map(mapCatalogPlanToPricingPlan);
+  const featuredProducts = bundle.products.slice(0, 6).map(mapCatalogProductToUi);
+  const popular = popularPlans(pricingPlans, 3);
+  const enterprise = enterprisePlan(pricingPlans) || null;
+
+  if (!bundle.ok && pricingPlans.length === 0 && featuredProducts.length === 0) {
+    return jsonFail(bundle.message || "Commercial catalog unavailable.");
+  }
+
+  return jsonOk({
+    products: bundle.products,
+    plans: bundle.plans,
+    pricing: bundle.pricing,
+    industries: bundle.industries,
+    pricingPlans,
+    cardPlans: cardPlans(pricingPlans),
+    featuredProducts,
+    popularPlans: popular,
+    enterprise,
+    meta: bundle.meta,
+  });
+}

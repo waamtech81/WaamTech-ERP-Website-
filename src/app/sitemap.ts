@@ -10,6 +10,7 @@ const routes = [
   "/industries",
   "/pricing",
   "/servers",
+  "/security",
   "/mobile-app",
   "/signup",
   "/login",

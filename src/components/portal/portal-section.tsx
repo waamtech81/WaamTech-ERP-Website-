@@ -195,54 +195,88 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   }
 
   if (section === "subscriptions") {
-    const rows = data.subscription
-      ? [
-          { label: "Current plan", value: data.subscription.currentPlan },
-          { label: "Status", value: data.subscription.status },
-          { label: "Trial status", value: data.subscription.trialStatus },
-          {
-            label: "Trial remaining",
-            value:
-              data.subscription.trialRemainingDays != null
-                ? `${data.subscription.trialRemainingDays} days`
-                : null,
-          },
-          { label: "Renewal / expiry", value: formatPortalDate(data.subscription.renewalDate) },
-          { label: "Billing cycle", value: (erp.billing_cycle as string) || null },
-          {
-            label: "Auto renewal",
-            value:
-              typeof erp.auto_renewal === "boolean"
-                ? erp.auto_renewal
-                  ? "Enabled"
-                  : "Disabled"
-                : null,
-          },
-        ].filter((r) => r.value)
-      : [];
-    body = rows.length ? (
-      <div className="space-y-6">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {rows.map((r) => (
-            <PortalDataRow key={r.label} label={r.label} value={r.value} />
-          ))}
+    const commercial = data.subscriptions || [];
+    if (commercial.length) {
+      flush = true;
+      body = (
+        <div className="portal-table-wrap">
+          <table className="portal-table">
+            <thead>
+              <tr>
+                <th scope="col">Subscription</th>
+                <th scope="col">Plan</th>
+                <th scope="col">Status</th>
+                <th scope="col">Billing cycle</th>
+                <th scope="col">Renewal</th>
+                <th scope="col">Auto renew</th>
+              </tr>
+            </thead>
+            <tbody>
+              {commercial.map((sub) => (
+                <tr key={sub.id}>
+                  <td className="font-medium">
+                    {sub.subscription_number || sub.product_name || sub.id}
+                  </td>
+                  <td>{sub.plan_name || "—"}</td>
+                  <td>
+                    <PortalStatusBadge status={sub.status} />
+                  </td>
+                  <td>{sub.billing_cycle || "—"}</td>
+                  <td>{formatPortalDate(sub.renewal_date || sub.expiry_date) || "—"}</td>
+                  <td>{sub.auto_renewal ? "Enabled" : "Off"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" className="rounded-xl">
-            <Link href="/plans">Renew</Link>
-          </Button>
-          <Button asChild size="sm" variant="outline" className="rounded-xl">
-            <Link href="/pricing">Upgrade</Link>
-          </Button>
-          <Button asChild size="sm" variant="outline" className="rounded-xl">
-            <Link href="/plans">Downgrade</Link>
-          </Button>
+      );
+    } else {
+      const rows = data.subscription
+        ? [
+            { label: "Current plan", value: data.subscription.currentPlan },
+            { label: "Status", value: data.subscription.status },
+            { label: "Trial status", value: data.subscription.trialStatus },
+            {
+              label: "Trial remaining",
+              value:
+                data.subscription.trialRemainingDays != null
+                  ? `${data.subscription.trialRemainingDays} days`
+                  : null,
+            },
+            { label: "Renewal / expiry", value: formatPortalDate(data.subscription.renewalDate) },
+            { label: "Billing cycle", value: (erp.billing_cycle as string) || null },
+            {
+              label: "Auto renewal",
+              value:
+                typeof erp.auto_renewal === "boolean"
+                  ? erp.auto_renewal
+                    ? "Enabled"
+                    : "Disabled"
+                  : null,
+            },
+          ].filter((r) => r.value)
+        : [];
+      body = rows.length ? (
+        <div className="space-y-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {rows.map((r) => (
+              <PortalDataRow key={r.label} label={r.label} value={r.value} />
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" className="rounded-xl">
+              <Link href="/pricing">Renew</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="rounded-xl">
+              <Link href="/pricing">Upgrade</Link>
+            </Button>
+          </div>
+          <p className="text-xs text-[var(--portal-muted)]">
+            Subscriptions load from License Engine public billing APIs.
+          </p>
         </div>
-        <p className="text-xs text-[var(--portal-muted)]">
-          Plan changes continue through WAAMTO pricing and License Engine renewal flows.
-        </p>
-      </div>
-    ) : null;
+      ) : null;
+    }
   }
 
   if (section === "invoices") {
@@ -305,31 +339,105 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   }
 
   if (section === "billing") {
+    const payments = data.payments || [];
+    const renewals = data.renewals || [];
     const rows = [
-      { label: "Next invoice", value: data.billing?.nextInvoice },
+      { label: "Next invoice / renewal", value: data.billing?.nextInvoice },
       { label: "Outstanding balance", value: data.billing?.outstandingBalance },
       { label: "Current plan", value: data.subscription?.currentPlan },
       {
         label: "Billing cycle",
-        value: typeof erp.billing_cycle === "string" ? erp.billing_cycle : null,
+        value:
+          data.subscriptions?.[0]?.billing_cycle ||
+          (typeof erp.billing_cycle === "string" ? erp.billing_cycle : null),
       },
       {
         label: "Auto renewal",
         value:
-          typeof erp.auto_renewal === "boolean"
-            ? erp.auto_renewal
+          typeof data.subscriptions?.[0]?.auto_renewal === "boolean"
+            ? data.subscriptions[0].auto_renewal
               ? "Enabled"
               : "Disabled"
-            : null,
+            : typeof erp.auto_renewal === "boolean"
+              ? erp.auto_renewal
+                ? "Enabled"
+                : "Disabled"
+              : null,
       },
+      { label: "Payments on file", value: payments.length ? String(payments.length) : null },
+      { label: "Renewals", value: renewals.length ? String(renewals.length) : null },
     ].filter((r) => r.value);
-    body = rows.length ? (
+    body = rows.length || payments.length || renewals.length ? (
       <div className="space-y-6">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {rows.map((r) => (
-            <PortalDataRow key={r.label} label={r.label} value={r.value} />
-          ))}
-        </div>
+        {rows.length ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {rows.map((r) => (
+              <PortalDataRow key={r.label} label={r.label} value={r.value} />
+            ))}
+          </div>
+        ) : null}
+        {payments.length ? (
+          <div>
+            <p className="mb-2 text-sm font-semibold text-[var(--portal-ink)]">Payment history</p>
+            <div className="portal-table-wrap">
+              <table className="portal-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Transaction</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.slice(0, 10).map((p) => (
+                    <tr key={p.id}>
+                      <td className="font-medium">
+                        {p.transaction_id || p.reference_number || p.id}
+                      </td>
+                      <td className="tabular-nums">
+                        {p.currency} {Number(p.amount).toFixed(2)}
+                      </td>
+                      <td>
+                        <PortalStatusBadge status={p.status} />
+                      </td>
+                      <td>{formatPortalDate(p.paid_date) || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+        {renewals.length ? (
+          <div>
+            <p className="mb-2 text-sm font-semibold text-[var(--portal-ink)]">Renewals</p>
+            <div className="portal-table-wrap">
+              <table className="portal-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Renewal</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">New expiry</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {renewals.slice(0, 10).map((r) => (
+                    <tr key={r.id}>
+                      <td className="font-medium">{r.id}</td>
+                      <td>
+                        <PortalStatusBadge status={r.status} />
+                      </td>
+                      <td>{formatPortalDate(r.renewal_date) || "—"}</td>
+                      <td>{formatPortalDate(r.new_expiry) || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           <Button asChild size="sm" className="rounded-xl">
             <Link href="/portal/invoices">View invoices</Link>

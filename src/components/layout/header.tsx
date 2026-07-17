@@ -19,16 +19,8 @@ import {
   productMegaMenu,
   otherMegaMenu,
   siteConfig,
-  pricingPlans,
 } from "@/lib/data/site";
-import {
-  featuredIndustryIds,
-  getCategoriesForIndustry,
-  getFeaturedIndustries,
-  getIndustryLucideIcon,
-  hierarchyStats,
-  isHotCategory,
-} from "@/lib/data/business-hierarchy";
+import { getIndustryLucideIcon } from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -36,6 +28,12 @@ import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { LocaleControls } from "@/components/layout/locale-controls";
 import { useLocale } from "@/components/providers/locale-provider";
+import {
+  useCatalogBundle,
+  useCatalogBusinessCategories,
+  useCatalogIndustries,
+} from "@/hooks/use-commercial";
+import { industryDisplayIcon } from "@/lib/commercial/mappers";
 
 type DropdownKey = "products" | "industries" | "other" | null;
 
@@ -127,29 +125,34 @@ function MobileAccordion({
 export function Header() {
   const pathname = usePathname();
   const { t, formatPrice } = useLocale();
-  const fromUsd = Math.min(
-    ...pricingPlans
-      .map((p) => p.yearlyPrice ?? p.monthlyPrice)
-      .filter((v): v is number => typeof v === "number" && v > 0)
-  );
+  const catalog = useCatalogBundle();
+  const industriesQuery = useCatalogIndustries();
+  const prices = (catalog.data.pricingPlans || [])
+    .map((p) => p.yearlyPrice ?? p.monthlyPrice)
+    .filter((v): v is number => typeof v === "number" && v > 0);
+  const fromUsd = prices.length ? Math.min(...prices) : null;
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdown, setDropdown] = useState<DropdownKey>(null);
   const [mobileAccordion, setMobileAccordion] = useState<DropdownKey>(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [activeIndustryId, setActiveIndustryId] = useState<string>(featuredIndustryIds[0]);
+  const allIndustries = industriesQuery.data;
+  const featured = allIndustries.slice(0, 8);
+  const [activeIndustryId, setActiveIndustryId] = useState<string>("");
   const [industriesExpanded, setIndustriesExpanded] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { featured, all: allIndustries } = getFeaturedIndustries();
+  useEffect(() => {
+    if (!activeIndustryId && featured[0]?.id) setActiveIndustryId(featured[0].id);
+  }, [featured, activeIndustryId]);
+
   const menuIndustries = industriesExpanded ? allIndustries : featured;
   const activeIndustry =
     allIndustries.find((i) => i.id === activeIndustryId) ||
     featured.find((i) => i.id === activeIndustryId) ||
     featured[0];
-  const activeCategories = activeIndustry
-    ? getCategoriesForIndustry(activeIndustry.id).slice(0, 12)
-    : [];
+  const activeCategoriesQuery = useCatalogBusinessCategories(activeIndustry?.id || null);
+  const activeCategories = activeCategoriesQuery.data.slice(0, 12);
 
   function openMenu(key: DropdownKey) {
     if (closeTimer.current) {
@@ -214,6 +217,7 @@ export function Header() {
     isActive("/erp-features") ||
     isActive("/mobile-app") ||
     isActive("/servers") ||
+    isActive("/security") ||
     isActive("/docs") ||
     isActive("/knowledge-base") ||
     isActive("/support") ||
@@ -320,7 +324,7 @@ export function Header() {
                         <p className="mt-2 text-sm text-white/70 leading-relaxed">
                           Start your 14-day free trial. From{" "}
                           <span translate="no" suppressHydrationWarning>
-                            {formatPrice(fromUsd)}
+                            {fromUsd != null ? formatPrice(fromUsd) : "…"}
                           </span>
                           /mo.
                         </p>
@@ -390,9 +394,8 @@ export function Header() {
                           )}
                         >
                           {menuIndustries.map((ind) => {
-                            const Icon = getIcon(getIndustryLucideIcon(ind));
+                            const Icon = getIcon(industryDisplayIcon(ind));
                             const active = activeIndustryId === ind.id;
-                            const catCount = getCategoriesForIndustry(ind.id).length;
                             return (
                               <li key={ind.id}>
                                 <button
@@ -407,18 +410,12 @@ export function Header() {
                                       : "hover:bg-white/80"
                                   )}
                                 >
-                                  <span
-                                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white"
-                                    style={{ backgroundColor: ind.color }}
-                                  >
+                                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-white">
                                     <Icon className="h-3.5 w-3.5" />
                                   </span>
                                   <span className="min-w-0 flex-1 flex items-center gap-1.5">
                                     <span className="block text-[13px] font-medium truncate leading-tight">
                                       {ind.name}
-                                    </span>
-                                    <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-primary">
-                                      {catCount}
                                     </span>
                                   </span>
                                 </button>
@@ -457,7 +454,9 @@ export function Header() {
                                     Business categories
                                   </p>
                                   <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                                    {getCategoriesForIndustry(activeIndustry.id).length}
+                                    {activeCategoriesQuery.loading
+                                      ? "…"
+                                      : activeCategoriesQuery.data.length}
                                   </span>
                                 </div>
                                 <h3 className="mt-1 text-lg font-semibold text-[#0b1f3a]">
@@ -468,7 +467,7 @@ export function Header() {
                                 </p>
                               </div>
                               <Button asChild size="sm" className="rounded-full shrink-0">
-                                <Link href={`/industries/${activeIndustry.id}`}>
+                                <Link href={`/industries/${activeIndustry.slug || activeIndustry.id}`}>
                                   View industry
                                   <ArrowRight className="h-3.5 w-3.5" />
                                 </Link>
@@ -477,18 +476,14 @@ export function Header() {
                             <div className="max-h-[min(48vh,400px)] overflow-y-auto overflow-x-hidden scrollbar-thin pr-1">
                               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
                                 {activeCategories.map((cat) => {
-                                  const CatIcon = getIcon(getIndustryLucideIcon(activeIndustry));
-                                  const hot = isHotCategory(cat.id);
+                                  const CatIcon = getIcon(industryDisplayIcon(activeIndustry));
                                   return (
                                     <Link
                                       key={cat.id}
-                                      href={`/signup?industry=${activeIndustry.id}&profile=${cat.id}`}
+                                      href={`/signup?industry=${activeIndustry.id}&category=${cat.id}`}
                                       className="flex items-start gap-2.5 rounded-xl border border-border px-3 py-3 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors min-w-0"
                                     >
-                                      <span
-                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
-                                        style={{ backgroundColor: activeIndustry.color }}
-                                      >
+                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
                                         <CatIcon className="h-3.5 w-3.5" />
                                       </span>
                                       <span className="min-w-0">
@@ -496,15 +491,9 @@ export function Header() {
                                           <span className="block text-sm font-medium text-[#0b1f3a] truncate">
                                             {cat.name}
                                           </span>
-                                          {hot ? (
-                                            <span className="shrink-0 rounded bg-orange-500/90 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-white leading-none">
-                                              Hot
-                                            </span>
-                                          ) : null}
                                         </span>
                                         <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                                          POS {cat.pos_mode}
-                                          {cat.mobile_mode === "required" ? " · Mobile" : ""}
+                                          {cat.description || cat.code}
                                         </span>
                                       </span>
                                     </Link>
@@ -512,16 +501,14 @@ export function Header() {
                                 })}
                               </div>
                             </div>
-                            {getCategoriesForIndustry(activeIndustry.id).length > 12 ? (
+                            {activeCategoriesQuery.data.length > 12 ? (
                               <p className="mt-3 text-xs text-muted-foreground">
-                                +{getCategoriesForIndustry(activeIndustry.id).length - 12} more on
-                                the industry page
+                                +{activeCategoriesQuery.data.length - 12} more on the industry page
                               </p>
                             ) : null}
                             <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-border pt-4">
                               <p className="text-sm text-muted-foreground">
-                                {hierarchyStats.categories} business categories across{" "}
-                                {hierarchyStats.industries} industries
+                                Live catalog from License Engine · {allIndustries.length} industries
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 <Button asChild size="sm" variant="outline" className="rounded-full">
@@ -691,17 +678,17 @@ export function Header() {
                 }
               >
                 <p className="px-3 py-1 text-xs text-muted-foreground">
-                  Featured first · {hierarchyStats.categories} categories
+                  Featured first · {allIndustries.length} industries
                 </p>
                 {featured.map((ind) => (
                   <Link
                     key={ind.id}
-                    href={`/industries/${ind.id}`}
+                    href={`/industries/${ind.slug || ind.id}`}
                     className="block rounded-lg px-3 py-2.5 text-sm hover:bg-muted font-medium"
                   >
                     {ind.name}
                     <span className="block text-xs text-muted-foreground font-normal">
-                      {getCategoriesForIndustry(ind.id).length} categories
+                      Open industry
                     </span>
                   </Link>
                 ))}

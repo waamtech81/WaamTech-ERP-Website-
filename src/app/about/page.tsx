@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { siteConfig } from "@/lib/data/site";
+import { TrustBadgeGrid } from "@/components/trust-badges";
 
 export const metadata: Metadata = {
   title: "About",
@@ -176,26 +177,13 @@ export default function AboutPage() {
       </Section>
 
       <Section muted>
-        <Container className="max-w-3xl">
+        <Container>
           <SectionHeader
             eyebrow="Technology"
             title="Built for performance, security, and scale"
             description="Modern cloud architecture, role-based access, auditability, and APIs — plus own-server and local deployment when you need full control."
           />
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              "Secure multi-tenant cloud",
-              "Own cloud & local server",
-              "Whitelabel branding",
-              "Role-based access control",
-              "REST APIs & webhooks",
-              "WaamHost managed hosting",
-            ].map((item) => (
-              <div key={item} className="rounded-2xl border border-border bg-white px-5 py-4 text-sm font-medium">
-                {item}
-              </div>
-            ))}
-          </div>
+          <TrustBadgeGrid set="about" tone="light" size="sm" columns="full" className="max-w-5xl mx-auto" />
         </Container>
       </Section>
 

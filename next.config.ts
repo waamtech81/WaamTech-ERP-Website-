@@ -22,7 +22,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://images.unsplash.com https://www.gstatic.com https://translate.googleapis.com https://translate.google.com https://www.google.com https://fonts.gstatic.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "connect-src 'self' https://translate.googleapis.com https://translate.google.com https://www.gstatic.com https://www.google.com https://clients5.google.com https://translation.googleapis.com",
-      "frame-src https://translate.google.com https://www.google.com https://www.gstatic.com",
+      "frame-src https://translate.google.com https://www.google.com https://maps.google.com https://www.gstatic.com",
       "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, Minus } from "lucide-react";
-import { pricingPlans, comparisonFeatures, deploymentOptions, faqs } from "@/lib/data/site";
+import { deploymentOptions, faqs } from "@/lib/data/site";
 import { getIcon } from "@/lib/icons";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
@@ -23,16 +23,32 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { TrustBadgesBand } from "@/components/sections/trust-badges-band";
+import { useCatalogBundle } from "@/hooks/use-commercial";
+import {
+  CatalogEmptyState,
+  CatalogErrorState,
+  CatalogSkeleton,
+} from "@/components/commercial/catalog-states";
+import { buildDynamicComparison, cardPlans, enterprisePlan } from "@/lib/commercial/mappers";
 
 export default function PricingPage() {
   const [yearly, setYearly] = useState(true);
   const { t } = useLocale();
+  const catalog = useCatalogBundle();
   const billingFaqs = faqs.filter((f) => f.category === "Billing" || f.category === "Product").slice(0, 6);
-  const cardPlans = pricingPlans.filter(
-    (p) => p.id === "starter" || p.id === "business" || p.id === "lifetime"
+
+  const pricingPlans = catalog.data.pricingPlans || [];
+  const displayCardPlans = useMemo(
+    () => cardPlans(pricingPlans).filter((p) => !/enterprise/i.test(p.id)),
+    [pricingPlans]
   );
-  const enterprisePlan = pricingPlans.find((p) => p.id === "enterprise");
-  const planNames = ["Starter", "Business", "Lifetime", "Enterprise"];
+  const enterprise = useMemo(
+    () => catalog.data.enterprise || enterprisePlan(pricingPlans),
+    [catalog.data.enterprise, pricingPlans]
+  );
+  const comparisonRows = useMemo(() => buildDynamicComparison(pricingPlans), [pricingPlans]);
+  const planColumns = pricingPlans;
 
   return (
     <>
@@ -41,8 +57,8 @@ export default function PricingPage() {
           <Breadcrumbs items={[{ label: "Pricing" }]} />
           <SectionHeader
             eyebrow="Pricing"
-            title="Affordable ERP — launch pricing"
-            description="Market-aligned plans with 50% launch discount. Cloud SaaS, lifetime license, own server, whitelabel & local deployment available."
+            title="Plans from the License Engine"
+            description="Starter, Business, Lifetime, and Enterprise — loaded live from WaamTech commercial catalog. Enterprise is always custom pricing."
           />
 
           <LaunchDiscountBanner />
@@ -60,13 +76,22 @@ export default function PricingPage() {
 
           <PriceNote className="mb-8 text-center text-xs text-muted-foreground" />
 
-          <PricingCards
-            plans={cardPlans}
-            yearly={yearly}
-            columns="sm:grid-cols-2 xl:grid-cols-3"
-          />
+          {catalog.loading ? <CatalogSkeleton rows={3} /> : null}
+          {catalog.error ? (
+            <CatalogErrorState message={catalog.error} onRetry={catalog.retry} />
+          ) : null}
+          {!catalog.loading && !catalog.error && displayCardPlans.length === 0 ? (
+            <CatalogEmptyState message="No public plans are published yet." />
+          ) : null}
+          {!catalog.loading && !catalog.error && displayCardPlans.length > 0 ? (
+            <PricingCards
+              plans={displayCardPlans}
+              yearly={yearly}
+              columns="sm:grid-cols-2 xl:grid-cols-3"
+            />
+          ) : null}
 
-          {enterprisePlan ? (
+          {enterprise ? (
             <div className="mt-10 rounded-2xl border border-border bg-[#0b1f3a] px-6 py-8 md:px-10 md:py-10 text-white">
               <div className="flex flex-col md:flex-row md:items-center gap-6 justify-between">
                 <div className="max-w-2xl">
@@ -74,20 +99,30 @@ export default function PricingPage() {
                     Enterprise
                   </p>
                   <h3 className="mt-2 text-2xl md:text-3xl font-semibold tracking-tight">
-                    Need own server, whitelabel, or custom scale?
+                    Custom Pricing — Contact Sales
                   </h3>
                   <p className="mt-3 text-sm md:text-base text-white/70 leading-relaxed">
-                    {enterprisePlan.description} Unlimited users, SSO, custom SLAs, and dedicated
-                    infrastructure for your whole organization.
+                    {enterprise.description ||
+                      "Need own server, whitelabel, or custom scale? Request a quote — we never publish fixed Enterprise pricing."}
                   </p>
                 </div>
-                <Button
-                  asChild
-                  size="lg"
-                  className="rounded-full shrink-0 bg-white text-[#0b1f3a] hover:bg-slate-100"
-                >
-                  <Link href={enterprisePlan.href}>{enterprisePlan.cta}</Link>
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
+                  >
+                    <Link href={enterprise.href || "/contact?intent=enterprise"}>Contact Sales</Link>
+                  </Button>
+                  <Button
+                    asChild
+                    size="lg"
+                    variant="outline"
+                    className="rounded-full border-white/30 bg-transparent text-white hover:bg-white/10"
+                  >
+                    <Link href="/contact?intent=quote">Request a Quote</Link>
+                  </Button>
+                </div>
               </div>
             </div>
           ) : null}
@@ -145,44 +180,61 @@ export default function PricingPage() {
       <Section>
         <Container>
           <SectionHeader eyebrow="Compare plans" title="Everything included, side by side" />
-          <div className="overflow-x-auto rounded-2xl border border-border bg-white">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/60">
-                  <th className="px-5 py-4 text-left font-semibold">Feature</th>
-                  {planNames.map((h) => (
-                    <th key={h} className="px-4 py-4 text-center font-semibold text-xs">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonFeatures.map((row) => (
-                  <tr key={row.name} className="border-b border-border last:border-0">
-                    <td className="px-5 py-4 font-medium">{row.name}</td>
-                    {(["starter", "business", "lifetime", "enterprise"] as const).map((key) => {
-                      const val = row[key];
-                      return (
-                        <td key={key} className="px-4 py-4 text-center text-muted-foreground text-xs">
-                          {typeof val === "boolean" ? (
-                            val ? <Check className="mx-auto h-4 w-4 text-accent" /> : <Minus className="mx-auto h-4 w-4 text-slate-300" />
-                          ) : (
-                            val
-                          )}
-                        </td>
-                      );
-                    })}
+          {catalog.loading ? <CatalogSkeleton rows={2} className="xl:grid-cols-1" /> : null}
+          {!catalog.loading && planColumns.length > 0 ? (
+            <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-slate-50/80">
+                    <th className="px-4 py-3 text-left font-semibold text-[#0b1f3a]">Feature</th>
+                    {planColumns.map((p) => (
+                      <th key={p.id} className="px-4 py-3 text-center font-semibold text-[#0b1f3a]">
+                        {p.name}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {comparisonRows.map((row) => (
+                    <tr key={String(row.name)} className="border-b border-border/70 last:border-0">
+                      <td className="px-4 py-3 font-medium text-[#0b1f3a]">{row.name}</td>
+                      {planColumns.map((p) => {
+                        const val = row[p.id];
+                        return (
+                          <td key={p.id} className="px-4 py-3 text-center text-muted-foreground">
+                            {typeof val === "boolean" ? (
+                              val ? (
+                                <Check className="mx-auto h-4 w-4 text-accent" />
+                              ) : (
+                                <Minus className="mx-auto h-4 w-4 text-slate-300" />
+                              )
+                            ) : (
+                              String(val ?? "—")
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  <tr>
+                    <td className="px-4 py-3 font-medium text-[#0b1f3a]">Description</td>
+                    {planColumns.map((p) => (
+                      <td key={p.id} className="px-4 py-3 text-center text-xs text-muted-foreground">
+                        {p.description}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </Container>
       </Section>
 
       <Section muted>
-        <Container className="max-w-3xl">
-          <SectionHeader eyebrow="FAQ" title="Pricing questions, answered" />
-          <Accordion type="single" collapsible className="w-full">
+        <Container>
+          <SectionHeader eyebrow="FAQ" title="Billing questions" />
+          <Accordion type="single" collapsible className="mx-auto max-w-3xl">
             {billingFaqs.map((faq) => (
               <AccordionItem key={faq.id} value={faq.id}>
                 <AccordionTrigger>{faq.question}</AccordionTrigger>
@@ -190,20 +242,17 @@ export default function PricingPage() {
               </AccordionItem>
             ))}
           </Accordion>
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            More questions? Visit our{" "}
-            <Link href="/faqs" className="text-primary hover:underline">full FAQ</Link>.
-          </p>
         </Container>
       </Section>
 
+      <TrustBadgesBand />
       <CTASection
-        title="Need own server, whitelabel, or local deployment?"
-        description="We'll design a package for your infrastructure, branding, and support requirements."
-        primaryLabel="Contact sales"
-        primaryHref="/contact?intent=enterprise"
-        secondaryLabel="View servers"
-        secondaryHref="/servers"
+        title="Ready to start?"
+        description="Pick a plan from the live catalog and begin your free trial."
+        primaryLabel="Start free trial"
+        primaryHref="/signup"
+        secondaryLabel="Talk to sales"
+        secondaryHref="/contact?intent=pricing"
       />
     </>
   );

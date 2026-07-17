@@ -31,6 +31,7 @@ import {
   PortalStatCard,
   PortalStatusBadge,
 } from "@/components/portal/portal-ui";
+import { TrustBadgeStrip } from "@/components/trust-badges";
 
 export function PortalDashboardView() {
   const { data, loading, error, reload } = usePortalContext();
@@ -364,6 +365,19 @@ export function PortalDashboardView() {
           )}
         </PortalPanel>
       </div>
+
+      <PortalPanel
+        title="Account trust"
+        description="WaamTech platform security features protecting your customer portal."
+      >
+        <TrustBadgeStrip
+          set="portal"
+          tone="auto"
+          size="sm"
+          href={false}
+          className="justify-start sm:justify-center"
+        />
+      </PortalPanel>
     </div>
   );
 }

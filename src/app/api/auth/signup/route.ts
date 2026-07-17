@@ -75,20 +75,29 @@ export async function POST(req: Request) {
       mergePhoneWithDialCode(dialCode, phoneLocal || phoneRaw) ||
       phoneRaw ||
       undefined;
-    const resolvedProfileId = sanitizeText(
-      body?.business_category_id || body?.profile_id,
-      80
-    );
+    const resolvedProfileId = sanitizeText(body?.profile_id, 80);
+    const category_id =
+      sanitizeText(body?.category_id || body?.business_category_id, 80) || undefined;
     const industry_id = sanitizeText(body?.industry_id, 80) || undefined;
+    const product_id = sanitizeText(body?.product_id, 80) || undefined;
+    const product_slug = sanitizeText(body?.product_slug, 80) || undefined;
+    const plan_id = sanitizeText(body?.plan_id, 80) || undefined;
     const plan = sanitizeText(body?.plan, 40) || undefined;
     const marketing_opt_in = Boolean(body?.marketing_opt_in);
 
-    if (!name || !password || !email || !company_name || !resolvedProfileId || !country) {
+    if (
+      !name ||
+      !password ||
+      !email ||
+      !company_name ||
+      !resolvedProfileId ||
+      !country
+    ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Please fill name, email, password, company name, country, and business category.",
+            "Please fill name, email, password, company name, country, and business profile.",
         },
         { status: 400 }
       );
@@ -142,6 +151,10 @@ export async function POST(req: Request) {
       country,
       profile_id: resolvedProfileId,
       industry_id,
+      category_id,
+      product_id,
+      product_slug,
+      plan_id,
       plan,
       marketing_opt_in,
     });

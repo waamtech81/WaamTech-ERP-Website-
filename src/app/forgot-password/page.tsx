@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { siteConfig } from "@/lib/data/site";
 
 function ForgotPasswordForm() {
   const searchParams = useSearchParams();
@@ -71,13 +70,10 @@ function ForgotPasswordForm() {
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">{message}</p>
                   <p className="text-xs text-muted-foreground">
-                    Didn&apos;t get it? Check spam, or contact{" "}
-                    <a
-                      href={`mailto:${siteConfig.supportEmail}`}
-                      className="text-primary hover:underline"
-                    >
-                      {siteConfig.supportEmail}
-                    </a>
+                    Didn&apos;t get it? Check spam, or use our{" "}
+                    <Link href="/contact" className="text-primary hover:underline">
+                      contact form
+                    </Link>
                     .
                   </p>
                   <Button asChild variant="outline" className="w-full rounded-full">

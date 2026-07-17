@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Share2 } from "lucide-react";
 import { siteConfig, products } from "@/lib/data/site";
 import { Container } from "@/components/shared/section";
 import { CurrencySwitcher } from "@/components/layout/locale-controls";
@@ -6,6 +7,7 @@ import { NewsletterForm } from "@/components/layout/newsletter-form";
 import { AppStoreBadges } from "@/components/layout/app-store-badges";
 import { FooterReveal } from "@/components/layout/footer-reveal";
 import { BrandLogo } from "@/components/shared/brand-logo";
+import { TrustBadgeStrip } from "@/components/trust-badges";
 
 const footerColumns = [
   {
@@ -26,6 +28,7 @@ const footerColumns = [
     title: "Company",
     links: [
       { label: "About", href: "/about" },
+      { label: "Security & Trust", href: "/security" },
       { label: "Mobile App", href: "/mobile-app" },
       { label: "Servers & Hosting", href: "/servers" },
       { label: "Blog", href: "/blog" },
@@ -69,7 +72,6 @@ export function Footer() {
                 {siteConfig.description}
               </p>
               <NewsletterForm variant="dark" />
-              <AppStoreBadges className="mt-6" variant="dark" />
             </div>
 
             <div className="lg:col-span-8 grid grid-cols-2 gap-8 md:grid-cols-4">
@@ -89,6 +91,24 @@ export function Footer() {
                   </ul>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <AppStoreBadges variant="dark" />
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                WAAMTO Trust
+              </p>
+              <TrustBadgeStrip
+                set="footer"
+                tone="dark"
+                size="xs"
+                href="/security"
+                showLabel={false}
+                layout="row"
+                className="justify-end"
+              />
             </div>
           </div>
 
@@ -122,24 +142,23 @@ export function Footer() {
               <Link href="/terms" className={linkClass}>
                 Terms
               </Link>
-              <Link href="/login" className={linkClass}>
-                Login
-              </Link>
               <a
                 href={siteConfig.social.linkedin}
-                className={linkClass}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.05] text-slate-400 transition-colors hover:border-white/10 hover:text-white"
                 target="_blank"
                 rel="noreferrer"
+                aria-label="LinkedIn"
               >
-                LinkedIn
+                <Share2 className="h-4 w-4" />
               </a>
               <a
                 href={siteConfig.social.youtube}
-                className={linkClass}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.05] text-slate-400 transition-colors hover:border-white/10 hover:text-white"
                 target="_blank"
                 rel="noreferrer"
+                aria-label="YouTube"
               >
-                YouTube
+                <Share2 className="h-4 w-4" />
               </a>
             </div>
           </div>

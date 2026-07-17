@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       unknown
     >;
 
-    // Honeypot + minimum fill time (image captcha needs human interaction)
+    // Honeypot + minimum fill time (puzzle captcha needs human interaction)
     if (looksLikeBotPayload(body)) {
       return NextResponse.json({
         success: true,

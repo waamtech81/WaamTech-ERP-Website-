@@ -10,6 +10,7 @@ import {
 import type {
   CatalogBusinessCategory,
   CatalogBusinessProfile,
+  CatalogComparisonBundle,
   CatalogIndustry,
   CatalogPlan,
   CatalogPricing,
@@ -32,6 +33,8 @@ export type CatalogBundle = {
   plans: CatalogPlan[];
   pricing: CatalogPricing[];
   industries: CatalogIndustry[];
+  comparison?: CatalogComparisonBundle | null;
+  productSlug?: string | null;
   pricingPlans: PricingPlan[];
   cardPlans: PricingPlan[];
   featuredProducts: Product[];
@@ -46,6 +49,8 @@ const EMPTY_BUNDLE: CatalogBundle = {
   plans: [],
   pricing: [],
   industries: [],
+  comparison: null,
+  productSlug: null,
   pricingPlans: [],
   cardPlans: [],
   featuredProducts: [],

@@ -92,7 +92,7 @@ export default function AboutPage() {
             {stats.map((stat, i) => (
               <AnimateIn key={stat.label} delay={i * 0.05}>
                 <div className="text-center">
-                  <p className="font-[family-name:var(--font-poppins)] text-3xl md:text-4xl font-semibold tracking-tight text-primary">
+                  <p className="font-heading text-3xl md:text-4xl font-semibold tracking-tight text-primary">
                     {stat.value}
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">{stat.label}</p>

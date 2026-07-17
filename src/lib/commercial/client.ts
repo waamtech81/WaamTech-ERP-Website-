@@ -7,9 +7,11 @@ import { friendlyNetworkError } from "@/lib/network/errors";
 import type {
   CatalogBusinessCategory,
   CatalogBusinessProfile,
+  CatalogComparisonBundle,
   CatalogFetchResult,
   CatalogIndustry,
   CatalogPlan,
+  CatalogPlanLimits,
   CatalogPricing,
   CatalogProduct,
   CommercialInvoice,
@@ -216,6 +218,31 @@ export async function fetchPublicPricing(
   return { ...result, data: asArray(result.data) };
 }
 
+export async function fetchPublicPlanLimits(
+  planId: string
+): Promise<CatalogFetchResult<CatalogPlanLimits | null>> {
+  return getPublic<CatalogPlanLimits>(
+    `/v1/public/catalog/plans/${encodeURIComponent(planId)}/limits`
+  );
+}
+
+export async function fetchPublicPlanComparison(opts?: {
+  product?: string;
+  ids?: string[];
+}): Promise<CatalogFetchResult<CatalogComparisonBundle>> {
+  const result = await getPublic<CatalogComparisonBundle>(
+    "/v1/public/catalog/plans/comparison",
+    {
+      product: opts?.product,
+      ids: opts?.ids?.length ? opts.ids.join(",") : undefined,
+    }
+  );
+  return {
+    ...result,
+    data: result.data || { plans: [], comparison: [], limit_keys: [] },
+  };
+}
+
 export async function fetchPublicIndustries(): Promise<
   CatalogFetchResult<CatalogIndustry[]>
 > {
@@ -314,14 +341,96 @@ export async function fetchMyBillingHistory(accessToken: string) {
   };
 }
 
+/** Prefer the primary ERP product when the catalog spans multiple products. */
+export function resolvePrimaryProductSlug(
+  products: CatalogProduct[],
+  preferred?: string
+): string | undefined {
+  if (preferred?.trim()) return preferred.trim();
+  const match = products.find(
+    (p) =>
+      /waamto[-_]?erp/i.test(p.slug) ||
+      /WAAMTO_ERP/i.test(p.product_code || "") ||
+      /\berp\b/i.test(p.name)
+  );
+  return match?.slug;
+}
+
 /** Aggregate public catalog for home / pricing pages. */
 export async function fetchPublicCatalogBundle(productSlug?: string) {
-  const [products, plans, pricing, industries] = await Promise.all([
-    fetchPublicProducts(),
-    fetchPublicPlans(productSlug),
-    fetchPublicPricing(productSlug),
-    fetchPublicIndustries(),
-  ]);
+  const products = await fetchPublicProducts();
+  const preferredSlug =
+    productSlug || resolvePrimaryProductSlug(products.data) || undefined;
+
+  let plans = await fetchPublicPlans(preferredSlug);
+  let pricing = await fetchPublicPricing(preferredSlug);
+  let comparison = await fetchPublicPlanComparison({ product: preferredSlug });
+  let resolvedSlug = preferredSlug || null;
+
+  // Fall back to full catalog if the preferred product filter returns nothing
+  // (Engine down for filtered route, or slug mismatch).
+  if (
+    preferredSlug &&
+    ((plans.ok && plans.data.length === 0) ||
+      (!plans.ok && plans.data.length === 0))
+  ) {
+    const allPlans = await fetchPublicPlans();
+    if (allPlans.data.length > 0) {
+      const filtered = allPlans.data.filter(
+        (p) => p.product_slug === preferredSlug
+      );
+      plans = {
+        ...allPlans,
+        data: filtered.length > 0 ? filtered : allPlans.data,
+        ok: allPlans.ok || filtered.length > 0,
+      };
+      if (filtered.length === 0) resolvedSlug = null;
+    }
+  }
+
+  if (
+    preferredSlug &&
+    ((pricing.ok && pricing.data.length === 0) ||
+      (!pricing.ok && pricing.data.length === 0))
+  ) {
+    const allPricing = await fetchPublicPricing();
+    if (allPricing.data.length > 0) {
+      const filtered = allPricing.data.filter(
+        (p) => p.product_slug === preferredSlug
+      );
+      pricing = {
+        ...allPricing,
+        data: filtered.length > 0 ? filtered : allPricing.data,
+        ok: allPricing.ok || filtered.length > 0,
+      };
+    }
+  }
+
+  if (
+    preferredSlug &&
+    (!comparison.ok || comparison.data.comparison.length === 0)
+  ) {
+    const allComparison = await fetchPublicPlanComparison();
+    if (allComparison.data.comparison.length > 0) {
+      const filtered = allComparison.data.comparison.filter(
+        (row) => row.plan.product_slug === preferredSlug
+      );
+      comparison = {
+        ...allComparison,
+        ok: allComparison.ok || filtered.length > 0,
+        data:
+          filtered.length > 0
+            ? {
+                plans: filtered.map((r) => r.plan),
+                comparison: filtered,
+                limit_keys: allComparison.data.limit_keys,
+              }
+            : allComparison.data,
+      };
+    }
+  }
+
+  const industries = await fetchPublicIndustries();
 
   const ok =
     (products.ok && products.data.length > 0) ||
@@ -333,21 +442,32 @@ export async function fetchPublicCatalogBundle(productSlug?: string) {
     pricing.ok ||
     industries.ok;
   const message = !(products.ok && plans.ok && pricing.ok && industries.ok)
-    ? products.message || plans.message || pricing.message || industries.message || "Partial catalog response."
+    ? products.message ||
+      plans.message ||
+      pricing.message ||
+      industries.message ||
+      "Partial catalog response."
     : "OK";
 
   return {
     ok,
-    message: ok ? (products.ok && plans.ok && pricing.ok && industries.ok ? "OK" : message) : message,
+    message: ok
+      ? products.ok && plans.ok && pricing.ok && industries.ok
+        ? "OK"
+        : message
+      : message,
     products: products.data,
     plans: plans.data,
     pricing: pricing.data,
     industries: industries.data,
+    comparison: comparison.data,
+    productSlug: resolvedSlug,
     meta: {
       productsOk: products.ok,
       plansOk: plans.ok,
       pricingOk: pricing.ok,
       industriesOk: industries.ok,
+      comparisonOk: comparison.ok,
       partial: ok && !(products.ok && plans.ok && pricing.ok && industries.ok),
     },
   };

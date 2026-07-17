@@ -28,6 +28,12 @@ import {
   mergePhoneWithDialCode,
 } from "@/lib/data/countries";
 import { getIcon } from "@/lib/icons";
+import {
+  parseBillingCycle,
+  readPlanSelection,
+  savePlanSelection,
+} from "@/lib/commercial/plan-selection";
+import type { BillingCycle } from "@/lib/commercial/types";
 import { cn } from "@/lib/utils";
 import {
   useCatalogBusinessCategories,
@@ -160,6 +166,11 @@ function SignUpForm() {
   const defaultIndustryId = searchParams.get("industry") || "";
   const defaultCategoryId = searchParams.get("category") || "";
   const defaultProfileId = searchParams.get("profile") || "";
+  const defaultBillingCycle = searchParams.get("billing_cycle") || "";
+  const defaultPrice = searchParams.get("price") || "";
+  const defaultDiscount = searchParams.get("discount") || "";
+  const defaultOriginalPrice = searchParams.get("original_price") || "";
+  const defaultSavings = searchParams.get("savings") || "";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -185,6 +196,25 @@ function SignUpForm() {
   const [productSlug, setProductSlug] = useState(defaultProductSlug);
   const [planId, setPlanId] = useState(defaultPlanId);
   const [planSlug, setPlanSlug] = useState(defaultPlanSlug);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle | "">(
+    () => parseBillingCycle(defaultBillingCycle) || ""
+  );
+  const [selectedPrice, setSelectedPrice] = useState<number | null>(() => {
+    const n = Number(defaultPrice);
+    return defaultPrice && Number.isFinite(n) ? n : null;
+  });
+  const [selectedDiscount, setSelectedDiscount] = useState<number | null>(() => {
+    const n = Number(defaultDiscount);
+    return defaultDiscount && Number.isFinite(n) ? n : null;
+  });
+  const [selectedOriginalPrice, setSelectedOriginalPrice] = useState<number | null>(() => {
+    const n = Number(defaultOriginalPrice);
+    return defaultOriginalPrice && Number.isFinite(n) ? n : null;
+  });
+  const [selectedSavings, setSelectedSavings] = useState<number | null>(() => {
+    const n = Number(defaultSavings);
+    return defaultSavings && Number.isFinite(n) ? n : null;
+  });
   const [industryId, setIndustryId] = useState(defaultIndustryId);
   const [categoryId, setCategoryId] = useState(defaultCategoryId);
   const [profileId, setProfileId] = useState(defaultProfileId);
@@ -269,6 +299,67 @@ function SignUpForm() {
     () => signupPlans.find((p) => p.id === planId || p.slug === planSlug),
     [signupPlans, planId, planSlug]
   );
+
+  useEffect(() => {
+    const stored = readPlanSelection();
+    if (!stored) return;
+    if (!planId && stored.planId) setPlanId(stored.planId);
+    if (!planSlug && stored.plan) setPlanSlug(stored.plan);
+    if (!productSlug && stored.productSlug) setProductSlug(stored.productSlug);
+    if (!billingCycle && stored.billingCycle) setBillingCycle(stored.billingCycle);
+    if (selectedPrice == null && stored.price != null) setSelectedPrice(stored.price);
+    if (selectedDiscount == null && stored.discount != null) {
+      setSelectedDiscount(stored.discount);
+    }
+    if (selectedOriginalPrice == null && stored.originalPrice != null) {
+      setSelectedOriginalPrice(stored.originalPrice);
+    }
+    if (selectedSavings == null && stored.savings != null) {
+      setSelectedSavings(stored.savings);
+    }
+    // Hydrate once from pricing selection — do not re-run on every field change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPlan) return;
+    if (billingCycle) return;
+    const fromPlan = parseBillingCycle(
+      selectedPlan.billing_cycle || selectedPlan.plan_type
+    );
+    if (fromPlan && fromPlan !== "lifetime") {
+      setBillingCycle(fromPlan);
+    } else if (selectedPlan.lifetime_price != null) {
+      setBillingCycle("lifetime");
+    } else {
+      setBillingCycle("monthly");
+    }
+  }, [selectedPlan, billingCycle]);
+
+  useEffect(() => {
+    if (!planId || !billingCycle) return;
+    savePlanSelection({
+      planId,
+      plan: planSlug || selectedPlan?.slug || planId,
+      productSlug: productSlug || undefined,
+      billingCycle,
+      price: selectedPrice,
+      discount: selectedDiscount,
+      originalPrice: selectedOriginalPrice,
+      savings: selectedSavings,
+    });
+  }, [
+    planId,
+    planSlug,
+    productSlug,
+    billingCycle,
+    selectedPrice,
+    selectedDiscount,
+    selectedOriginalPrice,
+    selectedSavings,
+    selectedPlan?.slug,
+  ]);
+
   const selectedIndustry = useMemo(
     () => industriesQuery.data.find((i) => i.id === industryId),
     [industriesQuery.data, industryId]
@@ -466,6 +557,11 @@ function SignUpForm() {
           product_slug: productSlug,
           plan_id: planId,
           plan: planSlug,
+          billing_cycle: billingCycle || undefined,
+          price: selectedPrice,
+          discount: selectedDiscount,
+          original_price: selectedOriginalPrice,
+          savings: selectedSavings,
           industry_id: industryId,
           category_id: categoryId,
           business_category_id: categoryId,
@@ -748,6 +844,7 @@ function SignUpForm() {
                 </p>
                 <p className="mt-1 font-semibold text-[#0b1f3a] text-sm leading-relaxed">
                   {selectedProduct.name} · {selectedPlan.name}
+                  {billingCycle ? ` · ${billingCycle}` : ""}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {selectedIndustry.name} → {selectedCategory.name} → {selectedProfile.name}
@@ -773,6 +870,7 @@ function SignUpForm() {
                   </p>
                   <p className="mt-1 font-semibold text-[#0b1f3a] text-sm">
                     {selectedProduct.name} · {selectedPlan.name}
+                    {billingCycle ? ` · ${billingCycle}` : ""}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {selectedIndustry.name} → {selectedCategory.name} → {selectedProfile.name}
@@ -1070,6 +1168,11 @@ function SignUpForm() {
                   selectedPlan ? (
                     <span className="flex items-center gap-2 truncate">
                       <span className="truncate">{selectedPlan.name}</span>
+                      {billingCycle ? (
+                        <span className="shrink-0 capitalize text-muted-foreground font-normal">
+                          {billingCycle}
+                        </span>
+                      ) : null}
                       {selectedPlan.has_free_trial ? (
                         <span className="shrink-0 text-muted-foreground font-normal">
                           {selectedPlan.trial_days || authConfig.trialDays}-day trial

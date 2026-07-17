@@ -19,7 +19,7 @@ export function SwiverHero() {
           initial={reduce ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-3 font-[family-name:var(--font-poppins)] text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-[#0b1f3a]"
+          className="mb-3 font-heading text-hero font-bold tracking-tight text-[#0b1f3a]"
         >
           {siteConfig.name}
         </motion.p>
@@ -28,7 +28,7 @@ export function SwiverHero() {
           initial={reduce ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.04 }}
-          className="mb-6 text-sm md:text-base font-medium tracking-wide text-primary"
+          className="mb-6 font-sans text-sm md:text-base font-medium tracking-wide text-primary"
         >
           {siteConfig.productLine} by {siteConfig.companyName}
         </motion.p>
@@ -37,7 +37,7 @@ export function SwiverHero() {
           initial={reduce ? false : { opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.05 }}
-          className="mx-auto max-w-4xl font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-[2.15rem] font-semibold tracking-tight text-[#0b1f3a]/90 text-balance leading-[1.2]"
+          className="mx-auto max-w-4xl font-heading text-h2 font-semibold tracking-tight text-[#0b1f3a]/90 text-balance leading-[1.2]"
         >
           Control your business. Optimize operations. Unlock growth.
         </motion.h1>
@@ -46,7 +46,7 @@ export function SwiverHero() {
           initial={reduce ? false : { opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.12 }}
-          className="mx-auto mt-5 max-w-2xl text-base md:text-lg text-muted-foreground leading-relaxed"
+          className="mx-auto mt-5 max-w-2xl font-sans text-description font-normal text-muted-foreground leading-relaxed"
         >
           One modular platform for Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing,
           and built-in AI — configured for your industry in minutes.

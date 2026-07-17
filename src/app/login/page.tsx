@@ -39,7 +39,6 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [challengeToken, setChallengeToken] = useState("");
-  const [maskedEmail, setMaskedEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -104,7 +103,6 @@ function LoginForm() {
 
       if (json.requiresOtp || json.requires_email_verification) {
         setChallengeToken(json.data?.challenge_token || "");
-        setMaskedEmail(json.data?.email || username);
         setStep("otp");
         setCooldown(60);
         setInfo(
@@ -199,7 +197,6 @@ function LoginForm() {
     setStep("credentials");
     setOtp("");
     setChallengeToken("");
-    setMaskedEmail("");
     setError("");
     setInfo("");
   }
@@ -215,7 +212,7 @@ function LoginForm() {
             </h1>
             <p className="mt-3 text-muted-foreground leading-relaxed">
               {step === "otp"
-                ? `Enter the code sent to ${maskedEmail || "your email"}`
+                ? `Enter the code sent to ${username || "your email"}`
                 : "Sign in with your enterprise identity to open the Customer Portal."}
             </p>
           </div>
@@ -249,7 +246,7 @@ function LoginForm() {
                     <div className="flex items-center justify-between gap-3">
                       <Label htmlFor="password">Password</Label>
                       <Link
-                        href={`/forgot-password${username.includes("@") ? `?email=${encodeURIComponent(username)}` : ""}`}
+                        href={`/forgot-password${username.trim() ? `?email=${encodeURIComponent(username.trim())}` : ""}`}
                         className="text-xs font-medium text-primary hover:underline"
                       >
                         Forgot password?

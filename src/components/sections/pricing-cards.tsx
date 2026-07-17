@@ -1,14 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Sparkles, Users } from "lucide-react";
+import { Check, HardDrive, Sparkles, Users } from "lucide-react";
 import type { PricingPlan } from "@/types";
 import { AnimateIn } from "@/components/shared/animate-in";
+import { PlanFeatureGroups } from "@/components/sections/plan-feature-groups";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocale } from "@/components/providers/locale-provider";
 import { formatMoney } from "@/lib/currency/format";
+import {
+  resolveCyclePrice,
+  withPlanSelectionParams,
+} from "@/lib/commercial/mappers";
+import { savePlanSelection } from "@/lib/commercial/plan-selection";
+import type { BillingCycle } from "@/lib/commercial/types";
 
 type PricingCardsProps = {
   plans: PricingPlan[];
@@ -26,6 +33,14 @@ function usersLabel(plan: PricingPlan) {
   return null;
 }
 
+function storageLabel(plan: PricingPlan) {
+  if (plan.storageIncludedGb === "unlimited") return "Unlimited storage";
+  if (typeof plan.storageIncludedGb === "number") {
+    return `${plan.storageIncludedGb} GB storage included`;
+  }
+  return null;
+}
+
 export function PricingCards({
   plans,
   yearly,
@@ -34,28 +49,47 @@ export function PricingCards({
 }: PricingCardsProps) {
   const { formatPrice, currency, t } = useLocale();
 
+  function onSelectPlan(plan: PricingPlan, billingCycle: BillingCycle, cycle: ReturnType<typeof resolveCyclePrice>) {
+    if (!plan.planId) return;
+    savePlanSelection({
+      planId: plan.planId,
+      plan: plan.id,
+      productSlug: plan.productSlug,
+      billingCycle,
+      price: cycle.price,
+      discount: cycle.discountPercent,
+      originalPrice: cycle.originalPrice,
+      savings: cycle.savings,
+      currency: plan.currency,
+    });
+  }
+
   return (
     <div className={`grid gap-6 md:gap-7 items-stretch pt-4 ${columns}`}>
       {plans.map((plan, i) => {
-        const isLifetime = plan.lifetimePrice != null;
-        const price = isLifetime
-          ? plan.lifetimePrice
-          : yearly
-            ? plan.yearlyPrice
-            : plan.monthlyPrice;
-        const original = isLifetime
-          ? plan.originalMonthlyPrice
-          : yearly
-            ? plan.originalYearlyPrice
-            : plan.originalMonthlyPrice;
+        const cycle = resolveCyclePrice(plan, yearly);
+        const isLifetime = cycle.billingCycle === "lifetime";
+        const isPopular = Boolean(plan.popular);
         const seats = usersLabel(plan);
+        const storage = storageLabel(plan);
+        const ribbon = plan.ribbon || plan.badge || plan.launchBadge;
+        const href = withPlanSelectionParams(plan.href, {
+          billingCycle: cycle.billingCycle,
+          price: cycle.price,
+          discount: cycle.discountPercent,
+          originalPrice: cycle.originalPrice,
+          savings: cycle.savings,
+        });
+
         const moduleList = plan.modules ?? [];
         const shownModules = compact ? moduleList.slice(0, 4) : moduleList;
-        const shownFeatures = compact
-          ? plan.features.filter((f) => !seats || f !== seats).slice(0, 3)
-          : plan.features.filter((f) => !seats || f !== seats);
-
-        const isPopular = Boolean(plan.popular);
+        const featureGroups = plan.featureGroups ?? [];
+        const shownFeatures =
+          featureGroups.length === 0
+            ? compact
+              ? plan.features.filter((f) => !seats || f !== seats).slice(0, 5)
+              : plan.features.filter((f) => !seats || f !== seats)
+            : [];
 
         return (
           <AnimateIn key={plan.id} delay={i * 0.05} className="h-full">
@@ -68,58 +102,82 @@ export function PricingCards({
                     : "border-border/80"
               }`}
             >
-              {isPopular ? (
+              {ribbon ? (
                 <div className="absolute -top-3.5 left-1/2 z-10 -translate-x-1/2">
                   <Badge
-                    className="notranslate whitespace-nowrap border border-border/80 bg-white px-3 py-1 text-[var(--brand-dark)] shadow-sm hover:bg-white"
+                    className={`notranslate whitespace-nowrap px-3 py-1 shadow-sm ${
+                      isPopular
+                        ? "border border-border/80 bg-white text-[var(--brand-dark)] hover:bg-white"
+                        : ""
+                    }`}
+                    variant={isPopular ? "default" : "accent"}
                     translate="no"
                   >
-                    {t("pricing.mostPopular", "Most popular")}
-                  </Badge>
-                </div>
-              ) : plan.id === "lifetime" && plan.badge ? (
-                <div className="absolute -top-3.5 left-1/2 z-10 -translate-x-1/2">
-                  <Badge
-                    variant="accent"
-                    className="notranslate shadow-sm whitespace-nowrap"
-                    translate="no"
-                  >
-                    {t("pricing.bestValue", plan.badge)}
+                    {ribbon}
                   </Badge>
                 </div>
               ) : null}
 
-              {/* Same top padding on every card → equal top alignment */}
               <CardHeader className={`${compact ? "pb-2 pt-8" : "pb-3 pt-8"}`}>
-                <CardTitle className={`text-lg leading-tight ${isPopular ? "text-white" : ""}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                <CardTitle className={`font-heading text-pricing-title leading-tight ${isPopular ? "text-white" : ""}`}>
                   {plan.name}
                 </CardTitle>
+                  {plan.recommended && !isPopular ? (
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                      Recommended
+                    </Badge>
+                  ) : null}
+                </div>
+                {plan.subtitle ? (
+                  <p
+                    className={`text-sm font-medium ${
+                      isPopular ? "text-sky-100" : "text-primary"
+                    }`}
+                  >
+                    {plan.subtitle}
+                  </p>
+                ) : null}
                 <p
                   className={`text-sm leading-relaxed ${compact ? "" : "min-h-[2.75rem]"} ${
                     isPopular ? "text-white/80" : "text-muted-foreground"
                   }`}
                 >
-                  {plan.description}
+                  {plan.marketingSummary || plan.description}
                 </p>
 
-                {seats ? (
-                  <div
-                    className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      isPopular
-                        ? "bg-white text-[var(--brand-dark)] shadow-sm"
-                        : "bg-primary/8 text-primary"
-                    }`}
-                  >
-                    <Users className="h-3.5 w-3.5 shrink-0" />
-                    <span>{seats}</span>
-                  </div>
-                ) : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {seats ? (
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        isPopular
+                          ? "bg-white text-[var(--brand-dark)] shadow-sm"
+                          : "bg-primary/8 text-primary"
+                      }`}
+                    >
+                      <Users className="h-3.5 w-3.5 shrink-0" />
+                      <span>{seats}</span>
+                    </div>
+                  ) : null}
+                  {storage ? (
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        isPopular
+                          ? "bg-white/15 text-white"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      <HardDrive className="h-3.5 w-3.5 shrink-0" />
+                      <span>{storage}</span>
+                    </div>
+                  ) : null}
+                </div>
 
                 <div className="pt-4 space-y-2">
-                  {price !== null && price !== undefined ? (
+                  {cycle.price !== null && cycle.price !== undefined ? (
                     <>
                       <div className="flex items-end gap-2 flex-wrap notranslate" translate="no">
-                        {original ? (
+                        {cycle.originalPrice ? (
                           <span
                             className={`text-base md:text-lg line-through ${
                               isPopular
@@ -127,7 +185,7 @@ export function PricingCards({
                                 : "text-muted-foreground decoration-red-400/60"
                             }`}
                           >
-                            {formatPrice(original)}
+                            {formatPrice(cycle.originalPrice)}
                           </span>
                         ) : null}
                         <span
@@ -135,7 +193,7 @@ export function PricingCards({
                             isPopular ? "text-white" : "text-[#0b1f3a]"
                           }`}
                         >
-                          {formatPrice(price)}
+                          {formatPrice(cycle.price)}
                         </span>
                         <span
                           className={`text-sm pb-0.5 ${
@@ -147,14 +205,24 @@ export function PricingCards({
                             : ` ${t("pricing.perUserMo", "/user/mo")}`}
                         </span>
                       </div>
-                      {price && currency !== "USD" ? (
+                      <p
+                        className={`text-xs capitalize ${
+                          isPopular ? "text-white/60" : "text-muted-foreground"
+                        }`}
+                      >
+                        Billing: {cycle.billingCycle}
+                        {yearly && !isLifetime && plan.yearlyTotal != null
+                          ? ` · ${formatPrice(plan.yearlyTotal)} / year`
+                          : null}
+                      </p>
+                      {cycle.price && currency !== "USD" ? (
                         <p
                           className={`text-xs notranslate ${
                             isPopular ? "text-white/60" : "text-muted-foreground"
                           }`}
                           translate="no"
                         >
-                          ≈ {formatMoney(price, "USD", { showCode: true })}
+                          ≈ {formatMoney(cycle.price, "USD", { showCode: true })}
                           {isLifetime
                             ? ` ${t("pricing.oneTime", "one-time")}`
                             : !yearly
@@ -162,16 +230,26 @@ export function PricingCards({
                               : ` ${t("pricing.billedYearly", "/mo billed yearly")}`}
                         </p>
                       ) : null}
-                      {plan.launchDiscount ? (
+                      {cycle.discountPercent ? (
                         <div
                           className="notranslate inline-flex items-center gap-1 rounded-full border border-emerald-100/80 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
                           translate="no"
                         >
                           <Sparkles className="h-3 w-3" />
-                          {t("pricing.launchDiscount", "{{percent}}% launch discount", {
-                            percent: plan.launchDiscount,
+                          {t("pricing.launchDiscount", "{{percent}}% discount", {
+                            percent: cycle.discountPercent,
                           })}
                         </div>
+                      ) : null}
+                      {cycle.savings != null && cycle.savings > 0 ? (
+                        <p
+                          className={`text-xs font-medium ${
+                            isPopular ? "text-emerald-200" : "text-emerald-700"
+                          }`}
+                        >
+                          Save {formatPrice(cycle.savings)}
+                          {yearly && !isLifetime ? " / year" : ""}
+                        </p>
                       ) : null}
                     </>
                   ) : (
@@ -188,6 +266,21 @@ export function PricingCards({
               </CardHeader>
 
               <CardContent className="flex flex-1 flex-col pt-0 pb-6">
+                {(plan.extraUserPrice != null || plan.extraStoragePricePerGb != null) && (
+                  <div
+                    className={`mb-4 space-y-1 text-xs ${
+                      isPopular ? "text-white/75" : "text-muted-foreground"
+                    }`}
+                  >
+                    {plan.extraUserPrice != null ? (
+                      <p>Extra user: {formatPrice(plan.extraUserPrice)}</p>
+                    ) : null}
+                    {plan.extraStoragePricePerGb != null ? (
+                      <p>Extra storage: {formatPrice(plan.extraStoragePricePerGb)}/GB</p>
+                    ) : null}
+                  </div>
+                )}
+
                 {shownModules.length > 0 ? (
                   <div className="mb-4">
                     <p
@@ -213,20 +306,19 @@ export function PricingCards({
                           <span>{m}</span>
                         </li>
                       ))}
-                      {compact && moduleList.length > shownModules.length ? (
-                        <li
-                          className={`text-xs pl-5 ${
-                            isPopular ? "text-sky-100" : "text-primary"
-                          }`}
-                        >
-                          +{moduleList.length - shownModules.length} more on full plans page
-                        </li>
-                      ) : null}
                     </ul>
                   </div>
                 ) : null}
 
-                {shownFeatures.length > 0 ? (
+                {featureGroups.length > 0 ? (
+                  <div className="mb-6 flex-1">
+                    <PlanFeatureGroups
+                      groups={featureGroups}
+                      compact={compact}
+                      popular={isPopular}
+                    />
+                  </div>
+                ) : shownFeatures.length > 0 ? (
                   <ul className={`space-y-2.5 mb-6 flex-1 ${compact ? "text-xs" : ""}`}>
                     {shownFeatures.map((f) => (
                       <li
@@ -237,7 +329,7 @@ export function PricingCards({
                       >
                         <Check
                           className={`h-4 w-4 shrink-0 mt-0.5 ${
-                            isPopular ? "text-emerald-300" : "text-accent"
+                            isPopular ? "text-emerald-300" : "text-emerald-600"
                           }`}
                         />
                         <span>{f}</span>
@@ -259,7 +351,12 @@ export function PricingCards({
                   }`}
                   variant={isPopular ? "default" : isLifetime ? "default" : "outline"}
                 >
-                  <Link href={plan.href}>{plan.cta}</Link>
+                  <Link
+                    href={href}
+                    onClick={() => onSelectPlan(plan, cycle.billingCycle, cycle)}
+                  >
+                    {plan.cta}
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
@@ -270,8 +367,20 @@ export function PricingCards({
   );
 }
 
-export function LaunchDiscountBanner() {
+export function LaunchDiscountBanner({
+  campaign,
+  badge,
+  maxDiscount,
+  maxSavings,
+}: {
+  campaign?: string | null;
+  badge?: string | null;
+  maxDiscount?: number | null;
+  maxSavings?: number | null;
+}) {
   const { formatPrice } = useLocale();
+  if (!campaign && !badge && !maxDiscount) return null;
+
   return (
     <div className="mb-8 md:mb-10 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-blue-50 px-5 py-5 sm:px-6 flex flex-col md:flex-row md:items-center gap-4 justify-between">
       <div className="flex items-start gap-3">
@@ -279,16 +388,26 @@ export function LaunchDiscountBanner() {
           <Sparkles className="h-5 w-5" />
         </span>
         <div>
-          <p className="font-semibold text-[#0b1f3a]">50% Launch Discount — Limited Time</p>
+          <p className="font-semibold text-[#0b1f3a]">
+            {campaign || badge || (maxDiscount ? `${maxDiscount}% launch discount` : "Launch offer")}
+          </p>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-xl leading-relaxed">
-            Lock in launch rates before they go up. Prices auto-convert to your local currency —
+            Prices and discounts are loaded live from the License Engine commercial catalog —
             billed in USD.
           </p>
         </div>
       </div>
-      <Badge variant="accent" className="self-start md:self-center text-sm px-4 py-1.5 shrink-0">
-        Save up to <span translate="no">{formatPrice(40)}</span>/user/mo
-      </Badge>
+      {maxSavings || maxDiscount || badge ? (
+        <Badge variant="accent" className="self-start md:self-center text-sm px-4 py-1.5 shrink-0">
+          {badge ||
+            (maxDiscount ? `Save ${maxDiscount}%` : null) ||
+            (maxSavings ? (
+              <>
+                Save up to <span translate="no">{formatPrice(maxSavings)}</span>
+              </>
+            ) : null)}
+        </Badge>
+      ) : null}
     </div>
   );
 }

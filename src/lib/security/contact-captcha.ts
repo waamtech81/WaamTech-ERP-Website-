@@ -25,166 +25,116 @@ function safeEqual(a: string, b: string) {
   }
 }
 
-type IconKind = "shield" | "lock" | "cloud" | "key" | "users" | "server";
-
-const ICON_LABELS: Record<IconKind, string> = {
-  shield: "shields",
-  lock: "locks",
-  cloud: "clouds",
-  key: "keys",
-  users: "people icons",
-  server: "servers",
-};
-
-const ALL_KINDS: IconKind[] = ["shield", "lock", "cloud", "key", "users", "server"];
+type Pending = { exp: number; target: number };
 
 /** One-time challenge registry (memory; Redis not required) */
-const pendingChallenges = new Map<string, number>(); // nonce -> expiresAt
+const pendingChallenges = new Map<string, Pending>();
 const MAX_PENDING = 5000;
 
 function pruneChallenges(now = Date.now()) {
-  for (const [nonce, exp] of pendingChallenges) {
-    if (exp <= now) pendingChallenges.delete(nonce);
+  for (const [nonce, row] of pendingChallenges) {
+    if (row.exp <= now) pendingChallenges.delete(nonce);
   }
   if (pendingChallenges.size > MAX_PENDING) {
-    const oldest = [...pendingChallenges.entries()].sort((a, b) => a[1] - b[1]);
+    const oldest = [...pendingChallenges.entries()].sort((a, b) => a[1].exp - b[1].exp);
     for (let i = 0; i < oldest.length - MAX_PENDING + 200; i++) {
       pendingChallenges.delete(oldest[i]![0]);
     }
   }
 }
 
-function registerChallenge(nonce: string, exp: number) {
+function registerChallenge(nonce: string, exp: number, target: number) {
   pruneChallenges();
-  pendingChallenges.set(nonce, exp);
+  pendingChallenges.set(nonce, { exp, target });
 }
 
-/** Returns true only on first successful consume */
-function consumeChallenge(nonce: string): boolean {
+function consumeChallenge(nonce: string): Pending | null {
   pruneChallenges();
-  const exp = pendingChallenges.get(nonce);
-  if (exp == null) return false;
-  if (Date.now() > exp) {
+  const row = pendingChallenges.get(nonce);
+  if (!row) return null;
+  if (Date.now() > row.exp) {
     pendingChallenges.delete(nonce);
-    return false;
+    return null;
   }
   pendingChallenges.delete(nonce);
-  return true;
+  return row;
 }
 
-function iconPath(kind: IconKind): string {
-  switch (kind) {
-    case "shield":
-      return "M32 8 L52 16 V32 c0 14-8 24-20 28 C20 56 12 46 12 32 V16 Z";
-    case "lock":
-      return "M22 28 V20 a10 10 0 0 1 20 0 v8 M18 28 h28 v24 a4 4 0 0 1-4 4 H22 a4 4 0 0 1-4-4 Z M32 38 v8";
-    case "cloud":
-      return "M20 40 H48 a10 10 0 0 0 0-20 a14 14 0 0 0-26-4 a10 10 0 0 0-2 24 Z";
-    case "key":
-      return "M26 32 a10 10 0 1 1 0 0.1 M34 32 H52 M46 28 V36 M50 28 V36";
-    case "users":
-      return "M24 40 c0-8 6-12 12-12 s12 4 12 12 M36 18 a8 8 0 1 1 0 0.1 M16 42 c0-6 4-9 8-10 M14 22 a6 6 0 1 1 0 0.1";
-    case "server":
-      return "M14 16 h36 v12 H14 Z M14 32 h36 v12 H14 Z M20 22 h4 M20 38 h4";
-    default:
-      return "";
-  }
-}
+const TRACK_WIDTH = 280;
+const PIECE_SIZE = 44;
+const TOLERANCE = 10;
 
-function renderTileSvg(kind: IconKind, seed: number): string {
-  const rot = (seed % 17) - 8;
+function puzzleBgSvg(targetX: number, seed: number): string {
   const hue = 200 + (seed % 40);
-  const noise = Array.from({ length: 6 }, (_, i) => {
-    const x = 8 + ((seed * (i + 3)) % 48);
-    const y = 8 + ((seed * (i + 7)) % 48);
-    const r = 1 + (seed + i) % 3;
-    return `<circle cx="${x}" cy="${y}" r="${r}" fill="rgba(5,73,164,0.08)"/>`;
-  }).join("");
-
-  const stroke = `hsl(${hue} 72% 38%)`;
-  const bg = `hsl(${hue} 40% 96%)`;
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 64 64" role="img">
-  <rect width="64" height="64" rx="14" fill="${bg}"/>
-  <g transform="rotate(${rot} 32 32)" fill="none" stroke="${stroke}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="${iconPath(kind)}"/>
-  </g>
-  ${noise}
+  const gap = targetX;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${TRACK_WIDTH}" height="120" viewBox="0 0 ${TRACK_WIDTH} 120">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl(${hue},55%,42%)"/>
+      <stop offset="100%" stop-color="hsl(${hue + 30},60%,28%)"/>
+    </linearGradient>
+    <pattern id="d" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="rgba(255,255,255,0.18)"/>
+    </pattern>
+  </defs>
+  <rect width="${TRACK_WIDTH}" height="120" rx="16" fill="url(#g)"/>
+  <rect width="${TRACK_WIDTH}" height="120" rx="16" fill="url(#d)"/>
+  <path d="M${gap} 38
+    h12 a10 10 0 0 1 10 10 v4 a12 12 0 0 0 0 16 v4 a10 10 0 0 1 -10 10 h-12
+    v-44 z" fill="rgba(7,21,38,0.35)"/>
+  <circle cx="${gap + 22}" cy="60" r="14" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2" stroke-dasharray="3 3"/>
 </svg>`;
 }
 
-export type CaptchaTile = {
-  id: string;
-  image: string; // data URI — no category label exposed
-};
-
-export type ImageCaptchaChallenge = {
-  question: string;
-  token: string;
-  tiles: CaptchaTile[];
-};
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = randomInt(0, i + 1);
-    [a[i], a[j]] = [a[j]!, a[i]!];
-  }
-  return a;
+function puzzlePieceSvg(seed: number): string {
+  const hue = 200 + (seed % 40);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 ${PIECE_SIZE} ${PIECE_SIZE}">
+  <defs>
+    <linearGradient id="p" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl(${hue},70%,58%)"/>
+      <stop offset="100%" stop-color="hsl(${hue + 25},65%,40%)"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="40" height="40" rx="10" fill="url(#p)" stroke="rgba(255,255,255,0.7)" stroke-width="2"/>
+  <circle cx="22" cy="22" r="7" fill="rgba(255,255,255,0.35)"/>
+</svg>`;
 }
 
+export type PuzzleCaptchaChallenge = {
+  question: string;
+  token: string;
+  trackWidth: number;
+  pieceSize: number;
+  background: string;
+  piece: string;
+};
+
 /**
- * Hard image-match captcha: select all tiles matching a visual category.
- * Answers are HMAC-signed + one-time nonce — never sent to the client.
+ * Slide-to-fit puzzle captcha.
+ * Target offset stays server-side (one-time nonce map) — never exposed in the token.
  */
-export function createContactCaptcha(): ImageCaptchaChallenge {
-  const target = ALL_KINDS[randomInt(0, ALL_KINDS.length)]!;
-  const matchCount = randomInt(3, 5); // 3 or 4 matches in 9 tiles
-  const tilesMeta: { id: string; kind: IconKind; seed: number }[] = [];
-
-  for (let i = 0; i < matchCount; i++) {
-    tilesMeta.push({
-      id: randomBytes(8).toString("hex"),
-      kind: target,
-      seed: randomInt(1, 10_000),
-    });
-  }
-
-  const distractors = ALL_KINDS.filter((k) => k !== target);
-  while (tilesMeta.length < 9) {
-    const kind = distractors[randomInt(0, distractors.length)]!;
-    tilesMeta.push({
-      id: randomBytes(8).toString("hex"),
-      kind,
-      seed: randomInt(1, 10_000),
-    });
-  }
-
-  const shuffled = shuffle(tilesMeta);
-  const correctIds = shuffled
-    .filter((t) => t.kind === target)
-    .map((t) => t.id)
-    .sort();
+export function createContactCaptcha(): PuzzleCaptchaChallenge {
+  const seed = randomInt(1, 10_000);
+  const maxX = TRACK_WIDTH - PIECE_SIZE - 8;
+  const targetX = randomInt(48, Math.max(49, maxX));
 
   const nonce = randomBytes(16).toString("hex");
-  const exp = Date.now() + 5 * 60_000; // 5 minutes
-  const answerHash = sign(`ans:${correctIds.join(",")}`);
-  const payload = `v2.${nonce}.${exp}.${answerHash}.${correctIds.length}`;
+  const exp = Date.now() + 5 * 60_000;
+  const payload = `v3.${nonce}.${exp}`;
   const token = `${payload}.${sign(payload)}`;
 
-  registerChallenge(nonce, exp);
+  registerChallenge(nonce, exp, targetX);
 
-  const tiles: CaptchaTile[] = shuffled.map((t) => {
-    const svg = renderTileSvg(t.kind, t.seed);
-    const image = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
-    return { id: t.id, image };
-  });
+  const bg = puzzleBgSvg(targetX, seed);
+  const piece = puzzlePieceSvg(seed);
 
   return {
-    question: `Select all images with ${ICON_LABELS[target]}`,
+    question: "Slide the piece to complete the puzzle",
     token,
-    tiles,
+    trackWidth: TRACK_WIDTH,
+    pieceSize: PIECE_SIZE,
+    background: `data:image/svg+xml;base64,${Buffer.from(bg).toString("base64")}`,
+    piece: `data:image/svg+xml;base64,${Buffer.from(piece).toString("base64")}`,
   };
 }
 
@@ -193,58 +143,42 @@ export type CaptchaVerifyResult =
   | { ok: false; reason: string };
 
 /**
- * Verify image selection. Token is single-use — replay attacks fail.
+ * Verify puzzle slide position. Token is single-use.
  */
 export function verifyContactCaptcha(
   token: string,
-  selectedIdsRaw: unknown
+  selectedRaw: unknown
 ): CaptchaVerifyResult {
   const tokenStr = String(token || "").trim();
   const parts = tokenStr.split(".");
-  // v2.nonce.exp.answerHash.count.sig  => 6 parts
-  if (parts.length !== 6 || parts[0] !== "v2") {
+  // v3.nonce.exp.sig => 4 parts
+  if (parts.length !== 4 || parts[0] !== "v3") {
     return { ok: false, reason: "Invalid captcha token." };
   }
 
-  const [, nonce, expStr, answerHash, countStr, sig] = parts;
-  const payload = `v2.${nonce}.${expStr}.${answerHash}.${countStr}`;
+  const [, nonce, expStr, sig] = parts;
+  const payload = `v3.${nonce}.${expStr}`;
   if (!safeEqual(sig || "", sign(payload))) {
     return { ok: false, reason: "Invalid captcha signature." };
   }
 
   const exp = Number(expStr);
   if (!Number.isFinite(exp) || Date.now() > exp) {
-    return { ok: false, reason: "Captcha expired. Please refresh." };
+    return { ok: false, reason: "Captcha expired. Please open the puzzle again." };
   }
 
-  if (!consumeChallenge(nonce || "")) {
-    return { ok: false, reason: "Captcha already used. Please refresh." };
+  const pending = consumeChallenge(nonce || "");
+  if (!pending) {
+    return { ok: false, reason: "Captcha already used. Please open the puzzle again." };
   }
 
-  const selected = Array.isArray(selectedIdsRaw)
-    ? selectedIdsRaw.map((id) => String(id).trim().toLowerCase()).filter(Boolean)
-    : String(selectedIdsRaw || "")
-        .split(",")
-        .map((id) => id.trim().toLowerCase())
-        .filter(Boolean);
-
-  // Deduplicate + validate hex tile ids
-  const unique = [...new Set(selected)];
-  if (unique.length === 0) {
-    return { ok: false, reason: "Please select the matching images." };
-  }
-  if (unique.some((id) => !/^[a-f0-9]{16}$/.test(id))) {
-    return { ok: false, reason: "Invalid captcha selection." };
+  const given = Number(Array.isArray(selectedRaw) ? selectedRaw[0] : selectedRaw);
+  if (!Number.isFinite(given)) {
+    return { ok: false, reason: "Please complete the puzzle." };
   }
 
-  const expectedCount = Number(countStr);
-  if (!Number.isFinite(expectedCount) || unique.length !== expectedCount) {
-    return { ok: false, reason: "Incorrect selection. Please try again." };
-  }
-
-  const givenHash = sign(`ans:${[...unique].sort().join(",")}`);
-  if (!safeEqual(givenHash, answerHash || "")) {
-    return { ok: false, reason: "Incorrect selection. Please try again." };
+  if (Math.abs(given - pending.target) > TOLERANCE) {
+    return { ok: false, reason: "Puzzle not aligned. Please try again." };
   }
 
   return { ok: true };

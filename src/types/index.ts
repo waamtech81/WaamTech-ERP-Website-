@@ -26,27 +26,79 @@ export type Industry = {
   benefits: string[];
 };
 
-export type PricingPlan = {
+export type PricingFeature = {
   id: string;
   name: string;
+  description?: string | null;
+  tooltip?: string | null;
+  highlighted?: boolean;
+  greenTick?: boolean;
+  inherited?: boolean;
+  category?: string | null;
+};
+
+export type PricingFeatureGroup = {
+  id: string;
+  code: string;
+  name: string;
+  icon?: string | null;
+  features: PricingFeature[];
+};
+
+export type PricingPlan = {
+  id: string;
+  /** License Engine plan UUID */
+  planId?: string;
+  productId?: string;
+  productSlug?: string;
+  name: string;
+  subtitle?: string | null;
   description: string;
+  marketingSummary?: string | null;
   monthlyPrice: number | null;
+  /** Per-month equivalent when billed yearly (Engine yearly_price / 12). */
   yearlyPrice: number | null;
+  /** Full annual amount from Engine yearly_price. */
+  yearlyTotal?: number | null;
   originalMonthlyPrice?: number | null;
   originalYearlyPrice?: number | null;
+  originalYearlyTotal?: number | null;
   lifetimePrice?: number | null;
+  originalLifetimePrice?: number | null;
+  displayPrice?: number | null;
+  launchPrice?: number | null;
   launchDiscount?: number;
+  savingsAmount?: number | null;
+  yearlySavingsAmount?: number | null;
+  showStrikeThrough?: boolean;
+  launchActive?: boolean;
+  launchCampaign?: string | null;
+  launchBadge?: string | null;
+  billingCycle?: string | null;
+  currency?: string | null;
   badge?: string;
+  ribbon?: string | null;
   popular?: boolean;
+  recommended?: boolean;
   cta: string;
+  ctaStyle?: string | null;
   href: string;
   /** Seat allowance shown on pricing cards */
   usersIncluded?: number | "unlimited";
   /** e.g. "Extra users available on demand" */
   usersNote?: string;
+  extraUserPrice?: number | null;
+  storageIncludedGb?: number | "unlimited" | null;
+  extraStoragePricePerGb?: number | null;
+  supportLevel?: string | null;
   /** Modules included in this plan (user-facing names) */
   modules?: string[];
+  highlights?: string[];
+  featureGroups?: PricingFeatureGroup[];
   features: string[];
+  hasFreeTrial?: boolean;
+  trialDays?: number | null;
+  contactSales?: boolean;
 };
 
 export type DeploymentOption = {

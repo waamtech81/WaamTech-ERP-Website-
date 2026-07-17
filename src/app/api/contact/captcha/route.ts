@@ -24,6 +24,9 @@ export async function GET(request: Request) {
     success: true,
     question: challenge.question,
     token: challenge.token,
-    tiles: challenge.tiles,
+    trackWidth: challenge.trackWidth,
+    pieceSize: challenge.pieceSize,
+    background: challenge.background,
+    piece: challenge.piece,
   });
 }

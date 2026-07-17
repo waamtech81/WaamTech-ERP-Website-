@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, Minus } from "lucide-react";
+import { Check } from "lucide-react";
 import { deploymentOptions, faqs } from "@/lib/data/site";
 import { getIcon } from "@/lib/icons";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
@@ -10,6 +10,7 @@ import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { CTASection } from "@/components/shared/cta-section";
 import { LaunchDiscountBanner, PricingCards } from "@/components/sections/pricing-cards";
+import { PricingComparisonTable } from "@/components/sections/pricing-comparison-table";
 import { PriceNote } from "@/components/shared/price-note";
 import { useLocale } from "@/components/providers/locale-provider";
 import { Badge } from "@/components/ui/badge";
@@ -30,11 +31,18 @@ import {
   CatalogErrorState,
   CatalogSkeleton,
 } from "@/components/commercial/catalog-states";
-import { buildDynamicComparison, cardPlans, enterprisePlan, publicMarketingPlans } from "@/lib/commercial/mappers";
+import {
+  buildDynamicComparison,
+  cardPlans,
+  enterprisePlan,
+  launchPromoFromPlans,
+  publicMarketingPlans,
+} from "@/lib/commercial/mappers";
 
 export default function PricingPage() {
   const [yearly, setYearly] = useState(true);
-  const { t } = useLocale();
+  const [, startTransition] = useTransition();
+  const { t, formatPrice } = useLocale();
   const catalog = useCatalogBundle();
   const billingFaqs = faqs.filter((f) => f.category === "Billing" || f.category === "Product").slice(0, 6);
 
@@ -50,8 +58,28 @@ export default function PricingPage() {
     () => catalog.data.enterprise || enterprisePlan(pricingPlans),
     [catalog.data.enterprise, pricingPlans]
   );
-  const comparisonRows = useMemo(() => buildDynamicComparison(pricingPlans), [pricingPlans]);
+  const comparisonRows = useMemo(
+    () => buildDynamicComparison(pricingPlans, catalog.data.comparison),
+    [pricingPlans, catalog.data.comparison]
+  );
   const planColumns = pricingPlans;
+  const promo = useMemo(() => launchPromoFromPlans(pricingPlans), [pricingPlans]);
+
+  const yearlySavingsHint = useMemo(() => {
+    const withSavings = displayCardPlans
+      .map((p) => p.yearlySavingsAmount)
+      .filter((n): n is number => n != null && n > 0);
+    if (!withSavings.length) return null;
+    return Math.max(...withSavings);
+  }, [displayCardPlans]);
+
+  function onBillingChange(nextYearly: boolean) {
+    startTransition(() => {
+      setYearly(nextYearly);
+    });
+    // Soft-refresh catalog so cycle display always uses latest Engine prices.
+    catalog.retry();
+  }
 
   return (
     <>
@@ -64,17 +92,34 @@ export default function PricingPage() {
             description="Starter, Business, Lifetime, and Enterprise — loaded live from WaamTech commercial catalog. Enterprise is always custom pricing."
           />
 
-          <LaunchDiscountBanner />
+          {promo ? (
+            <LaunchDiscountBanner
+              campaign={promo.campaign}
+              badge={promo.badge}
+              maxDiscount={promo.maxDiscount}
+              maxSavings={promo.maxSavings}
+            />
+          ) : null}
 
           <div className="mb-4 flex flex-wrap items-center justify-center gap-3 notranslate" translate="no">
-            <Label htmlFor="billing" className={!yearly ? "text-foreground" : "text-muted-foreground"}>
+            <Label
+              htmlFor="billing"
+              className={!yearly ? "text-foreground" : "text-muted-foreground"}
+            >
               {t("pricing.monthly", "Monthly")}
             </Label>
-            <Switch id="billing" checked={yearly} onCheckedChange={setYearly} />
-            <Label htmlFor="billing" className={yearly ? "text-foreground" : "text-muted-foreground"}>
+            <Switch id="billing" checked={yearly} onCheckedChange={onBillingChange} />
+            <Label
+              htmlFor="billing"
+              className={yearly ? "text-foreground" : "text-muted-foreground"}
+            >
               {t("pricing.yearly", "Yearly")}
             </Label>
-            <Badge variant="accent">{t("pricing.extraYearly", "Extra 20% off yearly")}</Badge>
+            {yearly && yearlySavingsHint ? (
+              <Badge variant="accent">
+                Save up to <span translate="no">{formatPrice(yearlySavingsHint)}</span>/yr
+              </Badge>
+            ) : null}
           </div>
 
           <PriceNote className="mb-8 text-center text-xs text-muted-foreground" />
@@ -103,7 +148,7 @@ export default function PricingPage() {
             </div>
           ) : null}
           {!catalog.loading && !catalog.error && displayCardPlans.length === 0 ? (
-            <CatalogEmptyState message="No public plans are published yet." />
+            <CatalogEmptyState message="No Plans Available" />
           ) : null}
           {!catalog.loading && displayCardPlans.length > 0 ? (
             <PricingCards
@@ -118,13 +163,14 @@ export default function PricingPage() {
               <div className="flex flex-col md:flex-row md:items-center gap-6 justify-between">
                 <div className="max-w-2xl">
                   <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
-                    Enterprise
+                    {enterprise.ribbon || enterprise.badge || "Enterprise"}
                   </p>
                   <h3 className="mt-2 text-2xl md:text-3xl font-semibold tracking-tight">
-                    Custom Pricing — Contact Sales
+                    {enterprise.subtitle || "Custom Pricing — Contact Sales"}
                   </h3>
                   <p className="mt-3 text-sm md:text-base text-white/70 leading-relaxed">
-                    {enterprise.description ||
+                    {enterprise.marketingSummary ||
+                      enterprise.description ||
                       "Need own server, whitelabel, or custom scale? Request a quote — we never publish fixed Enterprise pricing."}
                   </p>
                 </div>
@@ -134,7 +180,9 @@ export default function PricingPage() {
                     size="lg"
                     className="rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
                   >
-                    <Link href={enterprise.href || "/contact?intent=enterprise"}>Contact Sales</Link>
+                    <Link href={enterprise.href || "/contact?intent=enterprise"}>
+                      {enterprise.cta || "Contact Sales"}
+                    </Link>
                   </Button>
                   <Button
                     asChild
@@ -162,8 +210,8 @@ export default function PricingPage() {
             {deploymentOptions.map((opt, i) => {
               const Icon = getIcon(opt.icon);
               return (
-                <AnimateIn key={opt.id} delay={i * 0.06}>
-                  <Card className={`h-full ${opt.featured ? "border-primary ring-1 ring-primary/15" : ""}`}>
+                <AnimateIn key={opt.id} delay={i * 0.06} className="h-full">
+                  <Card className={`h-full flex flex-col ${opt.featured ? "border-primary ring-1 ring-primary/15" : ""}`}>
                     <CardHeader>
                       <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary">
                         <Icon className="h-5 w-5" />
@@ -171,8 +219,8 @@ export default function PricingPage() {
                       <CardTitle className="text-lg">{opt.title}</CardTitle>
                       <p className="text-sm text-muted-foreground leading-relaxed">{opt.description}</p>
                     </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-1.5 mb-5">
+                    <CardContent className="flex flex-1 flex-col">
+                      <ul className="space-y-1.5 mb-5 flex-1">
                         {opt.highlights.map((h) => (
                           <li key={h} className="flex gap-2 text-xs text-muted-foreground">
                             <Check className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" />
@@ -180,7 +228,7 @@ export default function PricingPage() {
                           </li>
                         ))}
                       </ul>
-                      <Button asChild variant={opt.featured ? "default" : "outline"} className="w-full rounded-full" size="sm">
+                      <Button asChild variant={opt.featured ? "default" : "outline"} className="mt-auto w-full rounded-full" size="sm">
                         <Link href={opt.href}>{opt.cta}</Link>
                       </Button>
                     </CardContent>
@@ -202,53 +250,13 @@ export default function PricingPage() {
       <Section>
         <Container>
           <SectionHeader eyebrow="Compare plans" title="Everything included, side by side" />
-          {catalog.loading ? <CatalogSkeleton rows={2} className="xl:grid-cols-1" /> : null}
-          {!catalog.loading && planColumns.length > 0 ? (
-            <div className="overflow-x-auto rounded-2xl border border-border bg-white">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-slate-50/80">
-                    <th className="px-4 py-3 text-left font-semibold text-[#0b1f3a]">Feature</th>
-                    {planColumns.map((p) => (
-                      <th key={p.id} className="px-4 py-3 text-center font-semibold text-[#0b1f3a]">
-                        {p.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparisonRows.map((row) => (
-                    <tr key={String(row.name)} className="border-b border-border/70 last:border-0">
-                      <td className="px-4 py-3 font-medium text-[#0b1f3a]">{row.name}</td>
-                      {planColumns.map((p) => {
-                        const val = row[p.id];
-                        return (
-                          <td key={p.id} className="px-4 py-3 text-center text-muted-foreground">
-                            {typeof val === "boolean" ? (
-                              val ? (
-                                <Check className="mx-auto h-4 w-4 text-accent" />
-                              ) : (
-                                <Minus className="mx-auto h-4 w-4 text-slate-300" />
-                              )
-                            ) : (
-                              String(val ?? "—")
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                  <tr>
-                    <td className="px-4 py-3 font-medium text-[#0b1f3a]">Description</td>
-                    {planColumns.map((p) => (
-                      <td key={p.id} className="px-4 py-3 text-center text-xs text-muted-foreground">
-                        {p.description}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+          <PricingComparisonTable
+            plans={planColumns}
+            rows={comparisonRows}
+            loading={catalog.loading}
+          />
+          {!catalog.loading && planColumns.length === 0 ? (
+            <CatalogEmptyState message="No Plans Available" />
           ) : null}
         </Container>
       </Section>

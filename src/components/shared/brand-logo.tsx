@@ -46,7 +46,7 @@ export function BrandLogo({
         <span className="flex flex-col leading-none" translate="no">
           <span
             className={cn(
-              "font-[family-name:var(--font-poppins)] text-lg font-semibold tracking-tight",
+              "font-heading text-lg font-semibold tracking-tight",
               dark ? "text-white" : "text-[var(--brand-dark)]"
             )}
           >

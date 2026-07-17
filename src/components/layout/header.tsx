@@ -60,7 +60,7 @@ function NavDropdown({
       <button
         type="button"
         className={cn(
-          "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+          "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 font-sans text-nav font-medium transition-colors",
           active || open
             ? "text-primary bg-primary/5"
             : "text-foreground/80 hover:text-primary hover:bg-muted"
@@ -250,7 +250,7 @@ export function Header() {
               <button
                 type="button"
                 className={cn(
-                  "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 font-sans text-nav font-medium transition-colors",
                   isActive("/products") || dropdown === "products"
                     ? "text-primary bg-primary/5"
                     : "text-foreground/80 hover:text-primary hover:bg-muted"
@@ -352,7 +352,7 @@ export function Header() {
               <button
                 type="button"
                 className={cn(
-                  "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 font-sans text-nav font-medium transition-colors",
                   isActive("/industries") || dropdown === "industries"
                     ? "text-primary bg-primary/5"
                     : "text-foreground/80 hover:text-primary hover:bg-muted"

@@ -16,6 +16,42 @@
   --ring: #0549a4;
   --brand-dark: #09215b;
   --radius: 1rem;
+
+  /* ——— Enterprise typography tokens ——— */
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-display: var(--font-poppins), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+
+  --font-weight-body: 400;
+  --font-weight-body-medium: 500;
+  --font-weight-heading: 600;
+  --font-weight-heading-bold: 700;
+
+  --tracking-heading: -0.02em;
+  --tracking-body: -0.011em;
+  --leading-body: 1.65;
+  --leading-heading: 1.2;
+
+  /* Responsive type scale (fluid where it matters) */
+  --type-hero: clamp(2.25rem, 1.4rem + 3.2vw, 3.75rem);
+  --type-cta: clamp(1.75rem, 1.2rem + 1.8vw, 2.5rem);
+  --type-h1: clamp(2rem, 1.35rem + 2.4vw, 3rem);
+  --type-h2: clamp(1.625rem, 1.2rem + 1.5vw, 2.25rem);
+  --type-h3: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
+  --type-h4: 1.125rem;
+  --type-section: clamp(1.75rem, 1.25rem + 1.8vw, 2.75rem);
+  --type-card-title: 1.125rem;
+  --type-feature-title: 1.0625rem;
+  --type-pricing-title: 1.125rem;
+  --type-body: 1rem;
+  --type-description: 1.0625rem;
+  --type-label: 0.875rem;
+  --type-nav: 0.875rem;
+  --type-table: 0.875rem;
+  --type-footer: 0.875rem;
+  --type-caption: 0.75rem;
+  --type-tooltip: 0.6875rem;
 }
 
 @theme inline {
@@ -33,8 +69,31 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-ring: var(--ring);
   --color-brand-dark: var(--brand-dark);
-  --font-heading: var(--font-poppins);
-  --font-sans: var(--font-poppins);
+
+  /* Tailwind font families — body = Inter, headings = Poppins */
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-display);
+
+  /* Named type sizes → utilities like text-hero, text-section */
+  --text-hero: var(--type-hero);
+  --text-cta: var(--type-cta);
+  --text-h1: var(--type-h1);
+  --text-h2: var(--type-h2);
+  --text-h3: var(--type-h3);
+  --text-h4: var(--type-h4);
+  --text-section: var(--type-section);
+  --text-card-title: var(--type-card-title);
+  --text-feature-title: var(--type-feature-title);
+  --text-pricing-title: var(--type-pricing-title);
+  --text-body: var(--type-body);
+  --text-description: var(--type-description);
+  --text-label: var(--type-label);
+  --text-nav: var(--type-nav);
+  --text-table: var(--type-table);
+  --text-footer: var(--type-footer);
+  --text-caption: var(--type-caption);
+  --text-tooltip: var(--type-tooltip);
+
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
@@ -65,22 +124,141 @@ html {
 body {
   background: #071526;
   color: var(--foreground);
-  font-family: var(--font-poppins), system-ui, sans-serif;
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-body);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  letter-spacing: var(--tracking-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1;
   overscroll-behavior-y: contain;
 }
 
+/* ——— Global heading hierarchy (Poppins) ——— */
 h1,
 h2,
 h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-poppins), system-ui, sans-serif;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-heading);
+  letter-spacing: var(--tracking-heading);
+  line-height: var(--leading-heading);
   color: inherit;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--type-h1);
+  font-weight: var(--font-weight-heading-bold);
+}
+
+h2 {
+  font-size: var(--type-h2);
+}
+
+h3 {
+  font-size: var(--type-h3);
+}
+
+h4 {
+  font-size: var(--type-h4);
+}
+
+h5,
+h6 {
+  font-size: var(--type-feature-title);
+}
+
+/* Semantic helpers — use with or without Tailwind */
+.font-heading {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-heading);
+}
+
+.font-body {
+  font-family: var(--font-body);
+  letter-spacing: var(--tracking-body);
+}
+
+p,
+li,
+td,
+th,
+label,
+input,
+textarea,
+select,
+button,
+a,
+nav,
+footer,
+[role="tooltip"] {
+  font-family: inherit;
+}
+
+p {
+  line-height: var(--leading-body);
+}
+
+label,
+.ui-label {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-body-medium);
+  font-size: var(--type-label);
+}
+
+nav,
+.nav-link {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-body-medium);
+  font-size: var(--type-nav);
+}
+
+table,
+.table-text {
+  font-family: var(--font-body);
+  font-size: var(--type-table);
+}
+
+footer,
+.wt-footer {
+  font-family: var(--font-body);
+  font-size: var(--type-footer);
+}
+
+button,
+[type="button"],
+[type="submit"],
+[type="reset"] {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-body-medium);
+}
+
+input,
+textarea,
+select {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-body);
+}
+
+[role="tooltip"],
+.tooltip-text {
+  font-family: var(--font-body);
+  font-size: var(--type-tooltip);
+  font-weight: var(--font-weight-body);
+  line-height: 1.4;
+}
+
+/* Card / pricing / feature title defaults when using CardTitle etc. */
+.card-title,
+[data-slot="card-title"] {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-heading);
+  letter-spacing: var(--tracking-heading);
 }
 
 ::selection {
@@ -384,10 +562,10 @@ html.translated-rtl {
   }
 }
 
-/* Customer Portal — enterprise SaaS app chrome */
+/* Customer Portal — shares global Inter body font */
 .portal-font-root {
-  font-family: var(--font-portal-inter), var(--font-poppins), system-ui, sans-serif;
-  letter-spacing: -0.011em;
+  font-family: var(--font-body);
+  letter-spacing: var(--tracking-body);
 }
 
 .portal-app-shell {

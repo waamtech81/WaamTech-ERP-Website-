@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { MapPin, Clock, Phone, Mail } from "lucide-react";
 import { siteConfig } from "@/lib/data/site";
-import { hasPortalSession } from "@/lib/auth/session";
 import {
   CONTACT_INTENTS,
   contactSubjectForIntent,
@@ -23,7 +21,6 @@ export default async function ContactPage({
 }: {
   searchParams: Promise<{ intent?: string | string[] }>;
 }) {
-  const showEmail = await hasPortalSession();
   const params = await searchParams;
   const rawIntent = Array.isArray(params.intent) ? params.intent[0] : params.intent;
 
@@ -87,23 +84,12 @@ export default async function ContactPage({
                       <Phone className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                       {siteConfig.phone}
                     </p>
-                    {showEmail ? (
-                      <p className="flex gap-3">
-                        <Mail className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <p className="flex gap-3">
+                      <Mail className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      <a href={`mailto:${siteConfig.email}`} className="text-primary hover:underline">
                         {siteConfig.email}
-                      </p>
-                    ) : (
-                      <p className="flex gap-3">
-                        <Mail className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                        <span>
-                          Prefer email after signing in.{" "}
-                          <Link href="/login" className="text-primary hover:underline">
-                            Log in
-                          </Link>{" "}
-                          or use the secure form.
-                        </span>
-                      </p>
-                    )}
+                      </a>
+                    </p>
                     <p className="flex gap-3">
                       <Clock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                       Mon–Fri, 9:00 AM – 6:00 PM

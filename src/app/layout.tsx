@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { headers, cookies } from "next/headers";
-import { Poppins } from "next/font/google";
 import { SiteShell } from "@/components/layout/site-shell";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { SiteJsonLd } from "@/components/seo/json-ld";
 import { siteConfig } from "@/lib/data/site";
+import { fontVariablesClassName } from "@/lib/fonts";
 import {
   directionForLanguage,
   normalizeLanguage,
@@ -14,13 +14,6 @@ import {
 import { normalizeCurrency } from "@/lib/currency/config";
 import { fallbackTable } from "@/lib/currency/exchange";
 import "./globals.css";
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  variable: "--font-poppins",
-  display: "swap",
-});
 
 async function resolveLocale() {
   const [h, c] = await Promise.all([headers(), cookies()]);
@@ -121,7 +114,7 @@ export default async function RootLayout({
       dir={direction}
       data-locale={language}
       data-dir={direction}
-      className={`${poppins.variable} h-full antialiased`}
+      className={`${fontVariablesClassName} h-full antialiased`}
     >
       <body
         dir={direction}

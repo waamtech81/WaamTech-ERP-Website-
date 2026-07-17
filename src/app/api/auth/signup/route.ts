@@ -83,6 +83,34 @@ export async function POST(req: Request) {
     const product_slug = sanitizeText(body?.product_slug, 80) || undefined;
     const plan_id = sanitizeText(body?.plan_id, 80) || undefined;
     const plan = sanitizeText(body?.plan, 40) || undefined;
+    const billing_cycle =
+      sanitizeText(body?.billing_cycle || body?.billingCycle, 20) || undefined;
+    const priceRaw = body?.price;
+    const discountRaw = body?.discount ?? body?.discount_percentage;
+    const originalRaw = body?.original_price ?? body?.originalPrice;
+    const savingsRaw = body?.savings ?? body?.savings_amount;
+    const price =
+      priceRaw != null && priceRaw !== "" && Number.isFinite(Number(priceRaw))
+        ? Number(priceRaw)
+        : undefined;
+    const discount =
+      discountRaw != null &&
+      discountRaw !== "" &&
+      Number.isFinite(Number(discountRaw))
+        ? Number(discountRaw)
+        : undefined;
+    const original_price =
+      originalRaw != null &&
+      originalRaw !== "" &&
+      Number.isFinite(Number(originalRaw))
+        ? Number(originalRaw)
+        : undefined;
+    const savings =
+      savingsRaw != null &&
+      savingsRaw !== "" &&
+      Number.isFinite(Number(savingsRaw))
+        ? Number(savingsRaw)
+        : undefined;
     const marketing_opt_in = Boolean(body?.marketing_opt_in);
 
     if (
@@ -156,6 +184,11 @@ export async function POST(req: Request) {
       product_slug,
       plan_id,
       plan,
+      billing_cycle,
+      price,
+      discount,
+      original_price,
+      savings,
       marketing_opt_in,
     });
 

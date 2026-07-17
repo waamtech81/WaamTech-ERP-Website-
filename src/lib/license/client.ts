@@ -15,6 +15,11 @@ export type TrialRegistrationInput = {
   product_slug?: string;
   plan_id?: string;
   plan?: string;
+  billing_cycle?: string;
+  price?: number | null;
+  discount?: number | null;
+  original_price?: number | null;
+  savings?: number | null;
   marketing_opt_in?: boolean;
 };
 
@@ -132,6 +137,14 @@ export async function startRegistrationOnLicenseServer(
       product_slug: input.product_slug,
       plan_id: input.plan_id,
       plan: input.plan || undefined,
+      plan_slug: input.plan || undefined,
+      billing_cycle: input.billing_cycle || undefined,
+      price: input.price ?? undefined,
+      discount: input.discount ?? undefined,
+      discount_percentage: input.discount ?? undefined,
+      original_price: input.original_price ?? undefined,
+      savings: input.savings ?? undefined,
+      savings_amount: input.savings ?? undefined,
       marketing_opt_in: Boolean(input.marketing_opt_in),
       trial_days: authConfig.trialDays,
       source: "waamto-website",

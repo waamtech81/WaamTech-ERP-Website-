@@ -23,10 +23,10 @@ export function ModuleShowcase() {
     <Section className="!pt-10 md:!pt-14 bg-white">
       <Container>
         <div className="mx-auto mb-8 md:mb-10 max-w-3xl text-center">
-          <h2 className="font-[family-name:var(--font-poppins)] text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
+          <h2 className="font-heading text-section font-semibold tracking-tight text-[#0b1f3a] text-balance">
             One solution to manage everything, in one place
           </h2>
-          <p className="mt-3 md:mt-4 text-muted-foreground text-base md:text-lg leading-relaxed">
+          <p className="mt-3 md:mt-4 font-sans text-description font-normal text-muted-foreground leading-relaxed">
             Switch across {siteConfig.name} modules — Inventory, POS, Sales, Finance, CRM, HR,
             Manufacturing, and AI — the same clean interface for every workflow.
           </p>

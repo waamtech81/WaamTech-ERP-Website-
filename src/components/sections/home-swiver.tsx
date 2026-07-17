@@ -41,7 +41,7 @@ export function StatsBand() {
           {stats.map((stat, i) => (
             <AnimateIn key={stat.label} delay={i * 0.05}>
               <div className="text-center">
-                <p className="font-[family-name:var(--font-poppins)] text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
+                <p className="font-heading text-section font-semibold tracking-tight text-[#0b1f3a]">
                   {catalog.loading && i > 0 ? (
                     <span className="inline-block h-9 w-16 animate-pulse rounded bg-slate-200" />
                   ) : (

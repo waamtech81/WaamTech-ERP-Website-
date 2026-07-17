@@ -7,6 +7,7 @@ import {
   fetchPublicPricing,
   fetchPublicProducts,
   fetchPublicCatalogBundle,
+  fetchPublicPlanComparison,
 } from "@/lib/commercial/client";
 import {
   cardPlans,
@@ -56,6 +57,23 @@ export async function GET_pricing(req: Request) {
   return jsonOk(result.data);
 }
 
+export async function GET_comparison(req: Request) {
+  const url = new URL(req.url);
+  const product = url.searchParams.get("product") || undefined;
+  const idsRaw = url.searchParams.get("ids");
+  const ids = idsRaw
+    ? idsRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : undefined;
+  const result = await fetchPublicPlanComparison({ product, ids });
+  if (!result.ok && result.data.comparison.length === 0) {
+    return jsonFail(result.message, result.status);
+  }
+  return jsonOk(result.data);
+}
+
 export async function GET_industries() {
   const result = await fetchPublicIndustries();
   if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
@@ -84,8 +102,21 @@ export async function GET_catalog(req: Request) {
   const marketingPricingRows = publicMarketingPlans(bundle.pricing);
   const mappedPlans =
     marketingPricingRows.length > 0
-      ? mapPricingRowsToPlans(marketingPricingRows, marketingCatalogPlans)
-      : sortPlansByTier(marketingCatalogPlans).map(mapCatalogPlanToPricingPlan);
+      ? mapPricingRowsToPlans(
+          marketingPricingRows,
+          marketingCatalogPlans,
+          bundle.comparison
+        )
+      : sortPlansByTier(marketingCatalogPlans).map((p) => {
+          const row = bundle.comparison?.comparison.find((c) => c.plan.id === p.id);
+          return mapCatalogPlanToPricingPlan(p, {
+            limits: row?.limits,
+            featureGroups: row?.feature_groups,
+            modules: (row?.modules || [])
+              .map((m) => m.name || m.code || "")
+              .filter(Boolean),
+          });
+        });
   const pricingPlans = publicMarketingPlans(mappedPlans);
   const featuredProducts = bundle.products.slice(0, 6).map(mapCatalogProductToUi);
   const popular = popularPlans(pricingPlans, 3);
@@ -100,6 +131,8 @@ export async function GET_catalog(req: Request) {
     plans: bundle.plans,
     pricing: bundle.pricing,
     industries: bundle.industries,
+    comparison: bundle.comparison,
+    productSlug: bundle.productSlug,
     pricingPlans,
     cardPlans: cardPlans(pricingPlans),
     featuredProducts,

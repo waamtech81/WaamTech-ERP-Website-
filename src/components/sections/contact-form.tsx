@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Loader2, RefreshCw } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Check, Loader2, Puzzle, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,15 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { friendlyNetworkError } from "@/lib/network/errors";
 
-type CaptchaTile = {
-  id: string;
-  image: string;
-};
-
-type CaptchaState = {
+type PuzzleState = {
   question: string;
   token: string;
-  tiles: CaptchaTile[];
+  trackWidth: number;
+  pieceSize: number;
+  background: string;
+  piece: string;
 };
 
 const empty = {
@@ -40,26 +38,36 @@ export function ContactForm({
     ...empty,
     subject: initialSubject,
   }));
-  const [captcha, setCaptcha] = useState<CaptchaState | null>(null);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [captcha, setCaptcha] = useState<PuzzleState | null>(null);
+  const [slideX, setSlideX] = useState(0);
+  const [puzzleOpen, setPuzzleOpen] = useState(false);
+  const [puzzleSolved, setPuzzleSolved] = useState(false);
   const [formStartedAt] = useState(() => Date.now());
   const [honeypot, setHoneypot] = useState("");
   const [loading, setLoading] = useState(false);
-  const [captchaLoading, setCaptchaLoading] = useState(true);
+  const [captchaLoading, setCaptchaLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const dragging = useRef(false);
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const maxSlide = Math.max(0, (captcha?.trackWidth || 280) - (captcha?.pieceSize || 44));
 
   const loadCaptcha = useCallback(async () => {
     setCaptchaLoading(true);
     setError("");
-    setSelected([]);
+    setSlideX(0);
+    setPuzzleSolved(false);
     try {
       const res = await fetch("/api/contact/captcha", { method: "GET" });
       const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         question?: string;
         token?: string;
-        tiles?: CaptchaTile[];
+        trackWidth?: number;
+        pieceSize?: number;
+        background?: string;
+        piece?: string;
         message?: string;
       };
       if (
@@ -67,29 +75,52 @@ export function ContactForm({
         !data.success ||
         !data.question ||
         !data.token ||
-        !Array.isArray(data.tiles) ||
-        data.tiles.length !== 9
+        !data.background ||
+        !data.piece
       ) {
-        setError(data.message || "Could not load captcha. Please refresh.");
+        setError(data.message || "Could not load puzzle. Please try again.");
         setCaptcha(null);
         return;
       }
       setCaptcha({
         question: data.question,
         token: data.token,
-        tiles: data.tiles,
+        trackWidth: data.trackWidth || 280,
+        pieceSize: data.pieceSize || 44,
+        background: data.background,
+        piece: data.piece,
       });
     } catch (err) {
-      setError(friendlyNetworkError(err, "Could not load captcha. Please refresh."));
+      setError(friendlyNetworkError(err, "Could not load puzzle. Please try again."));
       setCaptcha(null);
     } finally {
       setCaptchaLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    void loadCaptcha();
-  }, [loadCaptcha]);
+  async function openPuzzle() {
+    setPuzzleOpen(true);
+    setError("");
+    setSuccess("");
+    await loadCaptcha();
+  }
+
+  function closePuzzle() {
+    if (puzzleSolved) {
+      setPuzzleOpen(false);
+      return;
+    }
+    setPuzzleOpen(false);
+    setCaptcha(null);
+    setSlideX(0);
+  }
+
+  function confirmPuzzle() {
+    if (!captcha) return;
+    setPuzzleSolved(true);
+    setPuzzleOpen(false);
+    setError("");
+  }
 
   const allFilled = useMemo(() => {
     return (
@@ -99,10 +130,10 @@ export function ContactForm({
       values.phone.trim() !== "" &&
       values.subject.trim() !== "" &&
       values.message.trim() !== "" &&
-      selected.length > 0 &&
+      puzzleSolved &&
       Boolean(captcha?.token)
     );
-  }, [values, captcha, selected]);
+  }, [values, captcha, puzzleSolved]);
 
   function update(field: keyof typeof empty, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -110,12 +141,12 @@ export function ContactForm({
     setSuccess("");
   }
 
-  function toggleTile(id: string) {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-    setError("");
-    setSuccess("");
+  function setSlideFromClientX(clientX: number) {
+    const el = trackRef.current;
+    if (!el || !captcha) return;
+    const rect = el.getBoundingClientRect();
+    const x = Math.min(maxSlide, Math.max(0, clientX - rect.left - captcha.pieceSize / 2));
+    setSlideX(x);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -139,7 +170,7 @@ export function ContactForm({
           message: values.message.trim(),
           intent: intent || undefined,
           captchaToken: captcha.token,
-          captchaSelection: selected,
+          captchaSelection: Math.round(slideX),
           website: honeypot,
           _t: formStartedAt,
         }),
@@ -152,17 +183,22 @@ export function ContactForm({
 
       if (!res.ok || !data.success) {
         setError(data.message || "Could not send your message. Please try again.");
-        await loadCaptcha();
+        setPuzzleSolved(false);
+        setCaptcha(null);
+        setSlideX(0);
         return;
       }
 
       setSuccess(data.message || "Thanks — your message has been sent.");
       setValues({ ...empty, subject: initialSubject });
-      setSelected([]);
-      await loadCaptcha();
+      setPuzzleSolved(false);
+      setCaptcha(null);
+      setSlideX(0);
     } catch (err) {
       setError(friendlyNetworkError(err, "Could not send your message. Please try again."));
-      await loadCaptcha();
+      setPuzzleSolved(false);
+      setCaptcha(null);
+      setSlideX(0);
     } finally {
       setLoading(false);
     }
@@ -275,80 +311,155 @@ export function ContactForm({
       </div>
 
       <div className="space-y-3 rounded-2xl border border-border bg-muted/40 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <Label>
-            Security check <span className="text-rose-500">*</span>
-          </Label>
+        <Label>
+          Security check <span className="text-rose-500">*</span>
+        </Label>
+
+        {puzzleSolved ? (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <span className="inline-flex items-center gap-2 font-medium">
+              <Check className="h-4 w-4" />
+              Puzzle completed
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() => void openPuzzle()}
+              disabled={loading}
+            >
+              Redo
+            </Button>
+          </div>
+        ) : (
           <Button
             type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2 text-muted-foreground"
-            onClick={() => void loadCaptcha()}
-            disabled={captchaLoading || loading}
-            aria-label="Refresh captcha"
+            variant="outline"
+            className="w-full rounded-xl"
+            onClick={() => void openPuzzle()}
+            disabled={loading}
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${captchaLoading ? "animate-spin" : ""}`} />
+            <Puzzle className="h-4 w-4" />
+            Open puzzle captcha
           </Button>
-        </div>
-
-        <p className="text-sm font-semibold text-[#0b1f3a]">
-          {captchaLoading ? "Loading captcha…" : captcha?.question || "Unavailable"}
-        </p>
-
-        {captchaLoading ? (
-          <div className="grid grid-cols-3 gap-2">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <div
-                key={i}
-                className="aspect-square animate-pulse rounded-xl bg-slate-200/80"
-              />
-            ))}
-          </div>
-        ) : captcha ? (
-          <div
-            className="grid grid-cols-3 gap-2"
-            role="group"
-            aria-label={captcha.question}
-          >
-            {captcha.tiles.map((tile) => {
-              const isOn = selected.includes(tile.id);
-              return (
-                <button
-                  key={tile.id}
-                  type="button"
-                  onClick={() => toggleTile(tile.id)}
-                  aria-pressed={isOn}
-                  className={cn(
-                    "relative aspect-square overflow-hidden rounded-xl border-2 bg-white transition-all",
-                    isOn
-                      ? "border-primary ring-2 ring-primary/25 scale-[0.98]"
-                      : "border-border hover:border-primary/40"
-                  )}
-                >
-                  {/* data URI SVG tiles — next/image not needed */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={tile.image}
-                    alt=""
-                    className="h-full w-full object-cover pointer-events-none select-none"
-                    draggable={false}
-                  />
-                  {isOn ? (
-                    <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white shadow">
-                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
+        )}
 
         <p className="text-xs text-muted-foreground">
-          Tap every matching image. Wrong or reused answers are rejected — bots and spam are blocked.
+          Click to open the puzzle, then slide the piece into place to verify you&apos;re human.
         </p>
       </div>
+
+      {puzzleOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Security puzzle"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[#0b1f3a]">Security puzzle</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {captchaLoading
+                    ? "Loading puzzle…"
+                    : captcha?.question || "Unable to load puzzle"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closePuzzle}
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Close puzzle"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {captchaLoading ? (
+              <div className="flex h-36 items-center justify-center rounded-xl bg-muted">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : captcha ? (
+              <div className="space-y-4">
+                <div
+                  ref={trackRef}
+                  className="relative mx-auto overflow-hidden rounded-2xl select-none"
+                  style={{ width: captcha.trackWidth }}
+                  onPointerDown={(e) => {
+                    dragging.current = true;
+                    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+                    setSlideFromClientX(e.clientX);
+                  }}
+                  onPointerMove={(e) => {
+                    if (!dragging.current) return;
+                    setSlideFromClientX(e.clientX);
+                  }}
+                  onPointerUp={() => {
+                    dragging.current = false;
+                  }}
+                  onPointerCancel={() => {
+                    dragging.current = false;
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={captcha.background}
+                    alt=""
+                    className="block h-[120px] w-full pointer-events-none"
+                    draggable={false}
+                  />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={captcha.piece}
+                    alt=""
+                    className="absolute top-[38px] pointer-events-none drop-shadow-md"
+                    style={{ left: slideX, width: captcha.pieceSize, height: captcha.pieceSize }}
+                    draggable={false}
+                  />
+                </div>
+
+                <input
+                  type="range"
+                  min={0}
+                  max={maxSlide}
+                  value={slideX}
+                  onChange={(e) => setSlideX(Number(e.target.value))}
+                  className="w-full accent-primary"
+                  aria-label="Slide puzzle piece"
+                />
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 rounded-xl"
+                    onClick={() => void loadCaptcha()}
+                    disabled={captchaLoading}
+                  >
+                    <RefreshCw className={cn("h-4 w-4", captchaLoading && "animate-spin")} />
+                    New puzzle
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 rounded-xl"
+                    onClick={confirmPuzzle}
+                    disabled={captchaLoading || slideX < 20}
+                  >
+                    <Check className="h-4 w-4" />
+                    Confirm
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button type="button" className="w-full rounded-xl" onClick={() => void loadCaptcha()}>
+                Retry load
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="text-sm text-rose-600" role="alert">
@@ -361,7 +472,7 @@ export function ContactForm({
         </p>
       ) : null}
 
-      <Button type="submit" size="lg" disabled={!allFilled || loading || captchaLoading}>
+      <Button type="submit" size="lg" disabled={!allFilled || loading}>
         {loading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />

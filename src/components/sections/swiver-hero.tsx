@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/shared/section";
+import { HomeCatalogSearch } from "@/components/sections/home-catalog-search";
 import { siteConfig } from "@/lib/data/site";
 
 export function SwiverHero() {
@@ -50,6 +51,15 @@ export function SwiverHero() {
           One modular platform for Inventory, POS, Sales, Purchasing, Finance, CRM, HR, and Manufacturing —
           configured for your industry in minutes.
         </motion.p>
+
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="mt-7"
+        >
+          <HomeCatalogSearch variant="hero" />
+        </motion.div>
 
         <motion.div
           initial={reduce ? false : { opacity: 0, y: 14 }}

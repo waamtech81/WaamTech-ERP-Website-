@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { products, industries, testimonials, caseStudies, blogPosts, pricingPlans } from "@/lib/data/site";
-import { formatCurrency } from "@/lib/utils";
+import { Price } from "@/components/shared/price";
 
 export function SolutionsSection() {
   const solutions = [
@@ -265,7 +265,7 @@ export function PricingPreviewSection() {
                   <p className="text-sm text-muted-foreground">{plan.description}</p>
                   <p className="pt-3">
                     <span className="text-4xl font-semibold tracking-tight">
-                      {plan.monthlyPrice ? formatCurrency(plan.monthlyPrice) : "Custom"}
+                      {plan.monthlyPrice ? <Price usd={plan.monthlyPrice} /> : "Custom"}
                     </span>
                     {plan.monthlyPrice ? <span className="text-muted-foreground text-sm"> /month</span> : null}
                   </p>

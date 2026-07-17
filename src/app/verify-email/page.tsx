@@ -47,7 +47,7 @@ function VerifyEmailContent() {
         setStatus(json.alreadyExists ? "exists" : "success");
         setMessage(
           json.message ||
-            "Your email is verified. Your trial license has been sent — open the WAAMTO app to activate it."
+            "Your email is verified. Your trial license has been sent — open WAAMTO ERP to activate it."
         );
       } catch {
         if (!cancelled) {
@@ -126,7 +126,7 @@ function VerifyEmailContent() {
                   <div className="flex gap-3">
                     <KeyRound className="h-5 w-5 shrink-0 text-primary mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-[#0b1f3a]">Next: open the WAAMTO app</p>
+                      <p className="text-sm font-medium text-[#0b1f3a]">Next: open WAAMTO ERP</p>
                       <ol className="mt-2 space-y-1.5 text-sm text-muted-foreground list-decimal list-inside">
                         <li>Go to {authConfig.appUrl.replace(/^https?:\/\//, "")} and log in</li>
                         <li>When asked, paste your license key from email</li>
@@ -142,7 +142,7 @@ function VerifyEmailContent() {
               {ok ? (
                 <Button asChild size="lg" className="rounded-full px-8">
                   <a href={appLoginUrl}>
-                    Open WAAMTO App
+                    Open WAAMTO ERP
                     <ExternalLink className="h-4 w-4" />
                   </a>
                 </Button>

@@ -38,28 +38,66 @@ export const siteConfig = {
 
 export const mainNav: NavItem[] = [
   { title: "Products", href: "/products" },
-  { title: "ERP Features", href: "/erp-features" },
   { title: "Industries", href: "/industries" },
   { title: "Pricing", href: "/pricing" },
-  { title: "Mobile App", href: "/mobile-app" },
-  { title: "Servers", href: "/servers" },
-  { title: "Resources", href: "/docs" },
-  { title: "Company", href: "/about" },
 ];
 
-export const companyMenu: NavItem[] = [
-  { title: "About WaamTech", href: "/about", description: "Our story since 2012 — mission, vision & team.", icon: "Building2" },
-  { title: "Servers & Hosting", href: "/servers", description: "Cloud hosting, own server & local deployment.", icon: "Server" },
-  { title: "Blog", href: "/blog", description: "Product updates, guides & industry insights.", icon: "FileText" },
-  { title: "Contact", href: "/contact", description: "Sales, support & partnership inquiries.", icon: "MessageCircle" },
+/** Secondary links grouped under the header “Other” mega menu */
+export const otherMegaMenu: {
+  category: string;
+  items: NavItem[];
+}[] = [
+  {
+    category: "Platform",
+    items: [
+      {
+        title: "ERP Features",
+        href: "/erp-features",
+        description: "Deep capabilities across every department.",
+        icon: "Sparkles",
+      },
+      {
+        title: "Mobile App",
+        href: "/mobile-app",
+        description: "Responsive web + native field app.",
+        icon: "Smartphone",
+      },
+      {
+        title: "Servers & Hosting",
+        href: "/servers",
+        description: "Cloud hosting, own server & local deployment.",
+        icon: "Server",
+      },
+      {
+        title: "Plans",
+        href: "/plans",
+        description: "Compare subscription tiers side by side.",
+        icon: "Gem",
+      },
+    ],
+  },
+  {
+    category: "Resources",
+    items: [
+      { title: "Documentation", href: "/docs", description: "Setup guides, APIs & developer docs.", icon: "FileText" },
+      { title: "Knowledge Base", href: "/knowledge-base", description: "How-to articles for every module.", icon: "Layers" },
+      { title: "Support Center", href: "/support", description: "Tickets, chat & priority assistance.", icon: "ShieldCheck" },
+      { title: "FAQs", href: "/faqs", description: "Quick answers to common questions.", icon: "Sparkles" },
+    ],
+  },
+  {
+    category: "Company",
+    items: [
+      { title: "About WaamTech", href: "/about", description: "Our story since 2012 — mission, vision & team.", icon: "Building2" },
+      { title: "Blog", href: "/blog", description: "Product updates, guides & industry insights.", icon: "FileText" },
+      { title: "Contact", href: "/contact", description: "Sales, support & partnership inquiries.", icon: "MessageCircle" },
+      { title: "Portal", href: "/portal", description: "Manage licenses and subscriptions.", icon: "Boxes" },
+    ],
+  },
 ];
 
-export const resourcesMenu: NavItem[] = [
-  { title: "Documentation", href: "/docs", description: "Setup guides, APIs & developer docs.", icon: "FileText" },
-  { title: "Knowledge Base", href: "/knowledge-base", description: "How-to articles for every module.", icon: "Layers" },
-  { title: "Support Center", href: "/support", description: "Tickets, chat & priority assistance.", icon: "ShieldCheck" },
-  { title: "FAQs", href: "/faqs", description: "Quick answers to common questions.", icon: "Sparkles" },
-];
+export const companyMenu: NavItem[] = otherMegaMenu.find((c) => c.category === "Company")!.items;
+export const resourcesMenu: NavItem[] = otherMegaMenu.find((c) => c.category === "Resources")!.items;
 
 export const productMegaMenu: {
   category: string;
@@ -89,7 +127,6 @@ export const productMegaMenu: {
       { title: "All Modules", href: "/products", description: "Explore the complete WAAMTO SaaS Core suite.", icon: "Boxes" },
       { title: "Mobile App", href: "/mobile-app", description: "Responsive web + native field app.", icon: "Smartphone" },
       { title: "ERP Features", href: "/erp-features", description: "Deep capabilities across every department.", icon: "Sparkles" },
-      { title: "Pricing", href: "/pricing", description: "Plans for startups to enterprise.", icon: "Gem" },
     ],
   },
 ];

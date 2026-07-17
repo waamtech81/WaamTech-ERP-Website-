@@ -4,6 +4,7 @@ import { siteConfig, products } from "@/lib/data/site";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Container } from "@/components/shared/section";
+import { CurrencySwitcher } from "@/components/layout/locale-controls";
 
 const footerColumns = [
   {
@@ -117,7 +118,13 @@ export function Footer() {
               </a>
             </p>
           </div>
-          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+            <div className="relative z-10 flex items-center gap-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground/80">
+                Currency
+              </span>
+              <CurrencySwitcher align="end" />
+            </div>
             <Link href="/privacy" className="hover:text-primary transition-colors">
               Privacy
             </Link>
@@ -127,16 +134,36 @@ export function Footer() {
             <Link href="/portal" className="hover:text-primary transition-colors">
               Portal
             </Link>
-            <a href={siteConfig.social.linkedin} className="hover:text-primary transition-colors" target="_blank" rel="noreferrer">
+            <a
+              href={siteConfig.social.linkedin}
+              className="hover:text-primary transition-colors"
+              target="_blank"
+              rel="noreferrer"
+            >
               LinkedIn
             </a>
-            <a href={siteConfig.social.twitter} className="hover:text-primary transition-colors" target="_blank" rel="noreferrer">
+            <a
+              href={siteConfig.social.twitter}
+              className="hover:text-primary transition-colors"
+              target="_blank"
+              rel="noreferrer"
+            >
               X / Twitter
             </a>
-            <a href={siteConfig.social.youtube} className="hover:text-primary transition-colors" target="_blank" rel="noreferrer">
+            <a
+              href={siteConfig.social.youtube}
+              className="hover:text-primary transition-colors"
+              target="_blank"
+              rel="noreferrer"
+            >
               YouTube
             </a>
-            <a href={siteConfig.social.github} className="hover:text-primary transition-colors" target="_blank" rel="noreferrer">
+            <a
+              href={siteConfig.social.github}
+              className="hover:text-primary transition-colors"
+              target="_blank"
+              rel="noreferrer"
+            >
               GitHub
             </a>
           </div>

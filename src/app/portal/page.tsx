@@ -45,7 +45,7 @@ export default function PortalPage() {
               description="A clean preview of the portal experience — manage subscriptions, invoices, tickets, and downloads in one place."
             />
             <Button asChild size="lg" className="shrink-0 self-start">
-              <a href={getAppLoginUrl()}>Open WAAMTO App</a>
+              <a href={getAppLoginUrl()}>Open WAAMTO ERP</a>
             </Button>
           </div>
         </Container>

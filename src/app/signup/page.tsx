@@ -33,6 +33,13 @@ import {
 } from "@/lib/data/business-hierarchy";
 import { authConfig, getAppLoginUrl } from "@/lib/auth/config";
 import { MobileAppProfileCallout } from "@/components/shared/mobile-app-callout";
+import { useLocale } from "@/components/providers/locale-provider";
+import {
+  COUNTRIES,
+  countryFlag,
+  formatCountryLabel,
+  getCountryByCode,
+} from "@/lib/data/countries";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -68,15 +75,23 @@ function FancySelect({
   onClose,
   children,
   disabled,
+  required,
+  searchPlaceholder,
+  searchValue,
+  onSearchChange,
 }: {
   label: string;
   placeholder: string;
-  valueLabel?: string;
+  valueLabel?: React.ReactNode;
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
   children: React.ReactNode;
   disabled?: boolean;
+  required?: boolean;
+  searchPlaceholder?: string;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -98,7 +113,10 @@ function FancySelect({
 
   return (
     <div className="space-y-2" ref={rootRef}>
-      <Label>{label}</Label>
+      <Label>
+        {label}
+        {required ? <span className="text-rose-600"> *</span> : null}
+      </Label>
       <div className="relative">
         <button
           type="button"
@@ -112,7 +130,12 @@ function FancySelect({
           )}
           aria-expanded={open}
         >
-          <span className={cn("truncate", valueLabel ? "text-foreground font-medium" : "text-muted-foreground")}>
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate",
+              valueLabel ? "text-foreground font-medium" : "text-muted-foreground"
+            )}
+          >
             {valueLabel || placeholder}
           </span>
           <ChevronDown
@@ -121,6 +144,17 @@ function FancySelect({
         </button>
         {open ? (
           <div className="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-40 overflow-hidden rounded-xl border border-border bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
+            {onSearchChange ? (
+              <div className="border-b border-border p-2">
+                <Input
+                  value={searchValue || ""}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  placeholder={searchPlaceholder || "Search..."}
+                  className="h-9"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            ) : null}
             {children}
           </div>
         ) : null}
@@ -131,6 +165,7 @@ function FancySelect({
 
 function SignUpForm() {
   const searchParams = useSearchParams();
+  const { country: detectedCountry } = useLocale();
   const defaultCategoryId = resolveBusinessCategoryId(
     searchParams.get("profile") || searchParams.get("category") || ""
   );
@@ -155,22 +190,46 @@ function SignUpForm() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [phone, setPhone] = useState("");
+  const [countryCode, setCountryCode] = useState(() =>
+    detectedCountry && getCountryByCode(detectedCountry) ? detectedCountry.toUpperCase() : ""
+  );
+  const [countrySearch, setCountrySearch] = useState("");
   const [industryId, setIndustryId] = useState(defaultIndustryId);
   const [categoryId, setCategoryId] = useState(
     searchParams.get("profile") || searchParams.get("category") ? defaultCategoryId : ""
   );
   const [plan, setPlan] = useState(defaultPlan);
   const [agree, setAgree] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [checkEmail, setCheckEmail] = useState(false);
+  const [otpStep, setOtpStep] = useState(false);
+  const [trialReady, setTrialReady] = useState(false);
   const [maskedEmail, setMaskedEmail] = useState("");
+  const [registrationId, setRegistrationId] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [username, setUsername] = useState("");
+  const [trialEndsAt, setTrialEndsAt] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [formStartedAt] = useState(() => Date.now());
-  const [openSelect, setOpenSelect] = useState<"industry" | "category" | null>(null);
+  const [openSelect, setOpenSelect] = useState<"country" | "industry" | "category" | null>(null);
 
   const industries = useMemo(() => orderedIndustries(), []);
+  const countryOptions = useMemo(() => {
+    const q = countrySearch.trim().toLowerCase();
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        c.dialCode.replace(/\s/g, "").includes(q.replace(/\s/g, ""))
+    );
+  }, [countrySearch]);
+  const selectedCountry = useMemo(
+    () => (countryCode ? getCountryByCode(countryCode) : undefined),
+    [countryCode]
+  );
   const categoryOptions = useMemo(
     () => (industryId ? getCategoriesForIndustry(industryId) : []),
     [industryId]
@@ -215,6 +274,16 @@ function SignUpForm() {
       return;
     }
 
+    if (!companyName.trim()) {
+      setError("Please enter your company / workspace name.");
+      return;
+    }
+
+    if (!countryCode) {
+      setError("Please select your country.");
+      return;
+    }
+
     if (!industryId) {
       setError("Please choose an industry.");
       return;
@@ -222,6 +291,11 @@ function SignUpForm() {
 
     if (!categoryId) {
       setError("Please select a business category.");
+      return;
+    }
+
+    if (!phone.trim()) {
+      setError("Please enter a phone number.");
       return;
     }
 
@@ -246,10 +320,12 @@ function SignUpForm() {
           password,
           phone: phone || undefined,
           company_name: companyName,
+          country: countryCode,
           profile_id: categoryId,
           business_category_id: categoryId,
           industry_id: industryId,
           plan,
+          marketing_opt_in: marketingOptIn,
           website: honeypot,
           _t: formStartedAt,
         }),
@@ -262,15 +338,16 @@ function SignUpForm() {
         return;
       }
 
-      if (json.requiresVerification) {
+      if (json.requiresOtp || json.requiresVerification) {
         setMaskedEmail(json.data?.email || email);
-        setCheckEmail(true);
-        setSuccess(json.message || "Check your email to verify your account.");
+        setRegistrationId(json.data?.registrationId || "");
+        setOtpStep(true);
+        setSuccess(json.message || "Enter the verification code sent to your email.");
         setLoading(false);
         return;
       }
 
-      setSuccess(json.message || "Account created. Please verify your email, then log in.");
+      setSuccess(json.message || "Account created.");
       setLoading(false);
     } catch {
       setError("Something went wrong. Please try again.");
@@ -278,7 +355,131 @@ function SignUpForm() {
     }
   }
 
-  if (checkEmail) {
+  async function onVerifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    if (!registrationId) {
+      setError("Registration session expired. Please start again.");
+      return;
+    }
+    if (!otpCode.trim()) {
+      setError("Enter the verification code from your email.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registration_id: registrationId,
+          otp: otpCode.trim(),
+          email,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setError(json.message || "Verification failed.");
+        setLoading(false);
+        return;
+      }
+
+      setUsername(json.data?.username || "");
+      setTrialEndsAt(json.data?.trialEndsAt || "");
+      setTrialReady(true);
+      setOtpStep(false);
+      setSuccess(json.message || "Trial activated.");
+      setLoading(false);
+
+      const redirectTo =
+        json.data?.redirectUrl ||
+        json.data?.loginUrl ||
+        getAppLoginUrl({ email, verified: true, registered: true });
+      window.setTimeout(() => {
+        window.location.assign(redirectTo);
+      }, 3500);
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  async function onResendOtp() {
+    if (!registrationId) return;
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "resend",
+          registration_id: registrationId,
+          email,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setError(json.message || "Could not resend code.");
+      } else {
+        setSuccess(json.message || "A new code was sent.");
+      }
+    } catch {
+      setError("Could not resend code.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (trialReady) {
+    return (
+      <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
+        <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
+        <div className="container-site relative flex justify-center py-16 lg:py-24">
+          <Card className="w-full max-w-lg shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
+            <CardContent className="px-6 py-10 sm:px-10 text-center">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <Check className="h-7 w-7" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#0b1f3a]">
+                Your trial is ready
+              </h1>
+              <p className="mt-3 text-muted-foreground leading-relaxed">
+                Welcome to WAAMTO ERP. Your {authConfig.trialDays}-day trial starts now.
+                {username ? (
+                  <>
+                    {" "}
+                    Your username is <span className="font-medium text-foreground">{username}</span>.
+                  </>
+                ) : null}
+              </p>
+              <div className="mt-6 rounded-2xl border border-border bg-slate-50 px-4 py-4 text-left text-sm text-muted-foreground leading-relaxed">
+                <p className="font-medium text-[#0b1f3a] mb-2">What&apos;s included</p>
+                <ul className="space-y-1.5 list-disc list-inside">
+                  <li>{authConfig.trialDays}-day full-featured trial</li>
+                  {trialEndsAt ? <li>Expires {new Date(trialEndsAt).toLocaleDateString()}</li> : null}
+                  <li>Automatic license validation — no key to paste</li>
+                  <li>Welcome email with your username and login link</li>
+                </ul>
+              </div>
+              <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+                <Button asChild size="lg" className="rounded-full px-8">
+                  <a href={getAppLoginUrl({ email, verified: true, registered: true })}>
+                    Continue to WAAMTO ERP
+                  </a>
+                </Button>
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">Redirecting automatically…</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (otpStep) {
     return (
       <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
         <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
@@ -297,33 +498,70 @@ function SignUpForm() {
                 <Mail className="h-7 w-7" />
               </div>
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#0b1f3a]">
-                Check your email
+                Enter verification code
               </h1>
               <p className="mt-3 text-muted-foreground leading-relaxed">
-                We sent a verification link to{" "}
-                <span className="font-medium text-foreground">{maskedEmail}</span>. After you verify,
-                your trial will be registered on our license server and your{" "}
-                <strong className="text-foreground">license key</strong> will be emailed to you.
+                We sent a 6-digit code to{" "}
+                <span className="font-medium text-foreground">{maskedEmail}</span>. Enter it below
+                to activate your trial.
               </p>
-              <div className="mt-6 rounded-2xl border border-border bg-slate-50 px-4 py-4 text-left text-sm text-muted-foreground leading-relaxed">
-                <p className="font-medium text-[#0b1f3a] mb-2">What happens next</p>
-                <ol className="space-y-1.5 list-decimal list-inside">
-                  <li>Verify your email from the link we sent</li>
-                  <li>Receive your trial license key by email</li>
-                  <li>Open {authConfig.appUrl.replace(/^https?:\/\//, "")} and log in</li>
-                  <li>Paste the license key in the app to start your trial</li>
-                </ol>
-              </div>
-              <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-                <Button asChild size="lg" className="rounded-full px-8">
-                  <a href={getAppLoginUrl()}>Open WAAMTO App</a>
+              <form onSubmit={onVerifyOtp} className="mt-8 space-y-4 text-left">
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Verification code</Label>
+                  <Input
+                    id="otp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    placeholder="6-digit code"
+                    className="h-12 tracking-[0.35em] text-center text-lg font-semibold"
+                    required
+                  />
+                </div>
+                {error ? (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {error}
+                  </div>
+                ) : null}
+                {success ? (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    {success}
+                  </div>
+                ) : null}
+                <Button type="submit" className="w-full" size="lg" disabled={loading || otpCode.length < 4}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    "Verify & start trial"
+                  )}
                 </Button>
+              </form>
+              <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
                 <Button
                   type="button"
                   variant="outline"
                   size="lg"
                   className="rounded-full px-8"
-                  onClick={() => setCheckEmail(false)}
+                  disabled={loading}
+                  onClick={onResendOtp}
+                >
+                  Resend code
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="lg"
+                  className="rounded-full px-8"
+                  onClick={() => {
+                    setOtpStep(false);
+                    setOtpCode("");
+                    setError("");
+                    setSuccess("");
+                  }}
                 >
                   Back to form
                 </Button>
@@ -335,6 +573,7 @@ function SignUpForm() {
     );
   }
 
+  // Form continues below
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
@@ -450,15 +689,89 @@ function SignUpForm() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone (optional)</Label>
+                  <Label htmlFor="phone">Phone number</Label>
                   <Input
                     id="phone"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+92 300 0000000"
+                    required
                   />
                 </div>
               </div>
+
+              <FancySelect
+                label="Country"
+                placeholder="Select your country"
+                valueLabel={
+                  selectedCountry ? (
+                    <span className="flex items-center gap-2 truncate">
+                      <span className="shrink-0 text-base leading-none" aria-hidden>
+                        {countryFlag(selectedCountry.code)}
+                      </span>
+                      <span className="truncate">{selectedCountry.name}</span>
+                      {selectedCountry.dialCode ? (
+                        <span className="shrink-0 text-muted-foreground font-normal">
+                          {selectedCountry.dialCode}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : undefined
+                }
+                open={openSelect === "country"}
+                onToggle={() => {
+                  setOpenSelect((v) => (v === "country" ? null : "country"));
+                  if (openSelect !== "country") setCountrySearch("");
+                }}
+                onClose={() => {
+                  setOpenSelect(null);
+                  setCountrySearch("");
+                }}
+                required
+                searchPlaceholder="Search country or code..."
+                searchValue={countrySearch}
+                onSearchChange={setCountrySearch}
+              >
+                <ul className="max-h-64 overflow-y-auto p-1.5">
+                  {countryOptions.length === 0 ? (
+                    <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      No countries match your search.
+                    </li>
+                  ) : (
+                    countryOptions.map((country) => {
+                      const selected = countryCode === country.code;
+                      return (
+                        <li key={country.code}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCountryCode(country.code);
+                              setOpenSelect(null);
+                              setCountrySearch("");
+                            }}
+                            className={cn(
+                              "flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm transition-colors",
+                              selected ? "bg-primary/8 text-primary" : "hover:bg-muted"
+                            )}
+                            aria-label={formatCountryLabel(country)}
+                          >
+                            <span className="w-6 shrink-0 text-base leading-none" aria-hidden>
+                              {countryFlag(country.code)}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate font-medium">{country.name}</span>
+                            {country.dialCode ? (
+                              <span className="shrink-0 text-muted-foreground tabular-nums">
+                                {country.dialCode}
+                              </span>
+                            ) : null}
+                            {selected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
+                          </button>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              </FancySelect>
 
               <FancySelect
                 label="Choose industry"
@@ -699,13 +1012,25 @@ function SignUpForm() {
                 <Label htmlFor="terms" className="text-sm font-normal text-muted-foreground leading-relaxed">
                   I agree to the{" "}
                   <Link href="/terms" className="text-primary hover:underline">
-                    Terms
+                    Terms &amp; Conditions
                   </Link>{" "}
                   and{" "}
                   <Link href="/privacy" className="text-primary hover:underline">
                     Privacy Policy
                   </Link>
                   .
+                </Label>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="marketing"
+                  className="mt-1"
+                  checked={marketingOptIn}
+                  onCheckedChange={(v) => setMarketingOptIn(v === true)}
+                />
+                <Label htmlFor="marketing" className="text-sm font-normal text-muted-foreground leading-relaxed">
+                  Send me product updates and marketing emails (optional).
                 </Label>
               </div>
 
@@ -724,7 +1049,7 @@ function SignUpForm() {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={loading || !categoryId || !passwordStrong || !passwordsMatch}
+                disabled={loading || !countryCode || !categoryId || !passwordStrong || !passwordsMatch}
               >
                 {loading ? (
                   <>
@@ -739,7 +1064,7 @@ function SignUpForm() {
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <a href={getAppLoginUrl()} className="text-primary font-medium hover:underline">
-                Open WAAMTO App
+                Open WAAMTO ERP
               </a>
             </p>
           </CardContent>

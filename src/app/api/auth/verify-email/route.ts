@@ -60,6 +60,17 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!pending.country) {
+      await deletePending(pending.tokenHash);
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Your signup session is outdated. Please sign up again.",
+        },
+        { status: 400 }
+      );
+    }
+
     await bumpAttempts(pending);
 
     const password = decryptPendingPassword(pending);
@@ -69,6 +80,7 @@ export async function POST(req: Request) {
       password,
       phone: pending.phone,
       company_name: pending.company_name,
+      country: pending.country,
       profile_id: pending.profile_id,
       industry_id: pending.industry_id,
       plan: pending.plan,
@@ -97,7 +109,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Email verified. Your ${authConfig.trialDays}-day trial license has been emailed. Open the WAAMTO app and activate it with your license key.`,
+      message: `Email verified. Your ${authConfig.trialDays}-day trial license has been emailed. Open WAAMTO ERP and activate it with your license key.`,
       data: {
         email: pending.email,
         trialDays: authConfig.trialDays,

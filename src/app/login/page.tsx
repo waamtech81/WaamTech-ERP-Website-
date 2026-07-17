@@ -43,7 +43,7 @@ function LoginRedirect() {
                 {siteConfig.name}
               </span>
             </Link>
-            <CardTitle className="text-2xl">Open WAAMTO App</CardTitle>
+            <CardTitle className="text-2xl">Open WAAMTO ERP</CardTitle>
             <CardDescription>
               Sign in happens on our live application — not on this marketing website.
             </CardDescription>
@@ -56,7 +56,7 @@ function LoginRedirect() {
               </div>
             ) : registered ? (
               <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                Account ready. Continue in the WAAMTO app to log in.
+                Account ready. Continue in WAAMTO ERP to log in.
               </div>
             ) : (
               <div className="rounded-xl border border-border bg-slate-50 px-4 py-3 text-sm text-muted-foreground leading-relaxed">
@@ -96,7 +96,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
-          Opening WAAMTO app...
+          Opening WAAMTO ERP...
         </div>
       }
     >

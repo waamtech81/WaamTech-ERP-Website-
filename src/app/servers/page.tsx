@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight, ExternalLink, Check } from "lucide-react";
 import { serverHero, serverOfferings, waamHostPlans } from "@/lib/data/servers";
 import { getIcon } from "@/lib/icons";
-import { formatCurrency } from "@/lib/utils";
+import { Price } from "@/components/shared/price";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
@@ -59,7 +59,9 @@ export default function ServersPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/60 via-transparent to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6 text-white">
                   <p className="text-sm font-medium text-white/80">Powered by WaamHost</p>
-                  <p className="text-xl font-semibold">3× faster cloud hosting from $5.99/mo</p>
+                  <p className="text-xl font-semibold">
+                    3× faster cloud hosting from <Price usd={5.99} />/mo
+                  </p>
                 </div>
               </div>
             </AnimateIn>
@@ -101,11 +103,11 @@ export default function ServersPage() {
                         <p className="pt-1 text-sm">
                           {item.originalPrice ? (
                             <span className="text-muted-foreground line-through mr-2">
-                              {formatCurrency(item.originalPrice)}/mo
+                              <Price usd={item.originalPrice} />/mo
                             </span>
                           ) : null}
                           <span className="font-semibold text-[#0b1f3a]">
-                            From {formatCurrency(item.priceFrom)}
+                            From <Price usd={item.priceFrom} />
                             {item.id !== "domain-hosting" ? "/mo" : ""}
                           </span>
                         </p>
@@ -164,9 +166,11 @@ export default function ServersPage() {
                     <CardTitle>{plan.name}</CardTitle>
                     <p className="pt-2">
                       <span className="text-muted-foreground line-through text-sm mr-2">
-                        ${plan.original}
+                        <Price usd={plan.original} />
                       </span>
-                      <span className="text-3xl font-semibold">${plan.price}</span>
+                      <span className="text-3xl font-semibold">
+                        <Price usd={plan.price} />
+                      </span>
                       <span className="text-sm text-muted-foreground">/mo</span>
                     </p>
                   </CardHeader>

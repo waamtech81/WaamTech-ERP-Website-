@@ -7,6 +7,7 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronUp,
+  LogIn,
   Menu,
   Search,
   Sparkles,
@@ -14,11 +15,10 @@ import {
   Boxes,
 } from "lucide-react";
 import {
-  mainNav,
   productMegaMenu,
-  companyMenu,
-  resourcesMenu,
+  otherMegaMenu,
   siteConfig,
+  pricingPlans,
 } from "@/lib/data/site";
 import {
   featuredIndustryIds,
@@ -26,15 +26,18 @@ import {
   getFeaturedIndustries,
   getIndustryLucideIcon,
   hierarchyStats,
+  isHotCategory,
 } from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/layout/global-search";
+import { LocaleControls } from "@/components/layout/locale-controls";
+import { useLocale } from "@/components/providers/locale-provider";
 import { getAppLoginUrl } from "@/lib/auth/config";
 
-type DropdownKey = "products" | "industries" | "company" | "resources" | null;
+type DropdownKey = "products" | "industries" | "other" | null;
 
 function NavDropdown({
   label,
@@ -58,12 +61,13 @@ function NavDropdown({
       <button
         type="button"
         className={cn(
-          "inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+          "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
           active || open
             ? "text-primary bg-primary/5"
             : "text-foreground/80 hover:text-primary hover:bg-muted"
         )}
         aria-expanded={open}
+        translate="no"
       >
         {label}
         <ChevronDown
@@ -107,7 +111,8 @@ function MobileAccordion({
     <div className="rounded-xl border border-border/70 overflow-hidden">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-4 py-3.5 text-sm font-semibold bg-muted/40 hover:bg-muted/70 transition-colors"
+        className="notranslate flex w-full items-center justify-between px-4 py-3.5 text-sm font-semibold bg-muted/40 hover:bg-muted/70 transition-colors"
+        translate="no"
       >
         {title}
         <ChevronDown
@@ -121,6 +126,12 @@ function MobileAccordion({
 
 export function Header() {
   const pathname = usePathname();
+  const { t, formatPrice } = useLocale();
+  const fromUsd = Math.min(
+    ...pricingPlans
+      .map((p) => p.yearlyPrice ?? p.monthlyPrice)
+      .filter((v): v is number => typeof v === "number" && v > 0)
+  );
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdown, setDropdown] = useState<DropdownKey>(null);
@@ -199,9 +210,19 @@ export function Header() {
   const isActive = (href: string) =>
     pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
 
-  const simpleLinks = mainNav.filter(
-    (item) => !["Products", "Industries", "Resources", "Company"].includes(item.title)
-  );
+  const otherActive =
+    isActive("/erp-features") ||
+    isActive("/mobile-app") ||
+    isActive("/servers") ||
+    isActive("/plans") ||
+    isActive("/docs") ||
+    isActive("/knowledge-base") ||
+    isActive("/support") ||
+    isActive("/faqs") ||
+    isActive("/about") ||
+    isActive("/blog") ||
+    isActive("/contact") ||
+    isActive("/portal");
 
   return (
     <>
@@ -218,12 +239,12 @@ export function Header() {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-sm transition-transform group-hover:scale-105">
               <Boxes className="h-4.5 w-4.5" />
             </span>
-            <span className="flex flex-col leading-none">
+            <span className="flex flex-col leading-none" translate="no">
               <span className="font-[family-name:var(--font-poppins)] text-lg font-semibold tracking-tight">
                 {siteConfig.name}
               </span>
               <span className="mt-0.5 hidden text-[10px] font-medium text-muted-foreground sm:block">
-                by {siteConfig.companyName}
+                {siteConfig.productLine}
               </span>
             </span>
           </Link>
@@ -238,14 +259,15 @@ export function Header() {
               <button
                 type="button"
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive("/products") || dropdown === "products"
                     ? "text-primary bg-primary/5"
                     : "text-foreground/80 hover:text-primary hover:bg-muted"
                 )}
                 aria-expanded={dropdown === "products"}
+                translate="no"
               >
-                Products
+                {t("nav.products", "Products")}
                 <ChevronDown
                   className={cn(
                     "h-3.5 w-3.5 transition-transform duration-200",
@@ -310,7 +332,11 @@ export function Header() {
                         </Badge>
                         <p className="text-lg font-semibold leading-snug">50% off all plans</p>
                         <p className="mt-2 text-sm text-white/70 leading-relaxed">
-                          Start your 14-day free trial. From PKR 2,500/mo.
+                          Start your 14-day free trial. From{" "}
+                          <span translate="no" suppressHydrationWarning>
+                            {formatPrice(fromUsd)}
+                          </span>
+                          /mo.
                         </p>
                         <Button
                           asChild
@@ -335,14 +361,15 @@ export function Header() {
               <button
                 type="button"
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive("/industries") || dropdown === "industries"
                     ? "text-primary bg-primary/5"
                     : "text-foreground/80 hover:text-primary hover:bg-muted"
                 )}
                 aria-expanded={dropdown === "industries"}
+                translate="no"
               >
-                Industries
+                {t("nav.industries", "Industries")}
                 <ChevronDown
                   className={cn(
                     "h-3.5 w-3.5 transition-transform duration-200",
@@ -465,6 +492,7 @@ export function Header() {
                               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
                                 {activeCategories.map((cat) => {
                                   const CatIcon = getIcon(getIndustryLucideIcon(activeIndustry));
+                                  const hot = isHotCategory(cat.id);
                                   return (
                                     <Link
                                       key={cat.id}
@@ -478,8 +506,15 @@ export function Header() {
                                         <CatIcon className="h-3.5 w-3.5" />
                                       </span>
                                       <span className="min-w-0">
-                                        <span className="block text-sm font-medium text-[#0b1f3a] truncate">
-                                          {cat.name}
+                                        <span className="flex items-center gap-1.5 min-w-0">
+                                          <span className="block text-sm font-medium text-[#0b1f3a] truncate">
+                                            {cat.name}
+                                          </span>
+                                          {hot ? (
+                                            <span className="shrink-0 rounded bg-orange-500/90 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-white leading-none">
+                                              Hot
+                                            </span>
+                                          ) : null}
                                         </span>
                                         <span className="mt-0.5 block text-[11px] text-muted-foreground">
                                           POS {cat.pos_mode}
@@ -522,97 +557,62 @@ export function Header() {
               ) : null}
             </div>
 
-            {simpleLinks.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  isActive(item.href)
-                    ? "text-primary bg-primary/5"
-                    : "text-foreground/80 hover:text-primary hover:bg-muted"
-                )}
-              >
-                {item.title}
-              </Link>
-            ))}
+            <Link
+              href="/pricing"
+              className={cn(
+                "notranslate rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                isActive("/pricing")
+                  ? "text-primary bg-primary/5"
+                  : "text-foreground/80 hover:text-primary hover:bg-muted"
+              )}
+              translate="no"
+            >
+              {t("nav.pricing", "Pricing")}
+            </Link>
 
             <NavDropdown
-              label="Resources"
-              open={dropdown === "resources"}
-              onOpen={() => openMenu("resources")}
+              label={t("nav.other", "Other")}
+              open={dropdown === "other"}
+              onOpen={() => openMenu("other")}
               onClose={scheduleClose}
-              active={
-                isActive("/docs") ||
-                isActive("/knowledge-base") ||
-                isActive("/support") ||
-                isActive("/faqs")
-              }
-              panelClassName="w-[min(420px,calc(100vw-2rem))]"
+              active={otherActive || dropdown === "other"}
+              panelClassName="w-[min(720px,calc(100vw-2rem))]"
             >
-              <MegaPanel className="p-4">
-                <ul className="space-y-1">
-                  {resourcesMenu.map((link) => {
-                    const Icon = getIcon(link.icon ?? "FileText");
-                    return (
-                      <li key={link.href}>
-                        <Link
-                          href={link.href}
-                          className="group flex gap-3 rounded-xl px-3 py-3 hover:bg-muted transition-colors"
-                        >
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent group-hover:bg-accent group-hover:text-white transition-colors">
-                            <Icon className="h-4.5 w-4.5" />
-                          </span>
-                          <span>
-                            <span className="block text-sm font-medium">{link.title}</span>
-                            <span className="text-xs text-muted-foreground">{link.description}</span>
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </MegaPanel>
-            </NavDropdown>
-
-            <NavDropdown
-              label="Company"
-              open={dropdown === "company"}
-              onOpen={() => openMenu("company")}
-              onClose={scheduleClose}
-              active={isActive("/about") || isActive("/blog") || isActive("/contact")}
-              panelClassName="w-[min(420px,calc(100vw-2rem))]"
-            >
-              <MegaPanel className="p-4">
-                <div className="mb-3 rounded-xl bg-gradient-to-r from-primary/8 to-accent/8 px-4 py-3">
-                  <p className="text-xs font-semibold text-primary uppercase tracking-wide">
-                    Since 2012
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Building software & digital solutions for businesses worldwide.
-                  </p>
+              <MegaPanel className="p-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                  {otherMegaMenu.map((col) => (
+                    <div key={col.category}>
+                      <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-primary/70">
+                        {col.category}
+                      </p>
+                      <ul className="space-y-0.5">
+                        {col.items.map((link) => {
+                          const Icon = getIcon(link.icon ?? "Boxes");
+                          return (
+                            <li key={link.href + link.title}>
+                              <Link
+                                href={link.href}
+                                className="group flex gap-2.5 rounded-xl px-2 py-2 hover:bg-muted transition-colors"
+                              >
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                                  <Icon className="h-3.5 w-3.5" />
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block text-sm font-medium">{link.title}</span>
+                                  {link.description ? (
+                                    <span className="mt-0.5 block text-xs text-muted-foreground line-clamp-2">
+                                      {link.description}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
-                <ul className="space-y-1">
-                  {companyMenu.map((link) => {
-                    const Icon = getIcon(link.icon ?? "Building2");
-                    return (
-                      <li key={link.href}>
-                        <Link
-                          href={link.href}
-                          className="group flex gap-3 rounded-xl px-3 py-3 hover:bg-muted transition-colors"
-                        >
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                            <Icon className="h-4.5 w-4.5" />
-                          </span>
-                          <span>
-                            <span className="block text-sm font-medium">{link.title}</span>
-                            <span className="text-xs text-muted-foreground">{link.description}</span>
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
               </MegaPanel>
             </NavDropdown>
           </nav>
@@ -623,26 +623,40 @@ export function Header() {
               size="icon"
               className="hidden sm:inline-flex"
               onClick={() => setSearchOpen(true)}
-              aria-label="Open search"
+              aria-label={t("header.search", "Search")}
             >
               <Search className="h-4 w-4" />
             </Button>
-            <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex rounded-full">
-              <a href={getAppLoginUrl()}>Log in</a>
+            <div className="hidden lg:block">
+              <LocaleControls />
+            </div>
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="hidden md:inline-flex"
+              aria-label={t("header.login", "Log in")}
+              title={t("header.login", "Log in")}
+            >
+              <a href={getAppLoginUrl()}>
+                <LogIn className="h-4 w-4" />
+              </a>
             </Button>
             <Button
               asChild
               size="sm"
-              className="hidden sm:inline-flex rounded-full px-4 lg:px-5 shadow-sm shadow-primary/15"
+              className="hidden sm:inline-flex rounded-full px-4 lg:px-5 shadow-sm shadow-primary/15 notranslate"
             >
-              <Link href="/signup">Create account</Link>
+              <Link href="/signup" translate="no">
+                {t("header.createAccount", "Create account")}
+              </Link>
             </Button>
             <Button
               variant="ghost"
               size="icon"
               className="xl:hidden"
               onClick={() => setMobileOpen((v) => !v)}
-              aria-label="Toggle menu"
+              aria-label={t("header.toggleMenu", "Toggle menu")}
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
@@ -657,11 +671,11 @@ export function Header() {
                 className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm text-muted-foreground hover:bg-muted border border-border"
               >
                 <Search className="h-4 w-4" />
-                Search...
+                {t("header.searchEllipsis", "Search...")}
               </button>
 
               <MobileAccordion
-                title="Products"
+                title={t("nav.products", "Products")}
                 open={mobileAccordion === "products"}
                 onToggle={() =>
                   setMobileAccordion((v) => (v === "products" ? null : "products"))
@@ -684,7 +698,7 @@ export function Header() {
               </MobileAccordion>
 
               <MobileAccordion
-                title="Industries"
+                title={t("nav.industries", "Industries")}
                 open={mobileAccordion === "industries"}
                 onToggle={() =>
                   setMobileAccordion((v) => (v === "industries" ? null : "industries"))
@@ -707,32 +721,29 @@ export function Header() {
                 ))}
                 <Link
                   href="/industries"
-                  className="block rounded-lg px-3 py-2.5 text-sm text-primary font-medium"
+                  className="notranslate block rounded-lg px-3 py-2.5 text-sm text-primary font-medium"
+                  translate="no"
                 >
-                  View all industries →
+                  {t("header.viewAllIndustries", "View all industries")} →
                 </Link>
               </MobileAccordion>
 
-              {simpleLinks.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="block rounded-xl border border-border px-4 py-3.5 text-sm font-semibold hover:bg-muted"
-                >
-                  {item.title}
-                </Link>
-              ))}
+              <Link
+                href="/pricing"
+                className="notranslate block rounded-xl border border-border px-4 py-3.5 text-sm font-semibold hover:bg-muted"
+                translate="no"
+              >
+                {t("nav.pricing", "Pricing")}
+              </Link>
 
               <MobileAccordion
-                title="Resources"
-                open={mobileAccordion === "resources"}
-                onToggle={() =>
-                  setMobileAccordion((v) => (v === "resources" ? null : "resources"))
-                }
+                title={t("nav.other", "Other")}
+                open={mobileAccordion === "other"}
+                onToggle={() => setMobileAccordion((v) => (v === "other" ? null : "other"))}
               >
-                {resourcesMenu.map((link) => (
+                {otherMegaMenu.flatMap((col) => col.items).map((link) => (
                   <Link
-                    key={link.href}
+                    key={link.href + link.title}
                     href={link.href}
                     className="block rounded-lg px-3 py-2.5 text-sm hover:bg-muted font-medium"
                   >
@@ -741,31 +752,22 @@ export function Header() {
                 ))}
               </MobileAccordion>
 
-              <MobileAccordion
-                title="Company"
-                open={mobileAccordion === "company"}
-                onToggle={() =>
-                  setMobileAccordion((v) => (v === "company" ? null : "company"))
-                }
-              >
-                <p className="px-3 py-1 text-xs text-primary font-semibold">Since 2012</p>
-                {companyMenu.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="block rounded-lg px-3 py-2.5 text-sm hover:bg-muted font-medium"
-                  >
-                    {link.title}
-                  </Link>
-                ))}
-              </MobileAccordion>
+              <div className="rounded-xl border border-border/70 bg-muted/30 p-3 notranslate" translate="no">
+                <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("localization.language", "Language")}
+                </p>
+                <LocaleControls />
+              </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2 notranslate" translate="no">
                 <Button asChild variant="outline" className="flex-1 rounded-full">
-                  <a href={getAppLoginUrl()}>Log in</a>
+                  <a href={getAppLoginUrl()}>
+                    <LogIn className="h-4 w-4" />
+                    {t("header.login", "Log in")}
+                  </a>
                 </Button>
                 <Button asChild className="flex-1 rounded-full">
-                  <Link href="/signup">Start trial</Link>
+                  <Link href="/signup">{t("header.startTrial", "Start trial")}</Link>
                 </Button>
               </div>
             </div>

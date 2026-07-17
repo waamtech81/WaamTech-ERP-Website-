@@ -10,6 +10,7 @@ export type PendingSignup = {
   passwordEnc: string;
   phone?: string;
   company_name: string;
+  country: string;
   profile_id: string;
   industry_id?: string;
   plan?: string;
@@ -61,6 +62,7 @@ export async function createPendingSignup(input: {
   password: string;
   phone?: string;
   company_name: string;
+  country: string;
   profile_id: string;
   industry_id?: string;
   plan?: string;
@@ -76,6 +78,7 @@ export async function createPendingSignup(input: {
     passwordEnc: encrypt(input.password),
     phone: input.phone,
     company_name: input.company_name,
+    country: input.country.toUpperCase(),
     profile_id: input.profile_id,
     industry_id: input.industry_id,
     plan: input.plan,

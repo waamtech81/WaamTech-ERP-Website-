@@ -7,34 +7,47 @@ export type TrialRegistrationInput = {
   password: string;
   phone?: string;
   company_name: string;
+  country: string;
   profile_id: string;
   industry_id?: string;
   plan?: string;
-  email_verified: boolean;
+  marketing_opt_in?: boolean;
+  email_verified?: boolean;
 };
 
-type LicenseApiResponse = {
+export type RegistrationStartResult = {
+  registrationId: string;
+  email: string;
+  otpExpiresInMinutes: number;
+  trialDays: number;
+  requiresOtp: boolean;
+  message: string;
+};
+
+export type RegistrationCompleteResult = {
+  registrationId?: string;
+  customerId?: string;
+  identityId?: string;
+  username?: string;
+  email?: string;
+  licenseKey?: string;
+  licenseId?: string;
+  trialDays?: number;
+  trialEndsAt?: string;
+  loginUrl?: string;
+  appUrl?: string;
+  provisioned?: boolean;
+  licenseEmailed?: boolean;
+  message?: string;
+};
+
+type LicenseApiResponse<T = Record<string, unknown>> = {
   success?: boolean;
   message?: string;
-  data?: {
-    registrationId?: string;
-    licenseKey?: string;
-    packageId?: string;
-    trialEndsAt?: string;
-    licenseEmailed?: boolean;
-  };
+  data?: T;
 };
 
-type CoreApiResponse = {
-  success?: boolean;
-  message?: string;
-  data?: Record<string, unknown>;
-};
-
-export async function registerTrialOnLicenseServer(
-  input: TrialRegistrationInput
-): Promise<{ ok: boolean; message: string; data?: LicenseApiResponse["data"] }> {
-  const base = normalizeLicenseBase(licenseConfig.apiUrl);
+function licenseHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -42,38 +55,30 @@ export async function registerTrialOnLicenseServer(
   if (licenseConfig.apiKey) {
     headers.Authorization = `Bearer ${licenseConfig.apiKey}`;
   }
+  return headers;
+}
 
-  const endpoints = ["/v1/registrations/trial", "/v1/trials/register", "/registrations/trial"];
-
+async function postLicense<T>(
+  paths: string[],
+  body: unknown
+): Promise<{ ok: boolean; status: number; message: string; data?: T }> {
+  const base = normalizeLicenseBase(licenseConfig.apiUrl);
   let lastError = "License service unavailable.";
+  let lastStatus = 502;
 
-  for (const path of endpoints) {
+  for (const path of paths) {
     try {
       const res = await fetch(`${base}${path}`, {
         method: "POST",
-        headers,
-        body: JSON.stringify({
-          name: input.name,
-          email: input.email,
-          password: input.password,
-          phone: input.phone,
-          company_name: input.company_name,
-          company: input.company_name,
-          profile_id: input.profile_id,
-          business_category_id: input.profile_id,
-          industry_id: input.industry_id,
-          plan: input.plan || "professional",
-          package_plan: input.plan || "professional",
-          email_verified: input.email_verified,
-          trial_days: authConfig.trialDays,
-          source: "waamto-website",
-        }),
+        headers: licenseHeaders(),
+        body: JSON.stringify(body),
         cache: "no-store",
       });
+      lastStatus = res.status;
 
-      let json: LicenseApiResponse = {};
+      let json: LicenseApiResponse<T> = {};
       try {
-        json = (await res.json()) as LicenseApiResponse;
+        json = (await res.json()) as LicenseApiResponse<T>;
       } catch {
         json = { success: false, message: "Invalid response from license server." };
       }
@@ -81,16 +86,13 @@ export async function registerTrialOnLicenseServer(
       if (json.success || res.ok) {
         return {
           ok: true,
-          message:
-            json.message ||
-            "Trial registered. Your license key has been sent to your email.",
+          status: res.status,
+          message: json.message || "OK",
           data: json.data,
         };
       }
 
-      lastError = json.message || `License registration failed (${res.status}).`;
-
-      // Try next endpoint only on 404
+      lastError = json.message || `License request failed (${res.status}).`;
       if (res.status !== 404) break;
     } catch (error) {
       lastError =
@@ -98,10 +100,102 @@ export async function registerTrialOnLicenseServer(
     }
   }
 
-  return { ok: false, message: lastError };
+  return { ok: false, status: lastStatus, message: lastError };
 }
 
-/** Optional: provision ERP Core tenant after license registration (when Core API is available) */
+/** Start registration — License Engine stores pending identity + emails OTP. */
+export async function startRegistrationOnLicenseServer(
+  input: TrialRegistrationInput
+): Promise<{ ok: boolean; message: string; data?: RegistrationStartResult; status: number }> {
+  const result = await postLicense<RegistrationStartResult>(
+    ["/v1/registrations/start", "/registrations/start"],
+    {
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      phone: input.phone,
+      company_name: input.company_name,
+      company: input.company_name,
+      country: input.country,
+      country_code: input.country,
+      profile_id: input.profile_id,
+      business_category_id: input.profile_id,
+      industry_id: input.industry_id,
+      plan: input.plan || "professional",
+      marketing_opt_in: Boolean(input.marketing_opt_in),
+      trial_days: authConfig.trialDays,
+      source: "waamto-website",
+    }
+  );
+
+  return result;
+}
+
+/** Verify email OTP — License Engine creates customer, trial, license, provisions ERP. */
+export async function verifyRegistrationOtp(input: {
+  registration_id: string;
+  otp: string;
+  email?: string;
+}): Promise<{
+  ok: boolean;
+  message: string;
+  data?: RegistrationCompleteResult;
+  status: number;
+}> {
+  return postLicense<RegistrationCompleteResult>(
+    [
+      "/v1/registrations/otp/verify",
+      "/v1/registrations/verify-otp",
+      "/registrations/otp/verify",
+    ],
+    input
+  );
+}
+
+export async function resendRegistrationOtp(input: {
+  registration_id: string;
+  email?: string;
+}): Promise<{ ok: boolean; message: string; data?: RegistrationStartResult; status: number }> {
+  return postLicense<RegistrationStartResult>(
+    ["/v1/registrations/otp/resend", "/registrations/otp/resend"],
+    input
+  );
+}
+
+/** @deprecated Prefer start + verify OTP. Kept for compatibility. */
+export async function registerTrialOnLicenseServer(
+  input: TrialRegistrationInput
+): Promise<{ ok: boolean; message: string; data?: RegistrationCompleteResult }> {
+  const result = await postLicense<RegistrationCompleteResult>(
+    ["/v1/registrations/trial", "/v1/trials/register", "/registrations/trial"],
+    {
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      phone: input.phone,
+      company_name: input.company_name,
+      company: input.company_name,
+      country: input.country,
+      country_code: input.country,
+      profile_id: input.profile_id,
+      business_category_id: input.profile_id,
+      industry_id: input.industry_id,
+      plan: input.plan || "professional",
+      marketing_opt_in: Boolean(input.marketing_opt_in),
+      email_verified: Boolean(input.email_verified),
+      trial_days: authConfig.trialDays,
+      source: "waamto-website",
+    }
+  );
+
+  return {
+    ok: result.ok,
+    message: result.message,
+    data: result.data,
+  };
+}
+
+/** Optional legacy Core signup — unused when Engine provisions ERP. */
 export async function provisionCoreTenant(input: TrialRegistrationInput) {
   const base = normalizeApiBase(authConfig.apiUrl);
   try {
@@ -115,6 +209,8 @@ export async function provisionCoreTenant(input: TrialRegistrationInput) {
         password: input.password,
         phone: input.phone,
         company_name: input.company_name,
+        country: input.country,
+        country_code: input.country,
         profile_id: input.profile_id,
         business_category_id: input.profile_id,
         industry_id: input.industry_id,
@@ -124,9 +220,9 @@ export async function provisionCoreTenant(input: TrialRegistrationInput) {
       cache: "no-store",
     });
 
-    let json: CoreApiResponse = {};
+    let json: { success?: boolean; message?: string; data?: Record<string, unknown> } = {};
     try {
-      json = (await res.json()) as CoreApiResponse;
+      json = (await res.json()) as typeof json;
     } catch {
       return { ok: false, skipped: true };
     }

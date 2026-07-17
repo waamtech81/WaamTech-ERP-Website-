@@ -1219,6 +1219,29 @@ export const featuredIndustryIds = [
   "real_estate_property",
 ] as const;
 
+/**
+ * Primary business categories marked “Hot” in the industries mega menu.
+ * Keep this list small — only flag the most common entry profiles.
+ */
+export const hotCategoryIds = new Set<string>([
+  "retail_store",
+  "supermarket",
+  "grocery_store",
+  "auto_parts_retail",
+  "auto_workshop_service",
+  "retail_pharmacy",
+  "restaurant",
+  "cafe",
+  "general_manufacturing",
+  "general_wholesale",
+  "warehouse",
+  "property_management",
+]);
+
+export function isHotCategory(categoryId: string): boolean {
+  return hotCategoryIds.has(categoryId);
+}
+
 /** Lucide icon name overrides for SaaS Core icon keys */
 export const industryIconMap: Record<string, string> = {
   car: "Car",

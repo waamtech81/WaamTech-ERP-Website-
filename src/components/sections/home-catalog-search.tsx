@@ -30,7 +30,11 @@ const typeMeta: Record<
 
 const hints = ["Inventory", "Retail", "Pharmacy", "POS", "Restaurant", "Manufacturing"];
 
-export function HomeCatalogSearch() {
+export function HomeCatalogSearch({
+  variant = "section",
+}: {
+  variant?: "section" | "hero";
+}) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
@@ -49,23 +53,14 @@ export function HomeCatalogSearch() {
 
   const showPanel = open && query.trim().length >= 2;
 
-  return (
-    <Section className="!py-8 md:!py-10 bg-white">
-      <Container>
-        <div className="mx-auto max-w-3xl text-center mb-6">
-          <p className="text-sm font-medium text-primary uppercase tracking-wide mb-2">
-            Quick find
-          </p>
-          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
-            Search products, industries &amp; categories
-          </h2>
-          <p className="mt-2 text-muted-foreground text-sm sm:text-base leading-relaxed">
-            {products.length} modules · {hierarchyStats.industries} industries ·{" "}
-            {hierarchyStats.categories}+ categories — type to jump straight to what you need.
-          </p>
-        </div>
+  const inner = (
+    <>
+      <p className="mb-2 text-center text-xs text-muted-foreground">
+        Search {products.length} products · {hierarchyStats.industries} industries ·{" "}
+        {hierarchyStats.categories}+ categories
+      </p>
 
-        <div ref={wrapRef} className="relative mx-auto max-w-2xl">
+      <div ref={wrapRef} className="relative mx-auto max-w-2xl">
           <div
             className={cn(
               "flex items-center gap-3 rounded-2xl border bg-white px-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition-all",
@@ -243,7 +238,16 @@ export function HomeCatalogSearch() {
             </div>
           ) : null}
         </div>
-      </Container>
+    </>
+  );
+
+  if (variant === "hero") {
+    return <div className="mx-auto max-w-2xl">{inner}</div>;
+  }
+
+  return (
+    <Section className="!py-8 md:!py-10 bg-white">
+      <Container>{inner}</Container>
     </Section>
   );
 }

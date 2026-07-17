@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { Check, Sparkles } from "lucide-react";
 import type { PricingPlan } from "@/types";
-import { formatCurrency, formatDualPrice, usdToPkr } from "@/lib/utils";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLocale } from "@/components/providers/locale-provider";
+import { formatMoney } from "@/lib/currency/format";
 
 type PricingCardsProps = {
   plans: PricingPlan[];
@@ -22,10 +23,13 @@ export function PricingCards({
   compact,
   columns = "sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5",
 }: PricingCardsProps) {
+  const { formatPrice, currency, t } = useLocale();
+
   return (
     <div className={`grid gap-6 md:gap-7 ${columns}`}>
       {plans.map((plan, i) => {
         const isLifetime = plan.lifetimePrice != null;
+        // All amounts are stored in USD (master currency).
         const price = isLifetime
           ? plan.lifetimePrice
           : yearly
@@ -36,7 +40,6 @@ export function PricingCards({
           : yearly
             ? plan.originalYearlyPrice
             : plan.originalMonthlyPrice;
-        // Only highlight badges: Most popular OR Best value — not on every plan
         const showTopBadge = Boolean(plan.popular || (plan.badge && plan.id === "lifetime"));
 
         return (
@@ -57,12 +60,14 @@ export function PricingCards({
               ) : null}
               {plan.popular ? (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                  <Badge className="shadow-sm whitespace-nowrap">Most popular</Badge>
+                  <Badge className="notranslate shadow-sm whitespace-nowrap" translate="no">
+                    {t("pricing.mostPopular", "Most popular")}
+                  </Badge>
                 </div>
               ) : plan.id === "lifetime" && plan.badge ? (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                  <Badge variant="accent" className="shadow-sm whitespace-nowrap">
-                    {plan.badge}
+                  <Badge variant="accent" className="notranslate shadow-sm whitespace-nowrap" translate="no">
+                    {t("pricing.bestValue", plan.badge)}
                   </Badge>
                 </div>
               ) : null}
@@ -76,38 +81,47 @@ export function PricingCards({
                 <div className="pt-4 space-y-2">
                   {price !== null && price !== undefined ? (
                     <>
-                      <div className="flex items-end gap-2 flex-wrap">
+                      <div className="flex items-end gap-2 flex-wrap notranslate" translate="no">
                         {original ? (
                           <span className="text-base md:text-lg text-muted-foreground line-through decoration-red-400/60">
-                            {formatCurrency(original)}
+                            {formatPrice(original)}
                           </span>
                         ) : null}
                         <span className="text-3xl md:text-[2rem] font-semibold tracking-tight text-[#0b1f3a] leading-none">
-                          {formatCurrency(price)}
+                          {formatPrice(price)}
                         </span>
                         <span className="text-sm text-muted-foreground pb-0.5">
-                          {isLifetime ? " one-time" : " /user/mo"}
+                          {isLifetime
+                            ? ` ${t("pricing.oneTime", "one-time")}`
+                            : ` ${t("pricing.perUserMo", "/user/mo")}`}
                         </span>
                       </div>
-                      {!isLifetime && price ? (
-                        <p className="text-xs text-muted-foreground">
-                          ≈ {formatCurrency(usdToPkr(price), "PKR")}
-                          {!yearly ? "/mo" : "/mo billed yearly"}
-                        </p>
-                      ) : isLifetime && price ? (
-                        <p className="text-xs text-muted-foreground">
-                          ≈ {formatCurrency(usdToPkr(price), "PKR")} one-time
+                      {price && currency !== "USD" ? (
+                        <p className="text-xs text-muted-foreground notranslate" translate="no">
+                          ≈ {formatMoney(price, "USD", { showCode: true })}
+                          {isLifetime
+                            ? ` ${t("pricing.oneTime", "one-time")}`
+                            : !yearly
+                              ? ` ${t("pricing.perMonth", "/month")}`
+                              : ` ${t("pricing.billedYearly", "/mo billed yearly")}`}
                         </p>
                       ) : null}
                       {plan.launchDiscount ? (
-                        <div className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 border border-emerald-100">
+                        <div
+                          className="notranslate inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 border border-emerald-100"
+                          translate="no"
+                        >
                           <Sparkles className="h-3 w-3" />
-                          {plan.launchDiscount}% launch discount
+                          {t("pricing.launchDiscount", "{{percent}}% launch discount", {
+                            percent: plan.launchDiscount,
+                          })}
                         </div>
                       ) : null}
                     </>
                   ) : (
-                    <span className="text-3xl font-semibold tracking-tight">Custom</span>
+                    <span className="notranslate text-3xl font-semibold tracking-tight" translate="no">
+                      {t("pricing.custom", "Custom")}
+                    </span>
                   )}
                 </div>
               </CardHeader>
@@ -138,6 +152,7 @@ export function PricingCards({
 }
 
 export function LaunchDiscountBanner() {
+  const { formatPrice } = useLocale();
   return (
     <div className="mb-8 md:mb-10 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-blue-50 px-5 py-5 sm:px-6 flex flex-col md:flex-row md:items-center gap-4 justify-between">
       <div className="flex items-start gap-3">
@@ -147,13 +162,13 @@ export function LaunchDiscountBanner() {
         <div>
           <p className="font-semibold text-[#0b1f3a]">50% Launch Discount — Limited Time</p>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-xl leading-relaxed">
-            Prices aligned with Pakistan ERP market (Finivo, Tredus, Splendid from PKR 2,000–5,500/mo).
-            Lock in launch rates before they go up.
+            Lock in launch rates before they go up. Prices auto-convert to your local currency —
+            billed in USD.
           </p>
         </div>
       </div>
       <Badge variant="accent" className="self-start md:self-center text-sm px-4 py-1.5 shrink-0">
-        Save up to {formatDualPrice(40).pkr}/user/mo
+        Save up to <span translate="no">{formatPrice(40)}</span>/user/mo
       </Badge>
     </div>
   );

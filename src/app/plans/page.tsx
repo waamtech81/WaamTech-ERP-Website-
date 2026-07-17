@@ -8,6 +8,7 @@ import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { CTASection } from "@/components/shared/cta-section";
 import { LaunchDiscountBanner, PricingCards } from "@/components/sections/pricing-cards";
+import { PriceNote } from "@/components/shared/price-note";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -35,6 +36,7 @@ export default function PlansPage() {
       <Section muted className="!pt-6">
         <Container>
           <LaunchDiscountBanner />
+          <PriceNote className="mb-6 text-center text-xs text-muted-foreground" />
           <PricingCards plans={pricingPlans} yearly={true} columns="md:grid-cols-2 xl:grid-cols-3" />
         </Container>
       </Section>

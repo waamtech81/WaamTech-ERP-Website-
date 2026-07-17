@@ -11,6 +11,10 @@ type AnimateInProps = {
   direction?: "up" | "down" | "left" | "right" | "none";
 };
 
+/**
+ * Fade/slide in when scrolled into view.
+ * Uses a generous viewport so content is not left at opacity:0 if IO is flaky.
+ */
 export function AnimateIn({
   children,
   className,
@@ -35,8 +39,8 @@ export function AnimateIn({
       className={cn(className)}
       initial={{ opacity: 0, ...offset }}
       whileInView={{ opacity: 1, x: 0, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay }}
+      viewport={{ once: true, amount: 0.12, margin: "0px 0px -40px 0px" }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay }}
     >
       {children}
     </motion.div>

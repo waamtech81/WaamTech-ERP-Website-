@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { authConfig, normalizeApiBase } from "@/lib/auth/config";
-import { sendVerificationEmail } from "@/lib/auth/email";
-import { createPendingSignup, maskEmail } from "@/lib/auth/verification-store";
+import { authConfig } from "@/lib/auth/config";
+import { startRegistrationOnLicenseServer } from "@/lib/license/client";
+import { isValidCountryCode } from "@/lib/data/countries";
 import {
   getClientIp,
   isSameOrigin,
@@ -11,30 +11,11 @@ import {
   sanitizeText,
 } from "@/lib/security/guards";
 
-type ApiEnvelope = {
-  success?: boolean;
-  message?: string;
-  data?: Record<string, unknown>;
-};
-
-async function callCore(path: string, body: unknown) {
-  const base = normalizeApiBase(authConfig.apiUrl);
-  const url = `${base}/v1${path}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-
-  let json: ApiEnvelope = {};
-  try {
-    json = (await res.json()) as ApiEnvelope;
-  } catch {
-    json = { success: false, message: "Invalid response from signup service." };
-  }
-
-  return { status: res.status, json };
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  const visible = local.slice(0, 2);
+  return `${visible}${"*".repeat(Math.max(1, local.length - 2))}@${domain}`;
 }
 
 export async function POST(req: Request) {
@@ -61,11 +42,10 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     if (looksLikeBotPayload(body || {})) {
-      // Silent success shape for bots — no account created
       return NextResponse.json({
         success: true,
-        requiresVerification: true,
-        message: "Check your email to verify your account.",
+        requiresOtp: true,
+        message: "Check your email for a verification code.",
         data: { email: "hidden" },
       });
     }
@@ -75,20 +55,36 @@ export async function POST(req: Request) {
     const password = String(body?.password || "");
     const phone = sanitizeText(body?.phone || body?.company_phone, 40) || undefined;
     const company_name = sanitizeText(body?.company_name, 160);
+    const country = sanitizeText(body?.country || body?.country_code, 2).toUpperCase();
     const resolvedProfileId = sanitizeText(
       body?.business_category_id || body?.profile_id,
       80
     );
     const industry_id = sanitizeText(body?.industry_id, 80) || undefined;
     const plan = sanitizeText(body?.plan, 40) || undefined;
+    const marketing_opt_in = Boolean(body?.marketing_opt_in);
 
-    if (!name || !password || !email || !company_name || !resolvedProfileId) {
+    if (!name || !password || !email || !company_name || !resolvedProfileId || !country) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Please fill name, email, password, company name, and business category.",
+            "Please fill name, email, password, company name, country, and business category.",
         },
+        { status: 400 }
+      );
+    }
+
+    if (!phone) {
+      return NextResponse.json(
+        { success: false, message: "Please enter a phone number." },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidCountryCode(country)) {
+      return NextResponse.json(
+        { success: false, message: "Please select a valid country." },
         { status: 400 }
       );
     }
@@ -118,50 +114,44 @@ export async function POST(req: Request) {
       );
     }
 
-    // Optional pre-check against Core if endpoint exists (non-blocking on failure)
-    try {
-      await callCore("/auth/check-email", { email });
-    } catch {
-      /* ignore */
-    }
-
-    const { token } = await createPendingSignup({
-      email,
+    const license = await startRegistrationOnLicenseServer({
       name,
+      email,
       password,
       phone,
       company_name,
+      country,
       profile_id: resolvedProfileId,
       industry_id,
       plan,
+      marketing_opt_in,
     });
 
-    const mail = await sendVerificationEmail({ to: email, name, token });
-    if (!mail.sent) {
+    if (!license.ok || !license.data?.registrationId) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            mail.error ||
-            "Could not send verification email. Please contact support or try again.",
+          message: license.message || "Could not start registration with license server.",
         },
-        { status: 503 }
+        { status: license.status >= 400 && license.status < 600 ? license.status : 502 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      requiresVerification: true,
-      message: `We sent a verification link to ${maskEmail(email)}. Verify your email to activate your account.`,
+      requiresOtp: true,
+      message:
+        license.message ||
+        `We sent a verification code to ${maskEmail(email)}. Enter it to activate your trial.`,
       data: {
-        email: maskEmail(email),
-        trialDays: authConfig.trialDays,
-        delivery: mail.mode,
+        registrationId: license.data.registrationId,
+        email: license.data.email || maskEmail(email),
+        trialDays: license.data.trialDays || authConfig.trialDays,
+        otpExpiresInMinutes: license.data.otpExpiresInMinutes || 10,
       },
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to process signup.";
+    const message = error instanceof Error ? error.message : "Unable to process signup.";
     return NextResponse.json(
       {
         success: false,

@@ -218,3 +218,45 @@ h6 {
 .scrollbar-thin::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* ── Google Website Translator: hide default chrome, keep layout stable ──
+   Do NOT use display:none on #google_translate_element — that prevents the
+   widget from initializing (no .goog-te-combo → language never applies). */
+.wt-google-translate {
+  position: fixed !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  z-index: -1 !important;
+  opacity: 0.01 !important;
+}
+
+.goog-te-banner-frame,
+.goog-te-balloon-frame,
+#goog-gt-tt,
+.goog-te-spinner-pos,
+.skiptranslate iframe.skiptranslate {
+  display: none !important;
+}
+
+body {
+  top: 0 !important;
+}
+
+.goog-tooltip,
+.goog-tooltip:hover {
+  display: none !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+/* Keep translated page from shifting under the (hidden) top bar */
+html.translated-ltr,
+html.translated-rtl {
+  margin-top: 0 !important;
+}

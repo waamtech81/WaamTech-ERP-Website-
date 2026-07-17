@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { testimonials, pricingPlans, siteConfig } from "@/lib/data/site";
 import { PricingCards } from "@/components/sections/pricing-cards";
+import { useLocale } from "@/components/providers/locale-provider";
 
 export function StatsBand() {
   return (
@@ -197,7 +198,13 @@ export function SocialProofSection() {
 }
 
 export function PricingTeaser() {
+  const { formatPrice } = useLocale();
   const plans = pricingPlans.filter((p) => p.id !== "enterprise").slice(0, 4);
+  const fromUsd = Math.min(
+    ...pricingPlans
+      .map((p) => p.yearlyPrice ?? p.monthlyPrice)
+      .filter((v): v is number => typeof v === "number" && v > 0)
+  );
 
   return (
     <Section muted>
@@ -205,7 +212,7 @@ export function PricingTeaser() {
         <div className="mx-auto mb-8 md:mb-10 max-w-3xl text-center">
           <Badge variant="accent" className="mb-3">50% Launch Discount</Badge>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
-            Affordable ERP from PKR 2,500/mo
+            Affordable ERP from <span translate="no">{formatPrice(fromUsd)}</span>/mo
           </h2>
           <p className="mt-3 text-muted-foreground leading-relaxed">
             Market-aligned pricing with lifetime license & deployment options. Start your 14-day free trial.

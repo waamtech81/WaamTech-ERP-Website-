@@ -10,6 +10,8 @@ import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { CTASection } from "@/components/shared/cta-section";
 import { LaunchDiscountBanner, PricingCards } from "@/components/sections/pricing-cards";
+import { PriceNote } from "@/components/shared/price-note";
+import { useLocale } from "@/components/providers/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +26,7 @@ import {
 
 export default function PricingPage() {
   const [yearly, setYearly] = useState(true);
+  const { t } = useLocale();
   const billingFaqs = faqs.filter((f) => f.category === "Billing" || f.category === "Product").slice(0, 6);
   const planNames = pricingPlans.map((p) => p.name);
 
@@ -40,16 +43,18 @@ export default function PricingPage() {
 
           <LaunchDiscountBanner />
 
-          <div className="mb-10 flex flex-wrap items-center justify-center gap-3">
+          <div className="mb-4 flex flex-wrap items-center justify-center gap-3 notranslate" translate="no">
             <Label htmlFor="billing" className={!yearly ? "text-foreground" : "text-muted-foreground"}>
-              Monthly
+              {t("pricing.monthly", "Monthly")}
             </Label>
             <Switch id="billing" checked={yearly} onCheckedChange={setYearly} />
             <Label htmlFor="billing" className={yearly ? "text-foreground" : "text-muted-foreground"}>
-              Yearly
+              {t("pricing.yearly", "Yearly")}
             </Label>
-            <Badge variant="accent">Extra 20% off yearly</Badge>
+            <Badge variant="accent">{t("pricing.extraYearly", "Extra 20% off yearly")}</Badge>
           </div>
+
+          <PriceNote className="mb-8 text-center text-xs text-muted-foreground" />
 
           <PricingCards plans={pricingPlans} yearly={yearly} columns="sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5" />
 

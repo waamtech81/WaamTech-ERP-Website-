@@ -2,6 +2,14 @@ import { siteConfig } from "@/lib/data/site";
 
 type SendResult = { sent: boolean; mode: "resend" | "console" | "none"; error?: string };
 
+type SendEmailInput = {
+  to: string | string[];
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+};
+
 function siteBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_SITE_URL ||
@@ -55,21 +63,46 @@ function verificationHtml(name: string, verifyUrl: string) {
 </html>`;
 }
 
-export async function sendVerificationEmail(opts: {
-  to: string;
-  name: string;
-  token: string;
-}): Promise<SendResult> {
-  const verifyUrl = buildVerifyUrl(opts.token);
-  const subject = `Verify your ${siteConfig.name} email`;
-  const html = verificationHtml(opts.name, verifyUrl);
-  const text = `Hi ${opts.name || "there"},\n\nVerify your ${siteConfig.name} email:\n${verifyUrl}\n\nThis link expires in 24 hours.`;
+function newsletterNotifyHtml(subscriberEmail: string) {
+  return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f7fb;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+          <tr>
+            <td style="background:#0b1f3a;padding:24px 28px;">
+              <div style="color:#ffffff;font-size:22px;font-weight:700;">${siteConfig.name}</div>
+              <div style="color:#93c5fd;font-size:13px;margin-top:4px;">Newsletter subscription</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px;">
+              <h1 style="margin:0 0 12px;font-size:20px;color:#0b1f3a;">New newsletter subscriber</h1>
+              <p style="margin:0 0 8px;color:#475569;font-size:15px;line-height:1.6;">
+                Someone subscribed to product updates from the website footer.
+              </p>
+              <p style="margin:0;color:#0b1f3a;font-size:16px;font-weight:600;">
+                ${subscriberEmail}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
 
+async function sendEmail(input: SendEmailInput): Promise<SendResult> {
   const resendKey = process.env.RESEND_API_KEY;
   const from =
     process.env.EMAIL_FROM ||
     process.env.RESEND_FROM ||
     `${siteConfig.name} <noreply@${siteConfig.companyName.toLowerCase()}.com>`;
+  const to = Array.isArray(input.to) ? input.to : [input.to];
 
   if (resendKey) {
     try {
@@ -81,10 +114,11 @@ export async function sendVerificationEmail(opts: {
         },
         body: JSON.stringify({
           from,
-          to: [opts.to],
-          subject,
-          html,
-          text,
+          to,
+          subject: input.subject,
+          html: input.html,
+          text: input.text,
+          ...(input.replyTo ? { reply_to: input.replyTo } : {}),
         }),
       });
       if (!res.ok) {
@@ -101,9 +135,9 @@ export async function sendVerificationEmail(opts: {
     }
   }
 
-  // Dev / fallback: log link so local testing still works without SMTP
   if (process.env.NODE_ENV !== "production" || process.env.ALLOW_CONSOLE_EMAIL === "1") {
-    console.info(`[${siteConfig.name}] Verification email for ${opts.to}: ${verifyUrl}`);
+    console.info(`[${siteConfig.name}] Email → ${to.join(", ")} | ${input.subject}`);
+    console.info(input.text);
     return { sent: true, mode: "console" };
   }
 
@@ -112,4 +146,34 @@ export async function sendVerificationEmail(opts: {
     mode: "none",
     error: "Email provider not configured. Set RESEND_API_KEY and EMAIL_FROM.",
   };
+}
+
+export async function sendVerificationEmail(opts: {
+  to: string;
+  name: string;
+  token: string;
+}): Promise<SendResult> {
+  const verifyUrl = buildVerifyUrl(opts.token);
+  return sendEmail({
+    to: opts.to,
+    subject: `Verify your ${siteConfig.name} email`,
+    html: verificationHtml(opts.name, verifyUrl),
+    text: `Hi ${opts.name || "there"},\n\nVerify your ${siteConfig.name} email:\n${verifyUrl}\n\nThis link expires in 24 hours.`,
+  });
+}
+
+const NEWSLETTER_INBOX =
+  process.env.NEWSLETTER_INBOX || "newsletters@waamto.com";
+
+export async function sendNewsletterSubscriptionNotice(opts: {
+  subscriberEmail: string;
+}): Promise<SendResult> {
+  const email = opts.subscriberEmail.trim().toLowerCase();
+  return sendEmail({
+    to: NEWSLETTER_INBOX,
+    replyTo: email,
+    subject: `Newsletter signup: ${email}`,
+    html: newsletterNotifyHtml(email),
+    text: `New newsletter subscription\n\nEmail: ${email}\n\nSource: website footer`,
+  });
 }

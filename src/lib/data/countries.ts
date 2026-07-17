@@ -41,3 +41,55 @@ export function isValidCountryCode(code?: string | null): boolean {
   if (!code) return false;
   return BY_CODE.has(code.toUpperCase());
 }
+
+/**
+ * Merge dial code + local number into one phone string for license/API.
+ * Example: ("+92", "0300 1234567") → "+92 3001234567"
+ * If local already starts with the dial code, it is not duplicated.
+ */
+export function mergePhoneWithDialCode(
+  dialCode?: string | null,
+  localNumber?: string | null
+): string {
+  const dial = String(dialCode || "")
+    .trim()
+    .replace(/\s+/g, "");
+  let local = String(localNumber || "")
+    .trim()
+    .replace(/[\s()-]/g, "");
+
+  if (!local) return "";
+
+  // Already an international number
+  if (local.startsWith("+")) {
+    return local.replace(/\s+/g, " ").trim();
+  }
+
+  if (!dial) return local;
+
+  const dialDigits = dial.replace(/^\+/, "");
+  // Strip leading zeros from national number
+  local = local.replace(/^0+/, "");
+
+  if (local.startsWith(dialDigits)) {
+    return `+${local}`;
+  }
+
+  return `${dial.startsWith("+") ? dial : `+${dial}`} ${local}`.trim();
+}
+
+/** Resolve dial code from ISO country or raw dial string. */
+export function resolveDialCode(opts: {
+  phoneDialCode?: string | null;
+  phoneCountryCode?: string | null;
+  countryCode?: string | null;
+}): string {
+  const raw = String(opts.phoneDialCode || "").trim();
+  if (raw.startsWith("+") || /^\d+$/.test(raw.replace(/^\+/, ""))) {
+    return raw.startsWith("+") ? raw : `+${raw}`;
+  }
+  const fromPhoneCountry = getCountryByCode(opts.phoneCountryCode)?.dialCode;
+  if (fromPhoneCountry) return fromPhoneCountry;
+  const fromCountry = getCountryByCode(opts.countryCode)?.dialCode;
+  return fromCountry || "";
+}

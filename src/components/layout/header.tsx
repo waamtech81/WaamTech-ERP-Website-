@@ -228,10 +228,10 @@ export function Header() {
     <>
       <header
         className={cn(
-          "sticky top-0 z-50 border-b transition-all duration-300",
+          "sticky top-0 z-50 border-b transition-[background-color,backdrop-filter,border-color,box-shadow] duration-300",
           scrolled
-            ? "border-border bg-white/92 backdrop-blur-xl shadow-[0_1px_0_rgba(15,23,42,0.04)]"
-            : "border-transparent bg-white/85 backdrop-blur-md"
+            ? "border-white/40 bg-white/55 backdrop-blur-2xl shadow-[0_8px_30px_rgba(15,23,42,0.06)] supports-[backdrop-filter]:bg-white/45"
+            : "border-transparent bg-white/90 backdrop-blur-sm"
         )}
       >
         <div className="container-site flex h-16 md:h-[4.25rem] items-center justify-between gap-3 lg:gap-4">

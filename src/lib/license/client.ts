@@ -1,4 +1,4 @@
-import { authConfig, normalizeApiBase } from "@/lib/auth/config";
+import { authConfig } from "@/lib/auth/config";
 import { licenseConfig, normalizeLicenseBase } from "@/lib/license/config";
 
 export type TrialRegistrationInput = {
@@ -12,7 +12,6 @@ export type TrialRegistrationInput = {
   industry_id?: string;
   plan?: string;
   marketing_opt_in?: boolean;
-  email_verified?: boolean;
 };
 
 export type RegistrationStartResult = {
@@ -113,7 +112,10 @@ export async function startRegistrationOnLicenseServer(
       name: input.name,
       email: input.email,
       password: input.password,
+      // Always send dial-code + number already merged (e.g. "+92 3001234567")
       phone: input.phone,
+      company_phone: input.phone,
+      phone_number: input.phone,
       company_name: input.company_name,
       company: input.company_name,
       country: input.country,
@@ -162,78 +164,3 @@ export async function resendRegistrationOtp(input: {
   );
 }
 
-/** @deprecated Prefer start + verify OTP. Kept for compatibility. */
-export async function registerTrialOnLicenseServer(
-  input: TrialRegistrationInput
-): Promise<{ ok: boolean; message: string; data?: RegistrationCompleteResult }> {
-  const result = await postLicense<RegistrationCompleteResult>(
-    ["/v1/registrations/trial", "/v1/trials/register", "/registrations/trial"],
-    {
-      name: input.name,
-      email: input.email,
-      password: input.password,
-      phone: input.phone,
-      company_name: input.company_name,
-      company: input.company_name,
-      country: input.country,
-      country_code: input.country,
-      profile_id: input.profile_id,
-      business_category_id: input.profile_id,
-      industry_id: input.industry_id,
-      plan: input.plan || "professional",
-      marketing_opt_in: Boolean(input.marketing_opt_in),
-      email_verified: Boolean(input.email_verified),
-      trial_days: authConfig.trialDays,
-      source: "waamto-website",
-    }
-  );
-
-  return {
-    ok: result.ok,
-    message: result.message,
-    data: result.data,
-  };
-}
-
-/** Optional legacy Core signup — unused when Engine provisions ERP. */
-export async function provisionCoreTenant(input: TrialRegistrationInput) {
-  const base = normalizeApiBase(authConfig.apiUrl);
-  try {
-    const res = await fetch(`${base}/v1/auth/signup`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        name: input.name,
-        email: input.email,
-        username: input.email.split("@")[0],
-        password: input.password,
-        phone: input.phone,
-        company_name: input.company_name,
-        country: input.country,
-        country_code: input.country,
-        profile_id: input.profile_id,
-        business_category_id: input.profile_id,
-        industry_id: input.industry_id,
-        email_verified: true,
-        metadata: input.plan ? { intended_plan: input.plan } : undefined,
-      }),
-      cache: "no-store",
-    });
-
-    let json: { success?: boolean; message?: string; data?: Record<string, unknown> } = {};
-    try {
-      json = (await res.json()) as typeof json;
-    } catch {
-      return { ok: false, skipped: true };
-    }
-
-    if (json.success) return { ok: true, data: json.data };
-    const msg = (json.message || "").toLowerCase();
-    if (msg.includes("already") || msg.includes("exists") || res.status === 409) {
-      return { ok: true, alreadyExists: true };
-    }
-    return { ok: false, message: json.message };
-  } catch {
-    return { ok: false, skipped: true };
-  }
-}

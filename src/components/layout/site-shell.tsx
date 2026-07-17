@@ -10,7 +10,8 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       <GoogleTranslateBoot />
       <ScrollProgress />
       <Header />
-      <main className="flex-1">{children}</main>
+      {/* Solid stack above sticky footer so Huekland-style reveal works */}
+      <main className="relative z-[1] flex-1 bg-background">{children}</main>
       <Footer />
       <CookieBanner />
     </>

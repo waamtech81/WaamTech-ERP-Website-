@@ -39,6 +39,7 @@ import {
   countryFlag,
   formatCountryLabel,
   getCountryByCode,
+  mergePhoneWithDialCode,
 } from "@/lib/data/countries";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -48,9 +49,6 @@ const plans = [
   { id: "professional", name: "Professional" },
   { id: "business", name: "Business" },
 ];
-
-const selectClassName =
-  "flex h-12 w-full rounded-xl border border-border bg-white px-4 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 type StrengthRule = { id: string; label: string; test: (v: string) => boolean };
 
@@ -190,6 +188,14 @@ function SignUpForm() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneDialCode, setPhoneDialCode] = useState(() => {
+    const detected =
+      detectedCountry && getCountryByCode(detectedCountry)
+        ? detectedCountry.toUpperCase()
+        : "";
+    return detected || "PK";
+  });
+  const [phoneDialSearch, setPhoneDialSearch] = useState("");
   const [countryCode, setCountryCode] = useState(() =>
     detectedCountry && getCountryByCode(detectedCountry) ? detectedCountry.toUpperCase() : ""
   );
@@ -213,7 +219,11 @@ function SignUpForm() {
   const [trialEndsAt, setTrialEndsAt] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [formStartedAt] = useState(() => Date.now());
-  const [openSelect, setOpenSelect] = useState<"country" | "industry" | "category" | null>(null);
+  const [openSelect, setOpenSelect] = useState<
+    "country" | "phoneDial" | "industry" | "category" | "plan" | null
+  >(null);
+  const countryTouchedRef = useRef(false);
+  const phoneDialTouchedRef = useRef(false);
 
   const industries = useMemo(() => orderedIndustries(), []);
   const countryOptions = useMemo(() => {
@@ -226,9 +236,23 @@ function SignUpForm() {
         c.dialCode.replace(/\s/g, "").includes(q.replace(/\s/g, ""))
     );
   }, [countrySearch]);
+  const phoneDialOptions = useMemo(() => {
+    const q = phoneDialSearch.trim().toLowerCase();
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        c.dialCode.replace(/\s/g, "").includes(q.replace(/\s/g, ""))
+    );
+  }, [phoneDialSearch]);
   const selectedCountry = useMemo(
     () => (countryCode ? getCountryByCode(countryCode) : undefined),
     [countryCode]
+  );
+  const selectedPhoneDial = useMemo(
+    () => getCountryByCode(phoneDialCode) || getCountryByCode("PK"),
+    [phoneDialCode]
   );
   const categoryOptions = useMemo(
     () => (industryId ? getCategoriesForIndustry(industryId) : []),
@@ -242,6 +266,10 @@ function SignUpForm() {
   const selectedCategory = useMemo(
     () => (categoryId ? getBusinessCategory(categoryId) : undefined),
     [categoryId]
+  );
+  const selectedPlan = useMemo(
+    () => plans.find((p) => p.id === plan) || plans[1],
+    [plan]
   );
 
   const ruleStatus = useMemo(
@@ -257,6 +285,35 @@ function SignUpForm() {
       setCategoryId("");
     }
   }, [categoryOptions, categoryId, industryId]);
+
+  useEffect(() => {
+    const detected = detectedCountry?.toUpperCase();
+    if (!detected || !getCountryByCode(detected)) return;
+    if (!countryTouchedRef.current) setCountryCode(detected);
+    if (!phoneDialTouchedRef.current) setPhoneDialCode(detected);
+  }, [detectedCountry]);
+
+  useEffect(() => {
+    if (openSelect !== "phoneDial") return;
+    const onDoc = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.("[data-phone-dial-root]")) return;
+      setOpenSelect(null);
+      setPhoneDialSearch("");
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpenSelect(null);
+        setPhoneDialSearch("");
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [openSelect]);
 
   function onIndustrySelect(nextIndustryId: string) {
     setIndustryId(nextIndustryId);
@@ -299,6 +356,12 @@ function SignUpForm() {
       return;
     }
 
+    const fullPhone = mergePhoneWithDialCode(selectedPhoneDial?.dialCode, phone);
+    if (!fullPhone) {
+      setError("Please enter a phone number.");
+      return;
+    }
+
     if (!passwordStrong) {
       setError("Please meet all password requirements.");
       return;
@@ -318,7 +381,10 @@ function SignUpForm() {
           name,
           email,
           password,
-          phone: phone || undefined,
+          phone: fullPhone,
+          phone_local: phone.trim(),
+          phone_dial_code: selectedPhoneDial?.dialCode || undefined,
+          phone_country_code: selectedPhoneDial?.code || phoneDialCode || undefined,
           company_name: companyName,
           country: countryCode,
           profile_id: categoryId,
@@ -690,13 +756,108 @@ function SignUpForm() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone number</Label>
-                  <Input
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+92 300 0000000"
-                    required
-                  />
+                  <div className="relative flex gap-2" data-phone-dial-root>
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          phoneDialTouchedRef.current = true;
+                          setOpenSelect((v) => (v === "phoneDial" ? null : "phoneDial"));
+                          if (openSelect !== "phoneDial") setPhoneDialSearch("");
+                        }}
+                        className={cn(
+                          "flex h-12 w-[8rem] items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm shadow-sm transition-colors",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          openSelect === "phoneDial"
+                            ? "border-primary ring-2 ring-primary/15"
+                            : "hover:border-primary/30"
+                        )}
+                        aria-label="Phone country code"
+                        aria-expanded={openSelect === "phoneDial"}
+                      >
+                        <span className="flex items-center gap-1.5 truncate">
+                          <span className="text-base leading-none" aria-hidden>
+                            {countryFlag(selectedPhoneDial?.code)}
+                          </span>
+                          <span className="font-medium tabular-nums">
+                            {selectedPhoneDial?.dialCode || "+"}
+                          </span>
+                        </span>
+                        <ChevronDown
+                          className={cn(
+                            "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+                            openSelect === "phoneDial" && "rotate-180"
+                          )}
+                        />
+                      </button>
+                      {openSelect === "phoneDial" ? (
+                        <div className="absolute left-0 top-[calc(100%+0.4rem)] z-50 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
+                          <div className="border-b border-border p-2">
+                            <Input
+                              value={phoneDialSearch}
+                              onChange={(e) => setPhoneDialSearch(e.target.value)}
+                              placeholder="Search code..."
+                              className="h-9"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                          <ul className="max-h-56 overflow-y-auto p-1.5">
+                            {phoneDialOptions.length === 0 ? (
+                              <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+                                No matches.
+                              </li>
+                            ) : (
+                              phoneDialOptions.map((country) => {
+                                const selected = phoneDialCode === country.code;
+                                return (
+                                  <li key={`dial-${country.code}`}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        phoneDialTouchedRef.current = true;
+                                        setPhoneDialCode(country.code);
+                                        setOpenSelect(null);
+                                        setPhoneDialSearch("");
+                                      }}
+                                      className={cn(
+                                        "flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm transition-colors",
+                                        selected
+                                          ? "bg-primary/8 text-primary"
+                                          : "hover:bg-muted"
+                                      )}
+                                    >
+                                      <span className="w-6 shrink-0 text-base leading-none" aria-hidden>
+                                        {countryFlag(country.code)}
+                                      </span>
+                                      <span className="min-w-0 flex-1 truncate font-medium">
+                                        {country.name}
+                                      </span>
+                                      <span className="shrink-0 text-muted-foreground tabular-nums">
+                                        {country.dialCode}
+                                      </span>
+                                      {selected ? (
+                                        <Check className="h-4 w-4 shrink-0 text-primary" />
+                                      ) : null}
+                                    </button>
+                                  </li>
+                                );
+                              })
+                            )}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                    <Input
+                      id="phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="300 0000000"
+                      required
+                      className="min-w-0 flex-1"
+                      inputMode="tel"
+                      autoComplete="tel-national"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -745,7 +906,10 @@ function SignUpForm() {
                           <button
                             type="button"
                             onClick={() => {
+                              countryTouchedRef.current = true;
                               setCountryCode(country.code);
+                              phoneDialTouchedRef.current = true;
+                              setPhoneDialCode(country.code);
                               setOpenSelect(null);
                               setCountrySearch("");
                             }}
@@ -875,21 +1039,50 @@ function SignUpForm() {
                 </div>
               ) : null}
 
-              <div className="space-y-2">
-                <Label htmlFor="plan">Preferred plan</Label>
-                <select
-                  id="plan"
-                  value={plan}
-                  onChange={(e) => setPlan(e.target.value)}
-                  className={selectClassName}
-                >
-                  {plans.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} · {authConfig.trialDays}-day trial
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <FancySelect
+                label="Preferred plan"
+                placeholder="Select a plan"
+                valueLabel={
+                  selectedPlan ? (
+                    <span className="flex items-center gap-2 truncate">
+                      <span className="truncate">{selectedPlan.name}</span>
+                      <span className="shrink-0 text-muted-foreground font-normal">
+                        {authConfig.trialDays}-day trial
+                      </span>
+                    </span>
+                  ) : undefined
+                }
+                open={openSelect === "plan"}
+                onToggle={() => setOpenSelect((v) => (v === "plan" ? null : "plan"))}
+                onClose={() => setOpenSelect(null)}
+              >
+                <ul className="max-h-64 overflow-y-auto p-1.5">
+                  {plans.map((p) => {
+                    const selected = plan === p.id;
+                    return (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlan(p.id);
+                            setOpenSelect(null);
+                          }}
+                          className={cn(
+                            "flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm transition-colors",
+                            selected ? "bg-primary/8 text-primary" : "hover:bg-muted"
+                          )}
+                        >
+                          <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
+                          <span className="shrink-0 text-muted-foreground">
+                            {authConfig.trialDays}-day trial
+                          </span>
+                          {selected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </FancySelect>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">

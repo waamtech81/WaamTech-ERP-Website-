@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { authConfig } from "@/lib/auth/config";
 import { startRegistrationOnLicenseServer } from "@/lib/license/client";
-import { isValidCountryCode } from "@/lib/data/countries";
+import {
+  isValidCountryCode,
+  mergePhoneWithDialCode,
+  resolveDialCode,
+} from "@/lib/data/countries";
 import {
   getClientIp,
   isSameOrigin,
@@ -53,9 +57,24 @@ export async function POST(req: Request) {
     const name = sanitizeText(body?.name, 120);
     const email = sanitizeText(body?.email || body?.username, 254).toLowerCase();
     const password = String(body?.password || "");
-    const phone = sanitizeText(body?.phone || body?.company_phone, 40) || undefined;
     const company_name = sanitizeText(body?.company_name, 160);
     const country = sanitizeText(body?.country || body?.country_code, 2).toUpperCase();
+    const phoneCountryCode = sanitizeText(
+      body?.phone_country_code || body?.phoneCountryCode,
+      2
+    ).toUpperCase();
+    const dialCode = resolveDialCode({
+      phoneDialCode: body?.phone_dial_code || body?.phoneDialCode || body?.dial_code,
+      phoneCountryCode: phoneCountryCode || undefined,
+      countryCode: country || undefined,
+    });
+    // Prefer local number + dial merge on server so license always gets country code.
+    const phoneLocal = sanitizeText(body?.phone_local || body?.phoneLocal, 40);
+    const phoneRaw = sanitizeText(body?.phone || body?.company_phone, 40);
+    const phone =
+      mergePhoneWithDialCode(dialCode, phoneLocal || phoneRaw) ||
+      phoneRaw ||
+      undefined;
     const resolvedProfileId = sanitizeText(
       body?.business_category_id || body?.profile_id,
       80

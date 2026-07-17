@@ -23,6 +23,7 @@ function SimpleDropdown({
   align = "end",
   placement = "bottom",
   panelClassName,
+  tone = "light",
 }: {
   trigger: React.ReactNode;
   ariaLabel: string;
@@ -33,6 +34,7 @@ function SimpleDropdown({
   /** Footer currency opens upward; header language opens downward. */
   placement?: "top" | "bottom";
   panelClassName?: string;
+  tone?: "light" | "dark";
 }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -87,7 +89,12 @@ function SimpleDropdown({
         aria-expanded={open}
         aria-label={ariaLabel}
         title={ariaLabel}
-        className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm font-semibold tracking-wide text-foreground/80 transition-colors hover:text-primary hover:border-primary/30"
+        className={cn(
+          "inline-flex items-center justify-center gap-1 rounded-lg border px-2.5 py-1.5 text-sm font-semibold tracking-wide transition-colors",
+          tone === "dark"
+            ? "border-white/[0.06] bg-white/[0.05] text-slate-200 hover:border-white/10 hover:text-white"
+            : "border-border bg-white text-foreground/80 hover:border-primary/30 hover:text-primary"
+        )}
       >
         {trigger}
       </button>
@@ -174,7 +181,13 @@ export function LanguageSwitcher({ align = "end" }: { align?: "start" | "end" })
  * Footer currency control — clean list of name + symbol.
  * Master billing currency remains USD; this only changes display.
  */
-export function CurrencySwitcher({ align = "end" }: { align?: "start" | "end" }) {
+export function CurrencySwitcher({
+  align = "end",
+  tone = "light",
+}: {
+  align?: "start" | "end";
+  tone?: "light" | "dark";
+}) {
   const { currency, currencies, currencyCodes, setCurrency, t } = useLocale();
   const meta = currencies[currency];
 
@@ -189,13 +202,26 @@ export function CurrencySwitcher({ align = "end" }: { align?: "start" | "end" })
 
   return (
     <SimpleDropdown
+      tone={tone}
       trigger={
         <>
           <span className="max-w-[9rem] truncate font-medium">{meta.name}</span>
-          <span translate="no" className="font-semibold text-muted-foreground">
+          <span
+            translate="no"
+            className={cn(
+              "font-semibold",
+              tone === "dark" ? "text-slate-400" : "text-muted-foreground"
+            )}
+          >
             {meta.symbol}
           </span>
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5",
+              tone === "dark" ? "text-slate-400" : "text-muted-foreground"
+            )}
+            aria-hidden
+          />
         </>
       }
       ariaLabel={t("localization.selectCurrency", "Select currency")}

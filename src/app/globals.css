@@ -260,3 +260,112 @@ html.translated-ltr,
 html.translated-rtl {
   margin-top: 0 !important;
 }
+
+/* ── Footer only: soft reveal + ultra-light borders (does not affect rest of site) ── */
+.wt-footer {
+  --wt-footer-line: rgba(255, 255, 255, 0.06);
+  --wt-footer-line-soft: rgba(255, 255, 255, 0.04);
+}
+
+/* Huekland / NextBricks sticky footer reveal */
+.wt-footer-sticky-reveal {
+  position: relative;
+  bottom: 0;
+  width: 100%;
+  clip-path: polygon(0% 0, 100% 0%, 100% 100%, 0 100%);
+  background-color: #071526;
+}
+
+.wt-footer-sticky-reveal__inner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 0;
+}
+
+.wt-footer-reveal {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.wt-footer-reveal::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 11rem;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.09) 0%,
+      rgba(255, 255, 255, 0.03) 42%,
+      transparent 100%
+    );
+}
+
+.wt-footer-reveal::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -4rem;
+  width: min(42rem, 90vw);
+  height: 14rem;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(186, 230, 253, 0.11) 0%,
+    rgba(37, 99, 235, 0.06) 38%,
+    transparent 72%
+  );
+}
+
+.wt-footer-edge {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.14) 50%,
+    transparent 100%
+  );
+}
+
+.wt-footer .wt-footer-divider {
+  border-color: var(--wt-footer-line-soft) !important;
+}
+
+.wt-footer input,
+.wt-footer button,
+.wt-footer a[class*="border"],
+.wt-footer [class*="border"] {
+  border-color: var(--wt-footer-line) !important;
+}
+
+.wt-footer input:focus-visible,
+.wt-footer button:focus-visible {
+  border-color: rgba(125, 211, 252, 0.22) !important;
+}
+
+.wt-footer input:hover,
+.wt-footer button:hover,
+.wt-footer a[class*="border"]:hover {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-footer-sticky-reveal {
+    clip-path: none;
+  }
+
+  .wt-footer-sticky-reveal__inner {
+    position: relative;
+  }
+}

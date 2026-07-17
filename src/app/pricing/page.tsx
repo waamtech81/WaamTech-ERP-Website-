@@ -77,8 +77,6 @@ export default function PricingPage() {
     startTransition(() => {
       setYearly(nextYearly);
     });
-    // Soft-refresh catalog so cycle display always uses latest Engine prices.
-    catalog.retry();
   }
 
   return (
@@ -101,7 +99,7 @@ export default function PricingPage() {
             />
           ) : null}
 
-          <div className="mb-4 flex flex-wrap items-center justify-center gap-3 notranslate" translate="no">
+          <div className="mb-4 flex min-h-9 flex-wrap items-center justify-center gap-3 notranslate" translate="no">
             <Label
               htmlFor="billing"
               className={!yearly ? "text-foreground" : "text-muted-foreground"}
@@ -115,16 +113,18 @@ export default function PricingPage() {
             >
               {t("pricing.yearly", "Yearly")}
             </Label>
-            {yearly && yearlySavingsHint ? (
-              <Badge variant="accent">
-                Save up to <span translate="no">{formatPrice(yearlySavingsHint)}</span>/yr
-              </Badge>
-            ) : null}
+            <Badge
+              variant="accent"
+              className={yearly && yearlySavingsHint ? undefined : "invisible"}
+              aria-hidden={!(yearly && yearlySavingsHint)}
+            >
+              Save up to <span translate="no">{formatPrice(yearlySavingsHint || 0)}</span>/yr
+            </Badge>
           </div>
 
           <PriceNote className="mb-8 text-center text-xs text-muted-foreground" />
 
-          {catalog.loading ? <CatalogSkeleton rows={3} /> : null}
+          {catalog.loading && displayCardPlans.length === 0 ? <CatalogSkeleton rows={3} /> : null}
           {catalog.error && displayCardPlans.length === 0 ? (
             <CatalogErrorState
               message={catalog.error}
@@ -150,10 +150,11 @@ export default function PricingPage() {
           {!catalog.loading && !catalog.error && displayCardPlans.length === 0 ? (
             <CatalogEmptyState message="No Plans Available" />
           ) : null}
-          {!catalog.loading && displayCardPlans.length > 0 ? (
+          {displayCardPlans.length > 0 ? (
             <PricingCards
               plans={displayCardPlans}
               yearly={yearly}
+              compact
               columns="sm:grid-cols-2 xl:grid-cols-3"
             />
           ) : null}
@@ -249,11 +250,15 @@ export default function PricingPage() {
 
       <Section>
         <Container>
-          <SectionHeader eyebrow="Compare plans" title="Everything included, side by side" />
+          <SectionHeader
+            eyebrow="Compare plans"
+            title="Everything included, side by side"
+            description="Full feature-by-feature comparison across every License Engine plan."
+          />
           <PricingComparisonTable
             plans={planColumns}
             rows={comparisonRows}
-            loading={catalog.loading}
+            loading={catalog.loading && comparisonRows.length === 0}
           />
           {!catalog.loading && planColumns.length === 0 ? (
             <CatalogEmptyState message="No Plans Available" />

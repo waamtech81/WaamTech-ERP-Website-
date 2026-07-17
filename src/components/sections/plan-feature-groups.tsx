@@ -23,8 +23,8 @@ export function PlanFeatureGroups({
 
   return (
     <div className={cn("space-y-4", className)}>
-      {shown.map((group) => (
-        <div key={group.id || group.code}>
+      {shown.map((group, gi) => (
+        <div key={group.id || group.code || `${group.name}-${gi}`}>
           <p
             className={cn(
               "mb-2 text-[11px] font-semibold uppercase tracking-wide",
@@ -34,9 +34,9 @@ export function PlanFeatureGroups({
             {group.name}
           </p>
           <ul className={cn("space-y-1.5", compact ? "text-xs" : "text-sm")}>
-            {(compact ? group.features.slice(0, 4) : group.features).map((feature) => (
+            {(compact ? group.features.slice(0, 4) : group.features).map((feature, i) => (
               <li
-                key={feature.id}
+                key={feature.id || `${group.code || group.name}-${feature.name}-${i}`}
                 className={cn(
                   "flex gap-2 leading-snug",
                   popular ? "text-white/85" : "text-muted-foreground",

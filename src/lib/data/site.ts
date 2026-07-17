@@ -317,26 +317,29 @@ export const testimonials: Testimonial[] = [
   {
     id: "1",
     quote:
-      "WaamTech replaced three disconnected systems. Our inventory accuracy and month-end close improved within the first quarter.",
-    name: "Amira Hassan",
-    role: "COO",
-    company: "Northline Retail Group",
+      "WAAMTO brought our parts inventory, purchasing, and sales into one system. Stock levels across Dubai warehouses are finally accurate, and our team closes purchase cycles much faster.",
+    name: "Oussama Nouni",
+    role: "Director",
+    company: "Tamshiiparts, Dubai",
+    rating: 5,
   },
   {
     id: "2",
     quote:
-      "The interface feels premium and calm. Our teams adopted it quickly because every workflow is clear and intentional.",
-    name: "Daniel Okoye",
-    role: "Head of Operations",
-    company: "Cedar Manufacturing",
+      "We needed a serious ERP for manufacturing in Germany — WAAMTO delivered clear workflows from production to finance. Month-end reporting went from days of chasing spreadsheets to a single dashboard.",
+    name: "Mr. Yameen",
+    role: "CEO",
+    company: "Hükland, Germany",
+    rating: 5,
   },
   {
     id: "3",
     quote:
-      "From POS to warehouse to finance, WaamTech gave us one source of truth. That alone changed how we make decisions.",
-    name: "Sofia Martinez",
-    role: "CFO",
-    company: "Harbor Distribution",
+      "From Australia we run multi-site operations on WAAMTO. POS, warehouse, and CRM stay in sync, and onboarding new staff took days instead of weeks because everything is intuitive.",
+    name: "Naddem Ashraf",
+    role: "CEO",
+    company: "WesterWolf, Australia",
+    rating: 4.5,
   },
 ];
 

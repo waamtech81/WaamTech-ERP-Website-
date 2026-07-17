@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 import { coreCapabilities } from "@/lib/data/core";
 import { getIndustryLucideIcon, getIndustryMedia } from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
@@ -262,13 +262,31 @@ export function SocialProofSection() {
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
           {testimonials.map((t, i) => (
-            <AnimateIn key={t.id} delay={i * 0.08}>
+            <AnimateIn key={t.id} delay={i * 0.08} className="h-full">
               <Card className="h-full border-border/80 shadow-sm">
-                <CardContent className="pt-6">
+                <CardContent className="flex h-full flex-col pt-6">
+                  <div className="mb-3 flex items-center gap-0.5" aria-label={`${t.rating} out of 5 stars`}>
+                    {Array.from({ length: 5 }).map((_, starIndex) => {
+                      const filled = t.rating >= starIndex + 1;
+                      const half = !filled && t.rating >= starIndex + 0.5;
+                      return (
+                        <Star
+                          key={starIndex}
+                          className={`h-4 w-4 ${
+                            filled
+                              ? "fill-amber-400 text-amber-400"
+                              : half
+                                ? "fill-amber-400/45 text-amber-400"
+                                : "fill-transparent text-muted-foreground/35"
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
                   <p className="text-base leading-relaxed text-[#0b1f3a]">
                     {`\u201C${t.quote}\u201D`}
                   </p>
-                  <div className="mt-6 flex items-center gap-3 border-t border-border pt-5">
+                  <div className="mt-auto flex items-center gap-3 border-t border-border pt-5">
                     <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                       {t.name
                         .split(" ")

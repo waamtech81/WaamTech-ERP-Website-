@@ -151,6 +151,7 @@ export type Testimonial = {
   name: string;
   role: string;
   company: string;
+  rating: number;
 };
 
 export type CaseStudy = {

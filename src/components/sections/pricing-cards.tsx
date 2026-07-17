@@ -82,10 +82,10 @@ export function PricingCards({
         });
 
         const moduleList = plan.modules ?? [];
-        const shownModules = compact ? moduleList.slice(0, 4) : moduleList;
+        const shownModules = compact ? [] : moduleList;
         const featureGroups = plan.featureGroups ?? [];
         const shownFeatures =
-          featureGroups.length === 0
+          compact || featureGroups.length === 0
             ? compact
               ? plan.features.filter((f) => !seats || f !== seats).slice(0, 5)
               : plan.features.filter((f) => !seats || f !== seats)
@@ -173,13 +173,13 @@ export function PricingCards({
                   ) : null}
                 </div>
 
-                <div className="pt-4 space-y-2">
+                <div className="pt-4 space-y-2 min-h-[8.5rem]">
                   {cycle.price !== null && cycle.price !== undefined ? (
                     <>
                       <div className="flex items-end gap-2 flex-wrap notranslate" translate="no">
                         {cycle.originalPrice ? (
                           <span
-                            className={`text-base md:text-lg line-through ${
+                            className={`text-base md:text-lg line-through tabular-nums ${
                               isPopular
                                 ? "text-white/55 decoration-white/50"
                                 : "text-muted-foreground decoration-red-400/60"
@@ -189,7 +189,7 @@ export function PricingCards({
                           </span>
                         ) : null}
                         <span
-                          className={`text-3xl md:text-[2rem] font-semibold tracking-tight leading-none ${
+                          className={`text-3xl md:text-[2rem] font-semibold tracking-tight leading-none tabular-nums ${
                             isPopular ? "text-white" : "text-[#0b1f3a]"
                           }`}
                         >
@@ -206,7 +206,7 @@ export function PricingCards({
                         </span>
                       </div>
                       <p
-                        className={`text-xs capitalize ${
+                        className={`min-h-4 text-xs capitalize ${
                           isPopular ? "text-white/60" : "text-muted-foreground"
                         }`}
                       >
@@ -215,21 +215,20 @@ export function PricingCards({
                           ? ` · ${formatPrice(plan.yearlyTotal)} / year`
                           : null}
                       </p>
-                      {cycle.price && currency !== "USD" ? (
-                        <p
-                          className={`text-xs notranslate ${
-                            isPopular ? "text-white/60" : "text-muted-foreground"
-                          }`}
-                          translate="no"
-                        >
-                          ≈ {formatMoney(cycle.price, "USD", { showCode: true })}
-                          {isLifetime
-                            ? ` ${t("pricing.oneTime", "one-time")}`
-                            : !yearly
-                              ? ` ${t("pricing.perMonth", "/month")}`
-                              : ` ${t("pricing.billedYearly", "/mo billed yearly")}`}
-                        </p>
-                      ) : null}
+                      <p
+                        className={`min-h-4 text-xs notranslate tabular-nums ${
+                          currency === "USD" ? "invisible" : ""
+                        } ${isPopular ? "text-white/60" : "text-muted-foreground"}`}
+                        translate="no"
+                        aria-hidden={currency === "USD"}
+                      >
+                        ≈ {formatMoney(cycle.price, "USD", { showCode: true })}
+                        {isLifetime
+                          ? ` ${t("pricing.oneTime", "one-time")}`
+                          : !yearly
+                            ? ` ${t("pricing.perMonth", "/month")}`
+                            : ` ${t("pricing.billedYearly", "/mo billed yearly")}`}
+                      </p>
                       {cycle.discountPercent ? (
                         <div
                           className="notranslate inline-flex items-center gap-1 rounded-full border border-emerald-100/80 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
@@ -243,7 +242,7 @@ export function PricingCards({
                       ) : null}
                       {cycle.savings != null && cycle.savings > 0 ? (
                         <p
-                          className={`text-xs font-medium ${
+                          className={`text-xs font-medium tabular-nums ${
                             isPopular ? "text-emerald-200" : "text-emerald-700"
                           }`}
                         >
@@ -310,7 +309,7 @@ export function PricingCards({
                   </div>
                 ) : null}
 
-                {featureGroups.length > 0 ? (
+                {!compact && featureGroups.length > 0 ? (
                   <div className="mb-6 flex-1">
                     <PlanFeatureGroups
                       groups={featureGroups}

@@ -685,6 +685,154 @@ function featureIncluded(
 }
 
 /** Build comparison matrix from License Engine comparison payload when available. */
+function planHasFeature(plan: PricingPlan, featureName: string): boolean {
+  const needle = featureName.trim().toLowerCase();
+  if (!needle) return false;
+  if (
+    (plan.featureGroups || []).some((g) =>
+      g.features.some((f) => f.name.trim().toLowerCase() === needle)
+    )
+  ) {
+    return true;
+  }
+  return (plan.features || []).some((f) => f.trim().toLowerCase() === needle);
+}
+
+/** Detailed feature matrix from Engine-mapped plan feature groups. */
+function featureGroupComparisonRows(
+  plans: PricingPlan[]
+): Array<Record<string, string | boolean>> {
+  const groupOrder: string[] = [];
+  const featuresByGroup = new Map<string, string[]>();
+  const seenFeatures = new Set<string>();
+
+  for (const plan of plans) {
+    for (const group of plan.featureGroups || []) {
+      const gName = group.name.trim() || "Features";
+      if (!featuresByGroup.has(gName)) {
+        featuresByGroup.set(gName, []);
+        groupOrder.push(gName);
+      }
+      const list = featuresByGroup.get(gName)!;
+      for (const feature of group.features) {
+        const key = feature.name.trim().toLowerCase();
+        if (!key || seenFeatures.has(key)) continue;
+        seenFeatures.add(key);
+        list.push(feature.name);
+      }
+    }
+  }
+
+  if (!groupOrder.length) {
+    const flat: string[] = [];
+    for (const plan of plans) {
+      for (const name of plan.features || []) {
+        const key = name.trim().toLowerCase();
+        if (!key || seenFeatures.has(key)) continue;
+        seenFeatures.add(key);
+        flat.push(name);
+      }
+    }
+    if (flat.length) {
+      groupOrder.push("Features");
+      featuresByGroup.set("Features", flat);
+    }
+  }
+
+  const rows: Array<Record<string, string | boolean>> = [];
+  for (const gName of groupOrder) {
+    const features = featuresByGroup.get(gName) || [];
+    if (!features.length) continue;
+    rows.push({ name: gName, __section: true });
+    for (const featureName of features) {
+      const row: Record<string, string | boolean> = { name: featureName };
+      for (const plan of plans) {
+        row[plan.id] = planHasFeature(plan, featureName);
+      }
+      rows.push(row);
+    }
+  }
+  return rows;
+}
+
+function baseLimitComparisonRows(
+  plans: PricingPlan[]
+): Array<Record<string, string | boolean>> {
+  return [
+    {
+      name: "Users",
+      ...Object.fromEntries(
+        plans.map((p) => [
+          p.id,
+          p.usersIncluded === "unlimited"
+            ? "Unlimited Users"
+            : typeof p.usersIncluded === "number"
+              ? p.usersIncluded === 1
+                ? "1 Included User"
+                : `${p.usersIncluded} Included Users`
+              : "—",
+        ])
+      ),
+    },
+    {
+      name: "Storage",
+      ...Object.fromEntries(
+        plans.map((p) => [
+          p.id,
+          p.storageIncludedGb === "unlimited"
+            ? "Unlimited"
+            : p.storageIncludedGb != null
+              ? `${p.storageIncludedGb} GB`
+              : "—",
+        ])
+      ),
+    },
+    {
+      name: "Support",
+      ...Object.fromEntries(plans.map((p) => [p.id, p.supportLevel || "—"])),
+    },
+    {
+      name: "Free trial",
+      ...Object.fromEntries(
+        plans.map((p) => [
+          p.id,
+          p.hasFreeTrial
+            ? p.trialDays
+              ? `${p.trialDays}-day trial`
+              : true
+            : false,
+        ])
+      ),
+    },
+    {
+      name: "Extra user price",
+      ...Object.fromEntries(
+        plans.map((p) => [
+          p.id,
+          p.extraUserPrice != null
+            ? `$${p.extraUserPrice}`
+            : p.usersIncluded === "unlimited"
+              ? "Included"
+              : "—",
+        ])
+      ),
+    },
+    {
+      name: "Extra storage price",
+      ...Object.fromEntries(
+        plans.map((p) => [
+          p.id,
+          p.extraStoragePricePerGb != null
+            ? `$${p.extraStoragePricePerGb}/GB`
+            : p.storageIncludedGb === "unlimited"
+              ? "Included"
+              : "—",
+        ])
+      ),
+    },
+  ];
+}
+
 export function buildDynamicComparison(
   plans: PricingPlan[],
   comparison?: CatalogComparisonBundle | null
@@ -784,7 +932,10 @@ export function buildDynamicComparison(
       ),
     });
 
+    matrix.push(...featureGroupComparisonRows(visible));
+
     for (const row of matrix) {
+      if (row.__section === true) continue;
       for (const key of keys) {
         if (row[key] === undefined) row[key] = "—";
       }
@@ -792,60 +943,14 @@ export function buildDynamicComparison(
     return matrix;
   }
 
-  // Fallback when comparison API is unavailable — still Engine-mapped plan fields only.
+  // Fallback when comparison API is unavailable — limits + full feature groups from plans.
   const rows: Array<Record<string, string | boolean>> = [
-    {
-      name: "Users",
-      ...Object.fromEntries(
-        visible.map((p) => [
-          p.id,
-          p.usersIncluded === "unlimited"
-            ? "Unlimited Users"
-            : typeof p.usersIncluded === "number"
-              ? p.usersIncluded === 1
-                ? "1 Included User"
-                : `${p.usersIncluded} Included Users`
-              : "—",
-        ])
-      ),
-    },
-    {
-      name: "Storage",
-      ...Object.fromEntries(
-        visible.map((p) => [
-          p.id,
-          p.storageIncludedGb === "unlimited"
-            ? "Unlimited"
-            : p.storageIncludedGb != null
-              ? `${p.storageIncludedGb} GB`
-              : "—",
-        ])
-      ),
-    },
-    {
-      name: "Support",
-      ...Object.fromEntries(visible.map((p) => [p.id, p.supportLevel || "—"])),
-    },
-    {
-      name: "Free trial",
-      ...Object.fromEntries(
-        visible.map((p) => [
-          p.id,
-          p.hasFreeTrial
-            ? p.trialDays
-              ? `${p.trialDays}-day trial`
-              : true
-            : false,
-        ])
-      ),
-    },
-    {
-      name: "Contact sales",
-      ...Object.fromEntries(visible.map((p) => [p.id, Boolean(p.contactSales)])),
-    },
+    ...baseLimitComparisonRows(visible),
+    ...featureGroupComparisonRows(visible),
   ];
 
   for (const row of rows) {
+    if (row.__section === true) continue;
     for (const key of keys) {
       if (row[key] === undefined) row[key] = false;
     }

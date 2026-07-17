@@ -45,32 +45,53 @@ export function PricingComparisonTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={String(row.name)} className="border-b border-border/70 last:border-0">
-              <td className="sticky left-0 z-10 bg-white px-3 py-3 font-medium text-[#0b1f3a] sm:px-4">
-                {row.name}
-              </td>
-              {plans.map((p) => {
-                const val = row[p.id];
-                return (
+          {rows.map((row, index) => {
+            if (row.__section === true) {
+              return (
+                <tr
+                  key={`section-${index}-${String(row.name)}`}
+                  className="border-b border-border/70 bg-slate-50/90"
+                >
                   <td
-                    key={p.id}
-                    className="px-3 py-3 text-center text-muted-foreground sm:px-4"
+                    colSpan={plans.length + 1}
+                    className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#0b1f3a]/75 sm:px-4"
                   >
-                    {typeof val === "boolean" ? (
-                      val ? (
-                        <Check className="mx-auto h-4 w-4 text-emerald-600" aria-label="Included" />
-                      ) : (
-                        <Minus className="mx-auto h-4 w-4 text-slate-300" aria-label="Not included" />
-                      )
-                    ) : (
-                      <span className="text-xs sm:text-sm">{String(val ?? "—")}</span>
-                    )}
+                    {row.name}
                   </td>
-                );
-              })}
-            </tr>
-          ))}
+                </tr>
+              );
+            }
+
+            return (
+              <tr
+                key={`feature-${index}-${String(row.name)}`}
+                className="border-b border-border/70 last:border-0"
+              >
+                <td className="sticky left-0 z-10 bg-white px-3 py-3 font-medium text-[#0b1f3a] sm:px-4">
+                  {row.name}
+                </td>
+                {plans.map((p) => {
+                  const val = row[p.id];
+                  return (
+                    <td
+                      key={p.id}
+                      className="px-3 py-3 text-center text-muted-foreground sm:px-4"
+                    >
+                      {typeof val === "boolean" ? (
+                        val ? (
+                          <Check className="mx-auto h-4 w-4 text-emerald-600" aria-label="Included" />
+                        ) : (
+                          <Minus className="mx-auto h-4 w-4 text-slate-300" aria-label="Not included" />
+                        )
+                      ) : (
+                        <span className="text-xs sm:text-sm">{String(val ?? "—")}</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

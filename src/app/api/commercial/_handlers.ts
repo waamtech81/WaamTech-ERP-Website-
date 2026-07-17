@@ -37,6 +37,52 @@ function jsonFail(message: string, status = 502) {
   return NextResponse.json({ success: false, message, data: [] }, { status });
 }
 
+/** Last successful catalog payload — soft-serve when License Engine is briefly down. */
+const catalogLastGood = new Map<string, unknown>();
+
+function buildCatalogPayload(
+  bundle: Awaited<ReturnType<typeof fetchPublicCatalogBundle>>
+) {
+  const marketingCatalogPlans = publicMarketingPlans(bundle.plans);
+  const marketingPricingRows = publicMarketingPlans(bundle.pricing);
+  const mappedPlans =
+    marketingPricingRows.length > 0
+      ? mapPricingRowsToPlans(
+          marketingPricingRows,
+          marketingCatalogPlans,
+          bundle.comparison
+        )
+      : sortPlansByTier(marketingCatalogPlans).map((p) => {
+          const row = bundle.comparison?.comparison.find((c) => c.plan.id === p.id);
+          return mapCatalogPlanToPricingPlan(p, {
+            limits: row?.limits,
+            featureGroups: row?.feature_groups,
+            modules: (row?.modules || [])
+              .map((m) => m.name || m.code || "")
+              .filter(Boolean),
+          });
+        });
+  const pricingPlans = publicMarketingPlans(mappedPlans);
+  const featuredProducts = bundle.products.slice(0, 6).map(mapCatalogProductToUi);
+  const popular = popularPlans(pricingPlans, 3);
+  const enterprise = enterprisePlan(pricingPlans) || null;
+
+  return {
+    products: bundle.products,
+    plans: bundle.plans,
+    pricing: bundle.pricing,
+    industries: bundle.industries,
+    comparison: bundle.comparison,
+    productSlug: bundle.productSlug,
+    pricingPlans,
+    cardPlans: cardPlans(pricingPlans),
+    featuredProducts,
+    popularPlans: popular,
+    enterprise,
+    meta: bundle.meta,
+  };
+}
+
 export async function GET_products() {
   const result = await fetchPublicProducts();
   if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
@@ -68,8 +114,9 @@ export async function GET_comparison(req: Request) {
         .filter(Boolean)
     : undefined;
   const result = await fetchPublicPlanComparison({ product, ids });
+  // Soft-empty when Engine comparison is down — pricing UI builds a local matrix.
   if (!result.ok && result.data.comparison.length === 0) {
-    return jsonFail(result.message, result.status);
+    return jsonOk({ plans: [], comparison: [], limit_keys: [] });
   }
   return jsonOk(result.data);
 }
@@ -96,48 +143,33 @@ export async function GET_businessProfiles(req: Request) {
 
 export async function GET_catalog(req: Request) {
   const product = new URL(req.url).searchParams.get("product") || undefined;
-  const bundle = await fetchPublicCatalogBundle(product);
-  // Raw Engine lists stay intact (plans/pricing below). Display fields exclude Trial plans only.
-  const marketingCatalogPlans = publicMarketingPlans(bundle.plans);
-  const marketingPricingRows = publicMarketingPlans(bundle.pricing);
-  const mappedPlans =
-    marketingPricingRows.length > 0
-      ? mapPricingRowsToPlans(
-          marketingPricingRows,
-          marketingCatalogPlans,
-          bundle.comparison
-        )
-      : sortPlansByTier(marketingCatalogPlans).map((p) => {
-          const row = bundle.comparison?.comparison.find((c) => c.plan.id === p.id);
-          return mapCatalogPlanToPricingPlan(p, {
-            limits: row?.limits,
-            featureGroups: row?.feature_groups,
-            modules: (row?.modules || [])
-              .map((m) => m.name || m.code || "")
-              .filter(Boolean),
-          });
-        });
-  const pricingPlans = publicMarketingPlans(mappedPlans);
-  const featuredProducts = bundle.products.slice(0, 6).map(mapCatalogProductToUi);
-  const popular = popularPlans(pricingPlans, 3);
-  const enterprise = enterprisePlan(pricingPlans) || null;
+  const cacheKey = product?.trim() || "__default__";
 
-  if (!bundle.ok && pricingPlans.length === 0 && featuredProducts.length === 0) {
-    return jsonFail(bundle.message || "Commercial catalog unavailable.");
+  try {
+    const bundle = await fetchPublicCatalogBundle(product);
+    const payload = buildCatalogPayload(bundle);
+    const hasContent =
+      payload.pricingPlans.length > 0 || payload.featuredProducts.length > 0;
+
+    if (!bundle.ok && !hasContent) {
+      const stale = catalogLastGood.get(cacheKey);
+      if (stale) {
+        return jsonOk({ ...(stale as object), meta: { ...(stale as { meta?: object }).meta, stale: true } });
+      }
+      return jsonFail(bundle.message || "Commercial catalog unavailable.");
+    }
+
+    if (hasContent) {
+      catalogLastGood.set(cacheKey, payload);
+    }
+    return jsonOk(payload);
+  } catch (error) {
+    const stale = catalogLastGood.get(cacheKey);
+    if (stale) {
+      return jsonOk({ ...(stale as object), meta: { ...(stale as { meta?: object }).meta, stale: true } });
+    }
+    const message =
+      error instanceof Error ? error.message : "Commercial catalog unavailable.";
+    return jsonFail(message, 502);
   }
-
-  return jsonOk({
-    products: bundle.products,
-    plans: bundle.plans,
-    pricing: bundle.pricing,
-    industries: bundle.industries,
-    comparison: bundle.comparison,
-    productSlug: bundle.productSlug,
-    pricingPlans,
-    cardPlans: cardPlans(pricingPlans),
-    featuredProducts,
-    popularPlans: popular,
-    enterprise,
-    meta: bundle.meta,
-  });
 }

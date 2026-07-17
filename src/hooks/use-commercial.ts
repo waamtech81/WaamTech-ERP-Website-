@@ -125,7 +125,15 @@ export function useCommercialQuery<T>(
     }
 
     const runId = ++gen.current;
-    setLoading(true);
+    const peeked = key ? swrPeek<T>(key) : undefined;
+    // Keep showing cached data while revalidating — avoids skeleton flash / layout jolt.
+    if (peeked != null) {
+      setData(peeked);
+      setStale(true);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     setError(null);
     setOffline(isOffline());
 
@@ -138,9 +146,9 @@ export function useCommercialQuery<T>(
       setOffline(false);
     } catch (err) {
       if (runId !== gen.current) return;
-      const peeked = swrPeek<T>(key);
-      if (peeked != null) {
-        setData(peeked);
+      const cached = swrPeek<T>(key) ?? peeked;
+      if (cached != null) {
+        setData(cached);
         setStale(true);
       }
       setOffline(isOffline());

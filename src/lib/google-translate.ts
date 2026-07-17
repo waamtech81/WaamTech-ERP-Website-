@@ -7,6 +7,29 @@
  */
 import type { UiLanguage } from "@/i18n";
 
+declare global {
+  interface Window {
+    googleTranslateElementInit?: () => void;
+    google?: {
+      translate: {
+        TranslateElement: {
+          new (
+            options: {
+              pageLanguage: string;
+              includedLanguages?: string;
+              autoDisplay: boolean;
+              multilanguagePage?: boolean;
+              layout?: number;
+            },
+            elementId: string
+          ): void;
+          InlineLayout?: { SIMPLE: number; HORIZONTAL: number; VERTICAL: number };
+        };
+      };
+    };
+  }
+}
+
 export const GOOGLE_TRANSLATE_LANGUAGES = "en,ar,fr,es,de" as const;
 
 const GOOGTRANS = "googtrans";
@@ -181,7 +204,67 @@ export function syncGoogleTranslate(lang: UiLanguage, opts?: { reloadOnMiss?: bo
   }, 150);
 }
 
+const SCRIPT_ID = "google-translate-script";
+let loadPromise: Promise<void> | null = null;
+
+/**
+ * Lazily inject the Google Translate script once. Safe to call repeatedly.
+ */
+export function ensureGoogleTranslateLoaded(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (window.google?.translate?.TranslateElement) return Promise.resolve();
+  if (loadPromise) return loadPromise;
+
+  loadPromise = new Promise((resolve) => {
+    window.googleTranslateElementInit = () => {
+      resolve();
+    };
+
+    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+    if (existing) {
+      if (window.google?.translate?.TranslateElement) resolve();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = SCRIPT_ID;
+    script.src =
+      "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+    script.async = true;
+    script.onerror = () => {
+      console.warn(
+        "[i18n] Google Translate failed to load. Check network / adblock / CSP."
+      );
+      loadPromise = null;
+      resolve();
+    };
+    document.body.appendChild(script);
+  });
+
+  return loadPromise;
+}
+
 /** Apply Google Translate for a user-initiated language change. */
 export function applyGoogleTranslate(lang: UiLanguage): void {
-  syncGoogleTranslate(lang, { reloadOnMiss: true });
+  void ensureGoogleTranslateLoaded().then(() => {
+    // Mount widget if host exists (dynamic import avoids circular deps at module init).
+    const host = document.getElementById("google_translate_element");
+    if (host && !host.querySelector(".goog-te-combo") && window.google?.translate?.TranslateElement) {
+      const TE = window.google.translate.TranslateElement;
+      if (host.childElementCount === 0) {
+        // eslint-disable-next-line no-new
+        new TE(
+          {
+            pageLanguage: "en",
+            includedLanguages: GOOGLE_TRANSLATE_LANGUAGES,
+            autoDisplay: false,
+            multilanguagePage: true,
+            layout: TE.InlineLayout?.SIMPLE,
+          },
+          "google_translate_element"
+        );
+      }
+    }
+    syncGoogleTranslate(lang, { reloadOnMiss: true });
+  });
 }

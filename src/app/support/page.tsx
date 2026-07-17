@@ -1,55 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Headphones, Mail, MessageCircle, Ticket, Zap } from "lucide-react";
+import { Headphones, Mail, MessageCircle, Ticket } from "lucide-react";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { siteConfig } from "@/lib/data/site";
 
 export const metadata: Metadata = {
   title: "Support",
-  description: "Get WaamTech support via tickets, email, WhatsApp, live chat, and priority enterprise support.",
+  description:
+    "Get help from WAAMTO — email support@waamto.com, live chat coming soon, and support tickets in the Customer Portal.",
 };
-
-const options = [
-  {
-    title: "Support ticket",
-    description: "Create and track issues from the customer portal with full context.",
-    icon: Ticket,
-    href: "/portal",
-    cta: "Open portal",
-  },
-  {
-    title: "Email support",
-    description: "Reach our team for non-urgent questions and account assistance.",
-    icon: Mail,
-    href: `mailto:${siteConfig.supportEmail}`,
-    cta: "Email us",
-  },
-  {
-    title: "WhatsApp",
-    description: "Quick operational help for eligible Business and Enterprise plans.",
-    icon: MessageCircle,
-    href: "/contact?channel=whatsapp",
-    cta: "Request WhatsApp",
-  },
-  {
-    title: "Live chat",
-    description: "Chat with support during business hours for guided troubleshooting.",
-    icon: Headphones,
-    href: "/contact?channel=chat",
-    cta: "Start chat",
-  },
-  {
-    title: "Priority support",
-    description: "Dedicated response SLAs, escalation paths, and success management.",
-    icon: Zap,
-    href: "/contact?intent=priority-support",
-    cta: "Talk to sales",
-  },
-];
 
 export default function SupportPage() {
   return (
@@ -61,7 +25,7 @@ export default function SupportPage() {
             align="left"
             eyebrow="Support"
             title="Help when your operations need it"
-            description="Choose the channel that fits your urgency — from self-serve docs to priority enterprise support."
+            description="Email our team, prepare for live chat, or sign in to open support tickets from your Customer Portal."
             className="mb-0 max-w-3xl"
           />
         </Container>
@@ -70,24 +34,78 @@ export default function SupportPage() {
       <Section muted className="!pt-10">
         <Container>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {options.map((opt, i) => (
-              <AnimateIn key={opt.title} delay={i * 0.05}>
-                <Card className="h-full flex flex-col">
-                  <CardHeader>
-                    <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary">
-                      <opt.icon className="h-5 w-5" />
-                    </div>
-                    <CardTitle className="text-lg">{opt.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col">
-                    <p className="text-sm text-muted-foreground leading-relaxed flex-1">{opt.description}</p>
-                    <Button asChild variant="outline" className="mt-6 w-full">
-                      <Link href={opt.href}>{opt.cta}</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </AnimateIn>
-            ))}
+            <AnimateIn>
+              <Card className="h-full flex flex-col">
+                <CardHeader>
+                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary">
+                    <Mail className="h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-lg">Email support</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col">
+                  <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                    Reach our team for account help, billing questions, and non-urgent issues.
+                  </p>
+                  <p className="mt-4 text-sm font-medium text-foreground">{siteConfig.supportEmail}</p>
+                  <Button asChild variant="outline" className="mt-6 w-full rounded-full">
+                    <a href={`mailto:${siteConfig.supportEmail}`}>Email us</a>
+                  </Button>
+                </CardContent>
+              </Card>
+            </AnimateIn>
+
+            <AnimateIn delay={0.05}>
+              <Card className="h-full flex flex-col" data-live-chat-provider="pending">
+                <CardHeader>
+                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary">
+                    <MessageCircle className="h-5 w-5" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-lg">Live chat</CardTitle>
+                    <Badge variant="muted">Soon</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col">
+                  <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                    Live Chat Coming Soon. This slot is reserved for a future chat provider
+                    (Intercom, Crisp, Zendesk, etc.) without changing the page layout.
+                  </p>
+                  <div
+                    id="waamto-live-chat-mount"
+                    className="mt-6 rounded-2xl border border-dashed border-border bg-muted/40 px-4 py-5 text-center"
+                    data-chat-status="coming-soon"
+                    aria-live="polite"
+                  >
+                    <Headphones className="mx-auto h-5 w-5 text-muted-foreground" />
+                    <p className="mt-2 text-sm font-medium">Live Chat Coming Soon</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Provider widget mounts at{" "}
+                      <code className="text-[11px]">#waamto-live-chat-mount</code>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </AnimateIn>
+
+            <AnimateIn delay={0.1}>
+              <Card className="h-full flex flex-col">
+                <CardHeader>
+                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary">
+                    <Ticket className="h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-lg">Support tickets</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col">
+                  <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                    Create and track tickets inside the authenticated Customer Portal. Sign in
+                    required — no public ticket forms.
+                  </p>
+                  <Button asChild className="mt-6 w-full rounded-full">
+                    <Link href="/portal/support">Support Tickets</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </AnimateIn>
           </div>
 
           <div className="mt-12 rounded-3xl border border-border bg-white p-8 md:p-10 text-center">
@@ -96,10 +114,10 @@ export default function SupportPage() {
               Browse documentation and knowledge base articles before opening a ticket.
             </p>
             <div className="mt-6 flex flex-col sm:flex-row justify-center gap-3">
-              <Button asChild>
+              <Button asChild className="rounded-full">
                 <Link href="/docs">Documentation</Link>
               </Button>
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="rounded-full">
                 <Link href="/knowledge-base">Knowledge base</Link>
               </Button>
             </div>

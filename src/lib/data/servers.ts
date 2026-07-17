@@ -6,7 +6,7 @@ export const serverHero = {
   description:
     "From managed cloud hosting to dedicated ERP deployment — WaamTech and WaamHost deliver the infrastructure your business runs on.",
   image:
-    "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fm=webp&fit=crop&w=2000&q=70",
+    "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fm=webp&fit=crop&w=1600&q=70",
 };
 
 export const serverOfferings: ServerOffering[] = [

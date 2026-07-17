@@ -4,9 +4,9 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Huekland / NextBricks-style sticky footer reveal:
+ * Sticky footer reveal (Huekland-style):
  * outer spacer reserves scroll height; inner is fixed at the bottom
- * and is revealed as the page content scrolls away.
+ * and is revealed as main content scrolls away. No clip-path.
  */
 export function FooterReveal({
   children,
@@ -23,17 +23,19 @@ export function FooterReveal({
     const inner = innerRef.current;
     if (!outer || !inner) return;
 
-    const reduced =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
       outer.style.height = "";
+      outer.classList.add("wt-footer-sticky-reveal--static");
       return;
     }
 
+    let raf = 0;
     const syncHeight = () => {
-      outer.style.height = `${inner.scrollHeight}px`;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        outer.style.height = `${inner.offsetHeight}px`;
+      });
     };
 
     syncHeight();
@@ -46,6 +48,7 @@ export function FooterReveal({
 
     window.addEventListener("resize", syncHeight, { passive: true });
     return () => {
+      cancelAnimationFrame(raf);
       observer?.disconnect();
       window.removeEventListener("resize", syncHeight);
     };

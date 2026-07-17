@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
@@ -15,12 +13,12 @@ import { getIcon } from "@/lib/icons";
 import { Container, Section } from "@/components/shared/section";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { Counter } from "@/components/shared/counter";
+import { Price } from "@/components/shared/price";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { testimonials, pricingPlans, siteConfig } from "@/lib/data/site";
 import { PricingCards } from "@/components/sections/pricing-cards";
-import { useLocale } from "@/components/providers/locale-provider";
 
 export function StatsBand() {
   return (
@@ -50,11 +48,11 @@ export function CapabilitiesSection() {
         <div className="mx-auto mb-12 max-w-3xl text-center">
           <p className="mb-3 text-sm font-medium text-primary tracking-wide uppercase">Platform</p>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
-            Built from a clean SaaS Core
+            Built for how real businesses work
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
-            Business profiles, feature packs, and installable modules — the architecture that makes
-            {siteConfig.name} adaptable without becoming messy.
+            Choose your industry, unlock the right modules and feature packs, and grow into AI-assisted
+            operations — without messy custom rebuilds.
           </p>
         </div>
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
@@ -114,6 +112,7 @@ export function BusinessesSection() {
                         src={media.image}
                         alt={media.imageAlt}
                         fill
+                        quality={70}
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         className="object-cover transition-transform duration-700 group-hover:scale-105"
                       />
@@ -198,8 +197,9 @@ export function SocialProofSection() {
 }
 
 export function PricingTeaser() {
-  const { formatPrice } = useLocale();
-  const plans = pricingPlans.filter((p) => p.id !== "enterprise").slice(0, 4);
+  const plans = pricingPlans.filter((p) =>
+    p.id === "starter" || p.id === "business" || p.id === "lifetime"
+  );
   const fromUsd = Math.min(
     ...pricingPlans
       .map((p) => p.yearlyPrice ?? p.monthlyPrice)
@@ -212,7 +212,7 @@ export function PricingTeaser() {
         <div className="mx-auto mb-8 md:mb-10 max-w-3xl text-center">
           <Badge variant="accent" className="mb-3">50% Launch Discount</Badge>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
-            Affordable ERP from <span translate="no">{formatPrice(fromUsd)}</span>/mo
+            Affordable ERP from <Price usd={fromUsd} />/mo
           </h2>
           <p className="mt-3 text-muted-foreground leading-relaxed">
             Market-aligned pricing with lifetime license & deployment options. Start your 14-day free trial.
@@ -222,7 +222,7 @@ export function PricingTeaser() {
           plans={plans}
           yearly={true}
           compact
-          columns="sm:grid-cols-2 xl:grid-cols-4"
+          columns="sm:grid-cols-2 xl:grid-cols-3"
         />
         <div className="mt-8 md:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Button asChild variant="link">

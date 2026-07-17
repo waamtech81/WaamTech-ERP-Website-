@@ -47,7 +47,7 @@ export function BrandLogo({
           <span
             className={cn(
               "font-[family-name:var(--font-poppins)] text-lg font-semibold tracking-tight",
-              dark && "text-white"
+              dark ? "text-white" : "text-[var(--brand-dark)]"
             )}
           >
             {siteConfig.name}
@@ -56,7 +56,7 @@ export function BrandLogo({
             <span
               className={cn(
                 "mt-0.5 hidden text-[10px] font-medium sm:block",
-                dark ? "text-slate-400" : "text-muted-foreground"
+                dark ? "text-slate-400" : "text-primary/70"
               )}
             >
               {siteConfig.productLine}

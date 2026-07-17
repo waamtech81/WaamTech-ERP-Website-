@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useInView, useReducedMotion } from "framer-motion";
 
 type CounterProps = {
   value: number;
@@ -12,9 +11,31 @@ type CounterProps = {
 
 export function Counter({ value, suffix = "", duration = 1.6, className }: CounterProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-  const reduce = useReducedMotion();
-  const [display, setDisplay] = useState(reduce ? value : 0);
+  const [inView, setInView] = useState(false);
+  const [display, setDisplay] = useState(0);
+  const reduce =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (reduce) {
+      setInView(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "-40px", threshold: 0.1 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [reduce]);
 
   useEffect(() => {
     if (!inView) return;

@@ -1,87 +1,398 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { ArrowRight, ExternalLink } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { siteConfig } from "@/lib/data/site";
-import { authConfig, getAppLoginUrl } from "@/lib/auth/config";
-import { BrandLogo } from "@/components/shared/brand-logo";
+import { authConfig } from "@/lib/auth/config";
+import { safeInternalPath } from "@/lib/security/safe-redirect";
 
-function LoginRedirect() {
+type LoginStep = "credentials" | "otp";
+
+function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") || searchParams.get("username") || "";
-  const verified = searchParams.get("verified") === "1";
+  const prefill = searchParams.get("username") || searchParams.get("email") || "";
   const registered = searchParams.get("registered") === "1";
+  const verified = searchParams.get("verified") === "1";
+  const nextPath = safeInternalPath(
+    searchParams.get("next") ||
+      searchParams.get("redirect") ||
+      searchParams.get("returnUrl") ||
+      searchParams.get("callback")
+  );
 
-  const appLoginUrl = getAppLoginUrl({
-    email: email || undefined,
-    verified,
-    registered,
-  });
+  const [step, setStep] = useState<LoginStep>("credentials");
+  const [username, setUsername] = useState(prefill);
+  const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [challengeToken, setChallengeToken] = useState("");
+  const [maskedEmail, setMaskedEmail] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState(
+    verified
+      ? "Email verified. Sign in to continue."
+      : registered
+        ? "Account created. Sign in to continue."
+        : searchParams.get("reset") === "1"
+          ? "Password updated. Sign in with your new password."
+          : ""
+  );
 
   useEffect(() => {
-    // Auto-redirect to live ERP app — marketing site has no login system
-    const timer = window.setTimeout(() => {
-      window.location.assign(appLoginUrl);
-    }, 2500);
-    return () => window.clearTimeout(timer);
-  }, [appLoginUrl]);
+    if (cooldown <= 0) return;
+    const t = window.setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => window.clearTimeout(t);
+  }, [cooldown]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("waamtech_last_user");
+      if (saved && !prefill) setUsername(saved);
+    } catch {
+      /* ignore */
+    }
+  }, [prefill]);
+
+  useEffect(() => {
+    fetch("/api/portal/dashboard", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json?.success) router.replace(safeInternalPath(nextPath));
+      })
+      .catch(() => {
+        /* stay on login */
+      });
+  }, [router, nextPath]);
+
+  async function submitCredentials(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setInfo("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, remember }),
+      });
+      const json = await res.json();
+
+      if (!json.success) {
+        setError(json.message || "Login failed.");
+        setLoading(false);
+        return;
+      }
+
+      if (json.requiresOtp || json.requires_email_verification) {
+        setChallengeToken(json.data?.challenge_token || "");
+        setMaskedEmail(json.data?.email || username);
+        setStep("otp");
+        setCooldown(60);
+        setInfo(
+          json.message ||
+            "Enter the verification code sent to your registered email."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Password-only success must never establish a session — stay on OTP flow
+      setError(
+        json.message ||
+          "Login OTP verification is required. Check your email for a code."
+      );
+      setLoading(false);
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  async function submitOtp(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          password,
+          challenge_token: challengeToken,
+          email_code: otp,
+          otp,
+          remember,
+        }),
+      });
+      const json = await res.json();
+
+      if (!json.success) {
+        setError(json.message || "Invalid verification code.");
+        setLoading(false);
+        return;
+      }
+
+      if (remember) {
+        try {
+          localStorage.setItem("waamtech_last_user", username);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      router.replace(
+        safeInternalPath(json.data?.redirectUrl || nextPath)
+      );
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  async function resendOtp() {
+    if (!challengeToken || cooldown > 0 || resending) return;
+    setResending(true);
+    setError("");
+    try {
+      const res = await fetch("/api/auth/resend-login-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challenge_token: challengeToken }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setError(json.message || "Could not resend code.");
+      } else {
+        setInfo("A new verification code was sent.");
+        setCooldown(60);
+        setOtp("");
+      }
+    } catch {
+      setError("Could not resend code.");
+    } finally {
+      setResending(false);
+    }
+  }
+
+  function resetToCredentials() {
+    setStep("credentials");
+    setOtp("");
+    setChallengeToken("");
+    setMaskedEmail("");
+    setError("");
+    setInfo("");
+  }
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
-      <div className="container-site relative flex justify-center py-12 sm:py-16 lg:py-20">
-        <Card className="w-full max-w-md shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
-          <CardHeader className="text-center space-y-2">
-            <div className="mx-auto mb-2 flex justify-center">
-              <BrandLogo hideTagline height={34} />
-            </div>
-            <CardTitle className="text-2xl">Open WAAMTO ERP</CardTitle>
-            <CardDescription>
-              Sign in happens on our live application — not on this marketing website.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {verified ? (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                Email verified. Check your inbox for your <strong>license key</strong>, then open
-                the app and paste it when prompted to start your trial.
-              </div>
-            ) : registered ? (
-              <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                Account ready. Continue in WAAMTO ERP to log in.
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border bg-slate-50 px-4 py-3 text-sm text-muted-foreground leading-relaxed">
-                After your first login, the app will ask for the license key we emailed you. Copy it
-                from your email and paste it in the app to activate your{" "}
-                {authConfig.trialDays}-day trial.
-              </div>
-            )}
-
-            <Button asChild size="lg" className="w-full rounded-full">
-              <a href={appLoginUrl}>
-                Continue to {authConfig.appUrl.replace(/^https?:\/\//, "")}
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            </Button>
-
-            <p className="text-center text-xs text-muted-foreground">
-              Redirecting automatically in a moment…
+      <div className="container-site relative flex justify-center py-14 sm:py-20 lg:py-24">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              {step === "otp" ? "Verify your login" : "Welcome back"}
+            </h1>
+            <p className="mt-3 text-muted-foreground leading-relaxed">
+              {step === "otp"
+                ? `Enter the code sent to ${maskedEmail || "your email"}`
+                : "Sign in with your enterprise identity to open the Customer Portal."}
             </p>
+          </div>
 
-            <div className="border-t border-border pt-5 text-center text-sm text-muted-foreground">
-              New here?{" "}
-              <Link href="/signup" className="text-primary font-medium hover:underline inline-flex items-center gap-1">
-                Start free trial
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl">
+                {step === "otp" ? "Login verification" : "Log in"}
+              </CardTitle>
+              <CardDescription>
+                {step === "otp"
+                  ? "No OTP — no portal access."
+                  : "Authenticated by License Engine"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {step === "credentials" ? (
+                <form className="space-y-5" onSubmit={submitCredentials}>
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Email or username</Label>
+                    <Input
+                      id="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="alex@company.com"
+                      autoComplete="username"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label htmlFor="password">Password</Label>
+                      <Link
+                        href={`/forgot-password${username.includes("@") ? `?email=${encodeURIComponent(username)}` : ""}`}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete="current-password"
+                        className="pr-11"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="remember"
+                      checked={remember}
+                      onCheckedChange={(v) => setRemember(v === true)}
+                    />
+                    <Label htmlFor="remember" className="text-sm font-normal text-muted-foreground">
+                      Remember me
+                    </Label>
+                  </div>
+
+                  {error ? (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                      {error}
+                    </div>
+                  ) : null}
+                  {info ? (
+                    <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                      {info}
+                    </div>
+                  ) : null}
+
+                  <Button type="submit" className="w-full rounded-full" size="lg" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      "Continue"
+                    )}
+                  </Button>
+                </form>
+              ) : (
+                <form className="space-y-5" onSubmit={submitOtp}>
+                  <div className="flex items-start gap-3 rounded-xl border border-border/80 bg-muted/50 px-4 py-3">
+                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Enter the 6-digit Login OTP emailed to your account.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="otp">Verification code</Label>
+                    <Input
+                      id="otp"
+                      value={otp}
+                      onChange={(e) =>
+                        setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))
+                      }
+                      placeholder="123456"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      className="tracking-[0.35em] text-center text-lg font-semibold"
+                      required
+                    />
+                  </div>
+
+                  {error ? (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                      {error}
+                    </div>
+                  ) : null}
+                  {info ? (
+                    <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                      {info}
+                    </div>
+                  ) : null}
+
+                  <Button
+                    type="submit"
+                    className="w-full rounded-full"
+                    size="lg"
+                    disabled={loading || otp.length < 4}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      "Verify & continue"
+                    )}
+                  </Button>
+
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <button
+                      type="button"
+                      onClick={resetToCredentials}
+                      className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resendOtp}
+                      disabled={resending || cooldown > 0}
+                      className="font-medium text-primary hover:underline disabled:opacity-50 disabled:no-underline"
+                    >
+                      {resending
+                        ? "Sending..."
+                        : cooldown > 0
+                          ? `Resend in ${cooldown}s`
+                          : "Resend code"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                New here?{" "}
+                <Link href="/signup" className="text-primary font-medium hover:underline">
+                  Start {authConfig.trialDays}-day free trial
+                </Link>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -92,11 +403,11 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
-          Opening WAAMTO ERP...
+          Loading login...
         </div>
       }
     >
-      <LoginRedirect />
+      <LoginForm />
     </Suspense>
   );
 }

@@ -27,8 +27,8 @@ export function ModuleShowcase() {
             One solution to manage everything, in one place
           </h2>
           <p className="mt-3 md:mt-4 text-muted-foreground text-base md:text-lg leading-relaxed">
-            Switch across {siteConfig.name} SaaS Core modules — the same clean interface, tailored to
-            each workflow.
+            Switch across {siteConfig.name} modules — Inventory, POS, Sales, Finance, CRM, HR,
+            Manufacturing, and AI — the same clean interface for every workflow.
           </p>
         </div>
 

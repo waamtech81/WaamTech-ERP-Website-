@@ -1,6 +1,3 @@
-"use client";
-
-import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -12,37 +9,9 @@ type AnimateInProps = {
 };
 
 /**
- * Fade/slide in when scrolled into view.
- * Uses a generous viewport so content is not left at opacity:0 if IO is flaky.
+ * Lightweight wrapper — no scroll-linked animations (those cause scroll jank).
+ * delay/direction kept for API compatibility with existing call sites.
  */
-export function AnimateIn({
-  children,
-  className,
-  delay = 0,
-  direction = "up",
-}: AnimateInProps) {
-  const reduce = useReducedMotion();
-  const offset = {
-    up: { y: 24 },
-    down: { y: -24 },
-    left: { x: 24 },
-    right: { x: -24 },
-    none: {},
-  }[direction];
-
-  if (reduce) {
-    return <div className={className}>{children}</div>;
-  }
-
-  return (
-    <motion.div
-      className={cn(className)}
-      initial={{ opacity: 0, ...offset }}
-      whileInView={{ opacity: 1, x: 0, y: 0 }}
-      viewport={{ once: true, amount: 0.12, margin: "0px 0px -40px 0px" }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay }}
-    >
-      {children}
-    </motion.div>
-  );
+export function AnimateIn({ children, className }: AnimateInProps) {
+  return <div className={cn(className)}>{children}</div>;
 }

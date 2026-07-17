@@ -1,15 +1,5 @@
-"use client";
-
-import { useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  motion,
-  useReducedMotion,
-  useScroll,
-  useSpring,
-  useTransform,
-} from "framer-motion";
 import { ArrowRight, Check, Target, Users } from "lucide-react";
 import {
   getProductThumb,
@@ -21,25 +11,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/shared/section";
 
-const springConfig = {
-  stiffness: 90,
-  damping: 28,
-  mass: 0.35,
-  restDelta: 0.001,
-};
-
 export function ProductStack({ products }: { products: ProductShowcase[] }) {
-  const reduce = useReducedMotion();
-
   return (
-    <div className="relative [perspective:1200px]">
+    <div className="relative">
       {products.map((product, index) => (
         <ProductStackCard
           key={product.id}
           product={product}
           index={index}
           total={products.length}
-          reduce={!!reduce}
         />
       ))}
     </div>
@@ -50,45 +30,17 @@ function ProductStackCard({
   product,
   index,
   total,
-  reduce,
 }: {
   product: ProductShowcase;
   index: number;
   total: number;
-  reduce: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
   const isLast = index === total - 1;
   // Peek offset so cards stack softly instead of hard-covering
   const stackOffset = Math.min(index, 6) * 10;
 
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"],
-  });
-
-  const smoothProgress = useSpring(scrollYProgress, springConfig);
-
-  // Gentle motion only — heavy scale/fade was causing the jolt
-  const scale = useTransform(
-    smoothProgress,
-    [0, 1],
-    reduce || isLast ? [1, 1] : [1, 0.975]
-  );
-  const opacity = useTransform(
-    smoothProgress,
-    [0, 0.7, 1],
-    reduce || isLast ? [1, 1, 1] : [1, 0.96, 0.9]
-  );
-  const y = useTransform(
-    smoothProgress,
-    [0, 1],
-    reduce || isLast ? [0, 0] : [0, -6]
-  );
-
   return (
     <div
-      ref={ref}
       id={product.slug}
       className={cn(
         "relative scroll-mt-28",
@@ -98,7 +50,7 @@ function ProductStackCard({
     >
       <div
         className={cn(
-          "flex items-start md:items-center will-change-transform",
+          "flex items-start md:items-center",
           isLast
             ? "relative min-h-[calc(100svh-6rem)] py-6"
             : "sticky h-[calc(100svh-5.5rem)]"
@@ -110,12 +62,9 @@ function ProductStackCard({
         }
       >
         <Container className="w-full py-2">
-          <motion.article
-            style={reduce ? undefined : { scale, opacity, y }}
-            className="origin-center overflow-hidden rounded-[1.75rem] border border-border bg-white shadow-[0_20px_60px_rgba(15,23,42,0.1)] [transform:translateZ(0)] [backface-visibility:hidden]"
-          >
+          <article className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.1)]">
             <ProductCardBody product={product} index={index} total={total} />
-          </motion.article>
+          </article>
         </Container>
       </div>
     </div>

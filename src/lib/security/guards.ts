@@ -1,4 +1,7 @@
-const buckets = new Map<string, { count: number; resetAt: number }>();
+import { getRateLimitStore } from "@/lib/security/rate-limit-store";
+
+export { safeInternalPath, REDIRECT_QUERY_KEYS } from "@/lib/security/safe-redirect";
+export type { RateLimitStore, RateLimitHitResult } from "@/lib/security/rate-limit-store";
 
 export function getClientIp(req: Request): string {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -6,26 +9,17 @@ export function getClientIp(req: Request): string {
   return req.headers.get("x-real-ip") || "unknown";
 }
 
-/** Sliding window rate limit. Returns null when allowed, or retry-after seconds. */
-export function rateLimit(
+/**
+ * Sliding / fixed-window rate limit via the configured store.
+ * Memory in development; Upstash Redis when REST env vars are set.
+ * Returns null-shaped result: ok true when allowed, or retry-after seconds.
+ */
+export async function rateLimit(
   key: string,
   limit = 10,
   windowMs = 60_000
-): { ok: true } | { ok: false; retryAfter: number } {
-  const now = Date.now();
-  const entry = buckets.get(key);
-
-  if (!entry || now > entry.resetAt) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
-    return { ok: true };
-  }
-
-  if (entry.count >= limit) {
-    return { ok: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
-  }
-
-  entry.count += 1;
-  return { ok: true };
+): Promise<{ ok: true } | { ok: false; retryAfter: number }> {
+  return getRateLimitStore().hit(key, limit, windowMs);
 }
 
 export function isSameOrigin(req: Request): boolean {

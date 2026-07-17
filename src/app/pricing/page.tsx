@@ -28,7 +28,11 @@ export default function PricingPage() {
   const [yearly, setYearly] = useState(true);
   const { t } = useLocale();
   const billingFaqs = faqs.filter((f) => f.category === "Billing" || f.category === "Product").slice(0, 6);
-  const planNames = pricingPlans.map((p) => p.name);
+  const cardPlans = pricingPlans.filter(
+    (p) => p.id === "starter" || p.id === "business" || p.id === "lifetime"
+  );
+  const enterprisePlan = pricingPlans.find((p) => p.id === "enterprise");
+  const planNames = ["Starter", "Business", "Lifetime", "Enterprise"];
 
   return (
     <>
@@ -56,24 +60,37 @@ export default function PricingPage() {
 
           <PriceNote className="mb-8 text-center text-xs text-muted-foreground" />
 
-          <PricingCards plans={pricingPlans} yearly={yearly} columns="sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5" />
+          <PricingCards
+            plans={cardPlans}
+            yearly={yearly}
+            columns="sm:grid-cols-2 xl:grid-cols-3"
+          />
 
-          <div className="mt-10 rounded-2xl border border-border bg-muted/40 p-6 md:p-8">
-            <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
-              <div>
-                <p className="font-semibold text-[#0b1f3a]">Responsive web + native mobile app</p>
-                <p className="mt-1 text-sm text-muted-foreground max-w-2xl">
-                  Every plan includes the full responsive web app on desktop, tablet, and phone.
-                  Native mobile app is included for Professional+ and is required for field profiles
-                  like Distribution, Warehouse, Field Service, Water delivery, and Property — shown
-                  when you pick your business type at signup.
-                </p>
+          {enterprisePlan ? (
+            <div className="mt-10 rounded-2xl border border-border bg-[#0b1f3a] px-6 py-8 md:px-10 md:py-10 text-white">
+              <div className="flex flex-col md:flex-row md:items-center gap-6 justify-between">
+                <div className="max-w-2xl">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
+                    Enterprise
+                  </p>
+                  <h3 className="mt-2 text-2xl md:text-3xl font-semibold tracking-tight">
+                    Need own server, whitelabel, or custom scale?
+                  </h3>
+                  <p className="mt-3 text-sm md:text-base text-white/70 leading-relaxed">
+                    {enterprisePlan.description} Unlimited users, SSO, custom SLAs, and dedicated
+                    infrastructure for your whole organization.
+                  </p>
+                </div>
+                <Button
+                  asChild
+                  size="lg"
+                  className="rounded-full shrink-0 bg-white text-[#0b1f3a] hover:bg-slate-100"
+                >
+                  <Link href={enterprisePlan.href}>{enterprisePlan.cta}</Link>
+                </Button>
               </div>
-              <Button asChild variant="outline" className="rounded-full shrink-0">
-                <Link href="/mobile-app">Mobile access details</Link>
-              </Button>
             </div>
-          </div>
+          ) : null}
         </Container>
       </Section>
 
@@ -129,7 +146,7 @@ export default function PricingPage() {
         <Container>
           <SectionHeader eyebrow="Compare plans" title="Everything included, side by side" />
           <div className="overflow-x-auto rounded-2xl border border-border bg-white">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/60">
                   <th className="px-5 py-4 text-left font-semibold">Feature</th>
@@ -142,7 +159,7 @@ export default function PricingPage() {
                 {comparisonFeatures.map((row) => (
                   <tr key={row.name} className="border-b border-border last:border-0">
                     <td className="px-5 py-4 font-medium">{row.name}</td>
-                    {(["starter", "professional", "business", "lifetime", "enterprise"] as const).map((key) => {
+                    {(["starter", "business", "lifetime", "enterprise"] as const).map((key) => {
                       const val = row[key];
                       return (
                         <td key={key} className="px-4 py-4 text-center text-muted-foreground text-xs">

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers, cookies } from "next/headers";
-import { Inter, Poppins } from "next/font/google";
+import { Poppins } from "next/font/google";
 import { SiteShell } from "@/components/layout/site-shell";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { siteConfig } from "@/lib/data/site";
@@ -11,18 +11,12 @@ import {
   LOCALE_STORAGE,
 } from "@/i18n";
 import { normalizeCurrency } from "@/lib/currency/config";
-import { getRates } from "@/lib/currency/exchange";
+import { fallbackTable } from "@/lib/currency/exchange";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
 
 const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "600", "700"],
   variable: "--font-poppins",
   display: "swap",
 });
@@ -62,8 +56,14 @@ export async function generateMetadata(): Promise<Metadata> {
     ],
     authors: [{ name: siteConfig.companyName }],
     icons: {
-      icon: [{ url: siteConfig.logo, type: "image/webp" }],
-      apple: [{ url: siteConfig.logo, type: "image/webp" }],
+      icon: [
+        { url: "/favicon.ico", sizes: "32x32" },
+        { url: "/favicon.png", type: "image/png", sizes: "32x32" },
+        { url: "/favicon-48.webp", type: "image/webp", sizes: "48x48" },
+        { url: siteConfig.logo, type: "image/webp", sizes: "512x204" },
+      ],
+      apple: [{ url: "/apple-touch-icon.webp", type: "image/webp", sizes: "180x180" }],
+      shortcut: ["/favicon.ico"],
     },
     alternates: {
       canonical: siteConfig.url,
@@ -102,7 +102,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const { language, currency, country, direction } = await resolveLocale();
-  const table = await getRates();
+  // Don't block HTML on live exchange rates — client refreshes via /api/exchange-rates.
+  const table = fallbackTable();
 
   return (
     <html
@@ -110,7 +111,7 @@ export default async function RootLayout({
       dir={direction}
       data-locale={language}
       data-dir={direction}
-      className={`${inter.variable} ${poppins.variable} h-full antialiased`}
+      className={`${poppins.variable} h-full antialiased`}
     >
       <body
         dir={direction}
@@ -122,7 +123,7 @@ export default async function RootLayout({
           initialCountry={country}
           initialRates={table.rates}
         >
-          <SiteShell>{children}</SiteShell>
+          <SiteShell language={language}>{children}</SiteShell>
         </LocaleProvider>
       </body>
     </html>

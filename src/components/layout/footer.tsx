@@ -122,8 +122,8 @@ export function Footer() {
               <Link href="/terms" className={linkClass}>
                 Terms
               </Link>
-              <Link href="/portal" className={linkClass}>
-                Portal
+              <Link href="/login" className={linkClass}>
+                Login
               </Link>
               <a
                 href={siteConfig.social.linkedin}
@@ -134,28 +134,12 @@ export function Footer() {
                 LinkedIn
               </a>
               <a
-                href={siteConfig.social.twitter}
-                className={linkClass}
-                target="_blank"
-                rel="noreferrer"
-              >
-                X / Twitter
-              </a>
-              <a
                 href={siteConfig.social.youtube}
                 className={linkClass}
                 target="_blank"
                 rel="noreferrer"
               >
                 YouTube
-              </a>
-              <a
-                href={siteConfig.social.github}
-                className={linkClass}
-                target="_blank"
-                rel="noreferrer"
-              >
-                GitHub
               </a>
             </div>
           </div>

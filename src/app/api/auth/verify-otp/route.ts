@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const ip = getClientIp(req);
-    const limited = rateLimit(`verify-otp:${ip}`, 20, 15 * 60_000);
+    const limited = await rateLimit(`verify-otp:${ip}`, 20, 15 * 60_000);
     if (!limited.ok) {
       return NextResponse.json(
         {
@@ -62,7 +62,12 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         message: result.message || "A new verification code was sent.",
-        data: result.data,
+        data: {
+          otpExpiresInMinutes:
+            typeof result.data?.otpExpiresInMinutes === "number"
+              ? result.data.otpExpiresInMinutes
+              : 10,
+        },
       });
     }
 
@@ -87,16 +92,21 @@ export async function POST(req: Request) {
     }
 
     const appUrl = result.data.appUrl || result.data.loginUrl || authConfig.appUrl;
+    const trialDays = result.data.trialDays || authConfig.trialDays;
 
+    // Allowlist only — never return licenseKey, tokens, or raw Engine payload
     return NextResponse.json({
       success: true,
       message:
         result.message ||
-        `Email verified. Your ${result.data.trialDays || authConfig.trialDays}-day trial is ready.`,
+        `Email verified. Your ${trialDays}-day trial is ready.`,
       data: {
-        ...result.data,
         appUrl,
-        trialDays: result.data.trialDays || authConfig.trialDays,
+        loginUrl: result.data.loginUrl || appUrl,
+        trialDays,
+        trialEndsAt: result.data.trialEndsAt || undefined,
+        username: result.data.username || undefined,
+        email: result.data.email || undefined,
         redirectUrl: appUrl,
       },
     });

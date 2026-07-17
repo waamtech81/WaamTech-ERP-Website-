@@ -12,7 +12,7 @@ import { ProductStack } from "@/components/sections/product-stack";
 
 export const metadata: Metadata = {
   title: "Products",
-  description: `Explore ${siteConfig.name} SaaS Core modules: Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing — one module per section with benefits, use cases, and live previews.`,
+  description: `Explore ${siteConfig.name} modules: Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and AI Workspace — benefits, use cases, and live previews.`,
 };
 
 export default function ProductsPage() {
@@ -25,14 +25,14 @@ export default function ProductsPage() {
           <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <Badge variant="accent" className="mb-3">
-                SaaS Core modules
+                Modules & AI
               </Badge>
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
                 Products that stack as you scroll
               </h1>
               <p className="mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
-                One module at a time — what it is, who it&apos;s for, and why it helps. Scroll to
-                stack each card; after the last product, the page scrolls normally again.
+                One module at a time — what it is, who it&apos;s for, and why it helps. Includes the
+                new AI Workspace for Assistant, Document OCR, and smart recommendations.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -76,7 +76,7 @@ export default function ProductsPage() {
               <thead>
                 <tr className="border-b border-border bg-muted/60">
                   <th className="px-5 py-4 text-left font-semibold">Capability</th>
-                  {["Starter", "Professional", "Business", "Enterprise"].map((h) => (
+                  {["Starter", "Business", "Lifetime", "Enterprise"].map((h) => (
                     <th key={h} className="px-5 py-4 text-center font-semibold">
                       {h}
                     </th>
@@ -87,7 +87,7 @@ export default function ProductsPage() {
                 {comparisonFeatures.map((row) => (
                   <tr key={row.name} className="border-b border-border last:border-0">
                     <td className="px-5 py-4 font-medium">{row.name}</td>
-                    {(["starter", "professional", "business", "enterprise"] as const).map((key) => {
+                    {(["starter", "business", "lifetime", "enterprise"] as const).map((key) => {
                       const val = row[key];
                       return (
                         <td key={key} className="px-5 py-4 text-center text-muted-foreground">

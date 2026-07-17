@@ -1,5 +1,3 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Check, Monitor, Smartphone, Tablet } from "lucide-react";
@@ -60,6 +58,7 @@ export function MobileAccessSection() {
                   src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fm=webp&fit=crop&w=1400&q=70"
                   alt="WaamTech mobile and tablet access"
                   fill
+                  quality={70}
                   className="object-cover"
                   sizes="(max-width: 1024px) 100vw, 50vw"
                 />

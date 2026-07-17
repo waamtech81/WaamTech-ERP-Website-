@@ -40,6 +40,12 @@ export type PricingPlan = {
   popular?: boolean;
   cta: string;
   href: string;
+  /** Seat allowance shown on pricing cards */
+  usersIncluded?: number | "unlimited";
+  /** e.g. "Extra users available on demand" */
+  usersNote?: string;
+  /** Modules included in this plan (user-facing names) */
+  modules?: string[];
   features: string[];
 };
 

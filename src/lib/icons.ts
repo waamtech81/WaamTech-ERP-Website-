@@ -2,6 +2,7 @@ import {
   Armchair,
   AppWindow,
   BarChart3,
+  Bot,
   Boxes,
   BrickWall,
   Building,
@@ -57,6 +58,7 @@ const iconMap: Record<string, LucideIcon> = {
   Armchair,
   AppWindow,
   BarChart3,
+  Bot,
   Boxes,
   BrickWall,
   Building,
@@ -125,6 +127,8 @@ const iconMap: Record<string, LucideIcon> = {
   droplets: Droplets,
   briefcase: Boxes,
   coffee: Coffee,
+  bot: Bot,
+  ai: Bot,
 };
 
 export function getIcon(name: string): LucideIcon {

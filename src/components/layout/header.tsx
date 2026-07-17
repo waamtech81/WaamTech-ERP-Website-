@@ -36,7 +36,6 @@ import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { LocaleControls } from "@/components/layout/locale-controls";
 import { useLocale } from "@/components/providers/locale-provider";
-import { getAppLoginUrl } from "@/lib/auth/config";
 
 type DropdownKey = "products" | "industries" | "other" | null;
 
@@ -215,24 +214,22 @@ export function Header() {
     isActive("/erp-features") ||
     isActive("/mobile-app") ||
     isActive("/servers") ||
-    isActive("/plans") ||
     isActive("/docs") ||
     isActive("/knowledge-base") ||
     isActive("/support") ||
     isActive("/faqs") ||
     isActive("/about") ||
     isActive("/blog") ||
-    isActive("/contact") ||
-    isActive("/portal");
+    isActive("/contact");
 
   return (
     <>
       <header
         className={cn(
-          "sticky top-0 z-50 border-b transition-[background-color,backdrop-filter,border-color,box-shadow] duration-300",
+          "sticky top-0 z-50 border-b transition-all duration-300",
           scrolled
-            ? "border-white/40 bg-white/55 backdrop-blur-2xl shadow-[0_8px_30px_rgba(15,23,42,0.06)] supports-[backdrop-filter]:bg-white/45"
-            : "border-transparent bg-white/90 backdrop-blur-sm"
+            ? "border-border/80 bg-white/90 backdrop-blur-xl shadow-[0_1px_0_rgba(15,23,42,0.04)]"
+            : "border-transparent bg-white/80 backdrop-blur-md"
         )}
       >
         <div className="container-site flex h-16 md:h-[4.25rem] items-center justify-between gap-3 lg:gap-4">
@@ -627,9 +624,9 @@ export function Header() {
               aria-label={t("header.login", "Log in")}
               title={t("header.login", "Log in")}
             >
-              <a href={getAppLoginUrl()}>
+              <Link href="/login">
                 <LogIn className="h-4 w-4" />
-              </a>
+              </Link>
             </Button>
             <Button
               asChild
@@ -750,10 +747,10 @@ export function Header() {
 
               <div className="flex gap-2 pt-2 notranslate" translate="no">
                 <Button asChild variant="outline" className="flex-1 rounded-full">
-                  <a href={getAppLoginUrl()}>
+                  <Link href="/login">
                     <LogIn className="h-4 w-4" />
                     {t("header.login", "Log in")}
-                  </a>
+                  </Link>
                 </Button>
                 <Button asChild className="flex-1 rounded-full">
                   <Link href="/signup">{t("header.startTrial", "Start trial")}</Link>

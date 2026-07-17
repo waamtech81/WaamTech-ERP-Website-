@@ -1,22 +1,46 @@
 import { NextResponse } from "next/server";
 import { sendNewsletterSubscriptionNotice } from "@/lib/auth/email";
-
-function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
+import {
+  getClientIp,
+  isSameOrigin,
+  isValidEmail,
+  looksLikeBotPayload,
+  rateLimit,
+  sanitizeText,
+} from "@/lib/security/guards";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => ({}));
-    const email = String(body?.email || "")
-      .trim()
-      .toLowerCase();
-    const honeypot = String(body?.website || "").trim();
+    if (!isSameOrigin(request)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid request origin." },
+        { status: 403 }
+      );
+    }
 
-    // Bot trap
-    if (honeypot) {
+    const ip = getClientIp(request);
+    const limited = await rateLimit(`newsletter:${ip}`, 8, 15 * 60_000);
+    if (!limited.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Too many requests. Please try again later.",
+        },
+        { status: 429, headers: { "Retry-After": String(limited.retryAfter) } }
+      );
+    }
+
+    const body = (await request.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+
+    // Honeypot + minimum form fill time
+    if (looksLikeBotPayload(body)) {
       return NextResponse.json({ success: true, message: "Subscribed." });
     }
+
+    const email = sanitizeText(body?.email, 254).toLowerCase();
 
     if (!email || !isValidEmail(email)) {
       return NextResponse.json(
@@ -25,13 +49,33 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await sendNewsletterSubscriptionNotice({ subscriberEmail: email });
+    const emailLimited = await rateLimit(
+      `newsletter-email:${email}`,
+      3,
+      60 * 60_000
+    );
+    if (!emailLimited.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Too many requests. Please try again later.",
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(emailLimited.retryAfter) },
+        }
+      );
+    }
+
+    const result = await sendNewsletterSubscriptionNotice({
+      subscriberEmail: email,
+    });
 
     if (!result.sent) {
       return NextResponse.json(
         {
           success: false,
-          message: result.error || "Could not complete subscription. Please try again.",
+          message: "Could not complete subscription. Please try again.",
         },
         { status: 502 }
       );

@@ -18,8 +18,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { siteConfig } from "@/lib/data/site";
-import { BrandLogo } from "@/components/shared/brand-logo";
 import {
   getBusinessCategory,
   getBusinessIndustry,
@@ -552,9 +550,6 @@ function SignUpForm() {
         <div className="container-site relative flex justify-center py-16 lg:py-24">
           <Card className="w-full max-w-lg shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
             <CardContent className="px-6 py-10 sm:px-10 text-center">
-              <div className="mx-auto mb-6 flex justify-center">
-                <BrandLogo hideTagline height={34} />
-              </div>
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Mail className="h-7 w-7" />
               </div>
@@ -640,9 +635,6 @@ function SignUpForm() {
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <div className="container-site relative grid gap-8 py-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-10 lg:py-16">
         <div className="max-w-xl lg:sticky lg:top-24">
-          <div className="mb-6 sm:mb-8">
-            <BrandLogo hideTagline height={34} />
-          </div>
           <Badge variant="accent" className="mb-4">
             <Sparkles className="h-3 w-3 mr-1" />
             {authConfig.trialDays}-day free trial
@@ -651,8 +643,9 @@ function SignUpForm() {
             Create your workspace in minutes
           </h1>
           <p className="mt-3 sm:mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
-            Choose your industry and business category, then open {siteConfig.name} —{" "}
-            {hierarchyStats.industries} industries · {hierarchyStats.categories}+ categories.
+            Choose your industry and business category, then verify your email to start
+            your trial — {hierarchyStats.industries} industries · {hierarchyStats.categories}+
+            categories.
           </p>
           <ul className="mt-6 sm:mt-8 space-y-3 text-sm text-muted-foreground">
             {[
@@ -692,10 +685,28 @@ function SignUpForm() {
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl">Sign up</CardTitle>
             <CardDescription>
-              Start free · then continue into the {siteConfig.name} app
+              Start free · verify email · open your workspace
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {selectedIndustry && selectedCategory ? (
+              <div className="mb-5 space-y-4 lg:hidden">
+                <div className="rounded-2xl border border-border bg-slate-50 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Selected profile
+                  </p>
+                  <p className="mt-1 font-semibold text-[#0b1f3a]">
+                    {selectedIndustry.name}
+                    <span className="mx-2 text-muted-foreground font-normal">→</span>
+                    {selectedCategory.name}
+                  </p>
+                </div>
+                <MobileAppProfileCallout
+                  industryId={selectedCategory.id}
+                  industryName={selectedCategory.name}
+                />
+              </div>
+            ) : null}
             <form className="relative space-y-5" onSubmit={onSubmit}>
               {/* Honeypot — hidden from humans, bots often fill it */}
               <div className="absolute -left-[9999px] top-auto h-0 w-0 overflow-hidden opacity-0" aria-hidden>
@@ -1246,9 +1257,9 @@ function SignUpForm() {
             </form>
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Already have an account?{" "}
-              <a href={getAppLoginUrl()} className="text-primary font-medium hover:underline">
-                Open WAAMTO ERP
-              </a>
+              <Link href="/login" className="text-primary font-medium hover:underline">
+                Log in
+              </Link>
             </p>
           </CardContent>
         </Card>

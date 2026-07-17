@@ -1,14 +1,9 @@
-"use client";
-
 import { MapPin, Clock, Phone, Mail } from "lucide-react";
 import { siteConfig } from "@/lib/data/site";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { ContactForm } from "@/components/sections/contact-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ContactPage() {
@@ -36,39 +31,7 @@ export default function ContactPage() {
                   <CardTitle>Send a message</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Full name</Label>
-                        <Input id="name" placeholder="Alex Morgan" required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Work email</Label>
-                        <Input id="email" type="email" placeholder="alex@company.com" required />
-                      </div>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="company">Company</Label>
-                        <Input id="company" placeholder="Acme Operations" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input id="phone" type="tel" placeholder="+1 555 0100" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="subject">Subject</Label>
-                      <Input id="subject" placeholder="Demo request / Enterprise quote" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="message">Message</Label>
-                      <Textarea id="message" placeholder="Tell us about your current systems and goals..." required />
-                    </div>
-                    <Button type="submit" size="lg">
-                      Send message
-                    </Button>
-                  </form>
+                  <ContactForm />
                 </CardContent>
               </Card>
             </AnimateIn>

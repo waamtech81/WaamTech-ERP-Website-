@@ -112,9 +112,10 @@ export function LocaleProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only on mount
   }, []);
 
-  // Refresh USD exchange rates on mount and once per day (master currency = USD).
+  // Refresh USD exchange rates after idle (layout already provides fallback rates).
   useEffect(() => {
     let alive = true;
+    let intervalId = 0;
 
     const pull = () => {
       fetch("/api/exchange-rates")
@@ -129,22 +130,45 @@ export function LocaleProvider({
         });
     };
 
-    pull();
-    const id = window.setInterval(pull, RATES_REFRESH_MS);
+    const start = () => {
+      pull();
+      intervalId = window.setInterval(pull, RATES_REFRESH_MS);
+    };
+
+    let idleId: number | undefined;
+    let timeoutId: number | undefined;
+    if (typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(start, { timeout: 4000 });
+    } else {
+      timeoutId = window.setTimeout(start, 2000);
+    }
+
     return () => {
       alive = false;
-      window.clearInterval(id);
+      if (idleId !== undefined && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      if (intervalId) window.clearInterval(intervalId);
     };
   }, []);
 
-  // SaaS sync: adopt the logged-in user's saved language/currency unless the
-  // visitor has manually overridden it in this browser (priority 1 wins).
+  // SaaS sync only when an auth bearer might exist (Authorization is set by
+  // Core apps). Anonymous visitors already have GeoIP + cookie locale from SSR.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (document.cookie.includes(`${MANUAL_COOKIE}=1`)) {
       manualRef.current = true;
       return;
     }
+    // Skip cold public-localization round-trip for anonymous marketing visitors.
+    // Core-authenticated sessions set Authorization via their own clients.
+    const hasAuthHint =
+      document.cookie.includes("wt_session") ||
+      document.cookie.includes("access_token") ||
+      !!localStorage.getItem("access_token");
+    if (!hasAuthHint) return;
+
     let alive = true;
     fetch("/api/locale", { headers: { Accept: "application/json" } })
       .then((r) => (r.ok ? r.json() : null))

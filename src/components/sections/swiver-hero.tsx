@@ -48,8 +48,8 @@ export function SwiverHero() {
           transition={{ duration: 0.5, delay: 0.12 }}
           className="mx-auto mt-5 max-w-2xl text-base md:text-lg text-muted-foreground leading-relaxed"
         >
-          One modular platform for Inventory, POS, Sales, Purchasing, Finance, CRM, HR, and Manufacturing —
-          configured for your industry in minutes.
+          One modular platform for Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing,
+          and built-in AI — configured for your industry in minutes.
         </motion.p>
 
         <motion.div

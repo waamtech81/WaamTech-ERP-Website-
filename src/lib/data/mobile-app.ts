@@ -322,15 +322,19 @@ export const mobileAppPage = {
     items: [
       {
         plan: "Starter",
-        text: "Full responsive web on all devices. Native app available when your profile recommends it (upgrade path included).",
+        text: "1 user · full responsive web on all devices. Native app available when your profile recommends it.",
       },
       {
         plan: "Professional",
-        text: "Responsive web + native mobile app for recommended & required field profiles.",
+        text: "5 users included (extra on demand) · responsive web + native mobile for recommended field profiles.",
       },
       {
         plan: "Business & above",
-        text: "Responsive web + native mobile app for all field roles, with Maps & WhatsApp where enabled.",
+        text: "10+ users (extra on demand) · responsive web + native mobile for all field roles, with Maps & WhatsApp where enabled.",
+      },
+      {
+        plan: "Lifetime",
+        text: "25 users included (extra on demand) · full modules, AI Workspace, and mobile for field roles.",
       },
       {
         plan: "By business profile",

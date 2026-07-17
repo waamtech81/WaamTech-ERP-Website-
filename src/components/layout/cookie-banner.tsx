@@ -11,7 +11,24 @@ export function CookieBanner() {
 
   useEffect(() => {
     const accepted = localStorage.getItem("waamtech-cookies");
-    if (!accepted) setOpen(true);
+    if (accepted) return;
+
+    const show = () => setOpen(true);
+    let idleId: number | undefined;
+    let timeoutId: number | undefined;
+
+    if (typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(show, { timeout: 3500 });
+    } else {
+      timeoutId = window.setTimeout(show, 1500);
+    }
+
+    return () => {
+      if (idleId !== undefined && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    };
   }, []);
 
   if (!open) return null;

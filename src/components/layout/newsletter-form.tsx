@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ export function NewsletterForm({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const formStartedAt = useRef(Date.now());
   const dark = variant === "dark";
 
   async function onSubmit(e: React.FormEvent) {
@@ -26,7 +27,11 @@ export function NewsletterForm({
       const res = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, website: honeypot }),
+        body: JSON.stringify({
+          email,
+          website: honeypot,
+          _t: formStartedAt.current,
+        }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.success) {
@@ -35,6 +40,7 @@ export function NewsletterForm({
       }
       setMessage(json.message || "Thanks — you are subscribed.");
       setEmail("");
+      formStartedAt.current = Date.now();
     } catch {
       setError("Could not subscribe. Please try again.");
     } finally {

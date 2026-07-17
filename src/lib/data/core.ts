@@ -193,6 +193,30 @@ export const coreModules = [
       ],
     },
   },
+  {
+    id: "ai",
+    name: "AI Workspace",
+    short: "AI",
+    tagline: "Ask, extract, and decide — on your own data",
+    description:
+      "AI Assistant, Document OCR, recommendations, and analytics insights that use your live ERP modules — private and local, without public cloud AI keys.",
+    icon: "Bot",
+    highlights: ["AI Assistant", "Document OCR", "Recommendations", "Private / local"],
+    preview: {
+      title: "AI suggestions today",
+      kpis: [
+        { label: "Asks answered", value: "128", tone: "good" },
+        { label: "Docs scanned", value: "34", tone: "neutral" },
+        { label: "Reorders", value: "12", tone: "warn" },
+        { label: "Accepted", value: "89%", tone: "good" },
+      ],
+      rows: [
+        { ref: "REC-01", name: "Reorder USB-C Hub", qty: "Qty 80", status: "Suggested" },
+        { ref: "DOC-44", name: "Vendor invoice OCR", qty: "Ready", status: "Review" },
+        { ref: "ASK-19", name: "Top overdue invoices", qty: "Open", status: "Answered" },
+      ],
+    },
+  },
 ] as const;
 
 export const coreBusinesses = [
@@ -218,24 +242,28 @@ export const coreBusinesses = [
 
 export const coreCapabilities = [
   {
-    title: "Business Profile Engine",
-    description: "Pick your industry and WaamTech configures modules, feature packs, workflows, KPIs, and POS layouts automatically.",
+    title: "Industry-ready setup",
+    description:
+      "Pick your industry and WAAMTO configures modules, feature packs, workflows, KPIs, and POS layouts automatically.",
     icon: "Layers",
   },
   {
-    title: "Feature Packs",
-    description: "Add batch tracking, expiry, prescription, kitchen, table service, route delivery, rentals, and more — without rebuilding your stack.",
+    title: "Feature packs",
+    description:
+      "Add batch tracking, expiry, prescription, kitchen, table service, route delivery, rentals, and more — without rebuilding your stack.",
     icon: "Sparkles",
   },
   {
-    title: "Modular Clean Core",
-    description: "Platform stays clean. Business power lives in installable modules — Inventory, POS, Sales, Finance, HR, Manufacturing, and more.",
+    title: "Install only what you need",
+    description:
+      "Start lean with Inventory, POS, and Sales — then add Finance, CRM, HR, Manufacturing, AI, and more as you grow.",
     icon: "Boxes",
   },
   {
-    title: "Approvals & Automation",
-    description: "Workflow engine, alerts, low-stock rules, till variance checks, and audit-ready activity trails out of the box.",
-    icon: "Zap",
+    title: "Built-in AI Workspace",
+    description:
+      "Assistant, Document OCR, and smart recommendations across your modules — private on your stack, no public AI keys.",
+    icon: "Bot",
   },
 ] as const;
 

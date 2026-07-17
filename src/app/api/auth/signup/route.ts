@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     }
 
     const ip = getClientIp(req);
-    const limited = rateLimit(`signup:${ip}`, 5, 15 * 60_000);
+    const limited = await rateLimit(`signup:${ip}`, 5, 15 * 60_000);
     if (!limited.ok) {
       return NextResponse.json(
         {
@@ -122,7 +122,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const emailLimited = rateLimit(`signup-email:${email}`, 3, 60 * 60_000);
+    const emailLimited = await rateLimit(`signup-email:${email}`, 3, 60 * 60_000);
     if (!emailLimited.ok) {
       return NextResponse.json(
         {

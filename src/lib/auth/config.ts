@@ -1,5 +1,5 @@
 export const authConfig = {
-  /** WaamTech SaaS Core API base (include /api) — server-only preferred */
+  /** Optional SaaS Core API (locale + optional ERP portal widgets) */
   apiUrl:
     process.env.WAAMTECH_API_URL ||
     process.env.API_URL ||
@@ -40,18 +40,16 @@ export function getAppLoginUrl(opts?: {
   });
 }
 
-/** @deprecated Login happens on app.waamto.com — handoff kept for legacy integrations only */
-export function buildHandoffUrl(payload: {
+/**
+ * @deprecated Unused — do not wire into login. Putting tokens in a URL hash
+ * is unsafe (referrer leakage, browser history). Quarantined intentionally.
+ */
+export function buildHandoffUrl(_payload: {
   accessToken: string;
   refreshToken: string;
   user: unknown;
-}) {
-  const base = authConfig.appUrl.replace(/\/+$/, "");
-  const user = encodeURIComponent(JSON.stringify(payload.user ?? {}));
-  const hash = new URLSearchParams({
-    accessToken: payload.accessToken,
-    refreshToken: payload.refreshToken,
-    user,
-  }).toString();
-  return `${base}/auth/handoff#${hash}`;
+}): never {
+  throw new Error(
+    "buildHandoffUrl is disabled for security. Use HttpOnly cookie sessions only."
+  );
 }

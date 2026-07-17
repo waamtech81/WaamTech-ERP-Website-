@@ -162,6 +162,22 @@ const details: Record<
     imageAlt: "Manufacturing factory floor and production",
     accent: "#ea580c",
   },
+  ai: {
+    about:
+      "An enterprise AI workspace that understands your installed modules — chat for answers, OCR for documents, and recommendations you can accept or reject.",
+    forWhom:
+      "Owners and managers who want faster decisions, less manual data entry, and insights without hiring a data team — while keeping data private.",
+    benefits: [
+      "Ask natural questions across Inventory, Sales, Finance & CRM",
+      "Turn invoices and receipts into ERP-ready data with OCR",
+      "Get reorder, sales, and follow-up recommendations",
+      "Keep AI local — no public cloud AI keys required",
+    ],
+    image:
+      "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fm=webp&fit=crop&w=1400&q=70",
+    imageAlt: "AI assistant and analytics workspace",
+    accent: "#2563eb",
+  },
 };
 
 const moduleById = Object.fromEntries(coreModules.map((m) => [m.id, m]));

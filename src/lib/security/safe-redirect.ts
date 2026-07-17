@@ -1,0 +1,93 @@
+/**
+ * Open-redirect protection for post-login / middleware redirects.
+ * Only same-app relative paths on an allowlist are accepted.
+ */
+
+const DEFAULT_FALLBACK = "/portal";
+
+/** Paths a logged-in user may be sent to after auth. */
+const INTERNAL_PATH_ALLOWLIST: RegExp[] = [
+  /^\/portal(?:\/[\w.-]+)*\/?$/,
+  /^\/login\/?$/,
+  /^\/signup\/?$/,
+  /^\/forgot-password\/?$/,
+  /^\/reset-password\/?$/,
+];
+
+function isDangerousScheme(value: string): boolean {
+  const lower = value.toLowerCase();
+  return (
+    lower.startsWith("javascript:") ||
+    lower.startsWith("data:") ||
+    lower.startsWith("vbscript:") ||
+    lower.startsWith("blob:")
+  );
+}
+
+/**
+ * Returns a safe internal path, or `fallback` when the candidate is external,
+ * protocol-relative, absolute, encoded, or outside the allowlist.
+ */
+export function safeInternalPath(
+  candidate: string | null | undefined,
+  fallback: string = DEFAULT_FALLBACK
+): string {
+  if (candidate == null) return fallback;
+
+  let raw = String(candidate).trim();
+  if (!raw) return fallback;
+
+  // Decode once to catch %2F%2Fevil.com and similar
+  try {
+    raw = decodeURIComponent(raw);
+  } catch {
+    return fallback;
+  }
+  raw = raw.trim();
+
+  if (
+    !raw.startsWith("/") ||
+    raw.startsWith("//") ||
+    raw.includes("://") ||
+    raw.includes("\\") ||
+    isDangerousScheme(raw) ||
+    /[\u0000-\u001F\u007F]/.test(raw)
+  ) {
+    return fallback;
+  }
+
+  // Normalize via URL parser (rejects host injection on relative paths)
+  let pathname: string;
+  try {
+    const url = new URL(raw, "https://wt.internal");
+    if (url.origin !== "https://wt.internal") return fallback;
+    if (url.username || url.password || url.host !== "wt.internal") {
+      return fallback;
+    }
+    pathname = url.pathname;
+  } catch {
+    return fallback;
+  }
+
+  if (!pathname.startsWith("/") || pathname.startsWith("//") || pathname.includes("//")) {
+    return fallback;
+  }
+
+  if (!INTERNAL_PATH_ALLOWLIST.some((re) => re.test(pathname))) {
+    return fallback;
+  }
+
+  return pathname;
+}
+
+/** Query keys that must never be used as external redirects. */
+export const REDIRECT_QUERY_KEYS = [
+  "next",
+  "redirect",
+  "returnUrl",
+  "return_url",
+  "callback",
+  "callbackUrl",
+  "url",
+  "continue",
+] as const;

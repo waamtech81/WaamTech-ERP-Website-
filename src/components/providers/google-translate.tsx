@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { GOOGLE_TRANSLATE_LANGUAGES } from "@/lib/google-translate";
+import {
+  ensureGoogleTranslateLoaded,
+  GOOGLE_TRANSLATE_LANGUAGES,
+  readGoogTransLang,
+} from "@/lib/google-translate";
+import type { UiLanguage } from "@/i18n";
 
 declare global {
   interface Window {
@@ -26,16 +31,14 @@ declare global {
   }
 }
 
-const SCRIPT_ID = "google-translate-script";
 const ELEMENT_ID = "google_translate_element";
 
-function mountTranslateElement() {
+export function mountTranslateElement() {
   if (typeof window === "undefined") return;
   const TE = window.google?.translate?.TranslateElement;
   if (!TE) return;
   const host = document.getElementById(ELEMENT_ID);
   if (!host) return;
-  // Avoid double-mounting the widget into the same node.
   if (host.querySelector(".goog-te-combo") || host.childElementCount > 0) return;
 
   // eslint-disable-next-line no-new
@@ -52,38 +55,25 @@ function mountTranslateElement() {
 }
 
 /**
- * Boots the official Google Website Translator (hidden).
- * LanguageSwitcher drives it via .goog-te-combo / googtrans cookie / #googtrans hash.
- *
- * Important: React Strict Mode remounts effects in dev. We must always
- * re-register the init callback and init immediately if the script already loaded.
+ * Host node for Google Translate. Script loads only when needed
+ * (non-English locale, existing googtrans cookie, or language switch).
  */
-export function GoogleTranslateBoot() {
+export function GoogleTranslateBoot({ language }: { language: UiLanguage }) {
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    const needsNow = language !== "en" || !!readGoogTransLang();
+    if (!needsNow) return;
 
-    window.googleTranslateElementInit = () => {
-      mountTranslateElement();
+    const run = () => {
+      void ensureGoogleTranslateLoaded().then(() => mountTranslateElement());
     };
 
-    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-    if (existing) {
-      mountTranslateElement();
-      return;
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(run, { timeout: 2500 });
+      return () => window.cancelIdleCallback(id);
     }
-
-    const script = document.createElement("script");
-    script.id = SCRIPT_ID;
-    script.src =
-      "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
-    script.async = true;
-    script.onerror = () => {
-      console.warn(
-        "[i18n] Google Translate failed to load. Check network / adblock / CSP."
-      );
-    };
-    document.body.appendChild(script);
-  }, []);
+    const t = window.setTimeout(run, 1200);
+    return () => window.clearTimeout(t);
+  }, [language]);
 
   return (
     <div

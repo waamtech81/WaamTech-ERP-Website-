@@ -32,10 +32,40 @@ export type PricingPlan = {
   description: string;
   monthlyPrice: number | null;
   yearlyPrice: number | null;
+  originalMonthlyPrice?: number | null;
+  originalYearlyPrice?: number | null;
+  lifetimePrice?: number | null;
+  launchDiscount?: number;
+  badge?: string;
   popular?: boolean;
   cta: string;
   href: string;
   features: string[];
+};
+
+export type DeploymentOption = {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  highlights: string[];
+  cta: string;
+  href: string;
+  featured?: boolean;
+};
+
+export type ServerOffering = {
+  id: string;
+  name: string;
+  tagline: string;
+  description: string;
+  icon: string;
+  image: string;
+  priceFrom: number;
+  originalPrice?: number;
+  features: string[];
+  href: string;
+  external?: boolean;
 };
 
 export type BlogPost = {

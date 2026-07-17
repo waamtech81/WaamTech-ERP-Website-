@@ -4,7 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { coreCapabilities, homeStats } from "@/lib/data/core";
-import { industriesServing } from "@/lib/data/industries";
+import {
+  getCategoriesForIndustry,
+  getFeaturedIndustries,
+  getIndustryLucideIcon,
+  getIndustryMedia,
+  hierarchyStats,
+} from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
 import { Container, Section } from "@/components/shared/section";
 import { AnimateIn } from "@/components/shared/animate-in";
@@ -12,8 +18,8 @@ import { Counter } from "@/components/shared/counter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { testimonials, pricingPlans } from "@/lib/data/site";
-import { formatCurrency } from "@/lib/utils";
+import { testimonials, pricingPlans, siteConfig } from "@/lib/data/site";
+import { PricingCards } from "@/components/sections/pricing-cards";
 
 export function StatsBand() {
   return (
@@ -47,7 +53,7 @@ export function CapabilitiesSection() {
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
             Business profiles, feature packs, and installable modules — the architecture that makes
-            WaamTech adaptable without becoming messy.
+            {siteConfig.name} adaptable without becoming messy.
           </p>
         </div>
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
@@ -76,36 +82,38 @@ export function CapabilitiesSection() {
 }
 
 export function BusinessesSection() {
-  const featured = industriesServing.slice(0, 8);
+  const featured = getFeaturedIndustries().featured;
 
   return (
     <Section muted>
       <Container>
-        <div className="mx-auto mb-12 max-w-3xl text-center">
+        <div className="mx-auto mb-10 md:mb-12 max-w-3xl text-center">
           <p className="mb-3 text-sm font-medium text-primary tracking-wide uppercase">
             Industries we serve
           </p>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
-            {industriesServing.length}+ businesses from our SaaS Core
+            {hierarchyStats.industries} industries · {hierarchyStats.categories}+ business categories
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
-            Real industry profiles with modules, feature packs, workflows, and KPIs — not generic
-            marketing labels.
+            Click an industry to explore its business categories — the same hierarchy used in SaaS
+            Core signup and provisioning.
           </p>
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {featured.map((biz, i) => {
-            const Icon = getIcon(biz.icon);
+            const Icon = getIcon(getIndustryLucideIcon(biz));
+            const media = getIndustryMedia(biz.id);
+            const count = getCategoriesForIndustry(biz.id).length;
             return (
               <AnimateIn key={biz.id} delay={(i % 4) * 0.04}>
                 <Link href={`/industries/${biz.id}`} className="group block h-full">
                   <Card className="h-full overflow-hidden hover:-translate-y-1.5 hover:shadow-[0_16px_40px_rgba(15,23,42,0.1)] hover:border-primary/20 transition-all duration-500">
                     <div className="relative aspect-[16/10] overflow-hidden">
                       <Image
-                        src={biz.image}
-                        alt={biz.imageAlt}
+                        src={media.image}
+                        alt={media.imageAlt}
                         fill
-                        sizes="(max-width: 768px) 100vw, 25vw"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         className="object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/70 to-transparent" />
@@ -115,14 +123,17 @@ export function BusinessesSection() {
                       >
                         <Icon className="h-4 w-4" />
                       </div>
+                      <Badge className="absolute right-3 top-3 bg-white/90 text-[#0b1f3a] hover:bg-white text-[10px]">
+                        Featured
+                      </Badge>
                       <p className="absolute bottom-3 left-3 right-3 text-sm font-semibold text-white">
                         {biz.name}
                       </p>
                     </div>
                     <CardContent className="p-4">
-                      <p className="text-xs font-medium text-primary mb-1 line-clamp-1">{biz.headline}</p>
+                      <p className="text-xs font-medium text-primary mb-1">{count} categories</p>
                       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                        {biz.short}
+                        {biz.description}
                       </p>
                     </CardContent>
                   </Card>
@@ -131,7 +142,7 @@ export function BusinessesSection() {
             );
           })}
         </div>
-        <div className="mt-10 text-center">
+        <div className="mt-8 md:mt-10 text-center">
           <Button asChild variant="outline" className="rounded-full">
             <Link href="/industries">
               Explore all industries
@@ -150,7 +161,7 @@ export function SocialProofSection() {
       <Container>
         <div className="mx-auto mb-12 max-w-3xl text-center">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
-            Operators trust WaamTech for clarity
+            Operators trust {siteConfig.name} for clarity
           </h2>
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
@@ -186,66 +197,32 @@ export function SocialProofSection() {
 }
 
 export function PricingTeaser() {
-  const plans = pricingPlans.slice(0, 3);
+  const plans = pricingPlans.filter((p) => p.id !== "enterprise").slice(0, 4);
 
   return (
     <Section muted>
       <Container>
-        <div className="mx-auto mb-12 max-w-3xl text-center">
-          <p className="mb-3 text-sm font-medium text-primary tracking-wide uppercase">Pricing</p>
+        <div className="mx-auto mb-8 md:mb-10 max-w-3xl text-center">
+          <Badge variant="accent" className="mb-3">50% Launch Discount</Badge>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
-            Subscribe to WaamTech from
+            Affordable ERP from PKR 2,500/mo
           </h2>
-          <p className="mt-3 text-muted-foreground">
-            Transparent plans that scale with users, modules, and locations.
+          <p className="mt-3 text-muted-foreground leading-relaxed">
+            Market-aligned pricing with lifetime license & deployment options. Start your 14-day free trial.
           </p>
         </div>
-        <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">
-          {plans.map((plan, i) => (
-            <AnimateIn key={plan.id} delay={i * 0.06}>
-              <Card
-                className={`h-full ${
-                  plan.popular ? "border-primary shadow-[0_16px_40px_rgba(37,99,235,0.1)]" : ""
-                }`}
-              >
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>{plan.name}</CardTitle>
-                    {plan.popular ? <Badge>Popular</Badge> : null}
-                  </div>
-                  <p className="pt-2">
-                    <span className="text-3xl font-semibold tracking-tight">
-                      {plan.yearlyPrice ? formatCurrency(plan.yearlyPrice) : "Custom"}
-                    </span>
-                    {plan.yearlyPrice ? (
-                      <span className="text-sm text-muted-foreground"> /user/mo</span>
-                    ) : null}
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <ul className="mb-6 space-y-2">
-                    {plan.features.slice(0, 4).map((f) => (
-                      <li key={f} className="flex gap-2 text-sm text-muted-foreground">
-                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    asChild
-                    className="w-full rounded-full"
-                    variant={plan.popular ? "default" : "outline"}
-                  >
-                    <Link href={plan.href}>{plan.cta}</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </AnimateIn>
-          ))}
-        </div>
-        <div className="mt-8 text-center">
+        <PricingCards
+          plans={plans}
+          yearly={true}
+          compact
+          columns="sm:grid-cols-2 xl:grid-cols-4"
+        />
+        <div className="mt-8 md:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Button asChild variant="link">
             <Link href="/pricing">Compare all plans →</Link>
+          </Button>
+          <Button asChild variant="outline" className="rounded-full" size="sm">
+            <Link href="/servers">Servers & deployment</Link>
           </Button>
         </div>
       </Container>
@@ -262,10 +239,10 @@ export function SoftCTA() {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_70%_20%,rgba(37,99,235,0.35),transparent_60%)]" />
             <div className="relative">
               <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-balance">
-                Ready to run your business on WaamTech?
+                Ready to run your business on {siteConfig.name}?
               </h2>
               <p className="mt-4 text-white/70 text-lg max-w-xl mx-auto">
-                Start free, pick your business profile, and activate only the modules you need.
+                Start free, pick your industry and business category, and activate only the modules you need.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
                 <Button

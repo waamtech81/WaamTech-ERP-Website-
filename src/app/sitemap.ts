@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { blogPosts, siteConfig } from "@/lib/data/site";
-import { industriesServing } from "@/lib/data/industries";
+import { businessIndustries } from "@/lib/data/business-hierarchy";
 
 const routes = [
   "",
@@ -9,6 +9,8 @@ const routes = [
   "/industries",
   "/pricing",
   "/plans",
+  "/servers",
+  "/mobile-app",
   "/signup",
   "/login",
   "/portal",
@@ -38,7 +40,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly" as const,
       priority: 0.5,
     })),
-    ...industriesServing.map((industry) => ({
+    ...businessIndustries.map((industry) => ({
       url: `${siteConfig.url}/industries/${industry.id}`,
       lastModified: now,
       changeFrequency: "monthly" as const,

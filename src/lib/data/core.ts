@@ -240,8 +240,8 @@ export const coreCapabilities = [
 ] as const;
 
 export const homeStats = [
-  { label: "Industries served", value: 30, suffix: "+" },
-  { label: "Core modules", value: 12, suffix: "" },
-  { label: "Feature packs", value: 40, suffix: "+" },
-  { label: "Setup to go-live", value: 14, suffix: " days" },
+  { label: "Working since", value: 2012, suffix: "" },
+  { label: "Industries", value: 17, suffix: "" },
+  { label: "Business categories", value: 100, suffix: "+" },
+  { label: "Free trial", value: 14, suffix: " days" },
 ] as const;

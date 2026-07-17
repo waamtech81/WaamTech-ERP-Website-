@@ -1,0 +1,115 @@
+import { siteConfig } from "@/lib/data/site";
+
+type SendResult = { sent: boolean; mode: "resend" | "console" | "none"; error?: string };
+
+function siteBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    siteConfig.url ||
+    "http://localhost:3000"
+  ).replace(/\/+$/, "");
+}
+
+export function buildVerifyUrl(token: string) {
+  return `${siteBaseUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+}
+
+function verificationHtml(name: string, verifyUrl: string) {
+  return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f7fb;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+          <tr>
+            <td style="background:#0b1f3a;padding:24px 28px;">
+              <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.02em;">${siteConfig.name}</div>
+              <div style="color:#93c5fd;font-size:13px;margin-top:4px;">${siteConfig.productLine} by ${siteConfig.companyName}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px;">
+              <h1 style="margin:0 0 12px;font-size:22px;color:#0b1f3a;">Verify your email</h1>
+              <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.6;">
+                Hi ${name || "there"}, thanks for creating a ${siteConfig.name} account.
+                Please confirm this email address to activate your workspace and start your free trial.
+              </p>
+              <a href="${verifyUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:999px;">
+                Verify email address
+              </a>
+              <p style="margin:20px 0 0;color:#64748b;font-size:12px;line-height:1.6;">
+                This link expires in 24 hours. If you did not sign up, you can ignore this email.
+              </p>
+              <p style="margin:16px 0 0;color:#94a3b8;font-size:11px;word-break:break-all;">
+                ${verifyUrl}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+export async function sendVerificationEmail(opts: {
+  to: string;
+  name: string;
+  token: string;
+}): Promise<SendResult> {
+  const verifyUrl = buildVerifyUrl(opts.token);
+  const subject = `Verify your ${siteConfig.name} email`;
+  const html = verificationHtml(opts.name, verifyUrl);
+  const text = `Hi ${opts.name || "there"},\n\nVerify your ${siteConfig.name} email:\n${verifyUrl}\n\nThis link expires in 24 hours.`;
+
+  const resendKey = process.env.RESEND_API_KEY;
+  const from =
+    process.env.EMAIL_FROM ||
+    process.env.RESEND_FROM ||
+    `${siteConfig.name} <noreply@${siteConfig.companyName.toLowerCase()}.com>`;
+
+  if (resendKey) {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          to: [opts.to],
+          subject,
+          html,
+          text,
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        return { sent: false, mode: "resend", error: errText || `Resend HTTP ${res.status}` };
+      }
+      return { sent: true, mode: "resend" };
+    } catch (error) {
+      return {
+        sent: false,
+        mode: "resend",
+        error: error instanceof Error ? error.message : "Resend failed",
+      };
+    }
+  }
+
+  // Dev / fallback: log link so local testing still works without SMTP
+  if (process.env.NODE_ENV !== "production" || process.env.ALLOW_CONSOLE_EMAIL === "1") {
+    console.info(`[${siteConfig.name}] Verification email for ${opts.to}: ${verifyUrl}`);
+    return { sent: true, mode: "console" };
+  }
+
+  return {
+    sent: false,
+    mode: "none",
+    error: "Email provider not configured. Set RESEND_API_KEY and EMAIL_FROM.",
+  };
+}

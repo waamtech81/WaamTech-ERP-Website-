@@ -20,7 +20,7 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: `${siteConfig.name} | Enterprise Business Software`,
+    default: `${siteConfig.name} | ${siteConfig.productLine}`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
@@ -30,21 +30,22 @@ export const metadata: Metadata = {
     "inventory management",
     "POS",
     "CRM",
+    "WAAMTO",
     "WaamTech",
     "business software",
   ],
-  authors: [{ name: siteConfig.fullName }],
+  authors: [{ name: siteConfig.companyName }],
   openGraph: {
     type: "website",
     locale: "en_US",
     url: siteConfig.url,
-    siteName: siteConfig.fullName,
-    title: `${siteConfig.name} | Enterprise Business Software`,
+    siteName: siteConfig.name,
+    title: `${siteConfig.name} | ${siteConfig.productLine}`,
     description: siteConfig.description,
   },
   twitter: {
     card: "summary_large_image",
-    title: `${siteConfig.name} | Enterprise Business Software`,
+    title: `${siteConfig.name} | ${siteConfig.productLine}`,
     description: siteConfig.description,
   },
   robots: {

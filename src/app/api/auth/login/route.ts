@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 import { authConfig, normalizeApiBase } from "@/lib/auth/config";
+import {
+  getClientIp,
+  isSameOrigin,
+  looksLikeBotPayload,
+  rateLimit,
+  sanitizeText,
+} from "@/lib/security/guards";
 
 type ApiEnvelope = {
   success?: boolean;
@@ -9,8 +16,36 @@ type ApiEnvelope = {
 
 export async function POST(req: Request) {
   try {
+    if (!isSameOrigin(req)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid request origin." },
+        { status: 403 }
+      );
+    }
+
+    const ip = getClientIp(req);
+    const limited = rateLimit(`login:${ip}`, 12, 15 * 60_000);
+    if (!limited.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Too many login attempts. Try again in ${limited.retryAfter}s.`,
+        },
+        { status: 429, headers: { "Retry-After": String(limited.retryAfter) } }
+      );
+    }
+
     const body = await req.json();
-    const { username, password } = body || {};
+
+    if (looksLikeBotPayload(body || {})) {
+      return NextResponse.json(
+        { success: false, message: "Login failed. Check your credentials." },
+        { status: 401 }
+      );
+    }
+
+    const username = sanitizeText(body?.username || body?.email, 254);
+    const password = String(body?.password || "");
 
     if (!username || !password) {
       return NextResponse.json(
@@ -31,7 +66,7 @@ export async function POST(req: Request) {
     try {
       json = (await res.json()) as ApiEnvelope;
     } catch {
-      json = { success: false, message: "Invalid response from WaamTech API." };
+      json = { success: false, message: "Invalid response from login service." };
     }
 
     if (!json.success) {
@@ -39,7 +74,6 @@ export async function POST(req: Request) {
         {
           success: false,
           message: json.message || "Login failed. Check your credentials.",
-          data: json.data,
         },
         { status: res.status || 401 }
       );
@@ -47,13 +81,18 @@ export async function POST(req: Request) {
 
     const data = json.data || {};
 
-    // Security challenge (2FA) — send back to client to show OTP step
     if (data.requiresSecurity) {
       return NextResponse.json({
         success: true,
         requiresSecurity: true,
-        message: (data.security as { message?: string })?.message || "Security verification required.",
-        data,
+        message:
+          (data.security as { message?: string })?.message ||
+          "Security verification required.",
+        data: {
+          requiresSecurity: true,
+          // Avoid leaking full security challenge internals to the browser
+          challenge: (data.security as { type?: string })?.type || "otp",
+        },
       });
     }
 
@@ -71,16 +110,11 @@ export async function POST(req: Request) {
         expiresIn: data.expiresIn,
       },
     });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to reach WaamTech login service.";
+  } catch {
     return NextResponse.json(
       {
         success: false,
-        message:
-          message.includes("fetch") || message.includes("ECONNREFUSED")
-            ? "Cannot connect to WaamTech API. Make sure the SaaS Core API is running, or set WAAMTECH_API_URL."
-            : message,
+        message: "Login service temporarily unavailable. Please try again.",
       },
       { status: 502 }
     );

@@ -1,0 +1,37 @@
+---
+description: Image standards — WebP, low file size, sharp quality for a faster site
+alwaysApply: true
+---
+
+# Image standards (WebP)
+
+Whenever you add, replace, or reference images on this website, follow these rules:
+
+## Required format
+- Use **WebP** only (`.webp` for local assets; `fm=webp` for Unsplash/CDN URLs).
+- Do not add new JPG/PNG marketing images unless converting them to WebP first.
+
+## File size & quality
+- Prefer **low file size** with **sharp / good visual quality**.
+- Target quality around **70** (acceptable range 65–75).
+- Cap width by use case:
+  - Thumbnails / cards: ~280–640px
+  - Section / content: ~1000–1200px
+  - Heroes: ~1400–1600px (not larger unless needed for retina)
+
+## How to add images in code
+- Use `next/image` with `quality={70}` (or omit if config default covers it).
+- For remote Unsplash URLs, use helpers from `@/lib/images`:
+  - `optimizeImageUrl(url)` — general
+  - `thumbnailUrl(url)` — small thumbs
+  - `heroImageUrl(url)` — large heroes
+- Unsplash query pattern:
+  `?auto=format&fm=webp&fit=crop&w={WIDTH}&q=70`
+
+## Local assets
+- Store under `public/` as `.webp`.
+- Optimize before commit (Sharp / Squoosh / similar).
+- Avoid shipping multi‑MB originals.
+
+## Goal
+Faster page loads — every image should be WebP, compressed, and sized for its display slot.

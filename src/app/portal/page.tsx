@@ -14,6 +14,7 @@ import { AnimateIn } from "@/components/shared/animate-in";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getAppLoginUrl } from "@/lib/auth/config";
 
 export const metadata: Metadata = {
   title: "Customer Portal",
@@ -44,7 +45,7 @@ export default function PortalPage() {
               description="A clean preview of the portal experience — manage subscriptions, invoices, tickets, and downloads in one place."
             />
             <Button asChild size="lg" className="shrink-0 self-start">
-              <Link href="/login">Open portal</Link>
+              <a href={getAppLoginUrl()}>Open WAAMTO App</a>
             </Button>
           </div>
         </Container>

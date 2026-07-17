@@ -8,6 +8,7 @@ import {
   PricingTeaser,
   SoftCTA,
 } from "@/components/sections/home-swiver";
+import { MobileAccessSection } from "@/components/sections/mobile-access-section";
 
 export default function HomePage() {
   return (
@@ -16,6 +17,7 @@ export default function HomePage() {
       <ModuleShowcase />
       <StatsBand />
       <CapabilitiesSection />
+      <MobileAccessSection />
       <BusinessesSection />
       <SocialProofSection />
       <PricingTeaser />

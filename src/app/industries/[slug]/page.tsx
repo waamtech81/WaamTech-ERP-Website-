@@ -2,344 +2,342 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Layers, Monitor, ShoppingCart, Smartphone } from "lucide-react";
 import {
-  getIndustry,
-  industriesServing,
-  industryCategories,
-} from "@/lib/data/industries";
-import { getIndustryDetails } from "@/lib/data/industry-details";
+  businessIndustries,
+  getBusinessCategory,
+  getBusinessIndustry,
+  getCategoriesForIndustry,
+  getFeaturedIndustries,
+  getIndustryForCategory,
+  getIndustryLucideIcon,
+  getIndustryMedia,
+  hierarchyStats,
+  resolveBusinessCategoryId,
+} from "@/lib/data/business-hierarchy";
+import { getIndustry as getLegacyIndustry, industriesServing } from "@/lib/data/industries";
 import { getIcon } from "@/lib/icons";
+import { siteConfig } from "@/lib/data/site";
 import { Container, Section } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { authConfig } from "@/lib/auth/config";
 
 type Props = { params: Promise<{ slug: string }> };
 
+function resolveIndustrySlug(slug: string) {
+  const direct = getBusinessIndustry(slug);
+  if (direct) return { industry: direct, highlightCategoryId: null as string | null };
+
+  const categoryId = resolveBusinessCategoryId(slug);
+  const category = getBusinessCategory(categoryId);
+  if (category) {
+    const industry = getIndustryForCategory(category.id);
+    if (industry) return { industry, highlightCategoryId: category.id };
+  }
+
+  // Legacy marketing profile → parent industry if possible
+  const legacy = getLegacyIndustry(slug);
+  if (legacy) {
+    const mapped = resolveBusinessCategoryId(slug);
+    const industry = getIndustryForCategory(mapped);
+    if (industry) return { industry, highlightCategoryId: mapped };
+  }
+
+  return null;
+}
+
 export function generateStaticParams() {
-  return industriesServing.map((i) => ({ slug: i.id }));
+  const industryParams = businessIndustries.map((i) => ({ slug: i.id }));
+  const legacyParams = industriesServing.map((i) => ({ slug: i.id }));
+  const seen = new Set<string>();
+  return [...industryParams, ...legacyParams].filter((p) => {
+    if (seen.has(p.slug)) return false;
+    seen.add(p.slug);
+    return true;
+  });
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const industry = getIndustry(slug);
-  if (!industry) return { title: "Industry" };
+  const resolved = resolveIndustrySlug(slug);
+  if (!resolved) return { title: "Industry" };
+
+  const { industry } = resolved;
+  const media = getIndustryMedia(industry.id);
+  const categories = getCategoriesForIndustry(industry.id);
+  const title = `${industry.name} ERP Software — ${categories.length} Business Categories`;
+  const description = `${industry.description} Configure ${siteConfig.name} with ${categories.length} business categories under ${industry.name}.`;
+  const url = `${siteConfig.url}/industries/${industry.id}`;
+
   return {
-    title: `${industry.name} ERP Software`,
-    description: industry.description,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      type: "website",
+      images: [{ url: media.image, alt: media.imageAlt }],
+    },
   };
 }
 
 export default async function IndustryDetailPage({ params }: Props) {
   const { slug } = await params;
-  const industry = getIndustry(slug);
-  if (!industry) notFound();
+  const resolved = resolveIndustrySlug(slug);
+  if (!resolved) notFound();
 
-  const Icon = getIcon(industry.icon);
-  const details = getIndustryDetails(industry.id);
-  const categoryLabel =
-    industryCategories.find((c) => c.id === industry.category)?.label ?? industry.category;
-  const related = industriesServing
-    .filter((i) => i.category === industry.category && i.id !== industry.id)
-    .slice(0, 3);
+  const { industry, highlightCategoryId } = resolved;
+  const Icon = getIcon(getIndustryLucideIcon(industry));
+  const media = getIndustryMedia(industry.id);
+  const categories = getCategoriesForIndustry(industry.id);
+  const related = getFeaturedIndustries()
+    .all.filter((i) => i.id !== industry.id)
+    .slice(0, 4);
   const trialDays = authConfig.trialDays;
+
+  const posEnabledCount = categories.filter((c) => c.pos_mode !== "disabled").length;
+  const mobileCount = categories.filter((c) => c.mobile_mode === "required").length;
+  const suiteLabel = industry.suite
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (m) => m.toUpperCase());
 
   return (
     <>
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <Image
-            src={industry.image}
-            alt={industry.imageAlt}
-            fill
-            priority
-            className="object-cover"
-            sizes="100vw"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0b1f3a]/92 via-[#0b1f3a]/75 to-[#0b1f3a]/40" />
-        </div>
-        <Container className="relative py-16 md:py-24 text-white">
+      <Section className="relative !pb-10 !pt-10 md:!pt-14 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(37,99,235,0.08),transparent_70%)]" />
+        <Container className="relative">
           <Breadcrumbs
-            className="mb-8 [&_a]:text-white/70 [&_a:hover]:text-white [&_span]:text-white [&_svg]:text-white/50"
             items={[
               { label: "Industries", href: "/industries" },
               { label: industry.name },
             ]}
           />
-          <AnimateIn>
-            <div className="max-w-3xl">
-              <div className="mb-5 flex flex-wrap items-center gap-3">
+          <div className="mt-6 grid gap-8 lg:grid-cols-2 lg:items-center">
+            <AnimateIn>
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <Badge variant="accent">Industry suite</Badge>
+                <Badge variant="outline">{suiteLabel}</Badge>
+              </div>
+              <div className="flex items-start gap-3 mb-4">
                 <span
-                  className="flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-lg"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-md"
                   style={{ backgroundColor: industry.color }}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-6 w-6" />
                 </span>
-                <Badge className="bg-white/15 text-white hover:bg-white/20 border-0">
-                  {categoryLabel}
-                </Badge>
+                <div>
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
+                    {industry.name}
+                  </h1>
+                </div>
               </div>
-              <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-balance">
-                {industry.name}
-              </h1>
-              <p className="mt-4 text-xl md:text-2xl text-white/90 font-medium text-balance">
-                {industry.headline}
+              <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl">
+                {industry.description} Pick a business category below — {siteConfig.name} provisions
+                modules, POS, and mobile settings from SaaS Core.
               </p>
-              <p className="mt-5 text-base md:text-lg text-white/70 leading-relaxed max-w-2xl">
-                {industry.description}
-              </p>
-              <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                <Button asChild size="lg" className="rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100">
-                  <Link href={`/signup?profile=${industry.id}`}>
+
+              <div className="mt-6 grid grid-cols-3 gap-3 max-w-md">
+                {[
+                  { icon: Layers, label: "Categories", value: categories.length },
+                  { icon: ShoppingCart, label: "POS ready", value: posEnabledCount },
+                  { icon: Smartphone, label: "Mobile", value: mobileCount },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="rounded-2xl border border-border bg-white px-3 py-3 text-center shadow-sm"
+                  >
+                    <stat.icon className="mx-auto mb-1.5 h-4 w-4 text-primary" />
+                    <p className="text-xl font-semibold tracking-tight text-[#0b1f3a] tabular-nums">
+                      {stat.value}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button asChild size="lg" className="rounded-full">
+                  <Link href={`/signup?industry=${industry.id}`}>
                     Start {trialDays}-day free trial
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <Button
-                  asChild
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
-                >
-                  <Link href="/contact?intent=industry">Talk to sales</Link>
+                <Button asChild size="lg" variant="outline" className="rounded-full">
+                  <Link href="/industries">All industries</Link>
                 </Button>
               </div>
-            </div>
-          </AnimateIn>
-        </Container>
-      </section>
-
-      <Section>
-        <Container>
-          <div className="grid gap-6 lg:grid-cols-3">
-            <AnimateIn className="lg:col-span-2">
-              <Card className="h-full">
-                <CardHeader>
-                  <CardTitle className="text-2xl">Why {industry.name} teams choose WaamTech</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Simple tools that match how your business actually works.
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <ul className="grid gap-3 sm:grid-cols-2">
-                    {industry.highlights.map((h) => (
-                      <li
-                        key={h}
-                        className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm"
-                      >
-                        <span
-                          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white"
-                          style={{ backgroundColor: industry.color }}
-                        >
-                          <Check className="h-3 w-3" />
-                        </span>
-                        {h}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
             </AnimateIn>
-
             <AnimateIn delay={0.08}>
-              <Card className="h-full" style={{ borderColor: `${industry.color}33` }}>
-                <CardHeader>
-                  <CardTitle>At a glance</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 text-sm">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Category</p>
-                    <p className="font-medium">{categoryLabel}</p>
+              <div className="relative aspect-[16/11] overflow-hidden rounded-3xl border border-border shadow-lg">
+                <Image
+                  src={media.image}
+                  alt={media.imageAlt}
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/50 to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2.5 rounded-2xl bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white"
+                    style={{ backgroundColor: industry.color }}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#0b1f3a] truncate">{industry.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {categories.length} ready-to-provision categories
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Modules</p>
-                    <p className="font-medium">{industry.modules.length} recommended</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Feature packs</p>
-                    <p className="font-medium">{industry.featurePacks.length} capability packs</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Free trial</p>
-                    <p className="font-medium">{trialDays} days included</p>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </AnimateIn>
           </div>
         </Container>
       </Section>
 
-      <Section muted>
+      <Section muted className="!pt-4">
         <Container>
-          <div className="mb-10 max-w-2xl">
-            <p className="text-sm font-medium text-primary uppercase tracking-wide mb-2">Features</p>
-            <h2 className="text-3xl font-semibold tracking-tight text-[#0b1f3a]">
-              Everything {industry.name} needs — without the clutter
-            </h2>
-            <p className="mt-3 text-muted-foreground leading-relaxed">
-              Built from our SaaS Core profile for {industry.name.toLowerCase()}. Clear features your team
-              can use from day one.
-            </p>
+          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-sm font-medium text-primary uppercase tracking-wide mb-2">
+                Business categories
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#0b1f3a]">
+                {categories.length} categories in {industry.name}
+              </h2>
+              <p className="mt-3 text-muted-foreground leading-relaxed">
+                Each category is a SaaS Core profile with its own modules, POS mode, and mobile
+                settings. Click any card to start signup with it pre-selected.
+              </p>
+            </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {details.features.map((feature, i) => (
-              <div
-                key={feature}
-                className="rounded-2xl border border-border bg-white p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-300"
-              >
-                <span
-                  className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
-                  style={{ backgroundColor: industry.color }}
-                >
-                  {i + 1}
-                </span>
-                <p className="text-sm font-medium text-[#0b1f3a] leading-relaxed">{feature}</p>
-              </div>
-            ))}
-          </div>
-        </Container>
-      </Section>
 
-      <Section>
-        <Container>
-          <div className="mb-10 max-w-2xl">
-            <p className="text-sm font-medium text-primary uppercase tracking-wide mb-2">Results</p>
-            <h2 className="text-3xl font-semibold tracking-tight text-[#0b1f3a]">
-              What you get in practice
-            </h2>
-          </div>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {details.outcomes.map((outcome) => (
-              <Card key={outcome} className="h-full border-border/80">
-                <CardContent className="pt-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {categories.map((cat) => {
+              const highlight = highlightCategoryId === cat.id;
+              const posEnabled = cat.pos_mode !== "disabled";
+              return (
+                <Link
+                  key={cat.id}
+                  href={`/signup?industry=${industry.id}&profile=${cat.id}`}
+                  className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-white p-5 transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(15,23,42,0.08)] ${
+                    highlight
+                      ? "border-primary ring-2 ring-primary/15 shadow-md"
+                      : "border-border hover:border-primary/25"
+                  }`}
+                >
                   <div
-                    className="mb-4 h-1.5 w-10 rounded-full"
+                    className="absolute inset-x-0 top-0 h-1 opacity-0 transition-opacity group-hover:opacity-100"
                     style={{ backgroundColor: industry.color }}
                   />
-                  <p className="text-base font-medium text-[#0b1f3a] leading-relaxed">{outcome}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </Container>
-      </Section>
+                  <div className="flex items-start justify-between gap-3">
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition-transform group-hover:scale-105"
+                      style={{ backgroundColor: industry.color }}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </div>
 
-      <Section muted>
-        <Container>
-          <div className="grid gap-8 lg:grid-cols-3">
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight mb-4">Recommended modules</h2>
-              <div className="flex flex-wrap gap-2">
-                {industry.modules.map((m) => (
-                  <Badge key={m} variant="outline" className="bg-white px-3 py-1.5">
-                    {m}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight mb-4">Feature packs</h2>
-              <div className="flex flex-wrap gap-2">
-                {industry.featurePacks.map((f) => (
-                  <Badge key={f} className="px-3 py-1.5 text-white" style={{ backgroundColor: industry.color }}>
-                    {f}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight mb-4">Key KPIs</h2>
-              <ul className="space-y-2">
-                {industry.kpis.map((k) => (
-                  <li key={k} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: industry.color }} />
-                    {k}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                  <p className="mt-3 font-semibold text-[#0b1f3a] leading-snug">{cat.name}</p>
+
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        posEnabled
+                          ? "bg-primary/8 text-primary"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {posEnabled ? (
+                        <ShoppingCart className="h-3 w-3" />
+                      ) : (
+                        <Monitor className="h-3 w-3" />
+                      )}
+                      POS {cat.pos_mode}
+                    </span>
+                    {cat.mobile_mode === "required" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-600">
+                        <Smartphone className="h-3 w-3" />
+                        Mobile
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {highlight ? (
+                    <p className="mt-3 text-xs font-medium text-primary">Matched from your link</p>
+                  ) : null}
+                </Link>
+              );
+            })}
           </div>
         </Container>
       </Section>
 
       <Section>
         <Container>
-          <h2 className="text-2xl font-semibold tracking-tight mb-6">Core workflows</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {industry.workflows.map((w, i) => (
-              <div
-                key={w}
-                className="rounded-2xl border border-border bg-white p-5 shadow-sm"
-              >
-                <p className="text-xs font-semibold text-primary mb-2">Step {i + 1}</p>
-                <p className="font-medium text-[#0b1f3a]">{w}</p>
+          <div className="grid gap-4 md:grid-cols-3 mb-12">
+            {[
+              {
+                title: "Industry first",
+                text: "Choose the parent industry that matches your market.",
+              },
+              {
+                title: "Then category",
+                text: "Select the exact business type — retail store, chain pharmacy, dealership, and more.",
+              },
+              {
+                title: "Auto-provisioned",
+                text: "Modules, feature packs, POS, and mobile follow the SaaS Core category manifest.",
+              },
+            ].map((item) => (
+              <div key={item.title} className="rounded-2xl border border-border bg-white p-5 sm:p-6">
+                <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Check className="h-4 w-4" />
+                </div>
+                <h3 className="font-semibold text-[#0b1f3a]">{item.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{item.text}</p>
               </div>
             ))}
           </div>
-        </Container>
-      </Section>
 
-      {related.length > 0 ? (
-        <Section muted>
-          <Container>
-            <div className="mb-8 flex items-end justify-between gap-4">
-              <h2 className="text-2xl font-semibold tracking-tight">Related industries</h2>
-              <Button asChild variant="outline" className="rounded-full">
-                <Link href="/industries">View all</Link>
-              </Button>
-            </div>
-            <div className="grid gap-5 md:grid-cols-3">
-              {related.map((r) => (
-                <Link key={r.id} href={`/industries/${r.id}`} className="group block">
-                  <Card className="overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(15,23,42,0.1)] transition-all">
-                    <div className="relative aspect-[16/9]">
-                      <Image src={r.image} alt={r.imageAlt} fill className="object-cover" sizes="33vw" />
-                    </div>
-                    <CardHeader>
-                      <CardTitle className="group-hover:text-primary transition-colors">{r.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{r.short}</p>
-                    </CardHeader>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          </Container>
-        </Section>
-      ) : null}
-
-      <Section className="!pb-20">
-        <Container>
-          <div
-            className="rounded-[2rem] px-8 py-12 md:px-14 md:py-16 text-center text-white"
-            style={{
-              background: `linear-gradient(135deg, ${industry.color} 0%, #0b1f3a 100%)`,
-            }}
-          >
-            <h2 className="text-3xl font-semibold tracking-tight">
-              Launch {industry.name} on WaamTech
+          <div>
+            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight mb-5">
+              More industries ({hierarchyStats.industries} total)
             </h2>
-            <p className="mt-3 text-white/75 max-w-xl mx-auto">
-              Start with this SaaS Core profile and activate only the modules and feature packs you need.
-            </p>
-            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
-              <Button asChild size="lg" className="rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100">
-                <Link href={`/signup?profile=${industry.id}`}>
-                  Start {trialDays}-day free trial
-                </Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="rounded-full border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
-              >
-                <Link href="/products">Browse modules</Link>
-              </Button>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {related.map((rel) => {
+                const RelIcon = getIcon(getIndustryLucideIcon(rel));
+                return (
+                  <Link
+                    key={rel.id}
+                    href={`/industries/${rel.id}`}
+                    className="flex items-center gap-3 rounded-xl border border-border bg-white px-4 py-3 hover:border-primary/30 transition-colors"
+                  >
+                    <span
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-white"
+                      style={{ backgroundColor: rel.color }}
+                    >
+                      <RelIcon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium truncate">{rel.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {getCategoriesForIndustry(rel.id).length} categories
+                      </span>
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </Container>

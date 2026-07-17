@@ -1,5 +1,15 @@
 import { NextResponse } from "next/server";
 import { authConfig, normalizeApiBase } from "@/lib/auth/config";
+import { sendVerificationEmail } from "@/lib/auth/email";
+import { createPendingSignup, maskEmail } from "@/lib/auth/verification-store";
+import {
+  getClientIp,
+  isSameOrigin,
+  isValidEmail,
+  looksLikeBotPayload,
+  rateLimit,
+  sanitizeText,
+} from "@/lib/security/guards";
 
 type ApiEnvelope = {
   success?: boolean;
@@ -21,7 +31,7 @@ async function callCore(path: string, body: unknown) {
   try {
     json = (await res.json()) as ApiEnvelope;
   } catch {
-    json = { success: false, message: "Invalid response from WaamTech API." };
+    json = { success: false, message: "Invalid response from signup service." };
   }
 
   return { status: res.status, json };
@@ -29,85 +39,136 @@ async function callCore(path: string, body: unknown) {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const {
-      name,
-      email,
-      username,
-      password,
-      phone,
-      company_name,
-      company_phone,
-      company_email,
-      profile_id,
-      plan,
-    } = body || {};
+    if (!isSameOrigin(req)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid request origin." },
+        { status: 403 }
+      );
+    }
 
-    if (!name || !password || !(username || email) || !company_name || !profile_id) {
+    const ip = getClientIp(req);
+    const limited = rateLimit(`signup:${ip}`, 5, 15 * 60_000);
+    if (!limited.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Too many signup attempts. Try again in ${limited.retryAfter}s.`,
+        },
+        { status: 429, headers: { "Retry-After": String(limited.retryAfter) } }
+      );
+    }
+
+    const body = await req.json();
+
+    if (looksLikeBotPayload(body || {})) {
+      // Silent success shape for bots — no account created
+      return NextResponse.json({
+        success: true,
+        requiresVerification: true,
+        message: "Check your email to verify your account.",
+        data: { email: "hidden" },
+      });
+    }
+
+    const name = sanitizeText(body?.name, 120);
+    const email = sanitizeText(body?.email || body?.username, 254).toLowerCase();
+    const password = String(body?.password || "");
+    const phone = sanitizeText(body?.phone || body?.company_phone, 40) || undefined;
+    const company_name = sanitizeText(body?.company_name, 160);
+    const resolvedProfileId = sanitizeText(
+      body?.business_category_id || body?.profile_id,
+      80
+    );
+    const industry_id = sanitizeText(body?.industry_id, 80) || undefined;
+    const plan = sanitizeText(body?.plan, 40) || undefined;
+
+    if (!name || !password || !email || !company_name || !resolvedProfileId) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Please fill name, email or username, password, company name, and business profile.",
+            "Please fill name, email, password, company name, and business category.",
         },
         { status: 400 }
       );
     }
 
-    const { status, json } = await callCore("/auth/signup", {
-      name,
-      email,
-      username: username || email?.split("@")[0],
-      password,
-      phone,
-      company_name,
-      company_phone,
-      company_email,
-      profile_id,
-      // plan is marketing intent — Core signup uses profile_id; trial is applied automatically
-      metadata: plan ? { intended_plan: plan } : undefined,
-    });
-
-    if (!json.success) {
+    if (!isValidEmail(email)) {
       return NextResponse.json(
-        {
-          success: false,
-          message: json.message || "Signup failed. Please try again.",
-        },
-        { status: status || 400 }
+        { success: false, message: "Please enter a valid work email." },
+        { status: 400 }
       );
     }
 
-    const data = json.data || {};
-    const accessToken = (data.accessToken || data.token) as string | undefined;
-    const refreshToken = data.refreshToken as string | undefined;
+    if (password.length < 8 || password.length > 128) {
+      return NextResponse.json(
+        { success: false, message: "Password must be 8–128 characters." },
+        { status: 400 }
+      );
+    }
+
+    const emailLimited = rateLimit(`signup-email:${email}`, 3, 60 * 60_000);
+    if (!emailLimited.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Too many verification emails requested for this address. Try later.",
+        },
+        { status: 429 }
+      );
+    }
+
+    // Optional pre-check against Core if endpoint exists (non-blocking on failure)
+    try {
+      await callCore("/auth/check-email", { email });
+    } catch {
+      /* ignore */
+    }
+
+    const { token } = await createPendingSignup({
+      email,
+      name,
+      password,
+      phone,
+      company_name,
+      profile_id: resolvedProfileId,
+      industry_id,
+      plan,
+    });
+
+    const mail = await sendVerificationEmail({ to: email, name, token });
+    if (!mail.sent) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            mail.error ||
+            "Could not send verification email. Please contact support or try again.",
+        },
+        { status: 503 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      message:
-        json.message ||
-        `Account created. Your ${authConfig.trialDays}-day free trial has started.`,
+      requiresVerification: true,
+      message: `We sent a verification link to ${maskEmail(email)}. Verify your email to activate your account.`,
       data: {
-        accessToken,
-        refreshToken,
-        user: data.user,
-        tenant: data.tenant,
-        provisioning: data.provisioning,
+        email: maskEmail(email),
         trialDays: authConfig.trialDays,
-        plan: plan || "trial",
-        profile_id,
+        delivery: mail.mode,
       },
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Unable to reach WaamTech signup service.";
+      error instanceof Error ? error.message : "Unable to process signup.";
     return NextResponse.json(
       {
         success: false,
         message:
           message.includes("fetch") || message.includes("ECONNREFUSED")
-            ? "Cannot connect to WaamTech API. Make sure the SaaS Core API is running, or set WAAMTECH_API_URL."
-            : message,
+            ? "Signup service temporarily unavailable. Please try again."
+            : "Unable to process signup. Please try again.",
       },
       { status: 502 }
     );

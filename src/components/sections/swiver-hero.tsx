@@ -18,16 +18,25 @@ export function SwiverHero() {
           initial={reduce ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-5 text-sm font-medium tracking-wide text-primary"
+          className="mb-3 font-[family-name:var(--font-poppins)] text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-[#0b1f3a]"
         >
-          WaamTech SaaS Core · Modular ERP Platform
+          {siteConfig.name}
+        </motion.p>
+
+        <motion.p
+          initial={reduce ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.04 }}
+          className="mb-6 text-sm md:text-base font-medium tracking-wide text-primary"
+        >
+          {siteConfig.productLine} by {siteConfig.companyName}
         </motion.p>
 
         <motion.h1
           initial={reduce ? false : { opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.05 }}
-          className="mx-auto max-w-4xl font-[family-name:var(--font-poppins)] text-4xl sm:text-5xl lg:text-[3.5rem] xl:text-[3.85rem] font-semibold tracking-tight text-[#0b1f3a] text-balance leading-[1.12]"
+          className="mx-auto max-w-4xl font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-[2.15rem] font-semibold tracking-tight text-[#0b1f3a]/90 text-balance leading-[1.2]"
         >
           Control your business. Optimize operations. Unlock growth.
         </motion.h1>
@@ -86,7 +95,7 @@ export function SwiverHero() {
                 WT
               </span>
               <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{siteConfig.name}</span> powers 30+ business profiles
+                <span className="font-medium text-foreground">{siteConfig.name}</span> powers 17 industries & 100+ business categories
               </p>
             </div>
           </motion.div>
@@ -102,7 +111,7 @@ function ProductShell() {
       <aside className="hidden md:flex flex-col gap-1 bg-[#0b1f3a] p-4 text-white">
         <div className="mb-4 flex items-center gap-2 px-2 py-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold">W</span>
-          <span className="text-sm font-semibold tracking-tight">WaamTech</span>
+          <span className="text-sm font-semibold tracking-tight">{siteConfig.name}</span>
         </div>
         {["Dashboard", "Sales", "Inventory", "POS", "Purchasing", "Finance", "CRM", "HR", "Reports"].map((item, i) => (
           <div

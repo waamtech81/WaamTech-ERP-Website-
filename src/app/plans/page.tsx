@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Check, Minus } from "lucide-react";
-import { pricingPlans, comparisonFeatures } from "@/lib/data/site";
-import { formatCurrency } from "@/lib/utils";
+import { pricingPlans, comparisonFeatures, deploymentOptions } from "@/lib/data/site";
+import { getIcon } from "@/lib/icons";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { CTASection } from "@/components/shared/cta-section";
-import { Badge } from "@/components/ui/badge";
+import { LaunchDiscountBanner, PricingCards } from "@/components/sections/pricing-cards";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Subscription Plans",
-  description: "Compare WaamTech Starter, Professional, Business, and Enterprise subscription plans.",
+  description: "Compare WaamTech Starter, Professional, Business, Lifetime, and Enterprise plans with launch discount pricing.",
 };
 
 export default function PlansPage() {
@@ -26,65 +26,60 @@ export default function PlansPage() {
             align="left"
             eyebrow="Subscription plans"
             title="Choose the plan that matches your stage"
-            description="Starter, Professional, Business, and Enterprise — each designed for a clear operational maturity level."
+            description="Starter to Enterprise — plus lifetime license and custom deployment for own server, whitelabel & local setup."
             className="mb-0 max-w-3xl"
           />
         </Container>
       </Section>
 
-      <Section muted className="!pt-10">
+      <Section muted className="!pt-6">
         <Container>
-          <div className="grid gap-6 md:grid-cols-2">
-            {pricingPlans.map((plan, i) => (
-              <AnimateIn key={plan.id} delay={i * 0.06}>
-                <Card className={`h-full ${plan.popular ? "border-primary" : ""}`}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between gap-3">
-                      <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                      {plan.popular ? <Badge>Recommended</Badge> : null}
-                    </div>
-                    <p className="text-muted-foreground">{plan.description}</p>
-                    <p className="pt-2 text-3xl font-semibold tracking-tight">
-                      {plan.yearlyPrice !== null ? (
-                        <>
-                          {formatCurrency(plan.yearlyPrice)}
-                          <span className="text-sm font-normal text-muted-foreground"> /user/mo billed yearly</span>
-                        </>
-                      ) : (
-                        "Talk to sales"
-                      )}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2.5 mb-6">
-                      {plan.features.map((f) => (
-                        <li key={f} className="flex gap-2 text-sm text-muted-foreground">
-                          <Check className="h-4 w-4 text-accent shrink-0 mt-0.5" />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <Button asChild className="w-full" variant={plan.popular ? "default" : "outline"}>
-                      <Link href={plan.href}>{plan.cta}</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </AnimateIn>
-            ))}
-          </div>
+          <LaunchDiscountBanner />
+          <PricingCards plans={pricingPlans} yearly={true} columns="md:grid-cols-2 xl:grid-cols-3" />
         </Container>
       </Section>
 
       <Section>
         <Container>
+          <SectionHeader eyebrow="Deployment" title="Beyond cloud SaaS" />
+          <div className="grid gap-5 md:grid-cols-2">
+            {deploymentOptions.filter((d) => !d.featured).map((opt, i) => {
+              const Icon = getIcon(opt.icon);
+              return (
+                <AnimateIn key={opt.id} delay={i * 0.06}>
+                  <Card className="h-full">
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/8 text-primary">
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <CardTitle className="text-lg">{opt.title}</CardTitle>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{opt.description}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <Button asChild variant="outline" className="rounded-full">
+                        <Link href={opt.href}>{opt.cta}</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </AnimateIn>
+              );
+            })}
+          </div>
+        </Container>
+      </Section>
+
+      <Section muted>
+        <Container>
           <SectionHeader eyebrow="Feature comparison" title="Detailed plan matrix" />
           <div className="overflow-x-auto rounded-2xl border border-border bg-white">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/60">
                   <th className="px-5 py-4 text-left font-semibold">Feature</th>
                   {pricingPlans.map((p) => (
-                    <th key={p.id} className="px-5 py-4 text-center font-semibold">{p.name}</th>
+                    <th key={p.id} className="px-4 py-4 text-center font-semibold text-xs">{p.name}</th>
                   ))}
                 </tr>
               </thead>
@@ -92,10 +87,10 @@ export default function PlansPage() {
                 {comparisonFeatures.map((row) => (
                   <tr key={row.name} className="border-b border-border last:border-0">
                     <td className="px-5 py-4 font-medium">{row.name}</td>
-                    {(["starter", "professional", "business", "enterprise"] as const).map((key) => {
+                    {(["starter", "professional", "business", "lifetime", "enterprise"] as const).map((key) => {
                       const val = row[key];
                       return (
-                        <td key={key} className="px-5 py-4 text-center text-muted-foreground">
+                        <td key={key} className="px-4 py-4 text-center text-muted-foreground text-xs">
                           {typeof val === "boolean" ? (
                             val ? <Check className="mx-auto h-4 w-4 text-accent" /> : <Minus className="mx-auto h-4 w-4 text-slate-300" />
                           ) : (

@@ -14,7 +14,7 @@ import { Check, Minus } from "lucide-react";
 export const metadata: Metadata = {
   title: "Products",
   description:
-    "Explore WaamTech SaaS Core modules: Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and more.",
+    "Explore WAAMTO SaaS Core modules: Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and more.",
 };
 
 export default function ProductsPage() {
@@ -25,9 +25,9 @@ export default function ProductsPage() {
           <Breadcrumbs items={[{ label: "Products" }]} />
           <SectionHeader
             align="left"
-            eyebrow="Modules"
-            title="The WaamTech SaaS Core suite"
-            description="Installable business modules on a clean platform core — activate only what your operations need."
+            eyebrow="SaaS Core modules"
+            title="The WAAMTO core suite"
+            description="Installable business modules on a clean platform core — Inventory, POS, Sales, Purchasing, Finance, CRM, HR & Payroll, and Manufacturing."
             className="mb-0 max-w-3xl"
           />
         </Container>
@@ -35,11 +35,11 @@ export default function ProductsPage() {
 
       <Section muted className="!pt-10">
         <Container>
-          <div className="mb-8 flex items-center justify-between gap-4">
+          <div className="mb-8 md:mb-10 flex items-center justify-between gap-4">
             <h2 className="text-2xl font-semibold tracking-tight">Core modules</h2>
             <Badge variant="outline">{coreModules.length} modules</Badge>
           </div>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 md:gap-6 md:grid-cols-2 lg:grid-cols-3">
             {coreModules.map((m, i) => {
               const Icon = getIcon(m.icon);
               return (
@@ -126,7 +126,7 @@ export default function ProductsPage() {
       </Section>
 
       <CTASection
-        title="Build your WaamTech stack"
+        title="Build your WAAMTO stack"
         description="Start with the modules you need today and expand as your operations grow."
       />
     </>

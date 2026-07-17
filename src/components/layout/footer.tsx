@@ -11,11 +11,22 @@ const footerColumns = [
     links: products.slice(0, 6).map((p) => ({ label: p.name, href: `/products#${p.slug}` })),
   },
   {
+    title: "Industries",
+    links: [
+      { label: "Retail & Commerce", href: "/industries/retail_commerce" },
+      { label: "Automotive & Vehicle", href: "/industries/automotive_vehicle" },
+      { label: "Healthcare & Pharmacy", href: "/industries/healthcare_pharmacy" },
+      { label: "Restaurant & Food", href: "/industries/restaurant_food_service" },
+      { label: "All industries", href: "/industries" },
+    ],
+  },
+  {
     title: "Company",
     links: [
       { label: "About", href: "/about" },
+      { label: "Mobile App", href: "/mobile-app" },
+      { label: "Servers & Hosting", href: "/servers" },
       { label: "Blog", href: "/blog" },
-      { label: "Careers", href: "/about#leadership" },
       { label: "Contact", href: "/contact" },
     ],
   },
@@ -26,15 +37,7 @@ const footerColumns = [
       { label: "Knowledge Base", href: "/knowledge-base" },
       { label: "FAQs", href: "/faqs" },
       { label: "Support", href: "/support" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms of Service", href: "/terms" },
-      { label: "Customer Portal", href: "/portal" },
-      { label: "Plans", href: "/plans" },
+      { label: "Pricing", href: "/pricing" },
     ],
   },
 ];
@@ -49,8 +52,13 @@ export function Footer() {
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white">
                 <Boxes className="h-4 w-4" />
               </span>
-              <span className="font-[family-name:var(--font-poppins)] text-lg font-semibold">
-                {siteConfig.name}
+              <span className="flex flex-col leading-none">
+                <span className="font-[family-name:var(--font-poppins)] text-lg font-semibold">
+                  {siteConfig.name}
+                </span>
+                <span className="mt-0.5 text-[10px] font-medium text-muted-foreground">
+                  {siteConfig.productLine}
+                </span>
               </span>
             </Link>
             <p className="mt-4 max-w-sm text-sm text-muted-foreground leading-relaxed">
@@ -93,10 +101,32 @@ export function Footer() {
         </div>
 
         <div className="mt-14 flex flex-col gap-4 border-t border-border pt-8 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} {siteConfig.fullName}. All rights reserved.
-          </p>
+          <div className="space-y-1.5">
+            <p className="text-sm text-muted-foreground">
+              © {new Date().getFullYear()} {siteConfig.name}. All rights reserved.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Maintained by{" "}
+              <a
+                href={siteConfig.companyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary hover:underline"
+              >
+                {siteConfig.companyName}
+              </a>
+            </p>
+          </div>
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+            <Link href="/privacy" className="hover:text-primary transition-colors">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-primary transition-colors">
+              Terms
+            </Link>
+            <Link href="/portal" className="hover:text-primary transition-colors">
+              Portal
+            </Link>
             <a href={siteConfig.social.linkedin} className="hover:text-primary transition-colors" target="_blank" rel="noreferrer">
               LinkedIn
             </a>

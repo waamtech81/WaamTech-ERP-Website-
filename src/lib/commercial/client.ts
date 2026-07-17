@@ -3,6 +3,7 @@ import {
   commercialApiBase,
   commercialHeaders,
 } from "@/lib/commercial/config";
+import { friendlyNetworkError } from "@/lib/network/errors";
 import type {
   CatalogBusinessCategory,
   CatalogBusinessProfile,
@@ -100,11 +101,12 @@ async function getPublic<T>(
     const aborted = error instanceof Error && error.name === "AbortError";
     return emptyResult(
       null,
-      aborted
-        ? "License Engine timed out. Please retry."
-        : error instanceof Error
-          ? error.message
-          : "Could not reach License Engine.",
+      friendlyNetworkError(
+        error,
+        aborted
+          ? "License Engine timed out. Please retry."
+          : "Could not reach License Engine."
+      ),
       aborted ? 504 : 502
     );
   } finally {
@@ -174,11 +176,12 @@ async function getPublicPaginated<T>(
     return {
       ok: false,
       status: aborted ? 504 : 502,
-      message: aborted
-        ? "License Engine timed out. Please retry."
-        : error instanceof Error
-          ? error.message
-          : "Could not reach License Engine.",
+      message: friendlyNetworkError(
+        error,
+        aborted
+          ? "License Engine timed out. Please retry."
+          : "Could not reach License Engine."
+      ),
       data: { data: [], total: 0 },
     };
   } finally {
@@ -320,14 +323,22 @@ export async function fetchPublicCatalogBundle(productSlug?: string) {
     fetchPublicIndustries(),
   ]);
 
-  const ok = products.ok || plans.ok || pricing.ok || industries.ok;
-  const message = !ok
-    ? products.message || plans.message || pricing.message || industries.message
+  const ok =
+    (products.ok && products.data.length > 0) ||
+    (plans.ok && plans.data.length > 0) ||
+    (pricing.ok && pricing.data.length > 0) ||
+    (industries.ok && industries.data.length > 0) ||
+    products.ok ||
+    plans.ok ||
+    pricing.ok ||
+    industries.ok;
+  const message = !(products.ok && plans.ok && pricing.ok && industries.ok)
+    ? products.message || plans.message || pricing.message || industries.message || "Partial catalog response."
     : "OK";
 
   return {
     ok,
-    message,
+    message: ok ? (products.ok && plans.ok && pricing.ok && industries.ok ? "OK" : message) : message,
     products: products.data,
     plans: plans.data,
     pricing: pricing.data,
@@ -337,6 +348,7 @@ export async function fetchPublicCatalogBundle(productSlug?: string) {
       plansOk: plans.ok,
       pricingOk: pricing.ok,
       industriesOk: industries.ok,
+      partial: ok && !(products.ok && plans.ok && pricing.ok && industries.ok),
     },
   };
 }

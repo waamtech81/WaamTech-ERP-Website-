@@ -15,6 +15,7 @@ import {
   mapCatalogProductToUi,
   mapPricingRowsToPlans,
   popularPlans,
+  publicMarketingPlans,
   sortPlansByTier,
 } from "@/lib/commercial/mappers";
 
@@ -78,10 +79,14 @@ export async function GET_businessProfiles(req: Request) {
 export async function GET_catalog(req: Request) {
   const product = new URL(req.url).searchParams.get("product") || undefined;
   const bundle = await fetchPublicCatalogBundle(product);
-  const pricingPlans =
-    bundle.pricing.length > 0
-      ? mapPricingRowsToPlans(bundle.pricing, bundle.plans)
-      : sortPlansByTier(bundle.plans).map(mapCatalogPlanToPricingPlan);
+  // Raw Engine lists stay intact (plans/pricing below). Display fields exclude Trial plans only.
+  const marketingCatalogPlans = publicMarketingPlans(bundle.plans);
+  const marketingPricingRows = publicMarketingPlans(bundle.pricing);
+  const mappedPlans =
+    marketingPricingRows.length > 0
+      ? mapPricingRowsToPlans(marketingPricingRows, marketingCatalogPlans)
+      : sortPlansByTier(marketingCatalogPlans).map(mapCatalogPlanToPricingPlan);
+  const pricingPlans = publicMarketingPlans(mappedPlans);
   const featuredProducts = bundle.products.slice(0, 6).map(mapCatalogProductToUi);
   const popular = popularPlans(pricingPlans, 3);
   const enterprise = enterprisePlan(pricingPlans) || null;

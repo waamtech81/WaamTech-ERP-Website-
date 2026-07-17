@@ -30,7 +30,7 @@ import {
   CatalogErrorState,
   CatalogSkeleton,
 } from "@/components/commercial/catalog-states";
-import { buildDynamicComparison, cardPlans, enterprisePlan } from "@/lib/commercial/mappers";
+import { buildDynamicComparison, cardPlans, enterprisePlan, publicMarketingPlans } from "@/lib/commercial/mappers";
 
 export default function PricingPage() {
   const [yearly, setYearly] = useState(true);
@@ -38,7 +38,10 @@ export default function PricingPage() {
   const catalog = useCatalogBundle();
   const billingFaqs = faqs.filter((f) => f.category === "Billing" || f.category === "Product").slice(0, 6);
 
-  const pricingPlans = catalog.data.pricingPlans || [];
+  const pricingPlans = useMemo(
+    () => publicMarketingPlans(catalog.data.pricingPlans || []),
+    [catalog.data.pricingPlans]
+  );
   const displayCardPlans = useMemo(
     () => cardPlans(pricingPlans).filter((p) => !/enterprise/i.test(p.id)),
     [pricingPlans]
@@ -77,13 +80,32 @@ export default function PricingPage() {
           <PriceNote className="mb-8 text-center text-xs text-muted-foreground" />
 
           {catalog.loading ? <CatalogSkeleton rows={3} /> : null}
-          {catalog.error ? (
-            <CatalogErrorState message={catalog.error} onRetry={catalog.retry} />
+          {catalog.error && displayCardPlans.length === 0 ? (
+            <CatalogErrorState
+              message={catalog.error}
+              onRetry={catalog.retry}
+              offline={catalog.offline}
+            />
+          ) : null}
+          {catalog.error && displayCardPlans.length > 0 ? (
+            <div
+              className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
+              role="status"
+            >
+              Showing last known plans — live catalog refresh failed.{" "}
+              <button
+                type="button"
+                className="font-medium underline underline-offset-2"
+                onClick={catalog.retry}
+              >
+                Retry
+              </button>
+            </div>
           ) : null}
           {!catalog.loading && !catalog.error && displayCardPlans.length === 0 ? (
             <CatalogEmptyState message="No public plans are published yet." />
           ) : null}
-          {!catalog.loading && !catalog.error && displayCardPlans.length > 0 ? (
+          {!catalog.loading && displayCardPlans.length > 0 ? (
             <PricingCards
               plans={displayCardPlans}
               yearly={yearly}

@@ -3,6 +3,7 @@ import { headers, cookies } from "next/headers";
 import { Poppins } from "next/font/google";
 import { SiteShell } from "@/components/layout/site-shell";
 import { LocaleProvider } from "@/components/providers/locale-provider";
+import { SiteJsonLd } from "@/components/seo/json-ld";
 import { siteConfig } from "@/lib/data/site";
 import {
   directionForLanguage,
@@ -83,11 +84,20 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: siteConfig.name,
       title: `${siteConfig.name} | ${siteConfig.productLine}`,
       description: siteConfig.description,
+      images: [
+        {
+          url: siteConfig.logo,
+          width: 512,
+          height: 204,
+          alt: siteConfig.name,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title: `${siteConfig.name} | ${siteConfig.productLine}`,
       description: siteConfig.description,
+      images: [siteConfig.logo],
     },
     robots: {
       index: true,
@@ -123,6 +133,7 @@ export default async function RootLayout({
           initialCountry={country}
           initialRates={table.rates}
         >
+          <SiteJsonLd />
           <SiteShell language={language}>{children}</SiteShell>
         </LocaleProvider>
       </body>

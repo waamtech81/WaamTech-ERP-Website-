@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { swrGet, swrInvalidate } from "@/lib/commercial/swr-cache";
+import { swrGet, swrInvalidate, swrPeek } from "@/lib/commercial/swr-cache";
+import {
+  friendlyNetworkError,
+  isOffline,
+  statusToFriendlyMessage,
+} from "@/lib/network/errors";
 import type {
   CatalogBusinessCategory,
   CatalogBusinessProfile,
@@ -18,6 +23,7 @@ export type CommercialQueryState<T> = {
   error: string | null;
   empty: boolean;
   stale: boolean;
+  offline: boolean;
   retry: () => void;
 };
 
@@ -48,6 +54,10 @@ const EMPTY_BUNDLE: CatalogBundle = {
 };
 
 async function browserFetchJson<T>(url: string): Promise<T> {
+  if (isOffline()) {
+    throw new Error("You appear to be offline. Check your connection and try again.");
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);
   try {
@@ -55,15 +65,20 @@ async function browserFetchJson<T>(url: string): Promise<T> {
       headers: { Accept: "application/json" },
       signal: controller.signal,
     });
-    const json = (await res.json()) as {
-      success?: boolean;
-      message?: string;
-      data?: T;
-    };
+
+    let json: { success?: boolean; message?: string; data?: T } = {};
+    try {
+      json = (await res.json()) as typeof json;
+    } catch {
+      throw new Error(statusToFriendlyMessage(res.status || 502));
+    }
+
     if (!res.ok || json.success === false) {
-      throw new Error(json.message || `Request failed (${res.status})`);
+      throw new Error(statusToFriendlyMessage(res.status, json.message));
     }
     return json.data as T;
+  } catch (error) {
+    throw new Error(friendlyNetworkError(error, "Unable to load commercial data."));
   } finally {
     clearTimeout(timeout);
   }
@@ -91,6 +106,7 @@ export function useCommercialQuery<T>(
   const [loading, setLoading] = useState(Boolean(key && path));
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
+  const [offline, setOffline] = useState(false);
   const gen = useRef(0);
 
   const load = useCallback(async () => {
@@ -99,12 +115,14 @@ export function useCommercialQuery<T>(
       setLoading(false);
       setError(null);
       setStale(false);
+      setOffline(false);
       return;
     }
 
     const runId = ++gen.current;
     setLoading(true);
     setError(null);
+    setOffline(isOffline());
 
     try {
       const result = await swrGet(key, () => browserFetchJson<T>(path));
@@ -112,9 +130,16 @@ export function useCommercialQuery<T>(
       setData(result.data ?? emptyRef.current);
       setStale(result.stale);
       setError(null);
+      setOffline(false);
     } catch (err) {
       if (runId !== gen.current) return;
-      setError(err instanceof Error ? err.message : "Unable to load commercial data.");
+      const peeked = swrPeek<T>(key);
+      if (peeked != null) {
+        setData(peeked);
+        setStale(true);
+      }
+      setOffline(isOffline());
+      setError(friendlyNetworkError(err, "Unable to load commercial data."));
     } finally {
       if (runId === gen.current) setLoading(false);
     }
@@ -122,6 +147,20 @@ export function useCommercialQuery<T>(
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  useEffect(() => {
+    const onOnline = () => {
+      setOffline(false);
+      void load();
+    };
+    const onOffline = () => setOffline(true);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
   }, [load]);
 
   const retry = useCallback(() => {
@@ -135,6 +174,7 @@ export function useCommercialQuery<T>(
     error,
     empty: !loading && !error && isEmptyData(data),
     stale,
+    offline,
     retry,
   };
 }

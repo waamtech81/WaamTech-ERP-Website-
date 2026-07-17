@@ -82,6 +82,16 @@ export type PortalDashboard = {
   subscriptions: CommercialSubscription[];
   payments: CommercialPayment[];
   renewals: CommercialRenewal[];
+  /** Distinguishes true empty billing from License Engine commercial API outage. */
+  commercialBilling: {
+    ok: boolean;
+    subscriptionsOk: boolean;
+    invoicesOk: boolean;
+    paymentsOk: boolean;
+    renewalsOk: boolean;
+    historyOk: boolean;
+    message: string | null;
+  };
   billingHistory: {
     subscriptions: CommercialSubscription[];
     invoices: CommercialInvoice[];
@@ -389,6 +399,17 @@ export async function loadPortalDashboard(
   const commercialRenewals = renewalsRes.ok ? renewalsRes.data : [];
   const history = historyRes.ok ? historyRes.data : null;
 
+  const commercialBillingOk =
+    subsRes.ok || invoicesRes.ok || paymentsRes.ok || renewalsRes.ok || historyRes.ok;
+  const commercialBillingMessage = !commercialBillingOk
+    ? subsRes.message ||
+      invoicesRes.message ||
+      paymentsRes.message ||
+      renewalsRes.message ||
+      historyRes.message ||
+      "Billing services are temporarily unavailable."
+    : null;
+
   const primarySub =
     commercialSubs.find((s) =>
       ["active", "trial", "grace", "pending"].includes(String(s.status).toLowerCase())
@@ -549,6 +570,15 @@ export async function loadPortalDashboard(
     subscriptions: commercialSubs,
     payments: commercialPayments,
     renewals: commercialRenewals,
+    commercialBilling: {
+      ok: commercialBillingOk,
+      subscriptionsOk: subsRes.ok,
+      invoicesOk: invoicesRes.ok,
+      paymentsOk: paymentsRes.ok,
+      renewalsOk: renewalsRes.ok,
+      historyOk: historyRes.ok,
+      message: commercialBillingMessage,
+    },
     billingHistory: history
       ? {
           subscriptions: history.subscriptions || commercialSubs,

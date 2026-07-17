@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { friendlyNetworkError } from "@/lib/network/errors";
 
 const rules = [
   { id: "length", label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -76,8 +77,8 @@ function ResetPasswordForm() {
       window.setTimeout(() => {
         router.replace(json.redirectUrl || "/login?reset=1");
       }, 1600);
-    } catch {
-      setError("Unable to reset password. Please try again.");
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Unable to reset password. Please try again."));
       setLoading(false);
     }
   }

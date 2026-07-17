@@ -81,6 +81,22 @@ export async function middleware(req: NextRequest) {
     return applyHeaders(new NextResponse(null, { status: 404 }), pathname);
   }
 
+  // Site-wide maintenance mode (env flag — does not touch License Engine / ERP)
+  const maintenanceOn =
+    process.env.SITE_MAINTENANCE === "1" ||
+    process.env.NEXT_PUBLIC_SITE_MAINTENANCE === "1";
+  if (
+    maintenanceOn &&
+    pathname !== "/maintenance" &&
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/_next")
+  ) {
+    const maintenanceUrl = req.nextUrl.clone();
+    maintenanceUrl.pathname = "/maintenance";
+    maintenanceUrl.search = "";
+    return applyHeaders(NextResponse.redirect(maintenanceUrl), pathname);
+  }
+
   if (pathname.startsWith("/api/auth/")) {
     const limited = await rateLimit(`mw-auth:${clientIp(req)}`, 60, 60_000);
     if (!limited.ok) {

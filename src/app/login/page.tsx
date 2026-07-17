@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authConfig } from "@/lib/auth/config";
 import { safeInternalPath } from "@/lib/security/safe-redirect";
+import { friendlyNetworkError } from "@/lib/network/errors";
 
 type LoginStep = "credentials" | "otp";
 
@@ -120,8 +121,8 @@ function LoginForm() {
           "Login OTP verification is required. Check your email for a code."
       );
       setLoading(false);
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Something went wrong. Please try again."));
       setLoading(false);
     }
   }
@@ -163,8 +164,8 @@ function LoginForm() {
       router.replace(
         safeInternalPath(json.data?.redirectUrl || nextPath)
       );
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Something went wrong. Please try again."));
       setLoading(false);
     }
   }
@@ -187,8 +188,8 @@ function LoginForm() {
         setCooldown(60);
         setOtp("");
       }
-    } catch {
-      setError("Could not resend code.");
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Could not resend code."));
     } finally {
       setResending(false);
     }

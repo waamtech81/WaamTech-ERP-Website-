@@ -8,6 +8,68 @@ import type {
 
 const TIER_ORDER = ["starter", "business", "lifetime", "enterprise"] as const;
 
+/**
+ * Dedicated Trial commercial plans (plan_type/tier/slug/name).
+ * Does NOT treat Starter/Business as Trial just because they offer a free-trial benefit.
+ */
+export function isTrialPlan(plan: {
+  id?: string | null;
+  name?: string | null;
+  slug?: string | null;
+  tier?: string | null;
+  plan_type?: string | null;
+  pricing_type?: string | null;
+}): boolean {
+  const id = String(plan.id || "").toLowerCase().trim();
+  const name = String(plan.name || "").toLowerCase().trim();
+  const slug = String(plan.slug || "").toLowerCase().trim() || id;
+  const tier = String(plan.tier || "").toLowerCase().trim();
+  const planType = String(plan.plan_type || "").toLowerCase().trim();
+  const pricingType = String(plan.pricing_type || "").toLowerCase().trim();
+
+  if (planType === "trial") return true;
+  if (tier === "trial") return true;
+  if (pricingType === "trial") return true;
+
+  if (
+    slug === "trial" ||
+    slug === "free-trial" ||
+    slug === "freetrial" ||
+    slug.startsWith("trial-") ||
+    slug.endsWith("-trial") ||
+    slug.includes("-trial-")
+  ) {
+    return true;
+  }
+
+  if (
+    id === "trial" ||
+    id === "free-trial" ||
+    id.startsWith("trial-") ||
+    id.endsWith("-trial") ||
+    id.includes("-trial-")
+  ) {
+    return true;
+  }
+
+  if (
+    name === "trial" ||
+    name === "free trial" ||
+    name === "free-trial" ||
+    /^trial(\s|$)/i.test(name) ||
+    /\btrial plan\b/i.test(name)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/** Public marketing catalog: Starter / Business / Lifetime / Enterprise only. */
+export function publicMarketingPlans<T extends Parameters<typeof isTrialPlan>[0]>(plans: T[]): T[] {
+  return plans.filter((p) => !isTrialPlan(p));
+}
+
 export function sortPlansByTier<T extends { tier?: string; slug?: string; sort_order?: number }>(
   plans: T[]
 ): T[] {
@@ -163,12 +225,13 @@ export function mapPricingRowsToPlans(
 export function buildDynamicComparison(
   plans: PricingPlan[]
 ): Array<Record<string, string | boolean>> {
-  const keys = plans.map((p) => p.id);
+  const visible = publicMarketingPlans(plans);
+  const keys = visible.map((p) => p.id);
   const rows: Array<Record<string, string | boolean>> = [
     {
       name: "Pricing",
       ...Object.fromEntries(
-        plans.map((p) => [
+        visible.map((p) => [
           p.id,
           p.lifetimePrice != null
             ? "One-time"
@@ -181,7 +244,7 @@ export function buildDynamicComparison(
     {
       name: "Free trial",
       ...Object.fromEntries(
-        plans.map((p) => [
+        visible.map((p) => [
           p.id,
           p.features.some((f) => /free trial/i.test(f)) ||
             (!p.id.includes("enterprise") && !p.id.includes("lifetime")),
@@ -190,7 +253,7 @@ export function buildDynamicComparison(
     },
     {
       name: "Contact sales",
-      ...Object.fromEntries(plans.map((p) => [p.id, /contact sales/i.test(p.cta)])),
+      ...Object.fromEntries(visible.map((p) => [p.id, /contact sales/i.test(p.cta)])),
     },
   ];
 
@@ -226,16 +289,15 @@ export function industryDisplayIcon(industry: CatalogIndustry): string {
 }
 
 export function popularPlans(plans: PricingPlan[], limit = 3): PricingPlan[] {
-  const nonEnterprise = plans.filter(
+  const nonEnterprise = publicMarketingPlans(plans).filter(
     (p) => !/enterprise/i.test(p.id) && !/contact sales/i.test(p.cta)
   );
-  const popular = nonEnterprise.filter((p) => p.popular);
-  const rest = nonEnterprise.filter((p) => !p.popular);
-  return [...popular, ...rest].slice(0, limit);
+  // Visual order: Starter (left) → Most popular / Business (center) → Lifetime (right)
+  return sortCardDisplayOrder(nonEnterprise).slice(0, limit);
 }
 
 export function enterprisePlan(plans: PricingPlan[]): PricingPlan | undefined {
-  return plans.find(
+  return publicMarketingPlans(plans).find(
     (p) =>
       /enterprise/i.test(p.id) ||
       /enterprise/i.test(p.name) ||
@@ -243,6 +305,26 @@ export function enterprisePlan(plans: PricingPlan[]): PricingPlan | undefined {
   );
 }
 
+/** Card grid order: Starter | Most popular (Business) | Lifetime */
+function sortCardDisplayOrder(plans: PricingPlan[]): PricingPlan[] {
+  function rank(p: PricingPlan): number {
+    const id = String(p.id || "").toLowerCase();
+    const name = String(p.name || "").toLowerCase();
+    if (id.includes("starter") || name.includes("starter")) return 0;
+    if (p.popular || id.includes("business") || name.includes("business")) return 1;
+    if (
+      id.includes("lifetime") ||
+      name.includes("lifetime") ||
+      p.lifetimePrice != null
+    ) {
+      return 2;
+    }
+    return 50;
+  }
+  return [...plans].sort((a, b) => rank(a) - rank(b));
+}
+
 export function cardPlans(plans: PricingPlan[]): PricingPlan[] {
-  return plans.filter((p) => p !== enterprisePlan(plans));
+  const marketing = publicMarketingPlans(plans);
+  return sortCardDisplayOrder(marketing.filter((p) => p !== enterprisePlan(marketing)));
 }

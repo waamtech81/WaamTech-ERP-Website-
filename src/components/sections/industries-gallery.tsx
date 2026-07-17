@@ -101,7 +101,11 @@ function IndustryCard({
             <p className="text-sm text-muted-foreground">Loading categories…</p>
           ) : null}
           {categories.error ? (
-            <CatalogErrorState message={categories.error} onRetry={categories.retry} />
+            <CatalogErrorState
+              message={categories.error}
+              onRetry={categories.retry}
+              offline={categories.offline}
+            />
           ) : null}
           {!categories.loading && !categories.error && categories.data.length === 0 ? (
             <p className="text-sm text-muted-foreground">No public categories for this industry.</p>
@@ -171,7 +175,11 @@ export function IndustriesGallery() {
   if (industriesQuery.loading) return <CatalogSkeleton rows={6} />;
   if (industriesQuery.error) {
     return (
-      <CatalogErrorState message={industriesQuery.error} onRetry={industriesQuery.retry} />
+      <CatalogErrorState
+        message={industriesQuery.error}
+        onRetry={industriesQuery.retry}
+        offline={industriesQuery.offline}
+      />
     );
   }
   if (all.length === 0) {

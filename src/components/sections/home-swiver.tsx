@@ -78,7 +78,11 @@ export function FeaturedProductsSection() {
         </div>
         {catalog.loading ? <CatalogSkeleton rows={3} /> : null}
         {catalog.error ? (
-          <CatalogErrorState message={catalog.error} onRetry={catalog.retry} />
+          <CatalogErrorState
+            message={catalog.error}
+            onRetry={catalog.retry}
+            offline={catalog.offline}
+          />
         ) : null}
         {!catalog.loading && !catalog.error && products.length === 0 ? (
           <CatalogEmptyState message="No public products are published yet." />
@@ -218,7 +222,11 @@ export function BusinessesSection() {
         </div>
         {catalog.loading ? <CatalogSkeleton rows={4} /> : null}
         {catalog.error ? (
-          <CatalogErrorState message={catalog.error} onRetry={catalog.retry} />
+          <CatalogErrorState
+            message={catalog.error}
+            onRetry={catalog.retry}
+            offline={catalog.offline}
+          />
         ) : null}
         {!catalog.loading && !catalog.error && industries.length === 0 ? (
           <CatalogEmptyState message="No industries are published yet." />
@@ -318,7 +326,11 @@ export function PricingTeaser() {
         </div>
         {catalog.loading ? <CatalogSkeleton rows={3} /> : null}
         {catalog.error ? (
-          <CatalogErrorState message={catalog.error} onRetry={catalog.retry} />
+          <CatalogErrorState
+            message={catalog.error}
+            onRetry={catalog.retry}
+            offline={catalog.offline}
+          />
         ) : null}
         {!catalog.loading && !catalog.error && plans.length === 0 ? (
           <CatalogEmptyState message="No public plans are available yet." />

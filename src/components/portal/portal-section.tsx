@@ -757,6 +757,21 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     settings: Settings,
   } as const;
 
+  const billingSection =
+    section === "subscriptions" || section === "invoices" || section === "billing";
+  const billingUnavailable =
+    billingSection && data.commercialBilling && !data.commercialBilling.ok;
+  const billingPartial =
+    billingSection &&
+    data.commercialBilling &&
+    data.commercialBilling.ok &&
+    !(
+      data.commercialBilling.subscriptionsOk &&
+      data.commercialBilling.invoicesOk &&
+      data.commercialBilling.paymentsOk &&
+      data.commercialBilling.renewalsOk
+    );
+
   return (
     <div>
       <PortalPageHeader
@@ -771,23 +786,51 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
         }
       />
 
-      <PortalPanel title={meta.title} flush={flush && Boolean(body)}>
-        {body ? (
-          body
-        ) : (
-          <PortalEmptyState
-            title={meta.emptyTitle}
-            description={meta.emptyDescription}
-            icon={emptyIcons[section]}
-            actionLabel={section === "support" ? "Create ticket" : undefined}
-            actionHref={
-              section === "support"
-                ? `mailto:${siteConfig.supportEmail}?subject=Support%20ticket`
-                : undefined
-            }
-          />
-        )}
-      </PortalPanel>
+      {billingUnavailable && !body ? (
+        <PortalErrorState
+          message={
+            data.commercialBilling?.message ||
+            "Billing data is temporarily unavailable from License Engine."
+          }
+          onRetry={reload}
+        />
+      ) : (
+        <PortalPanel title={meta.title} flush={flush && Boolean(body)}>
+          {billingUnavailable || billingPartial ? (
+            <div
+              className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200"
+              role="status"
+            >
+              {billingUnavailable
+                ? data.commercialBilling?.message ||
+                  "Billing services are temporarily unavailable. Showing any cached identity data only."
+                : "Some billing endpoints did not respond. Lists may be incomplete."}{" "}
+              <button
+                type="button"
+                className="font-medium underline underline-offset-2"
+                onClick={() => void reload()}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+          {body ? (
+            body
+          ) : (
+            <PortalEmptyState
+              title={meta.emptyTitle}
+              description={meta.emptyDescription}
+              icon={emptyIcons[section]}
+              actionLabel={section === "support" ? "Create ticket" : undefined}
+              actionHref={
+                section === "support"
+                  ? `mailto:${siteConfig.supportEmail}?subject=Support%20ticket`
+                  : undefined
+              }
+            />
+          )}
+        </PortalPanel>
+      )}
     </div>
   );
 }

@@ -36,7 +36,11 @@ import {
   useCatalogPlans,
   useCatalogProducts,
 } from "@/hooks/use-commercial";
-import { CatalogLoadingInline } from "@/components/commercial/catalog-states";
+import {
+  CatalogLoadingInline,
+  CatalogSelectError,
+} from "@/components/commercial/catalog-states";
+import { friendlyNetworkError } from "@/lib/network/errors";
 import { industryDisplayIcon } from "@/lib/commercial/mappers";
 
 type StrengthRule = { id: string; label: string; test: (v: string) => boolean };
@@ -490,8 +494,8 @@ function SignUpForm() {
 
       setSuccess(json.message || "Account created.");
       setLoading(false);
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Something went wrong. Please try again."));
       setLoading(false);
     }
   }
@@ -541,8 +545,8 @@ function SignUpForm() {
       window.setTimeout(() => {
         window.location.assign(redirectTo);
       }, 3500);
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Something went wrong. Please try again."));
       setLoading(false);
     }
   }
@@ -567,8 +571,8 @@ function SignUpForm() {
       } else {
         setSuccess(json.message || "A new code was sent.");
       }
-    } catch {
-      setError("Could not resend code.");
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Could not resend code."));
     } finally {
       setLoading(false);
     }
@@ -1023,7 +1027,15 @@ function SignUpForm() {
                     </li>
                   ) : null}
                   {productsQuery.error ? (
-                    <li className="px-3 py-4 text-sm text-rose-600">{productsQuery.error}</li>
+                    <CatalogSelectError
+                      message={productsQuery.error}
+                      onRetry={productsQuery.retry}
+                    />
+                  ) : null}
+                  {!productsQuery.loading && !productsQuery.error && productsQuery.empty ? (
+                    <li className="px-3 py-4 text-sm text-muted-foreground">
+                      No products are published yet.
+                    </li>
                   ) : null}
                   {productsQuery.data.map((prod) => {
                     const selected = productId === prod.id;
@@ -1078,7 +1090,10 @@ function SignUpForm() {
                       <CatalogLoadingInline label="Loading plans…" />
                     </li>
                   ) : null}
-                  {!plansQuery.loading && signupPlans.length === 0 ? (
+                  {plansQuery.error ? (
+                    <CatalogSelectError message={plansQuery.error} onRetry={plansQuery.retry} />
+                  ) : null}
+                  {!plansQuery.loading && !plansQuery.error && signupPlans.length === 0 ? (
                     <li className="px-3 py-4 text-sm text-muted-foreground">
                       No self-serve plans for this product. Enterprise requires Contact Sales.
                     </li>
@@ -1124,7 +1139,17 @@ function SignUpForm() {
                     </li>
                   ) : null}
                   {industriesQuery.error ? (
-                    <li className="px-3 py-4 text-sm text-rose-600">{industriesQuery.error}</li>
+                    <CatalogSelectError
+                      message={industriesQuery.error}
+                      onRetry={industriesQuery.retry}
+                    />
+                  ) : null}
+                  {!industriesQuery.loading &&
+                  !industriesQuery.error &&
+                  industriesQuery.empty ? (
+                    <li className="px-3 py-4 text-sm text-muted-foreground">
+                      No industries are published yet.
+                    </li>
                   ) : null}
                   {industriesQuery.data.map((ind) => {
                     const Icon = getIcon(industryDisplayIcon(ind));
@@ -1172,7 +1197,15 @@ function SignUpForm() {
                         <CatalogLoadingInline label="Loading categories…" />
                       </li>
                     ) : null}
-                    {!categoriesQuery.loading && categoriesQuery.data.length === 0 ? (
+                    {categoriesQuery.error ? (
+                      <CatalogSelectError
+                        message={categoriesQuery.error}
+                        onRetry={categoriesQuery.retry}
+                      />
+                    ) : null}
+                    {!categoriesQuery.loading &&
+                    !categoriesQuery.error &&
+                    categoriesQuery.data.length === 0 ? (
                       <li className="px-3 py-4 text-sm text-muted-foreground">
                         No categories for this industry.
                       </li>
@@ -1229,7 +1262,15 @@ function SignUpForm() {
                         <CatalogLoadingInline label="Loading profiles…" />
                       </li>
                     ) : null}
-                    {!profilesQuery.loading && profilesQuery.data.length === 0 ? (
+                    {profilesQuery.error ? (
+                      <CatalogSelectError
+                        message={profilesQuery.error}
+                        onRetry={profilesQuery.retry}
+                      />
+                    ) : null}
+                    {!profilesQuery.loading &&
+                    !profilesQuery.error &&
+                    profilesQuery.data.length === 0 ? (
                       <li className="px-3 py-4 text-sm text-muted-foreground">
                         No profiles for this category.
                       </li>

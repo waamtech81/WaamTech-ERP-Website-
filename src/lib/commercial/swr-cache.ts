@@ -32,13 +32,23 @@ export async function swrGet<T>(
       return { data: entry.data, stale: false };
     }
     if (age < maxAgeMs) {
-      void revalidate(key, fetcher);
+      void revalidate(key, fetcher).catch(() => {
+        /* keep serving stale snapshot */
+      });
       return { data: entry.data, stale: true };
     }
   }
 
-  const data = await revalidate(key, fetcher);
-  return { data, stale: false };
+  try {
+    const data = await revalidate(key, fetcher);
+    return { data, stale: false };
+  } catch (error) {
+    // Past hard max-age but network failed — keep last good snapshot if any.
+    if (entry?.data != null) {
+      return { data: entry.data, stale: true };
+    }
+    throw error;
+  }
 }
 
 async function revalidate<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
@@ -49,6 +59,14 @@ async function revalidate<T>(key: string, fetcher: () => Promise<T>): Promise<T>
     .then((data) => {
       memory.set(key, { data, fetchedAt: Date.now() });
       return data;
+    })
+    .catch((error) => {
+      // Preserve prior snapshot; drop in-flight promise so the next call can retry.
+      const cur = memory.get(key) as CacheEntry<T> | undefined;
+      if (cur) {
+        memory.set(key, { data: cur.data, fetchedAt: cur.fetchedAt });
+      }
+      throw error;
     })
     .finally(() => {
       const cur = memory.get(key) as CacheEntry<T> | undefined;

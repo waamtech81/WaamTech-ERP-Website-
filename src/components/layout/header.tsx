@@ -9,6 +9,7 @@ import {
   ChevronUp,
   LogIn,
   Menu,
+  RefreshCw,
   Search,
   Sparkles,
   X,
@@ -33,7 +34,7 @@ import {
   useCatalogBusinessCategories,
   useCatalogIndustries,
 } from "@/hooks/use-commercial";
-import { industryDisplayIcon } from "@/lib/commercial/mappers";
+import { industryDisplayIcon, publicMarketingPlans } from "@/lib/commercial/mappers";
 
 type DropdownKey = "products" | "industries" | "other" | null;
 
@@ -127,7 +128,7 @@ export function Header() {
   const { t, formatPrice } = useLocale();
   const catalog = useCatalogBundle();
   const industriesQuery = useCatalogIndustries();
-  const prices = (catalog.data.pricingPlans || [])
+  const prices = publicMarketingPlans(catalog.data.pricingPlans || [])
     .map((p) => p.yearlyPrice ?? p.monthlyPrice)
     .filter((v): v is number => typeof v === "number" && v > 0);
   const fromUsd = prices.length ? Math.min(...prices) : null;
@@ -386,6 +387,31 @@ export function Header() {
                             ({menuIndustries.length})
                           </span>
                         </p>
+                        {industriesQuery.error && menuIndustries.length === 0 ? (
+                          <div className="mx-2 mb-2 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2.5 text-xs text-rose-800">
+                            <p>{industriesQuery.error}</p>
+                            <button
+                              type="button"
+                              className="mt-1.5 inline-flex items-center gap-1 font-medium text-rose-900 underline-offset-2 hover:underline"
+                              onClick={() => industriesQuery.retry()}
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              Retry
+                            </button>
+                          </div>
+                        ) : null}
+                        {industriesQuery.error && menuIndustries.length > 0 ? (
+                          <div className="mx-2 mb-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                            Catalog refresh failed.{" "}
+                            <button
+                              type="button"
+                              className="font-medium underline underline-offset-2"
+                              onClick={() => industriesQuery.retry()}
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        ) : null}
                         <ul
                           className={cn(
                             "space-y-0.5 min-w-0",

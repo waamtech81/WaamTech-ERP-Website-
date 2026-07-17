@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { friendlyNetworkError } from "@/lib/network/errors";
 
 type CaptchaTile = {
   id: string;
@@ -78,8 +79,8 @@ export function ContactForm({
         token: data.token,
         tiles: data.tiles,
       });
-    } catch {
-      setError("Could not load captcha. Please refresh.");
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Could not load captcha. Please refresh."));
       setCaptcha(null);
     } finally {
       setCaptchaLoading(false);
@@ -159,8 +160,8 @@ export function ContactForm({
       setValues({ ...empty, subject: initialSubject });
       setSelected([]);
       await loadCaptcha();
-    } catch {
-      setError("Could not send your message. Please try again.");
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Could not send your message. Please try again."));
       await loadCaptcha();
     } finally {
       setLoading(false);

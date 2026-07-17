@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, RefreshCw, AlertTriangle, Inbox } from "lucide-react";
+import { Loader2, RefreshCw, AlertTriangle, Inbox, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -27,22 +27,29 @@ export function CatalogErrorState({
   message,
   onRetry,
   className,
+  offline,
 }: {
   message?: string;
   onRetry?: () => void;
   className?: string;
+  offline?: boolean;
 }) {
+  const Icon = offline ? WifiOff : AlertTriangle;
   return (
     <div
       className={cn(
         "flex flex-col items-center justify-center gap-3 rounded-2xl border border-rose-100 bg-rose-50/60 px-6 py-12 text-center",
+        offline && "border-amber-100 bg-amber-50/70",
         className
       )}
       role="alert"
     >
-      <AlertTriangle className="h-8 w-8 text-rose-500" />
-      <p className="max-w-md text-sm text-rose-900">
-        {message || "Commercial catalog is temporarily unavailable."}
+      <Icon className={cn("h-8 w-8", offline ? "text-amber-600" : "text-rose-500")} />
+      <p className={cn("max-w-md text-sm", offline ? "text-amber-950" : "text-rose-900")}>
+        {message ||
+          (offline
+            ? "You appear to be offline. Check your connection and try again."
+            : "Commercial catalog is temporarily unavailable.")}
       </p>
       {onRetry ? (
         <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onRetry}>
@@ -51,6 +58,36 @@ export function CatalogErrorState({
         </Button>
       ) : null}
     </div>
+  );
+}
+
+/** Compact error + retry for signup dropdown lists */
+export function CatalogSelectError({
+  message,
+  onRetry,
+}: {
+  message?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <li className="space-y-2 px-3 py-4 text-center">
+      <p className="text-sm text-rose-600">{message || "Unable to load options."}</p>
+      {onRetry ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="rounded-full"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRetry();
+          }}
+        >
+          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+          Retry
+        </Button>
+      ) : null}
+    </li>
   );
 }
 

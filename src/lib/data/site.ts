@@ -30,9 +30,9 @@ export const siteConfig = {
   address: "DXB, UAE. ISB, PK",
   logo: "/waamto-logo.webp",
   social: {
-    linkedin: "https://linkedin.com/company/waamtech",
-    twitter: "https://twitter.com/waamtech",
-    youtube: "https://youtube.com/@waamtech",
+    linkedin: "https://linkedin.com/company/waamto",
+    twitter: "https://twitter.com/waamto",
+    youtube: "https://youtube.com/@waamto",
     github: "https://github.com/waamtech81",
   },
 };

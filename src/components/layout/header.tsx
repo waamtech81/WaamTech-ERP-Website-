@@ -228,8 +228,8 @@ export function Header() {
         className={cn(
           "sticky top-0 z-50 border-b transition-all duration-300",
           scrolled
-            ? "border-border/80 bg-white/90 backdrop-blur-xl shadow-[0_1px_0_rgba(15,23,42,0.04)]"
-            : "border-transparent bg-white/80 backdrop-blur-md"
+            ? "border-border/80 bg-white shadow-[0_1px_0_rgba(15,23,42,0.04)]"
+            : "border-transparent bg-white"
         )}
       >
         <div className="container-site flex h-16 md:h-[4.25rem] items-center justify-between gap-3 lg:gap-4">

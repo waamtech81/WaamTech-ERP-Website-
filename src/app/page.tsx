@@ -1,4 +1,5 @@
 import { SwiverHero } from "@/components/sections/swiver-hero";
+import { HomeCatalogSearch } from "@/components/sections/home-catalog-search";
 import { ModuleShowcase } from "@/components/sections/module-showcase";
 import {
   StatsBand,
@@ -14,6 +15,7 @@ export default function HomePage() {
   return (
     <>
       <SwiverHero />
+      <HomeCatalogSearch />
       <ModuleShowcase />
       <StatsBand />
       <CapabilitiesSection />

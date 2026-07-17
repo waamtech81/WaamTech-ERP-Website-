@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, ArrowUpRight, ShoppingCart, Smartphone } from "lucide-react";
 import { products, siteConfig } from "@/lib/data/site";
@@ -11,12 +10,10 @@ import {
   getCategoriesForIndustry,
   getFeaturedIndustries,
   getIndustryLucideIcon,
-  getIndustryMedia,
   hierarchyStats,
   type BusinessCategory,
   type BusinessIndustry,
 } from "@/lib/data/business-hierarchy";
-import { thumbnailUrl } from "@/lib/images";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Container, Section } from "@/components/shared/section";
@@ -221,7 +218,7 @@ export function ModuleShowcase() {
               transition={{ duration: 0.3 }}
             >
               <ShowcasePanel>
-                <div className="grid lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr]">
+                <div className="grid lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr] min-w-0 overflow-hidden">
                   <IndustrySidebar
                     industries={industries}
                     activeIndex={industryIndex}
@@ -246,38 +243,42 @@ export function ModuleShowcase() {
               transition={{ duration: 0.3 }}
             >
               <ShowcasePanel>
-                <div className="grid lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr]">
+                <div className="grid lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr] min-w-0 overflow-hidden">
                   <IndustrySidebar
                     industries={industries}
                     activeIndex={industryIndex}
                     onSelect={setIndustryIndex}
                   />
-                  <div className="p-5 md:p-7 min-w-0">
-                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-primary uppercase tracking-wide">
-                          Business categories
-                        </p>
-                        <h3 className="mt-1 text-xl md:text-2xl font-semibold tracking-tight text-[#0b1f3a]">
-                          {industryCategories.length} in {activeIndustry.name}
-                        </h3>
+                  <div className="flex min-w-0 flex-col overflow-hidden max-h-[280px] sm:max-h-[360px] lg:max-h-[520px]">
+                    <div className="shrink-0 p-5 md:p-7 pb-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-primary uppercase tracking-wide">
+                            Business categories
+                          </p>
+                          <h3 className="mt-1 text-xl md:text-2xl font-semibold tracking-tight text-[#0b1f3a]">
+                            {industryCategories.length} in {activeIndustry.name}
+                          </h3>
+                        </div>
+                        <Button asChild variant="outline" size="sm" className="rounded-full shrink-0">
+                          <Link href={`/industries/${activeIndustry.id}`}>
+                            View industry
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
                       </div>
-                      <Button asChild variant="outline" size="sm" className="rounded-full">
-                        <Link href={`/industries/${activeIndustry.id}`}>
-                          View industry
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </Link>
-                      </Button>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {industryCategories.map((cat) => (
-                        <CategoryCard
-                          key={cat.id}
-                          category={cat}
-                          industry={activeIndustry}
-                        />
-                      ))}
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-5 md:px-7 pb-5 md:pb-7">
+                      <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                        {industryCategories.map((cat) => (
+                          <CategoryCard
+                            key={cat.id}
+                            category={cat}
+                            industry={activeIndustry}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -300,7 +301,7 @@ function IndustrySidebar({
   onSelect: (index: number) => void;
 }) {
   return (
-    <div className="border-b lg:border-b-0 lg:border-r border-border bg-slate-50/80 p-3 max-h-[280px] lg:max-h-[520px] overflow-y-auto">
+    <div className="border-b lg:border-b-0 lg:border-r border-border bg-slate-50/80 p-3 min-w-0 shrink-0 overflow-x-hidden max-h-[280px] sm:max-h-[360px] lg:max-h-[520px] overflow-y-auto scrollbar-thin">
       <p className="px-2 mb-2 text-[11px] font-bold uppercase tracking-widest text-primary/70">
         Industries
       </p>
@@ -361,41 +362,28 @@ function CategoryCard({
   category: BusinessCategory;
   industry: BusinessIndustry;
 }) {
-  const media = getIndustryMedia(industry.id);
-  const thumb = thumbnailUrl(media.image, 280);
+  const CatIcon = getIcon(getIndustryLucideIcon(industry));
   const posEnabled = category.pos_mode !== "disabled";
 
   return (
     <Link
       href={`/signup?industry=${category.industry_id}&profile=${category.id}`}
-      className="group overflow-hidden rounded-2xl border border-border bg-white transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
+      className="group flex items-start gap-3 rounded-2xl border border-border bg-white p-3.5 transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)] min-w-0"
     >
-      <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
-        <Image
-          src={thumb}
-          alt={category.name}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 40vw, 280px"
-          quality={70}
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/55 via-transparent to-transparent" />
-        <span
-          className="absolute left-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-sm"
-          style={{ backgroundColor: industry.color }}
-        >
-          {(() => {
-            const Icon = getIcon(getIndustryLucideIcon(industry));
-            return <Icon className="h-3.5 w-3.5" />;
-          })()}
-        </span>
-        <ArrowUpRight className="absolute right-2.5 top-2.5 h-4 w-4 text-white opacity-0 transition-opacity group-hover:opacity-100 drop-shadow" />
-      </div>
-      <div className="p-3.5">
-        <p className="text-sm font-semibold text-[#0b1f3a] leading-snug line-clamp-2">
-          {category.name}
-        </p>
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition-transform group-hover:scale-105"
+        style={{ backgroundColor: industry.color }}
+      >
+        <CatIcon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-semibold text-[#0b1f3a] leading-snug line-clamp-2">
+            {category.name}
+          </p>
+          <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
@@ -438,30 +426,18 @@ function IndustryDetailPanel({
   embedded?: boolean;
 }) {
   const Icon = getIcon(getIndustryLucideIcon(industry));
-  const media = getIndustryMedia(industry.id);
   const previewCats = categories.slice(0, 6);
   const posCount = categories.filter((c) => c.pos_mode !== "disabled").length;
   const mobileCount = categories.filter((c) => c.mobile_mode === "required").length;
 
   const content = (
-    <div className={cn("grid min-w-0", embedded ? "lg:grid-cols-1 xl:grid-cols-[1fr_1.15fr]" : "lg:grid-cols-[1fr_1.35fr]")}>
-      <div className="border-b xl:border-b-0 xl:border-r border-border p-6 md:p-8">
-        <div className="relative mb-5 aspect-[16/10] overflow-hidden rounded-2xl border border-border">
-          <Image
-            src={thumbnailUrl(media.image, 640)}
-            alt={media.imageAlt}
-            fill
-            sizes="(max-width: 1280px) 100vw, 400px"
-            quality={70}
-            className="object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/50 to-transparent" />
-          <span
-            className="absolute bottom-3 left-3 flex h-10 w-10 items-center justify-center rounded-xl text-white shadow"
-            style={{ backgroundColor: industry.color }}
-          >
-            <Icon className="h-5 w-5" />
-          </span>
+    <div className={cn("grid min-w-0 overflow-hidden", embedded ? "lg:grid-cols-1 xl:grid-cols-[1fr_1.15fr]" : "lg:grid-cols-[1fr_1.35fr]")}>
+      <div className="border-b xl:border-b-0 xl:border-r border-border p-6 md:p-8 min-w-0 overflow-x-hidden">
+        <div
+          className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl text-white"
+          style={{ backgroundColor: industry.color }}
+        >
+          <Icon className="h-5 w-5" />
         </div>
         <h3 className="text-2xl font-semibold tracking-tight text-[#0b1f3a]">{industry.name}</h3>
         <p className="mt-2 text-sm font-medium text-primary">
@@ -493,27 +469,23 @@ function IndustryDetailPanel({
         </Button>
       </div>
 
-      <div className="bg-[#f4f7fb] p-5 md:p-7">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="bg-[#f4f7fb] p-5 md:p-7 min-w-0 overflow-x-hidden flex flex-col max-h-[280px] sm:max-h-[360px] lg:max-h-none">
+        <div className="mb-4 flex shrink-0 items-center justify-between">
           <p className="text-sm font-semibold text-[#0b1f3a]">Categories in this industry</p>
           <Badge variant="accent">{categories.length} total</Badge>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin pr-0.5">
           {previewCats.map((cat) => (
             <Link
               key={cat.id}
               href={`/signup?industry=${industry.id}&profile=${cat.id}`}
-              className="group flex items-center gap-3 rounded-xl border border-border bg-white px-3 py-2.5 text-sm transition-all hover:border-primary/25 hover:shadow-sm"
+              className="group flex items-center gap-3 rounded-xl border border-border bg-white px-3 py-2.5 text-sm transition-all hover:border-primary/25 hover:shadow-sm min-w-0"
             >
-              <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                <Image
-                  src={thumbnailUrl(media.image, 120)}
-                  alt=""
-                  fill
-                  sizes="44px"
-                  quality={70}
-                  className="object-cover"
-                />
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white"
+                style={{ backgroundColor: industry.color }}
+              >
+                <Icon className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-[#0b1f3a] truncate">{cat.name}</p>

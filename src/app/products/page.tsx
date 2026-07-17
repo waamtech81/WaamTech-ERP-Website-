@@ -1,85 +1,77 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { coreModules } from "@/lib/data/core";
-import { comparisonFeatures } from "@/lib/data/site";
+import { ArrowRight, Check, Minus } from "lucide-react";
+import { comparisonFeatures, products, siteConfig } from "@/lib/data/site";
+import { productShowcases } from "@/lib/data/product-showcase";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
-import { AnimateIn } from "@/components/shared/animate-in";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { CTASection } from "@/components/shared/cta-section";
-import { getIcon } from "@/lib/icons";
-import { Check, Minus } from "lucide-react";
+import { ProductStack } from "@/components/sections/product-stack";
 
 export const metadata: Metadata = {
   title: "Products",
-  description:
-    "Explore WAAMTO SaaS Core modules: Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and more.",
+  description: `Explore ${siteConfig.name} SaaS Core modules: Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing — one module per section with benefits, use cases, and live previews.`,
 };
 
 export default function ProductsPage() {
   return (
     <>
-      <Section className="!pb-10 !pt-12 md:!pt-16">
-        <Container>
+      <Section className="relative !pb-8 !pt-12 md:!pt-16 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(37,99,235,0.08),transparent_70%)]" />
+        <Container className="relative">
           <Breadcrumbs items={[{ label: "Products" }]} />
-          <SectionHeader
-            align="left"
-            eyebrow="SaaS Core modules"
-            title="The WAAMTO core suite"
-            description="Installable business modules on a clean platform core — Inventory, POS, Sales, Purchasing, Finance, CRM, HR & Payroll, and Manufacturing."
-            className="mb-0 max-w-3xl"
-          />
-        </Container>
-      </Section>
-
-      <Section muted className="!pt-10">
-        <Container>
-          <div className="mb-8 md:mb-10 flex items-center justify-between gap-4">
-            <h2 className="text-2xl font-semibold tracking-tight">Core modules</h2>
-            <Badge variant="outline">{coreModules.length} modules</Badge>
+          <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <Badge variant="accent" className="mb-3">
+                SaaS Core modules
+              </Badge>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
+                Products that stack as you scroll
+              </h1>
+              <p className="mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
+                One module at a time — what it is, who it&apos;s for, and why it helps. Scroll to
+                stack each card; after the last product, the page scrolls normally again.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button asChild size="lg" className="rounded-full">
+                <Link href="/signup">
+                  Start free trial
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="rounded-full">
+                <Link href="#inventory">Start exploring</Link>
+              </Button>
+            </div>
           </div>
-          <div className="grid gap-5 md:gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {coreModules.map((m, i) => {
-              const Icon = getIcon(m.icon);
-              return (
-                <div key={m.id} id={m.id}>
-                  <AnimateIn delay={i * 0.04}>
-                    <Card className="h-full hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)] hover:border-primary/20">
-                      <CardHeader>
-                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/8 text-primary">
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <CardTitle>{m.name}</CardTitle>
-                        <p className="text-sm font-medium text-foreground/70">{m.tagline}</p>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{m.description}</p>
-                        <ul className="mt-5 flex flex-wrap gap-2">
-                          {m.highlights.map((h) => (
-                            <li key={h}>
-                              <Badge variant="muted">{h}</Badge>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  </AnimateIn>
-                </div>
-              );
-            })}
+
+          <div className="mt-8 flex flex-wrap gap-2">
+            {products.map((p, i) => (
+              <a
+                key={p.id}
+                href={`#${p.slug}`}
+                className="rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
+              >
+                {String(i + 1).padStart(2, "0")}. {p.name}
+              </a>
+            ))}
           </div>
         </Container>
       </Section>
 
-      <Section>
+      <ProductStack products={productShowcases} />
+
+      <Section className="!pt-10">
         <Container>
           <SectionHeader
             eyebrow="Compare"
             title="Feature comparison across plans"
             description="See which capabilities unlock as you move from Starter to Enterprise."
           />
-          <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+          <div className="overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-white scrollbar-thin">
             <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/60">
@@ -126,7 +118,7 @@ export default function ProductsPage() {
       </Section>
 
       <CTASection
-        title="Build your WAAMTO stack"
+        title={`Build your ${siteConfig.name} stack`}
         description="Start with the modules you need today and expand as your operations grow."
       />
     </>

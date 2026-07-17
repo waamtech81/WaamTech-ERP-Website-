@@ -362,7 +362,7 @@ export function Header() {
                   <div className="h-3 w-full" aria-hidden />
                   <MegaPanel className="mx-auto w-full max-w-[1400px]">
                     <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr]">
-                      <div className="border-b lg:border-b-0 lg:border-r border-border bg-slate-50/80 p-2.5 flex flex-col min-h-0">
+                      <div className="border-b lg:border-b-0 lg:border-r border-border bg-slate-50/80 p-2.5 flex flex-col min-h-0 min-w-0 overflow-x-hidden">
                         <p className="px-2 mb-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/70">
                           Industries
                           <span className="ml-1.5 font-semibold text-muted-foreground normal-case tracking-normal">
@@ -371,8 +371,9 @@ export function Header() {
                         </p>
                         <ul
                           className={cn(
-                            "space-y-0.5",
-                            industriesExpanded && "max-h-[min(52vh,420px)] overflow-y-auto pr-0.5"
+                            "space-y-0.5 min-w-0",
+                            industriesExpanded &&
+                              "max-h-[min(52vh,420px)] overflow-y-auto overflow-x-hidden scrollbar-thin pr-1"
                           )}
                         >
                           {menuIndustries.map((ind) => {
@@ -433,7 +434,7 @@ export function Header() {
                         ) : null}
                       </div>
 
-                      <div className="p-4 sm:p-5 lg:p-6">
+                      <div className="p-4 sm:p-5 lg:p-6 min-w-0 overflow-x-hidden">
                         {activeIndustry ? (
                           <>
                             <div className="mb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -460,22 +461,35 @@ export function Header() {
                                 </Link>
                               </Button>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
-                              {activeCategories.map((cat) => (
-                                <Link
-                                  key={cat.id}
-                                  href={`/signup?industry=${activeIndustry.id}&profile=${cat.id}`}
-                                  className="rounded-xl border border-border px-3 py-3 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors"
-                                >
-                                  <span className="block text-sm font-medium text-[#0b1f3a]">
-                                    {cat.name}
-                                  </span>
-                                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                                    POS {cat.pos_mode}
-                                    {cat.mobile_mode === "required" ? " · Mobile" : ""}
-                                  </span>
-                                </Link>
-                              ))}
+                            <div className="max-h-[min(48vh,400px)] overflow-y-auto overflow-x-hidden scrollbar-thin pr-1">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                                {activeCategories.map((cat) => {
+                                  const CatIcon = getIcon(getIndustryLucideIcon(activeIndustry));
+                                  return (
+                                    <Link
+                                      key={cat.id}
+                                      href={`/signup?industry=${activeIndustry.id}&profile=${cat.id}`}
+                                      className="flex items-start gap-2.5 rounded-xl border border-border px-3 py-3 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors min-w-0"
+                                    >
+                                      <span
+                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
+                                        style={{ backgroundColor: activeIndustry.color }}
+                                      >
+                                        <CatIcon className="h-3.5 w-3.5" />
+                                      </span>
+                                      <span className="min-w-0">
+                                        <span className="block text-sm font-medium text-[#0b1f3a] truncate">
+                                          {cat.name}
+                                        </span>
+                                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                                          POS {cat.pos_mode}
+                                          {cat.mobile_mode === "required" ? " · Mobile" : ""}
+                                        </span>
+                                      </span>
+                                    </Link>
+                                  );
+                                })}
+                              </div>
                             </div>
                             {getCategoriesForIndustry(activeIndustry.id).length > 12 ? (
                               <p className="mt-3 text-xs text-muted-foreground">

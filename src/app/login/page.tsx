@@ -3,11 +3,12 @@
 import { Suspense, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, Boxes, ExternalLink } from "lucide-react";
+import { ArrowRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { siteConfig } from "@/lib/data/site";
 import { authConfig, getAppLoginUrl } from "@/lib/auth/config";
+import { BrandLogo } from "@/components/shared/brand-logo";
 
 function LoginRedirect() {
   const searchParams = useSearchParams();
@@ -35,14 +36,9 @@ function LoginRedirect() {
       <div className="container-site relative flex justify-center py-12 sm:py-16 lg:py-20">
         <Card className="w-full max-w-md shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
           <CardHeader className="text-center space-y-2">
-            <Link href="/" className="mx-auto mb-2 inline-flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white">
-                <Boxes className="h-4 w-4" />
-              </span>
-              <span className="font-[family-name:var(--font-poppins)] text-lg font-semibold">
-                {siteConfig.name}
-              </span>
-            </Link>
+            <div className="mx-auto mb-2 flex justify-center">
+              <BrandLogo hideTagline height={34} />
+            </div>
             <CardTitle className="text-2xl">Open WAAMTO ERP</CardTitle>
             <CardDescription>
               Sign in happens on our live application — not on this marketing website.

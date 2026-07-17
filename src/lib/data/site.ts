@@ -28,6 +28,7 @@ export const siteConfig = {
   supportEmail: "support@waamtech.com",
   phone: "+1 (800) 555-0199",
   address: "1200 Enterprise Ave, Suite 400, Austin, TX 78701",
+  logo: "/waamto-logo.webp",
   social: {
     linkedin: "https://linkedin.com/company/waamtech",
     twitter: "https://twitter.com/waamtech",

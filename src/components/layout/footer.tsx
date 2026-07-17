@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Boxes } from "lucide-react";
 import { siteConfig, products } from "@/lib/data/site";
 import { Container } from "@/components/shared/section";
 import { CurrencySwitcher } from "@/components/layout/locale-controls";
 import { NewsletterForm } from "@/components/layout/newsletter-form";
 import { AppStoreBadges } from "@/components/layout/app-store-badges";
 import { FooterReveal } from "@/components/layout/footer-reveal";
+import { BrandLogo } from "@/components/shared/brand-logo";
 
 const footerColumns = [
   {
@@ -64,19 +64,7 @@ export function Footer() {
         <Container className="relative z-[1] py-16 md:py-20">
           <div className="grid gap-12 lg:grid-cols-12">
             <div className="lg:col-span-4">
-              <Link href="/" className="inline-flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white ring-1 ring-white/[0.06]">
-                  <Boxes className="h-4 w-4" />
-                </span>
-                <span className="flex flex-col leading-none">
-                  <span className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-white">
-                    {siteConfig.name}
-                  </span>
-                  <span className="mt-0.5 text-[10px] font-medium text-slate-400">
-                    {siteConfig.productLine}
-                  </span>
-                </span>
-              </Link>
+              <BrandLogo tone="dark" height={36} />
               <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-400">
                 {siteConfig.description}
               </p>

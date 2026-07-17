@@ -61,6 +61,10 @@ export async function generateMetadata(): Promise<Metadata> {
       "business software",
     ],
     authors: [{ name: siteConfig.companyName }],
+    icons: {
+      icon: [{ url: siteConfig.logo, type: "image/webp" }],
+      apple: [{ url: siteConfig.logo, type: "image/webp" }],
+    },
     alternates: {
       canonical: siteConfig.url,
       languages: {

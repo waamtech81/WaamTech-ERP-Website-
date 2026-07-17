@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  Boxes,
   Check,
   ChevronDown,
   Eye,
@@ -20,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { siteConfig } from "@/lib/data/site";
+import { BrandLogo } from "@/components/shared/brand-logo";
 import {
   getBusinessCategory,
   getBusinessIndustry,
@@ -552,14 +552,9 @@ function SignUpForm() {
         <div className="container-site relative flex justify-center py-16 lg:py-24">
           <Card className="w-full max-w-lg shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
             <CardContent className="px-6 py-10 sm:px-10 text-center">
-              <Link href="/" className="mx-auto mb-6 inline-flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white">
-                  <Boxes className="h-4 w-4" />
-                </span>
-                <span className="font-[family-name:var(--font-poppins)] text-lg font-semibold">
-                  {siteConfig.name}
-                </span>
-              </Link>
+              <div className="mx-auto mb-6 flex justify-center">
+                <BrandLogo hideTagline height={34} />
+              </div>
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Mail className="h-7 w-7" />
               </div>
@@ -645,14 +640,9 @@ function SignUpForm() {
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <div className="container-site relative grid gap-8 py-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-10 lg:py-16">
         <div className="max-w-xl lg:sticky lg:top-24">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-6 sm:mb-8">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white">
-              <Boxes className="h-4 w-4" />
-            </span>
-            <span className="font-[family-name:var(--font-poppins)] text-lg font-semibold">
-              {siteConfig.name}
-            </span>
-          </Link>
+          <div className="mb-6 sm:mb-8">
+            <BrandLogo hideTagline height={34} />
+          </div>
           <Badge variant="accent" className="mb-4">
             <Sparkles className="h-3 w-3 mr-1" />
             {authConfig.trialDays}-day free trial

@@ -14,6 +14,7 @@ import {
   X,
   Boxes,
 } from "lucide-react";
+import { BrandLogo } from "@/components/shared/brand-logo";
 import {
   productMegaMenu,
   otherMegaMenu,
@@ -235,19 +236,7 @@ export function Header() {
         )}
       >
         <div className="container-site flex h-16 md:h-[4.25rem] items-center justify-between gap-3 lg:gap-4">
-          <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-sm transition-transform group-hover:scale-105">
-              <Boxes className="h-4.5 w-4.5" />
-            </span>
-            <span className="flex flex-col leading-none" translate="no">
-              <span className="font-[family-name:var(--font-poppins)] text-lg font-semibold tracking-tight">
-                {siteConfig.name}
-              </span>
-              <span className="mt-0.5 hidden text-[10px] font-medium text-muted-foreground sm:block">
-                {siteConfig.productLine}
-              </span>
-            </span>
-          </Link>
+          <BrandLogo priority height={36} />
 
           <nav className="hidden xl:flex items-center gap-0.5">
             {/* Full-width Products mega menu */}

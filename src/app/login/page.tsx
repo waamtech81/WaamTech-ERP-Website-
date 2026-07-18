@@ -22,9 +22,33 @@ import { authConfig, getAppLoginUrl } from "@/lib/auth/config";
 import { safeInternalPath } from "@/lib/security/safe-redirect";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import { wouldTriggerLoopbackPermission } from "@/lib/network/address-space";
+import {
+  executeRecaptcha,
+  hasRecaptchaV3SiteKey,
+  RecaptchaV3,
+} from "@/components/security/recaptcha-v3";
 
 type LoginStep = "credentials" | "otp" | "totp";
 type AccountKind = "customer" | "platform";
+type SecondFactor = "email_otp" | "totp" | "email_verification";
+
+const TRUSTED_DEVICE_KEY = "waamtech_trusted_device";
+
+function readTrustedDeviceToken(): string {
+  try {
+    return localStorage.getItem(TRUSTED_DEVICE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function saveTrustedDeviceToken(token: string) {
+  try {
+    if (token) localStorage.setItem(TRUSTED_DEVICE_KEY, token);
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
  * Platform Super Admin handoff — posts tokens to License Engine /sso.
@@ -82,13 +106,16 @@ function LoginForm() {
 
   const [step, setStep] = useState<LoginStep>("credentials");
   const [accountKind, setAccountKind] = useState<AccountKind>("customer");
+  const [secondFactor, setSecondFactor] = useState<SecondFactor>("email_verification");
   const [username, setUsername] = useState(prefill);
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [totp, setTotp] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
   const [challengeToken, setChallengeToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
+  const [trustDevice, setTrustDevice] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -139,6 +166,7 @@ function LoginForm() {
       accessToken?: string;
       refreshToken?: string;
       user?: unknown;
+      device_token?: string;
     };
   }) {
     if (remember) {
@@ -147,6 +175,10 @@ function LoginForm() {
       } catch {
         /* ignore */
       }
+    }
+
+    if (typeof json.data?.device_token === "string" && json.data.device_token) {
+      saveTrustedDeviceToken(json.data.device_token);
     }
 
     const kind = json.data?.accountKind;
@@ -174,6 +206,54 @@ function LoginForm() {
     window.location.assign(safeInternalPath(json.data?.redirectUrl || nextPath));
   }
 
+  function openSecondFactor(json: {
+    message?: string;
+    requires_email_verification?: boolean;
+    requires_email_otp?: boolean;
+    requiresOtp?: boolean;
+    requires2fa?: boolean;
+    requires_2fa?: boolean;
+    data?: {
+      challenge_token?: string;
+      account_kind?: string;
+      active_second_factor?: string;
+    };
+  }) {
+    const challengeTokenValue = String(json.data?.challenge_token || "").trim();
+    const accountType =
+      json.data?.account_kind === "platform" || accountKind === "platform"
+        ? "platform"
+        : "customer";
+    const active = String(json.data?.active_second_factor || "");
+    const useTotp =
+      active === "totp" ||
+      ((json.requires2fa || json.requires_2fa) &&
+        !json.requiresOtp &&
+        !json.requires_email_otp &&
+        active !== "email_otp");
+
+    setAccountKind(accountType);
+    setChallengeToken(challengeTokenValue);
+
+    if (useTotp) {
+      setSecondFactor("totp");
+      setStep("totp");
+      setInfo(json.message || "Enter the code from your authenticator app.");
+    } else {
+      setSecondFactor(
+        json.requires_email_verification
+          ? "email_verification"
+          : "email_otp"
+      );
+      setStep("otp");
+      setCooldown(60);
+      setInfo(
+        json.message ||
+          "Enter the verification code sent to your registered email."
+      );
+    }
+  }
+
   async function submitCredentials(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -181,10 +261,27 @@ function LoginForm() {
     setLoading(true);
 
     try {
+      let captchaToken: string | null = null;
+      if (hasRecaptchaV3SiteKey()) {
+        captchaToken = await executeRecaptcha("portal_login");
+        if (!captchaToken) {
+          setError("Captcha failed to load. Please refresh and try again.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      const deviceToken = readTrustedDeviceToken();
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, remember }),
+        body: JSON.stringify({
+          username,
+          password,
+          remember,
+          ...(captchaToken ? { captcha_token: captchaToken } : {}),
+          ...(deviceToken ? { device_token: deviceToken } : {}),
+        }),
         cache: "no-store",
         credentials: "include",
       });
@@ -192,13 +289,8 @@ function LoginForm() {
 
       const challengeTokenValue = String(json.data?.challenge_token || "").trim();
       const requiresEmailVerification = json.requires_email_verification === true;
-      const requiresOtpFlag = json.requiresOtp === true;
-      const accountType =
-        json.accountKind === "platform" ||
-        json.data?.accountKind === "platform" ||
-        json.data?.account_kind === "platform"
-          ? "platform"
-          : "customer";
+      const requiresOtpFlag = json.requiresOtp === true || json.requires_email_otp === true;
+      const requires2fa = json.requires2fa === true || json.requires_2fa === true;
 
       if (!json.success) {
         setError(apiMessageFromJson(json, "Login failed."));
@@ -217,31 +309,8 @@ function LoginForm() {
         return;
       }
 
-      if (json.requires2fa || json.requires_2fa) {
-        setAccountKind("platform");
-        setChallengeToken(challengeTokenValue);
-        setStep("totp");
-        setInfo(json.message || "Enter your authenticator app code.");
-        setLoading(false);
-        return;
-      }
-
-      // OTP only when Engine explicitly requires verification for an unverified account.
-      // Tokens / success without requiresOtp must never open the OTP step.
-      if (
-        challengeTokenValue &&
-        (requiresEmailVerification || requiresOtpFlag) &&
-        !json.data?.accessToken &&
-        json.data?.accountKind !== "platform"
-      ) {
-        setAccountKind(accountType);
-        setChallengeToken(challengeTokenValue);
-        setStep("otp");
-        setCooldown(60);
-        setInfo(
-          json.message ||
-            "Enter the verification code sent to your registered email."
-        );
+      if (challengeTokenValue && (requires2fa || requiresEmailVerification || requiresOtpFlag)) {
+        openSecondFactor(json);
         setLoading(false);
         return;
       }
@@ -276,6 +345,7 @@ function LoginForm() {
           email_code: otp,
           otp,
           remember,
+          trust_device: trustDevice,
           account_kind: accountKind,
         }),
         credentials: "include",
@@ -290,10 +360,7 @@ function LoginForm() {
       }
 
       if (json.requires2fa || json.requires_2fa) {
-        setAccountKind("platform");
-        setChallengeToken(json.data?.challenge_token || challengeToken);
-        setStep("totp");
-        setInfo(json.message || "Enter your authenticator app code.");
+        openSecondFactor(json);
         setLoading(false);
         return;
       }
@@ -318,9 +385,11 @@ function LoginForm() {
           username,
           password,
           challenge_token: challengeToken,
-          totp_code: totp,
+          totp_code: totp || undefined,
+          recovery_code: recoveryCode.trim() || undefined,
           remember,
-          account_kind: "platform",
+          trust_device: accountKind === "customer" ? trustDevice : false,
+          account_kind: accountKind,
         }),
         credentials: "include",
         cache: "no-store",
@@ -371,9 +440,12 @@ function LoginForm() {
   function resetToCredentials() {
     setStep("credentials");
     setAccountKind("customer");
+    setSecondFactor("email_verification");
     setOtp("");
     setTotp("");
+    setRecoveryCode("");
     setChallengeToken("");
+    setTrustDevice(false);
     setError("");
     setInfo("");
   }
@@ -399,6 +471,7 @@ function LoginForm() {
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
+      <RecaptchaV3 />
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <div className="container-site relative flex min-h-[calc(100vh-4rem)] items-center justify-center py-14 sm:py-20 lg:py-24">
         <div className="w-full max-w-5xl">
@@ -566,7 +639,10 @@ function LoginForm() {
                     <div className="flex items-start gap-3 rounded-xl border border-border/80 bg-muted/50 px-4 py-3">
                       <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                       <p className="text-sm text-muted-foreground leading-relaxed">
-                        Enter the 6-digit code from your authenticator app.
+                        Enter the 6-digit code from your authenticator app
+                        {accountKind === "customer"
+                          ? ", or a one-time recovery code."
+                          : "."}
                       </p>
                     </div>
                     <div className="space-y-2">
@@ -574,16 +650,47 @@ function LoginForm() {
                       <Input
                         id="totp"
                         value={totp}
-                        onChange={(e) =>
-                          setTotp(e.target.value.replace(/\D/g, "").slice(0, 6))
-                        }
+                        onChange={(e) => {
+                          setTotp(e.target.value.replace(/\D/g, "").slice(0, 6));
+                          if (e.target.value) setRecoveryCode("");
+                        }}
                         placeholder="123456"
                         inputMode="numeric"
                         autoComplete="one-time-code"
                         className="tracking-[0.35em] text-center text-lg font-semibold"
-                        required
                       />
                     </div>
+                    {accountKind === "customer" ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="recovery">Recovery code (optional)</Label>
+                          <Input
+                            id="recovery"
+                            value={recoveryCode}
+                            onChange={(e) => {
+                              setRecoveryCode(e.target.value.toUpperCase());
+                              if (e.target.value) setTotp("");
+                            }}
+                            placeholder="XXXX-XXXX"
+                            autoComplete="off"
+                            className="tracking-wider text-center font-semibold"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="trust-device-totp"
+                            checked={trustDevice}
+                            onCheckedChange={(v) => setTrustDevice(v === true)}
+                          />
+                          <Label
+                            htmlFor="trust-device-totp"
+                            className="text-sm font-normal text-muted-foreground"
+                          >
+                            Remember this device for 30 days
+                          </Label>
+                        </div>
+                      </>
+                    ) : null}
 
                     {error ? (
                       <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -601,15 +708,17 @@ function LoginForm() {
                         type="submit"
                         className="w-full rounded-full"
                         size="lg"
-                        disabled={loading || totp.length < 6}
+                        disabled={loading || (totp.length < 6 && recoveryCode.trim().length < 8)}
                       >
                         {loading ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
                             Verifying...
                           </>
-                        ) : (
+                        ) : accountKind === "platform" ? (
                           "Verify & open Admin Portal"
+                        ) : (
+                          "Verify & continue"
                         )}
                       </Button>
                       <button
@@ -645,6 +754,22 @@ function LoginForm() {
                         required
                       />
                     </div>
+
+                    {accountKind === "customer" && secondFactor === "email_otp" ? (
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="trust-device-otp"
+                          checked={trustDevice}
+                          onCheckedChange={(v) => setTrustDevice(v === true)}
+                        />
+                        <Label
+                          htmlFor="trust-device-otp"
+                          className="text-sm font-normal text-muted-foreground"
+                        >
+                          Remember this device for 30 days
+                        </Label>
+                      </div>
+                    ) : null}
 
                     {error ? (
                       <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

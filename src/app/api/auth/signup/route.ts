@@ -16,6 +16,9 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
+import {
+  verifyGoogleRecaptchaV3,
+} from "@/lib/security/google-recaptcha";
 import { validateSignupCommercialSelection } from "@/lib/signup/validate-commercial";
 
 function maskEmail(email: string): string {
@@ -84,6 +87,10 @@ export const POST = withApiHandler(
     const plan_id = sanitizeText(body?.plan_id, 80) || undefined;
     const product_id_hint = sanitizeText(body?.product_id, 80) || undefined;
     const marketing_opt_in = Boolean(body?.marketing_opt_in);
+    const captchaToken = sanitizeText(
+      body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
+      4000
+    );
 
     if (
       !name ||
@@ -129,6 +136,18 @@ export const POST = withApiHandler(
       });
     }
 
+    const captchaResult = await verifyGoogleRecaptchaV3(
+      captchaToken,
+      "portal_signup",
+      ip
+    );
+    if (!captchaResult.ok) {
+      return apiFail(captchaResult.reason, {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
+    }
+
     const commercial = await validateSignupCommercialSelection({
       plan_id,
       industry_id,
@@ -163,6 +182,7 @@ export const POST = withApiHandler(
       product_id: commercial.data.product.id,
       plan_id: commercial.data.plan.id,
       marketing_opt_in,
+      captcha_token: captchaToken || undefined,
     });
 
     if (!license.ok || !license.data?.registrationId) {

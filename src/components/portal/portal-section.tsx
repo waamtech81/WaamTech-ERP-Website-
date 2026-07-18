@@ -122,7 +122,7 @@ const META: Record<
   },
   settings: {
     title: "Settings",
-    description: "Profile, identity provider, security, and active sessions.",
+    description: "Profile, password, two-factor authentication, trusted devices, and sessions.",
     emptyTitle: "Settings unavailable",
     emptyDescription: "Account settings load from your License Engine identity.",
     eyebrow: "Account",

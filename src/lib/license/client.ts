@@ -16,6 +16,7 @@ export type TrialRegistrationInput = {
   product_id: string;
   plan_id: string;
   marketing_opt_in?: boolean;
+  captcha_token?: string;
 };
 
 export type RegistrationStartResult = {
@@ -206,6 +207,7 @@ export async function startRegistrationOnLicenseServer(
       marketing_opt_in: Boolean(input.marketing_opt_in),
       trial_days: authConfig.trialDays,
       source: "waamto-website",
+      ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
     }
   );
 

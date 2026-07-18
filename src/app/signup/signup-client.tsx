@@ -48,6 +48,11 @@ import {
 import { MobileAppProfileCallout } from "@/components/shared/mobile-app-callout";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import {
+  executeRecaptcha,
+  hasRecaptchaV3SiteKey,
+  RecaptchaV3,
+} from "@/components/security/recaptcha-v3";
+import {
   industryDisplayIcon,
   mapCatalogPlanToPricingPlan,
   planCtaLabel,
@@ -264,6 +269,28 @@ function SignUpForm({
   const plansQuery = useCatalogPlans(productSlug || null);
   const industriesQuery = useCatalogIndustries();
   const categoriesQuery = useCatalogBusinessCategories(industryId || null);
+
+  const sortedProducts = useMemo(
+    () =>
+      [...productsQuery.data].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+      ),
+    [productsQuery.data]
+  );
+  const sortedIndustries = useMemo(
+    () =>
+      [...industriesQuery.data].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+      ),
+    [industriesQuery.data]
+  );
+  const sortedCategories = useMemo(
+    () =>
+      [...categoriesQuery.data].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+      ),
+    [categoriesQuery.data]
+  );
 
   const countryOptions = useMemo(() => {
     const q = countrySearch.trim().toLowerCase();
@@ -650,6 +677,16 @@ function SignUpForm({
 
     setLoading(true);
     try {
+      let captchaToken: string | null = null;
+      if (hasRecaptchaV3SiteKey()) {
+        captchaToken = await executeRecaptcha("portal_signup");
+        if (!captchaToken) {
+          setError("Captcha failed to load. Please refresh and try again.");
+          setLoading(false);
+          return;
+        }
+      }
+
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -670,6 +707,7 @@ function SignUpForm({
           marketing_opt_in: marketingOptIn,
           website: honeypot,
           _t: formStartedAt,
+          ...(captchaToken ? { captcha_token: captchaToken } : {}),
         }),
       });
       const json = await res.json();
@@ -910,6 +948,7 @@ function SignUpForm({
   // Form continues below
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
+      <RecaptchaV3 />
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <div className="container-site relative grid gap-8 py-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-10 lg:py-16">
         <div className="max-w-xl lg:sticky lg:top-24">
@@ -1345,7 +1384,7 @@ function SignUpForm({
                       No products are published yet.
                     </li>
                   ) : null}
-                  {productsQuery.data.map((prod) => {
+                  {sortedProducts.map((prod) => {
                     const selected = productId === prod.id;
                     return (
                       <li key={prod.id}>
@@ -1467,7 +1506,7 @@ function SignUpForm({
                       No industries are published yet.
                     </li>
                   ) : null}
-                  {industriesQuery.data.map((ind) => {
+                  {sortedIndustries.map((ind) => {
                     const Icon = getIcon(industryDisplayIcon(ind));
                     const selected = industryId === ind.id;
                     return (
@@ -1526,7 +1565,7 @@ function SignUpForm({
                         No categories for this industry.
                       </li>
                     ) : null}
-                    {categoriesQuery.data.map((cat) => {
+                    {sortedCategories.map((cat) => {
                       const selected = categoryId === cat.id;
                       const access = getCategoryAccessHints(cat.code || cat.slug);
                       return (

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Loader2, Shield, User } from "lucide-react";
+import { Loader2, User } from "lucide-react";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
-import { formatPortalDate, formatPortalDateTime } from "@/components/portal/use-portal-data";
 import { PortalDataRow } from "@/components/portal/portal-ui";
+import { PortalSecurityPanel } from "@/components/portal/portal-security";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -221,32 +221,15 @@ export function PortalSettingsView() {
         </section>
       </div>
 
-      <section aria-labelledby="settings-sessions-heading" className="space-y-4">
-        <h3 id="settings-sessions-heading" className="text-sm font-semibold text-[var(--portal-fg)]">
-          Active sessions
+      <section aria-labelledby="settings-security-heading" className="space-y-4">
+        <h3 id="settings-security-heading" className="text-sm font-semibold text-[var(--portal-fg)]">
+          Security
         </h3>
-        {data!.sessions.length ? (
-          <ul className="space-y-2">
-            {data!.sessions.map((s, i) => (
-              <li
-                key={s.id || String(i)}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm"
-              >
-                <span className="inline-flex min-w-0 items-center gap-2 text-[var(--portal-muted)]">
-                  <Shield className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">
-                    {formatPortalDateTime(s.created_at) || `Session ${i + 1}`}
-                  </span>
-                </span>
-                <span className="shrink-0 text-xs text-[var(--portal-muted)]">
-                  {s.expires_at ? `Expires ${formatPortalDate(s.expires_at)}` : "Active"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-[var(--portal-muted)]">No active sessions listed.</p>
-        )}
+        <p className="text-xs text-[var(--portal-muted)]">
+          Password authentication, Email OTP, authenticator app, recovery codes, trusted devices,
+          and active sessions — managed through License Engine identity.
+        </p>
+        <PortalSecurityPanel sessions={data!.sessions} onSessionsChanged={reload} />
       </section>
     </div>
   );

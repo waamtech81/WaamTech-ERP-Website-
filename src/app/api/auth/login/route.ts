@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import {
   hasLoginTokens,
   identityLogin,
+  isCustomerMfaChallenge,
   isLoginChallenge,
   normalizeIdentityLoginData,
+  type IdentityLoginChallenge,
+  type IdentityLoginSuccess,
 } from "@/lib/license/identity";
 import {
   hasPlatformTokens,
@@ -128,12 +131,18 @@ export async function POST(req: Request) {
     const emailCode = sanitizeText(body?.email_code || body?.otp, 12);
     const totpCode = sanitizeText(body?.totp_code, 12);
     const recoveryCode = sanitizeText(body?.recovery_code, 64);
+    const captchaToken = sanitizeText(
+      body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
+      4000
+    );
     const remember = body?.remember === true || body?.rememberMe === true;
+    const trustDevice = body?.trust_device === true || body?.remember_device === true;
+    const deviceToken = sanitizeText(body?.device_token, 128);
     const accountKindHint = sanitizeText(body?.account_kind, 32);
+    // Platform staff step-up only when explicitly hinted — never infer from totp/recovery
+    // (customers also use those for MFA).
     const isPlatformChallenge =
-      accountKindHint === "platform" ||
-      body?.platform === true ||
-      Boolean(totpCode || recoveryCode);
+      accountKindHint === "platform" || body?.platform === true;
 
     // Platform staff challenge completion (email OTP / TOTP) — explicit step only.
     if (challengeToken && (emailCode || totpCode || recoveryCode) && isPlatformChallenge) {
@@ -209,8 +218,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Customer identity OTP verification (unverified emails only).
-    if (challengeToken && emailCode && !isPlatformChallenge) {
+    // Customer identity OTP / MFA verification.
+    if (challengeToken && (emailCode || totpCode || recoveryCode) && !isPlatformChallenge) {
       const otpLimited = await rateLimit(`portal-login-otp:${ip}`, 20, 15 * 60_000);
       if (!otpLimited.ok) {
         return NextResponse.json(
@@ -224,11 +233,35 @@ export async function POST(req: Request) {
 
       const result = await identityLogin({
         challenge_token: challengeToken,
-        email_code: emailCode,
-        otp: emailCode,
+        email_code: emailCode || undefined,
+        otp: emailCode || undefined,
         username: username || undefined,
         password: password || undefined,
+        totp_code: totpCode || undefined,
+        recovery_code: recoveryCode || undefined,
+        trust_device: trustDevice,
+        device_token: deviceToken || undefined,
       });
+
+      if (result.ok && isCustomerMfaChallenge(result.data)) {
+        const d = result.data as IdentityLoginChallenge;
+        return NextResponse.json({
+          success: true,
+          accountKind: "customer",
+          requires2fa: true,
+          requires_2fa: true,
+          requiresOtp: d.active_second_factor === "email_otp" || d.requires_email_otp === true,
+          requires_email_otp: d.requires_email_otp === true || d.active_second_factor === "email_otp",
+          message: d.message || "Enter your second-factor code.",
+          data: {
+            challenge_token: d.challenge_token || challengeToken,
+            email: d.email,
+            account_kind: "customer",
+            active_second_factor: d.active_second_factor || "totp",
+            otpExpiresInMinutes: d.otpExpiresInMinutes || 10,
+          },
+        });
+      }
 
       if (!result.ok || !hasLoginTokens(result.data)) {
         return NextResponse.json(
@@ -257,6 +290,9 @@ export async function POST(req: Request) {
         data: {
           accountKind: "customer",
           redirectUrl: "/portal",
+          ...(typeof (tokens as IdentityLoginSuccess).device_token === "string"
+            ? { device_token: (tokens as IdentityLoginSuccess).device_token }
+            : {}),
         },
       });
       return applySessionCookies(res, {
@@ -282,6 +318,8 @@ export async function POST(req: Request) {
       username,
       email: username.includes("@") ? username : undefined,
       password,
+      captcha_token: captchaToken || undefined,
+      device_token: deviceToken || undefined,
     });
 
     if (!result.ok) {
@@ -311,6 +349,42 @@ export async function POST(req: Request) {
             accountKind: "platform",
             account_kind: "platform",
             redirectUrl: d.redirect_url,
+          },
+        });
+      }
+
+      if (isPlatformTotpChallenge(data) || d.requires_2fa === true) {
+        return NextResponse.json({
+          success: true,
+          accountKind: "platform",
+          requires2fa: true,
+          requires_2fa: true,
+          message:
+            (typeof d.message === "string" && d.message) ||
+            "Enter your authenticator app code.",
+          data: {
+            challenge_token:
+              typeof d.challenge_token === "string" ? d.challenge_token : "",
+            account_kind: "platform",
+            active_second_factor: "totp",
+          },
+        });
+      }
+
+      if (isPlatformEmailChallenge(data)) {
+        return NextResponse.json({
+          success: true,
+          accountKind: "platform",
+          requiresOtp: true,
+          requires_email_verification: true,
+          message:
+            data.message ||
+            "Enter the verification code sent to your registered email.",
+          data: {
+            challenge_token: data.challenge_token,
+            email: data.email,
+            account_kind: "platform",
+            otpExpiresInMinutes: 10,
           },
         });
       }
@@ -378,20 +452,35 @@ export async function POST(req: Request) {
       });
     }
 
-    // Genuinely unverified identities only.
+    // MFA or unverified-email challenge.
     if (isLoginChallenge(data)) {
+      const mfa = isCustomerMfaChallenge(data);
+      const active =
+        data.active_second_factor ||
+        (data.requires_email_otp ? "email_otp" : mfa ? "totp" : undefined);
+      const isEmailStep =
+        data.requires_email_verification === true ||
+        active === "email_otp" ||
+        data.requires_email_otp === true;
+
       return NextResponse.json({
         success: true,
         accountKind: "customer",
-        requiresOtp: true,
-        requires_email_verification: true,
+        requiresOtp: isEmailStep,
+        requires_email_verification: data.requires_email_verification === true,
+        requires_email_otp: active === "email_otp" || data.requires_email_otp === true,
+        requires2fa: mfa,
+        requires_2fa: mfa,
         message:
           data.message ||
-          "Enter the verification code sent to your registered email.",
+          (active === "totp"
+            ? "Enter the code from your authenticator app."
+            : "Enter the verification code sent to your registered email."),
         data: {
           challenge_token: data.challenge_token,
           email: data.email,
           account_kind: "customer",
+          active_second_factor: active || (isEmailStep ? "email_otp" : "totp"),
           otpExpiresInMinutes: data.otpExpiresInMinutes || 10,
         },
       });

@@ -68,6 +68,43 @@ export type IdentitySession = {
   created_at?: string;
   expires_at?: string;
   revoked_at?: string | null;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  country?: string | null;
+  last_activity_at?: string | null;
+  is_current?: boolean;
+};
+
+export type IdentitySecondFactor = "none" | "email_otp" | "totp";
+
+export type IdentityMfaStatus = {
+  email_otp_enabled: boolean;
+  totp_enabled: boolean;
+  active_second_factor: IdentitySecondFactor;
+  recovery_codes_remaining: number;
+  totp_available?: boolean;
+};
+
+export type IdentityTrustedDevice = {
+  id: string;
+  label?: string | null;
+  user_agent?: string | null;
+  ip_address?: string | null;
+  country?: string | null;
+  expires_at?: string | null;
+  last_used_at?: string | null;
+  created_at?: string | null;
+};
+
+export type IdentitySecurityEvent = {
+  id: string;
+  event_type: string;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  created_at?: string;
+  meta?: Record<string, unknown> | null;
 };
 
 export type IdentityLoginSuccess = {
@@ -75,14 +112,24 @@ export type IdentityLoginSuccess = {
   refreshToken: string;
   identity: IdentityProfile;
   customer_id: string;
+  device_token?: string;
 };
 
 export type IdentityLoginChallenge = {
-  requires_email_verification: true;
+  requires_email_verification?: true;
+  requires_email_otp?: boolean;
+  requires_2fa?: boolean;
+  requiresOtp?: boolean;
   challenge_token: string;
-  email: string;
+  email?: string;
   message?: string;
   otpExpiresInMinutes?: number;
+  active_second_factor?: IdentitySecondFactor;
+};
+
+export type IdentityTotpSetup = {
+  secret: string;
+  otpauth_url: string;
 };
 
 type LicenseApiResponse<T = Record<string, unknown>> = {
@@ -152,7 +199,7 @@ function extractError(
 }
 
 async function requestLicense<T>(
-  method: "GET" | "POST" | "PATCH",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   paths: string[],
   options?: {
     body?: unknown;
@@ -233,6 +280,11 @@ export async function identityLogin(input: {
   challenge_token?: string;
   email_code?: string;
   otp?: string;
+  totp_code?: string;
+  recovery_code?: string;
+  captcha_token?: string;
+  trust_device?: boolean;
+  device_token?: string;
 }) {
   const result = await requestLicense<
     IdentityLoginSuccess & Partial<IdentityLoginChallenge>
@@ -244,6 +296,11 @@ export async function identityLogin(input: {
       challenge_token: input.challenge_token,
       email_code: input.email_code || input.otp,
       otp: input.otp || input.email_code,
+      totp_code: input.totp_code,
+      recovery_code: input.recovery_code,
+      captcha_token: input.captcha_token,
+      trust_device: input.trust_device,
+      device_token: input.device_token,
     },
   });
 
@@ -396,6 +453,132 @@ export async function identityChangePassword(
   });
 }
 
+export async function identityMfaStatus(accessToken: string) {
+  return requestLicense<IdentityMfaStatus>(
+    "GET",
+    ["/v1/identity/2fa/status", "/identity/2fa/status"],
+    { accessToken }
+  );
+}
+
+export async function identityEnableEmailOtp(
+  accessToken: string,
+  body: { password: string }
+) {
+  return requestLicense("POST", ["/v1/identity/2fa/email-otp/enable", "/identity/2fa/email-otp/enable"], {
+    accessToken,
+    body,
+  });
+}
+
+export async function identityDisableEmailOtp(
+  accessToken: string,
+  body: { password: string; totp_code?: string; email_code?: string; recovery_code?: string }
+) {
+  return requestLicense("POST", ["/v1/identity/2fa/email-otp/disable", "/identity/2fa/email-otp/disable"], {
+    accessToken,
+    body,
+  });
+}
+
+export async function identityTotpSetup(accessToken: string) {
+  return requestLicense<IdentityTotpSetup>(
+    "POST",
+    ["/v1/identity/2fa/totp/setup", "/identity/2fa/totp/setup"],
+    { accessToken }
+  );
+}
+
+export async function identityTotpEnable(
+  accessToken: string,
+  body: { code: string }
+) {
+  return requestLicense<{ recovery_codes: string[] }>(
+    "POST",
+    ["/v1/identity/2fa/totp/enable", "/identity/2fa/totp/enable"],
+    { accessToken, body }
+  );
+}
+
+export async function identityTotpDisable(
+  accessToken: string,
+  body: { password: string; totp_code?: string; recovery_code?: string }
+) {
+  return requestLicense("POST", ["/v1/identity/2fa/totp/disable", "/identity/2fa/totp/disable"], {
+    accessToken,
+    body,
+  });
+}
+
+export async function identityRegenerateRecoveryCodes(
+  accessToken: string,
+  body: { password: string; totp_code: string }
+) {
+  return requestLicense<{ recovery_codes: string[] }>(
+    "POST",
+    ["/v1/identity/2fa/recovery-codes", "/identity/2fa/recovery-codes"],
+    { accessToken, body }
+  );
+}
+
+export async function identitySetActiveSecondFactor(
+  accessToken: string,
+  body: { active_second_factor: Exclude<IdentitySecondFactor, "none"> }
+) {
+  return requestLicense("PATCH", ["/v1/identity/2fa/active-method", "/identity/2fa/active-method"], {
+    accessToken,
+    body,
+  });
+}
+
+export async function identityRevokeSession(accessToken: string, sessionId: string) {
+  const encoded = encodeURIComponent(sessionId);
+  return requestLicense("DELETE", [
+    `/v1/identity/sessions/${encoded}`,
+    `/identity/sessions/${encoded}`,
+  ], { accessToken });
+}
+
+export async function identityListTrustedDevices(accessToken: string) {
+  return requestLicense<IdentityTrustedDevice[]>(
+    "GET",
+    ["/v1/identity/trusted-devices", "/identity/trusted-devices"],
+    { accessToken }
+  );
+}
+
+export async function identityRevokeTrustedDevice(accessToken: string, deviceId: string) {
+  const encoded = encodeURIComponent(deviceId);
+  return requestLicense("DELETE", [
+    `/v1/identity/trusted-devices/${encoded}`,
+    `/identity/trusted-devices/${encoded}`,
+  ], { accessToken });
+}
+
+export async function identityListSecurityEvents(
+  accessToken: string,
+  query?: { page?: number; limit?: number }
+) {
+  const params = new URLSearchParams();
+  if (query?.page) params.set("page", String(query.page));
+  if (query?.limit) params.set("limit", String(query.limit));
+  const qs = params.toString();
+  const suffix = qs ? `?${qs}` : "";
+  return requestLicense<{
+    items?: IdentitySecurityEvent[];
+    events?: IdentitySecurityEvent[];
+    page?: number;
+    total?: number;
+  } | IdentitySecurityEvent[]>(
+    "GET",
+    [
+      `/v1/identity/security/events${suffix}`,
+      `/identity/security/events${suffix}`,
+    ],
+    { accessToken }
+  );
+}
+
 /** Normalize Engine login payloads (camelCase or snake_case tokens). */
 export function normalizeIdentityLoginData(
   data: unknown
@@ -435,7 +618,30 @@ export function isLoginChallenge(
   return (
     d.requires_email_verification === true ||
     d.requiresOtp === true ||
-    d.requires_otp === true
+    d.requires_otp === true ||
+    d.requires_email_otp === true ||
+    d.requires_2fa === true ||
+    d.requires2fa === true
+  );
+}
+
+export function isCustomerMfaChallenge(data: unknown): data is IdentityLoginChallenge {
+  if (!isLoginChallenge(data)) return false;
+  const d = data as Record<string, unknown>;
+  // Platform Super Admin challenges are not customer MFA.
+  if (
+    d.account_type === "platform_super_admin" ||
+    d.account_kind === "platform" ||
+    d.accountKind === "platform"
+  ) {
+    return false;
+  }
+  return (
+    d.requires_2fa === true ||
+    d.requires2fa === true ||
+    d.requires_email_otp === true ||
+    d.active_second_factor === "email_otp" ||
+    d.active_second_factor === "totp"
   );
 }
 

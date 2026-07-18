@@ -4,21 +4,31 @@ export const authConfig = {
     process.env.WAAMTECH_API_URL ||
     process.env.API_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:5001/api",
+    (process.env.NODE_ENV === "production"
+      ? "https://apierp.waamto.com/api"
+      : "http://localhost:5001/api"),
   /** Live WAAMTO ERP application */
   appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://app.waamto.com",
   trialDays: Number(process.env.NEXT_PUBLIC_TRIAL_DAYS || 14),
 };
 
 export function normalizeApiBase(url: string) {
-  return url.replace(/\/+$/, "");
+  return url.replace(/\/+$/, "").replace(/\.+$/, "");
 }
 
 /** Build URL on the live ERP app (login, forgot password, etc.) */
 export function getAppUrl(path = "", query?: Record<string, string | undefined>) {
-  const base = authConfig.appUrl.replace(/\/+$/, "");
+  const raw = authConfig.appUrl.trim();
+  let base: string;
+  try {
+    const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    u.hostname = u.hostname.replace(/\.+$/, "");
+    base = u.origin;
+  } catch {
+    base = "https://app.waamto.com";
+  }
   const normalizedPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
-  const url = new URL(`${base}${normalizedPath}`);
+  const url = new URL(`${base}${normalizedPath.replace(/\/{2,}/g, "/")}`);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value) url.searchParams.set(key, value);

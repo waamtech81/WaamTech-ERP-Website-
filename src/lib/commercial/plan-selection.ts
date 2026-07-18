@@ -2,16 +2,12 @@ import type { BillingCycle } from "@/lib/commercial/types";
 
 const STORAGE_KEY = "waamtech_plan_selection";
 
+/** Safe session hints only — never treat stored prices as authoritative. */
 export type PlanSelection = {
   planId: string;
   plan: string;
   productSlug?: string;
   billingCycle: BillingCycle;
-  price: number | null;
-  discount: number | null;
-  originalPrice?: number | null;
-  savings?: number | null;
-  currency?: string | null;
   selectedAt: string;
 };
 
@@ -19,9 +15,14 @@ function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof sessionStorage !== "undefined";
 }
 
-export function savePlanSelection(selection: Omit<PlanSelection, "selectedAt">): PlanSelection {
+export function savePlanSelection(
+  selection: Omit<PlanSelection, "selectedAt">
+): PlanSelection {
   const payload: PlanSelection = {
-    ...selection,
+    planId: selection.planId,
+    plan: selection.plan,
+    productSlug: selection.productSlug,
+    billingCycle: selection.billingCycle,
     selectedAt: new Date().toISOString(),
   };
   if (canUseStorage()) {
@@ -39,9 +40,21 @@ export function readPlanSelection(): PlanSelection | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as PlanSelection;
+    const parsed = JSON.parse(raw) as PlanSelection & {
+      price?: unknown;
+      discount?: unknown;
+      originalPrice?: unknown;
+      savings?: unknown;
+    };
     if (!parsed?.planId || !parsed?.billingCycle) return null;
-    return parsed;
+    // Ignore any legacy price fields that may still be in storage
+    return {
+      planId: parsed.planId,
+      plan: parsed.plan,
+      productSlug: parsed.productSlug,
+      billingCycle: parsed.billingCycle,
+      selectedAt: parsed.selectedAt || new Date().toISOString(),
+    };
   } catch {
     return null;
   }

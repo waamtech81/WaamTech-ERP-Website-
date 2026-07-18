@@ -53,7 +53,7 @@ export type PricingPlan = {
   productSlug?: string;
   name: string;
   subtitle?: string | null;
-  description: string;
+  description?: string;
   marketingSummary?: string | null;
   monthlyPrice: number | null;
   /** Per-month equivalent when billed yearly (Engine yearly_price / 12). */

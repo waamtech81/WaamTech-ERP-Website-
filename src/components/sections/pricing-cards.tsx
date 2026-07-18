@@ -25,7 +25,7 @@ type PricingCardsProps = {
 };
 
 function usersLabel(plan: PricingPlan) {
-  if (plan.usersNote) return plan.usersNote;
+  if (plan.usersNote?.trim()) return plan.usersNote.trim();
   if (plan.usersIncluded === "unlimited") return "Unlimited users";
   if (typeof plan.usersIncluded === "number") {
     return `${plan.usersIncluded} user${plan.usersIncluded === 1 ? "" : "s"} included`;
@@ -35,10 +35,40 @@ function usersLabel(plan: PricingPlan) {
 
 function storageLabel(plan: PricingPlan) {
   if (plan.storageIncludedGb === "unlimited") return "Unlimited storage";
-  if (typeof plan.storageIncludedGb === "number") {
+  if (typeof plan.storageIncludedGb === "number" && plan.storageIncludedGb > 0) {
     return `${plan.storageIncludedGb} GB storage included`;
   }
   return null;
+}
+
+function cardBodyCopy(plan: PricingPlan): string | null {
+  return (
+    [plan.marketingSummary, plan.description]
+      .map((v) => String(v || "").trim())
+      .find((v) => v.length > 0) || null
+  );
+}
+
+function dedupeFeatureLines(
+  features: string[],
+  seats: string | null,
+  storage: string | null
+): string[] {
+  const skip = new Set(
+    [seats, storage]
+      .filter(Boolean)
+      .map((s) => String(s).toLowerCase().trim())
+  );
+  return features.filter((f) => {
+    const t = String(f || "").trim();
+    if (!t) return false;
+    const lower = t.toLowerCase();
+    if (skip.has(lower)) return false;
+    // Hide seat/storage lines already shown as chips
+    if (seats && /\busers?\b/i.test(t) && /\d+|unlimited/i.test(t)) return false;
+    if (storage && /\bstorage\b|\bGB\b/i.test(t)) return false;
+    return true;
+  });
 }
 
 export function PricingCards({
@@ -49,18 +79,13 @@ export function PricingCards({
 }: PricingCardsProps) {
   const { formatPrice, currency, t } = useLocale();
 
-  function onSelectPlan(plan: PricingPlan, billingCycle: BillingCycle, cycle: ReturnType<typeof resolveCyclePrice>) {
+  function onSelectPlan(plan: PricingPlan, billingCycle: BillingCycle, _cycle: ReturnType<typeof resolveCyclePrice>) {
     if (!plan.planId) return;
     savePlanSelection({
       planId: plan.planId,
       plan: plan.id,
       productSlug: plan.productSlug,
       billingCycle,
-      price: cycle.price,
-      discount: cycle.discountPercent,
-      originalPrice: cycle.originalPrice,
-      savings: cycle.savings,
-      currency: plan.currency,
     });
   }
 
@@ -72,24 +97,41 @@ export function PricingCards({
         const isPopular = Boolean(plan.popular);
         const seats = usersLabel(plan);
         const storage = storageLabel(plan);
-        const ribbon = plan.ribbon || plan.badge || plan.launchBadge;
+        const bodyCopy = cardBodyCopy(plan);
+        // Single badge source — never stack ribbon + badge + launchBadge
+        const ribbon =
+          [plan.ribbon, plan.badge, plan.launchBadge]
+            .map((v) => String(v || "").trim())
+            .find((v) => v.length > 0) || null;
         const href = withPlanSelectionParams(plan.href, {
           billingCycle: cycle.billingCycle,
-          price: cycle.price,
-          discount: cycle.discountPercent,
-          originalPrice: cycle.originalPrice,
-          savings: cycle.savings,
         });
 
-        const moduleList = plan.modules ?? [];
+        const moduleList = (plan.modules ?? []).filter((m) => String(m || "").trim());
         const shownModules = compact ? [] : moduleList;
-        const featureGroups = plan.featureGroups ?? [];
-        const shownFeatures =
+        const featureGroups = (plan.featureGroups ?? []).filter(
+          (g) => g.features?.some((f) => String(f.name || "").trim())
+        );
+        const rawFeatures =
           compact || featureGroups.length === 0
             ? compact
-              ? plan.features.filter((f) => !seats || f !== seats).slice(0, 5)
-              : plan.features.filter((f) => !seats || f !== seats)
+              ? (plan.features || []).slice(0, 8)
+              : plan.features || []
             : [];
+        const shownFeatures = dedupeFeatureLines(rawFeatures, seats, storage);
+
+        const showOriginal =
+          cycle.originalPrice != null &&
+          cycle.price != null &&
+          cycle.originalPrice > cycle.price;
+        const showDiscount =
+          cycle.discountPercent != null && cycle.discountPercent > 0;
+        const showSavings = cycle.savings != null && cycle.savings > 0;
+        // Prefer one discount signal: savings amount when present, else % chip
+        const showDiscountChip = showDiscount && !showSavings;
+        const showExtraUser = plan.extraUserPrice != null && plan.extraUserPrice > 0;
+        const showExtraStorage =
+          plan.extraStoragePricePerGb != null && plan.extraStoragePricePerGb > 0;
 
         return (
           <AnimateIn key={plan.id} delay={i * 0.05} className="h-full">
@@ -128,6 +170,18 @@ export function PricingCards({
                       Recommended
                     </Badge>
                   ) : null}
+                  {plan.hasFreeTrial && plan.trialDays ? (
+                    <Badge
+                      variant={isPopular ? "default" : "outline"}
+                      className={`text-[10px] uppercase tracking-wide ${
+                        isPopular
+                          ? "border border-white/25 bg-white/15 text-white hover:bg-white/15"
+                          : ""
+                      }`}
+                    >
+                      {plan.trialDays}-day trial
+                    </Badge>
+                  ) : null}
                 </div>
                 {plan.subtitle ? (
                   <p
@@ -138,46 +192,50 @@ export function PricingCards({
                     {plan.subtitle}
                   </p>
                 ) : null}
-                <p
-                  className={`text-sm leading-relaxed ${compact ? "" : "min-h-[2.75rem]"} ${
-                    isPopular ? "text-white/80" : "text-muted-foreground"
-                  }`}
-                >
-                  {plan.marketingSummary || plan.description}
-                </p>
+                {bodyCopy ? (
+                  <p
+                    className={`text-sm leading-relaxed ${
+                      isPopular ? "text-white/80" : "text-muted-foreground"
+                    }`}
+                  >
+                    {bodyCopy}
+                  </p>
+                ) : null}
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {seats ? (
-                    <div
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        isPopular
-                          ? "bg-white text-[var(--brand-dark)] shadow-sm"
-                          : "bg-primary/8 text-primary"
-                      }`}
-                    >
-                      <Users className="h-3.5 w-3.5 shrink-0" />
-                      <span>{seats}</span>
-                    </div>
-                  ) : null}
-                  {storage ? (
-                    <div
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        isPopular
-                          ? "bg-white/15 text-white"
-                          : "bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      <HardDrive className="h-3.5 w-3.5 shrink-0" />
-                      <span>{storage}</span>
-                    </div>
-                  ) : null}
-                </div>
+                {seats || storage ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {seats ? (
+                      <div
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          isPopular
+                            ? "bg-white text-[var(--brand-dark)] shadow-sm"
+                            : "bg-primary/8 text-primary"
+                        }`}
+                      >
+                        <Users className="h-3.5 w-3.5 shrink-0" />
+                        <span>{seats}</span>
+                      </div>
+                    ) : null}
+                    {storage ? (
+                      <div
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          isPopular
+                            ? "bg-white/15 text-white"
+                            : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        <HardDrive className="h-3.5 w-3.5 shrink-0" />
+                        <span>{storage}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
-                <div className="pt-4 space-y-2 min-h-[8.5rem]">
+                <div className="pt-4 space-y-2">
                   {cycle.price !== null && cycle.price !== undefined ? (
                     <>
                       <div className="flex items-end gap-2 flex-wrap notranslate" translate="no">
-                        {cycle.originalPrice ? (
+                        {showOriginal ? (
                           <span
                             className={`text-base md:text-lg line-through tabular-nums ${
                               isPopular
@@ -185,7 +243,7 @@ export function PricingCards({
                                 : "text-muted-foreground decoration-red-400/60"
                             }`}
                           >
-                            {formatPrice(cycle.originalPrice)}
+                            {formatPrice(cycle.originalPrice!)}
                           </span>
                         ) : null}
                         <span
@@ -206,7 +264,7 @@ export function PricingCards({
                         </span>
                       </div>
                       <p
-                        className={`min-h-4 text-xs capitalize ${
+                        className={`text-xs capitalize ${
                           isPopular ? "text-white/60" : "text-muted-foreground"
                         }`}
                       >
@@ -215,43 +273,44 @@ export function PricingCards({
                           ? ` · ${formatPrice(plan.yearlyTotal)} / year`
                           : null}
                       </p>
-                      <p
-                        className={`min-h-4 text-xs notranslate tabular-nums ${
-                          currency === "USD" ? "invisible" : ""
-                        } ${isPopular ? "text-white/60" : "text-muted-foreground"}`}
-                        translate="no"
-                        aria-hidden={currency === "USD"}
-                      >
-                        ≈ {formatMoney(cycle.price, "USD", { showCode: true })}
-                        {isLifetime
-                          ? ` ${t("pricing.oneTime", "one-time")}`
-                          : !yearly
-                            ? ` ${t("pricing.perMonth", "/month")}`
-                            : ` ${t("pricing.billedYearly", "/mo billed yearly")}`}
-                      </p>
-                      {cycle.discountPercent ? (
+                      {currency !== "USD" ? (
+                        <p
+                          className={`text-xs notranslate tabular-nums ${
+                            isPopular ? "text-white/60" : "text-muted-foreground"
+                          }`}
+                          translate="no"
+                        >
+                          ≈ {formatMoney(cycle.price, "USD", { showCode: true })}
+                          {isLifetime
+                            ? ` ${t("pricing.oneTime", "one-time")}`
+                            : !yearly
+                              ? ` ${t("pricing.perMonth", "/month")}`
+                              : ` ${t("pricing.billedYearly", "/mo billed yearly")}`}
+                        </p>
+                      ) : null}
+                      {showDiscountChip ? (
                         <div
                           className="notranslate inline-flex items-center gap-1 rounded-full border border-emerald-100/80 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
                           translate="no"
                         >
                           <Sparkles className="h-3 w-3" />
                           {t("pricing.launchDiscount", "{{percent}}% discount", {
-                            percent: cycle.discountPercent,
+                            percent: cycle.discountPercent ?? 0,
                           })}
                         </div>
                       ) : null}
-                      {cycle.savings != null && cycle.savings > 0 ? (
+                      {showSavings ? (
                         <p
                           className={`text-xs font-medium tabular-nums ${
                             isPopular ? "text-emerald-200" : "text-emerald-700"
                           }`}
                         >
-                          Save {formatPrice(cycle.savings)}
+                          Save {formatPrice(cycle.savings!)}
                           {yearly && !isLifetime ? " / year" : ""}
                         </p>
                       ) : null}
                     </>
-                  ) : (
+                  ) : cycle.contactSales ? (
                     <span
                       className={`notranslate text-3xl font-semibold tracking-tight ${
                         isPopular ? "text-white" : ""
@@ -260,25 +319,25 @@ export function PricingCards({
                     >
                       {t("pricing.custom", "Custom")}
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </CardHeader>
 
               <CardContent className="flex flex-1 flex-col pt-0 pb-6">
-                {(plan.extraUserPrice != null || plan.extraStoragePricePerGb != null) && (
+                {showExtraUser || showExtraStorage ? (
                   <div
                     className={`mb-4 space-y-1 text-xs ${
                       isPopular ? "text-white/75" : "text-muted-foreground"
                     }`}
                   >
-                    {plan.extraUserPrice != null ? (
-                      <p>Extra user: {formatPrice(plan.extraUserPrice)}</p>
+                    {showExtraUser ? (
+                      <p>Extra user: {formatPrice(plan.extraUserPrice!)}</p>
                     ) : null}
-                    {plan.extraStoragePricePerGb != null ? (
-                      <p>Extra storage: {formatPrice(plan.extraStoragePricePerGb)}/GB</p>
+                    {showExtraStorage ? (
+                      <p>Extra storage: {formatPrice(plan.extraStoragePricePerGb!)}/GB</p>
                     ) : null}
                   </div>
-                )}
+                ) : null}
 
                 {shownModules.length > 0 ? (
                   <div className="mb-4">
@@ -335,13 +394,11 @@ export function PricingCards({
                       </li>
                     ))}
                   </ul>
-                ) : (
-                  <div className="flex-1 mb-6" />
-                )}
+                ) : null}
 
                 <Button
                   asChild
-                  className={`w-full rounded-full ${
+                  className={`mt-auto w-full rounded-full ${
                     isPopular
                       ? "border border-white/20 bg-white text-[var(--brand-dark)] hover:bg-white/95"
                       : isLifetime
@@ -378,7 +435,17 @@ export function LaunchDiscountBanner({
   maxSavings?: number | null;
 }) {
   const { formatPrice } = useLocale();
-  if (!campaign && !badge && !maxDiscount) return null;
+  const title =
+    [campaign, badge].map((v) => String(v || "").trim()).find((v) => v) ||
+    (maxDiscount != null && maxDiscount > 0 ? `${maxDiscount}% launch discount` : null);
+  if (!title) return null;
+
+  const sideBadge =
+    [badge].map((v) => String(v || "").trim()).find((v) => v) ||
+    (maxDiscount != null && maxDiscount > 0 ? `Save ${maxDiscount}%` : null) ||
+    (maxSavings != null && maxSavings > 0 ? null : null);
+
+  const showSavingsBadge = !sideBadge && maxSavings != null && maxSavings > 0;
 
   return (
     <div className="mb-8 md:mb-10 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-blue-50 px-5 py-5 sm:px-6 flex flex-col md:flex-row md:items-center gap-4 justify-between">
@@ -387,24 +454,20 @@ export function LaunchDiscountBanner({
           <Sparkles className="h-5 w-5" />
         </span>
         <div>
-          <p className="font-semibold text-[#0b1f3a]">
-            {campaign || badge || (maxDiscount ? `${maxDiscount}% launch discount` : "Launch offer")}
-          </p>
+          <p className="font-semibold text-[#0b1f3a]">{title}</p>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-xl leading-relaxed">
             Prices and discounts are loaded live from the License Engine commercial catalog —
             billed in USD.
           </p>
         </div>
       </div>
-      {maxSavings || maxDiscount || badge ? (
+      {sideBadge || showSavingsBadge ? (
         <Badge variant="accent" className="self-start md:self-center text-sm px-4 py-1.5 shrink-0">
-          {badge ||
-            (maxDiscount ? `Save ${maxDiscount}%` : null) ||
-            (maxSavings ? (
-              <>
-                Save up to <span translate="no">{formatPrice(maxSavings)}</span>
-              </>
-            ) : null)}
+          {sideBadge || (
+            <>
+              Save up to <span translate="no">{formatPrice(maxSavings!)}</span>
+            </>
+          )}
         </Badge>
       ) : null}
     </div>

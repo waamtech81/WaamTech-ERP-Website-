@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendContactFormMessage } from "@/lib/auth/email";
-import { verifyContactCaptcha } from "@/lib/security/contact-captcha";
+import { verifyGoogleRecaptcha } from "@/lib/security/google-recaptcha";
 import {
   contactSubjectForIntent,
   parseContactIntent,
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       unknown
     >;
 
-    // Honeypot + minimum fill time (puzzle captcha needs human interaction)
+    // Honeypot + minimum fill time
     if (looksLikeBotPayload(body)) {
       return NextResponse.json({
         success: true,
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     const started = Number(body._t || 0);
-    if (!started || Date.now() - started < 2500) {
+    if (!started || Date.now() - started < 1500) {
       return NextResponse.json(
         { success: false, message: "Please complete the security check carefully." },
         { status: 400 }
@@ -61,8 +61,10 @@ export async function POST(request: Request) {
     const company = sanitizeText(body.company, 160);
     const phone = sanitizeText(body.phone, 40);
     const message = sanitizeText(body.message, 4000);
-    const captchaToken = sanitizeText(body.captchaToken, 400);
-    const captchaSelection = body.captchaSelection ?? body.captchaAnswer;
+    const recaptchaToken = sanitizeText(
+      body.recaptchaToken ?? body.captchaToken,
+      4000
+    );
 
     // Intent must be allowlisted — never trust raw query/body strings
     const intent = parseContactIntent(
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const captchaResult = verifyContactCaptcha(captchaToken, captchaSelection);
+    const captchaResult = await verifyGoogleRecaptcha(recaptchaToken, ip);
     if (!captchaResult.ok) {
       return NextResponse.json(
         {

@@ -21,9 +21,9 @@ export const siteConfig = {
   tagline: "Enterprise ERP Platform by WaamTech",
   description:
     "WAAMTO is a modular Enterprise ERP by WaamTech — Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, plus built-in AI Assistant, Document AI, and smart recommendations across 17 industries and 100+ business categories.",
-  url: "https://waamtech.com",
+  url: "https://waamto.com",
   appUrl: "https://app.waamto.com",
-  licensePortalUrl: "https://license.waamto.com",
+  licensePortalUrl: "https://license.waamtech.com",
   email: "hello@waamto.com",
   supportEmail: "support@waamto.com",
   phone: "+971 563344886",

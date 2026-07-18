@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
-import { blogPosts, siteConfig } from "@/lib/data/site";
+import { blogPosts } from "@/lib/data/site";
 import { businessIndustries } from "@/lib/data/business-hierarchy";
 import { LANGUAGE_CODES } from "@/i18n";
+import { buildAbsoluteSiteUrl, getSiteOrigin } from "@/lib/urls";
 
 const routes = [
   "",
@@ -28,7 +29,7 @@ const routes = [
 
 /** hreflang alternates: default (clean) URL + one ?lang= variant per language. */
 function languageAlternates(path: string): Record<string, string> {
-  const base = `${siteConfig.url}${path}`;
+  const base = buildAbsoluteSiteUrl(path || "/");
   const languages: Record<string, string> = { "x-default": base };
   for (const code of LANGUAGE_CODES) {
     languages[code] = `${base}${base.includes("?") ? "&" : "?"}lang=${code}`;
@@ -38,23 +39,24 @@ function languageAlternates(path: string): Record<string, string> {
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
+  const origin = getSiteOrigin();
   return [
     ...routes.map((route) => ({
-      url: `${siteConfig.url}${route}`,
+      url: route ? buildAbsoluteSiteUrl(route) : origin,
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: route === "" ? 1 : 0.7,
       alternates: { languages: languageAlternates(route) },
     })),
     ...blogPosts.map((post) => ({
-      url: `${siteConfig.url}/blog/${post.slug}`,
+      url: buildAbsoluteSiteUrl(`/blog/${post.slug}`),
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.5,
       alternates: { languages: languageAlternates(`/blog/${post.slug}`) },
     })),
     ...businessIndustries.map((industry) => ({
-      url: `${siteConfig.url}/industries/${industry.id}`,
+      url: buildAbsoluteSiteUrl(`/industries/${industry.id}`),
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.65,

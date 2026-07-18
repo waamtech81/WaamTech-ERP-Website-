@@ -13,16 +13,20 @@ import {
   getIndustryLucideIcon,
   getIndustryMedia,
   hierarchyStats,
+  isHotCategory,
   resolveBusinessCategoryId,
 } from "@/lib/data/business-hierarchy";
 import { getIndustry as getLegacyIndustry, industriesServing } from "@/lib/data/industries";
 import { getIcon } from "@/lib/icons";
 import { siteConfig } from "@/lib/data/site";
+import { buildAbsoluteSiteUrl } from "@/lib/urls";
 import { Container, Section } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { buildSignupPath } from "@/lib/urls";
+import { normalizePermalinkSlug } from "@/lib/signup/permalinks";
 import { authConfig } from "@/lib/auth/config";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -70,7 +74,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const categories = getCategoriesForIndustry(industry.id);
   const title = `${industry.name} ERP Software — ${categories.length} Business Categories`;
   const description = `${industry.description} Configure ${siteConfig.name} with ${categories.length} business categories under ${industry.name}.`;
-  const url = `${siteConfig.url}/industries/${industry.id}`;
+  const url = buildAbsoluteSiteUrl(`/industries/${industry.id}`);
 
   return {
     title,
@@ -162,7 +166,11 @@ export default async function IndustryDetailPage({ params }: Props) {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button asChild size="lg" className="rounded-full">
-                  <Link href={`/signup?industry=${industry.id}`}>
+                  <Link
+                    href={buildSignupPath({
+                      industrySlug: normalizePermalinkSlug(industry.id),
+                    })}
+                  >
                     Start {trialDays}-day free trial
                     <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -227,7 +235,10 @@ export default async function IndustryDetailPage({ params }: Props) {
               return (
                 <Link
                   key={cat.id}
-                  href={`/signup?industry=${industry.id}&profile=${cat.id}`}
+                  href={buildSignupPath({
+                    industrySlug: normalizePermalinkSlug(industry.id),
+                    categorySlug: normalizePermalinkSlug(cat.id),
+                  })}
                   className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-white p-5 transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(15,23,42,0.08)] ${
                     highlight
                       ? "border-primary ring-2 ring-primary/15 shadow-md"
@@ -248,7 +259,14 @@ export default async function IndustryDetailPage({ params }: Props) {
                     <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>
 
-                  <p className="mt-3 font-semibold text-[#0b1f3a] leading-snug">{cat.name}</p>
+                  <p className="mt-3 flex items-center gap-2 font-semibold text-[#0b1f3a] leading-snug">
+                    <span>{cat.name}</span>
+                    {isHotCategory(cat.id) ? (
+                      <span className="shrink-0 rounded bg-orange-500/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white leading-none">
+                        Hot
+                      </span>
+                    ) : null}
+                  </p>
 
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <span

@@ -11,6 +11,7 @@ import type {
   CatalogPricing,
   CatalogProduct,
 } from "@/lib/commercial/types";
+import { buildAppPath, buildSignupPath } from "@/lib/urls";
 
 const TIER_ORDER = ["starter", "business", "lifetime", "enterprise"] as const;
 
@@ -176,15 +177,38 @@ function usersFromHighlights(highlights: string[] | undefined): number | "unlimi
   return undefined;
 }
 
+function firstText(
+  ...values: Array<string | null | undefined>
+): string | undefined {
+  for (const value of values) {
+    const trimmed = String(value ?? "").trim();
+    if (trimmed) return trimmed;
+  }
+  return undefined;
+}
+
 function ctaText(
-  plan: Pick<CatalogPlan, "cta" | "cta_button_text" | "contact_sales" | "lifetime_price" | "has_free_trial">
+  plan: Pick<
+    CatalogPlan,
+    "cta" | "cta_button_text" | "contact_sales" | "lifetime_price" | "has_free_trial"
+  >
 ): string {
-  const fromEngine = plan.cta?.text || plan.cta_button_text;
-  if (fromEngine?.trim()) return fromEngine.trim();
+  const fromEngine = firstText(plan.cta?.text, plan.cta_button_text);
+  if (fromEngine) return fromEngine;
   if (plan.contact_sales) return "Contact sales";
   if (plan.lifetime_price != null) return "Get lifetime access";
-  if (plan.has_free_trial) return "Start free trial";
-  return "Get started";
+  // Starter / Business and other self-serve plans — free trial CTA (Engine may omit has_free_trial)
+  return "Start free trial";
+}
+
+/** Public helper — same CTA rules as pricing cards (Engine SSOT). */
+export function planCtaLabel(
+  plan: Pick<
+    CatalogPlan,
+    "cta" | "cta_button_text" | "contact_sales" | "lifetime_price" | "has_free_trial"
+  >
+): string {
+  return ctaText(plan);
 }
 
 function buildSignupHref(plan: {
@@ -194,6 +218,7 @@ function buildSignupHref(plan: {
   contact_sales?: boolean;
   pricing_type?: string | null;
   lifetime_price?: number | null;
+  billing_cycle?: string | null;
 }): string {
   const slug = plan.slug || plan.id;
   if (
@@ -201,16 +226,22 @@ function buildSignupHref(plan: {
     plan.pricing_type === "custom" ||
     String(slug).toLowerCase() === "enterprise"
   ) {
-    return `/contact?intent=enterprise&plan=${encodeURIComponent(slug)}`;
+    return buildAppPath("/contact", {
+      intent: "enterprise",
+      plan: slug,
+    });
   }
   if (plan.lifetime_price != null || String(slug).toLowerCase() === "lifetime") {
-    return `/contact?intent=lifetime&plan=${encodeURIComponent(slug)}`;
+    return buildAppPath("/contact", {
+      intent: "lifetime",
+      plan: slug,
+    });
   }
-  const params = new URLSearchParams();
-  params.set("plan", slug);
-  if (plan.product_slug) params.set("product", plan.product_slug);
-  params.set("plan_id", plan.id);
-  return `/signup?${params.toString()}`;
+  return buildSignupPath({
+    product: plan.product_slug,
+    planId: plan.id,
+    planSlug: slug,
+  });
 }
 
 function num(v: unknown): number | null {
@@ -410,11 +441,6 @@ export function mapCatalogPlanToPricingPlan(
     plan.contact_sales ||
     plan.pricing_type === "custom" ||
     String(plan.tier || plan.slug).toLowerCase() === "enterprise";
-  const isLifetime =
-    !isEnterprise &&
-    (plan.lifetime_price != null ||
-      String(plan.tier || plan.slug).toLowerCase() === "lifetime" ||
-      plan.plan_type === "lifetime");
 
   const launch = resolveLaunchFields(plan);
   const fromLimits = usersFromLimits(extras?.limits);
@@ -423,22 +449,37 @@ export function mapCatalogPlanToPricingPlan(
     extras?.featureGroups || (plan as CatalogPlan & { feature_groups?: CatalogFeatureGroup[] }).feature_groups
   );
 
+  const groupedFeatureNames = featureGroups
+    .flatMap((g) => g.features.map((f) => f.name).filter(Boolean))
+    .slice(0, 12);
   const featureNames =
-    featureGroups.flatMap((g) => g.features.map((f) => f.name)).slice(0, 12) ||
-    plan.highlights ||
-    featureLinesFromDescription(plan.description);
+    groupedFeatureNames.length > 0
+      ? groupedFeatureNames
+      : (plan.highlights || []).filter((h) => String(h || "").trim())
+          .length > 0
+        ? (plan.highlights || []).filter((h) => String(h || "").trim())
+        : featureLinesFromDescription(plan.description);
 
-  const features = [...featureNames];
-  if (plan.has_free_trial && plan.trial_days) {
-    features.unshift(`${plan.trial_days}-day free trial`);
-  }
+  // Do not inject trial into features — CTA already communicates trial; avoids duplicate rows
+  const features = featureNames.filter((f) => String(f || "").trim());
 
   const usersIncluded = fromLimits.usersIncluded ?? fromHighlights;
-  const badge =
-    plan.badge_label ||
-    plan.ribbon ||
-    (plan.badge ? String(plan.badge).replace(/_/g, " ") : undefined) ||
-    (isLifetime ? "Best value" : undefined);
+  const badge = firstText(
+    plan.badge_label,
+    plan.ribbon,
+    plan.badge ? String(plan.badge).replace(/_/g, " ") : undefined
+  );
+  const description = firstText(
+    plan.short_description,
+    plan.marketing_summary,
+    plan.description
+  );
+  // Prefer one body copy — avoid rendering the same Engine string twice
+  const marketingSummary =
+    firstText(plan.marketing_summary) &&
+    firstText(plan.marketing_summary) !== firstText(plan.short_description)
+      ? firstText(plan.marketing_summary)
+      : undefined;
 
   if (isEnterprise) {
     return {
@@ -447,43 +488,38 @@ export function mapCatalogPlanToPricingPlan(
       productId: plan.product_id,
       productSlug: plan.product_slug,
       name: plan.name || plan.title || "Enterprise",
-      subtitle: plan.subtitle || plan.tagline,
+      subtitle: firstText(plan.subtitle, plan.tagline) || null,
       description:
-        plan.short_description ||
-        plan.description ||
-        "Custom pricing — contact sales for a quote.",
-      marketingSummary: plan.marketing_summary,
+        description ||
+        undefined,
+      marketingSummary: marketingSummary || null,
       monthlyPrice: null,
       yearlyPrice: null,
       lifetimePrice: null,
       popular: Boolean(plan.is_popular),
       recommended: Boolean(plan.is_recommended),
-      badge: plan.badge_label || plan.ribbon || "Enterprise",
-      ribbon: plan.ribbon,
+      badge: firstText(plan.badge_label, plan.ribbon) || undefined,
+      ribbon: firstText(plan.ribbon) || null,
       cta: ctaText(plan),
       ctaStyle: plan.cta?.style || plan.cta_button_style,
       href: buildSignupHref(plan),
-      usersIncluded: usersIncluded ?? "unlimited",
-      usersNote: fromLimits.usersNote || "Custom pricing",
-      storageIncludedGb: fromLimits.storageIncludedGb ?? "unlimited",
+      usersIncluded: usersIncluded,
+      usersNote: firstText(fromLimits.usersNote) || undefined,
+      storageIncludedGb: fromLimits.storageIncludedGb ?? null,
       extraUserPrice: fromLimits.extraUserPrice,
       extraStoragePricePerGb: fromLimits.extraStoragePricePerGb,
-      supportLevel: plan.support_level,
-      modules: extras?.modules || [],
-      highlights: plan.highlights || [],
+      supportLevel: firstText(plan.support_level) || null,
+      modules: (extras?.modules || []).filter(Boolean),
+      highlights: (plan.highlights || []).filter((h) => String(h || "").trim()),
       featureGroups,
-      features: [
-        "Custom Pricing",
-        "Contact Sales",
-        ...features.filter((f) => !/custom pricing/i.test(f)),
-      ],
+      features: features.filter((f) => !/custom pricing/i.test(f)),
       hasFreeTrial: plan.has_free_trial,
       trialDays: plan.trial_days,
       contactSales: true,
       billingCycle: plan.billing_cycle || plan.plan_type,
       currency: plan.currency,
-      launchCampaign: plan.launch_campaign,
-      launchBadge: plan.launch_badge,
+      launchCampaign: firstText(plan.launch_campaign) || null,
+      launchBadge: firstText(plan.launch_badge) || null,
     };
   }
 
@@ -493,10 +529,9 @@ export function mapCatalogPlanToPricingPlan(
     productId: plan.product_id,
     productSlug: plan.product_slug,
     name: plan.name || plan.title || plan.slug,
-    subtitle: plan.subtitle || plan.tagline,
-    description:
-      plan.short_description || plan.marketing_summary || plan.description || `${plan.name} plan`,
-    marketingSummary: plan.marketing_summary,
+    subtitle: firstText(plan.subtitle, plan.tagline) || null,
+    description,
+    marketingSummary: marketingSummary || null,
     monthlyPrice: launch.monthlyPrice,
     yearlyPrice: launch.yearlyPrice,
     yearlyTotal: launch.yearlyTotal,
@@ -512,25 +547,25 @@ export function mapCatalogPlanToPricingPlan(
     yearlySavingsAmount: launch.yearlySavingsAmount,
     showStrikeThrough: launch.showStrikeThrough,
     launchActive: Boolean(plan.launch_active),
-    launchCampaign: plan.launch_campaign,
-    launchBadge: plan.launch_badge,
+    launchCampaign: firstText(plan.launch_campaign) || null,
+    launchBadge: firstText(plan.launch_badge) || null,
     billingCycle: plan.billing_cycle || plan.plan_type,
     currency: plan.currency,
     popular: Boolean(plan.is_popular),
     recommended: Boolean(plan.is_recommended),
     badge,
-    ribbon: plan.ribbon,
+    ribbon: firstText(plan.ribbon) || null,
     cta: ctaText(plan),
     ctaStyle: plan.cta?.style || plan.cta_button_style,
     href: buildSignupHref(plan),
     usersIncluded,
-    usersNote: fromLimits.usersNote,
-    storageIncludedGb: fromLimits.storageIncludedGb,
+    usersNote: firstText(fromLimits.usersNote) || undefined,
+    storageIncludedGb: fromLimits.storageIncludedGb ?? null,
     extraUserPrice: fromLimits.extraUserPrice,
     extraStoragePricePerGb: fromLimits.extraStoragePricePerGb,
-    supportLevel: plan.support_level,
-    modules: extras?.modules || [],
-    highlights: plan.highlights || [],
+    supportLevel: firstText(plan.support_level) || null,
+    modules: (extras?.modules || []).filter(Boolean),
+    highlights: (plan.highlights || []).filter((h) => String(h || "").trim()),
     featureGroups,
     features,
     hasFreeTrial: plan.has_free_trial,
@@ -1046,34 +1081,17 @@ export function cardPlans(plans: PricingPlan[]): PricingPlan[] {
   return sortCardDisplayOrder(marketing.filter((p) => p !== enterprisePlan(marketing)));
 }
 
-/** Append billing cycle + price selection onto a plan CTA href. */
+/** Append billing cycle onto a plan CTA href — never attach client-side prices. */
 export function withPlanSelectionParams(
   href: string,
-  selection: {
-    billingCycle: BillingCycle;
-    price: number | null;
-    discount: number | null;
-    originalPrice?: number | null;
-    savings?: number | null;
-  }
+  selection: { billingCycle: BillingCycle }
 ): string {
-  if (href.startsWith("/contact")) {
-    const url = new URL(href, "https://waamto.local");
-    url.searchParams.set("billing_cycle", selection.billingCycle);
-    return `${url.pathname}${url.search}`;
-  }
-  if (!href.startsWith("/signup")) return href;
-  const url = new URL(href, "https://waamto.local");
+  if (!href.startsWith("/signup") && !href.startsWith("/contact")) return href;
+  const url = new URL(href, "https://waamto.invalid");
   url.searchParams.set("billing_cycle", selection.billingCycle);
-  if (selection.price != null) url.searchParams.set("price", String(selection.price));
-  if (selection.discount != null) {
-    url.searchParams.set("discount", String(selection.discount));
-  }
-  if (selection.originalPrice != null) {
-    url.searchParams.set("original_price", String(selection.originalPrice));
-  }
-  if (selection.savings != null) {
-    url.searchParams.set("savings", String(selection.savings));
+  // Explicitly strip any legacy pricing query params if present on href
+  for (const key of ["price", "discount", "original_price", "savings"]) {
+    url.searchParams.delete(key);
   }
   return `${url.pathname}${url.search}`;
 }

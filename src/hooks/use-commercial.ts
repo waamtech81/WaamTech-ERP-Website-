@@ -10,6 +10,7 @@ import {
 import type {
   CatalogBusinessCategory,
   CatalogBusinessProfile,
+  CatalogBusinessType,
   CatalogComparisonBundle,
   CatalogIndustry,
   CatalogPlan,
@@ -238,6 +239,15 @@ export function useCatalogBusinessCategories(industryId?: string | null) {
   );
 }
 
+/** All public business categories (no industry filter) — for menu/home totals. */
+export function useCatalogAllBusinessCategories() {
+  return useCommercialQuery<CatalogBusinessCategory[]>(
+    "catalog:categories:all",
+    "/api/commercial/business-categories",
+    EMPTY_ARRAY as unknown as CatalogBusinessCategory[]
+  );
+}
+
 export function useCatalogBusinessProfiles(categoryId?: string | null) {
   const enabled = Boolean(categoryId);
   const qs = categoryId ? `?category_id=${encodeURIComponent(categoryId)}` : "";
@@ -245,6 +255,16 @@ export function useCatalogBusinessProfiles(categoryId?: string | null) {
     enabled ? `catalog:profiles:${categoryId}` : null,
     enabled ? `/api/commercial/business-profiles${qs}` : null,
     EMPTY_ARRAY as unknown as CatalogBusinessProfile[]
+  );
+}
+
+export function useCatalogBusinessTypes(industryId?: string | null) {
+  const enabled = Boolean(industryId);
+  const qs = industryId ? `?industry_id=${encodeURIComponent(industryId)}` : "";
+  return useCommercialQuery<CatalogBusinessType[]>(
+    enabled ? `catalog:business-types:${industryId}` : null,
+    enabled ? `/api/commercial/business-types${qs}` : null,
+    EMPTY_ARRAY as unknown as CatalogBusinessType[]
   );
 }
 

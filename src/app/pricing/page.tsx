@@ -113,13 +113,11 @@ export default function PricingPage() {
             >
               {t("pricing.yearly", "Yearly")}
             </Label>
-            <Badge
-              variant="accent"
-              className={yearly && yearlySavingsHint ? undefined : "invisible"}
-              aria-hidden={!(yearly && yearlySavingsHint)}
-            >
-              Save up to <span translate="no">{formatPrice(yearlySavingsHint || 0)}</span>/yr
-            </Badge>
+            {yearly && yearlySavingsHint ? (
+              <Badge variant="accent">
+                Save up to <span translate="no">{formatPrice(yearlySavingsHint)}</span>/yr
+              </Badge>
+            ) : null}
           </div>
 
           <PriceNote className="mb-8 text-center text-xs text-muted-foreground" />
@@ -167,13 +165,13 @@ export default function PricingPage() {
                     {enterprise.ribbon || enterprise.badge || "Enterprise"}
                   </p>
                   <h3 className="mt-2 text-2xl md:text-3xl font-semibold tracking-tight">
-                    {enterprise.subtitle || "Custom Pricing — Contact Sales"}
+                    {enterprise.subtitle || enterprise.name || "Enterprise"}
                   </h3>
-                  <p className="mt-3 text-sm md:text-base text-white/70 leading-relaxed">
-                    {enterprise.marketingSummary ||
-                      enterprise.description ||
-                      "Need own server, whitelabel, or custom scale? Request a quote — we never publish fixed Enterprise pricing."}
-                  </p>
+                  {(enterprise.marketingSummary || enterprise.description) ? (
+                    <p className="mt-3 text-sm md:text-base text-white/70 leading-relaxed">
+                      {enterprise.marketingSummary || enterprise.description}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 shrink-0">
                   <Button

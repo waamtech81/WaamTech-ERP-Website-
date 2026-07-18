@@ -75,7 +75,6 @@ export async function POST(req: Request) {
       mergePhoneWithDialCode(dialCode, phoneLocal || phoneRaw) ||
       phoneRaw ||
       undefined;
-    const resolvedProfileId = sanitizeText(body?.profile_id, 80);
     const category_id =
       sanitizeText(body?.category_id || body?.business_category_id, 80) || undefined;
     const industry_id = sanitizeText(body?.industry_id, 80) || undefined;
@@ -85,32 +84,7 @@ export async function POST(req: Request) {
     const plan = sanitizeText(body?.plan, 40) || undefined;
     const billing_cycle =
       sanitizeText(body?.billing_cycle || body?.billingCycle, 20) || undefined;
-    const priceRaw = body?.price;
-    const discountRaw = body?.discount ?? body?.discount_percentage;
-    const originalRaw = body?.original_price ?? body?.originalPrice;
-    const savingsRaw = body?.savings ?? body?.savings_amount;
-    const price =
-      priceRaw != null && priceRaw !== "" && Number.isFinite(Number(priceRaw))
-        ? Number(priceRaw)
-        : undefined;
-    const discount =
-      discountRaw != null &&
-      discountRaw !== "" &&
-      Number.isFinite(Number(discountRaw))
-        ? Number(discountRaw)
-        : undefined;
-    const original_price =
-      originalRaw != null &&
-      originalRaw !== "" &&
-      Number.isFinite(Number(originalRaw))
-        ? Number(originalRaw)
-        : undefined;
-    const savings =
-      savingsRaw != null &&
-      savingsRaw !== "" &&
-      Number.isFinite(Number(savingsRaw))
-        ? Number(savingsRaw)
-        : undefined;
+    // Never trust browser-supplied price / discount / savings — License Engine is SSOT.
     const marketing_opt_in = Boolean(body?.marketing_opt_in);
 
     if (
@@ -118,14 +92,17 @@ export async function POST(req: Request) {
       !password ||
       !email ||
       !company_name ||
-      !resolvedProfileId ||
-      !country
+      !country ||
+      !product_id ||
+      !plan_id ||
+      !industry_id ||
+      !category_id
     ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Please fill name, email, password, company name, country, and business profile.",
+            "Please fill name, email, password, company name, country, product, plan, industry, and business category.",
         },
         { status: 400 }
       );
@@ -177,7 +154,6 @@ export async function POST(req: Request) {
       phone,
       company_name,
       country,
-      profile_id: resolvedProfileId,
       industry_id,
       category_id,
       product_id,
@@ -185,10 +161,6 @@ export async function POST(req: Request) {
       plan_id,
       plan,
       billing_cycle,
-      price,
-      discount,
-      original_price,
-      savings,
       marketing_opt_in,
     });
 

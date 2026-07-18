@@ -4,7 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Star } from "lucide-react";
 import { coreCapabilities } from "@/lib/data/core";
-import { getIndustryLucideIcon, getIndustryMedia } from "@/lib/data/business-hierarchy";
+import {
+  getIndustryLucideIcon,
+  getIndustryMedia,
+  hierarchyStats,
+} from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
 import { Container, Section } from "@/components/shared/section";
 import { AnimateIn } from "@/components/shared/animate-in";
@@ -15,7 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { testimonials, siteConfig } from "@/lib/data/site";
 import { PricingCards } from "@/components/sections/pricing-cards";
-import { useCatalogBundle } from "@/hooks/use-commercial";
+import {
+  useCatalogAllBusinessCategories,
+  useCatalogBundle,
+} from "@/hooks/use-commercial";
 import {
   CatalogEmptyState,
   CatalogErrorState,
@@ -203,7 +210,14 @@ function IndustryHomeCard({ industry, index }: { industry: CatalogIndustry; inde
 
 export function BusinessesSection() {
   const catalog = useCatalogBundle();
+  const allCategories = useCatalogAllBusinessCategories();
   const industries = (catalog.data.industries || []).slice(0, 8);
+  const industryCount =
+    (catalog.data.industries || []).length || hierarchyStats.industries;
+  const categoryCount =
+    allCategories.data.length > 0
+      ? allCategories.data.length
+      : hierarchyStats.categories;
 
   return (
     <Section muted>
@@ -213,11 +227,11 @@ export function BusinessesSection() {
             Industries we serve
           </p>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
-            Live industries from License Engine
+            {industryCount} industries · {categoryCount}+ business categories
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
-            Industry → business category → business profile — loaded dynamically for signup and
-            provisioning.
+            Industry → business category → business profile — then start your free trial. Loaded
+            live from License Engine for signup and provisioning.
           </p>
         </div>
         {catalog.loading ? <CatalogSkeleton rows={4} /> : null}
@@ -359,13 +373,20 @@ export function PricingTeaser() {
         {enterprise ? (
           <div className="mt-8 rounded-2xl border border-border bg-white px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="font-semibold text-[#0b1f3a]">Enterprise — Custom Pricing</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Contact Sales or Request a Quote. No fixed Enterprise amount is published.
+              <p className="font-semibold text-[#0b1f3a]">
+                {enterprise.name || "Enterprise"}
+                {enterprise.subtitle ? ` — ${enterprise.subtitle}` : ""}
               </p>
+              {(enterprise.marketingSummary || enterprise.description) ? (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {enterprise.marketingSummary || enterprise.description}
+                </p>
+              ) : null}
             </div>
             <Button asChild className="rounded-full shrink-0">
-              <Link href={enterprise.href || "/contact?intent=enterprise"}>Contact Sales</Link>
+              <Link href={enterprise.href || "/contact?intent=enterprise"}>
+                {enterprise.cta || "Contact Sales"}
+              </Link>
             </Button>
           </div>
         ) : null}

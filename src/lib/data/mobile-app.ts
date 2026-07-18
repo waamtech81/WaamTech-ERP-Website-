@@ -1,8 +1,9 @@
-/** Native mobile app vs responsive web — by business profile */
+/** Native mobile app vs responsive web — by industry / business category */
 
 import {
-  getBusinessCategory,
-  resolveBusinessCategoryId,
+  findBusinessCategoryByKey,
+  type MobileMode,
+  type PosMode,
 } from "@/lib/data/business-hierarchy";
 
 export type MobileAppLevel = "required" | "recommended" | "available";
@@ -15,6 +16,21 @@ export type IndustryMobileApp = {
   note: string;
   /** Field use cases shown in UI */
   useCases: string[];
+};
+
+/** Normalize Engine slug/code → static hierarchy key (hyphens → underscores). */
+export function normalizeMobileCatalogKey(value: string | null | undefined): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, "_");
+}
+
+const defaultMobileApp: IndustryMobileApp = {
+  level: "available",
+  badge: "Responsive web + mobile ready",
+  note: "Use WaamTech on any device in the browser. Native mobile app available when your team needs field access.",
+  useCases: ["Dashboard", "Approvals", "Stock glance", "Alerts"],
 };
 
 export const mobileAppLevelCopy: Record<
@@ -230,12 +246,21 @@ export const industryMobileApp: Record<string, IndustryMobileApp> = {
   },
 };
 
-export function getIndustryMobileApp(industryId: string): IndustryMobileApp {
-  if (industryMobileApp[industryId]) {
-    return industryMobileApp[industryId];
-  }
+/**
+ * Resolve mobile-app messaging for a category/industry code or slug
+ * (License Engine catalog or static hierarchy ids).
+ */
+export function getIndustryMobileApp(
+  idOrCodeOrSlug: string | null | undefined
+): IndustryMobileApp {
+  const raw = String(idOrCodeOrSlug || "").trim();
+  if (!raw) return defaultMobileApp;
 
-  const category = getBusinessCategory(resolveBusinessCategoryId(industryId));
+  const key = normalizeMobileCatalogKey(raw);
+  if (industryMobileApp[raw]) return industryMobileApp[raw];
+  if (industryMobileApp[key]) return industryMobileApp[key];
+
+  const category = findBusinessCategoryByKey(raw) || findBusinessCategoryByKey(key);
   if (category?.mobile_mode === "required") {
     return {
       level: "required",
@@ -245,11 +270,58 @@ export function getIndustryMobileApp(industryId: string): IndustryMobileApp {
     };
   }
 
+  return defaultMobileApp;
+}
+
+/** Prefer category code/slug, then industry — for Engine catalog rows. */
+export function getMobileAppForSelection(opts: {
+  categoryCode?: string | null;
+  categorySlug?: string | null;
+  industryCode?: string | null;
+  industrySlug?: string | null;
+}): IndustryMobileApp {
+  const candidates = [
+    opts.categoryCode,
+    opts.categorySlug,
+    opts.industryCode,
+    opts.industrySlug,
+  ];
+  for (const candidate of candidates) {
+    if (!String(candidate || "").trim()) continue;
+    const info = getIndustryMobileApp(candidate);
+    // Prefer an explicit match over the generic "available" fallback
+    const key = normalizeMobileCatalogKey(candidate);
+    if (
+      industryMobileApp[key] ||
+      findBusinessCategoryByKey(candidate) ||
+      info.level !== "available"
+    ) {
+      return info;
+    }
+  }
+  const first = candidates.find((c) => String(c || "").trim());
+  return getIndustryMobileApp(first || "");
+}
+
+export type CategoryAccessHints = {
+  pos_mode: PosMode | null;
+  mobile_mode: MobileMode | null;
+  mobileLabel: string | null;
+};
+
+/** POS / mobile hints for category dropdown (static hierarchy by Engine code/slug). */
+export function getCategoryAccessHints(
+  codeOrSlug: string | null | undefined
+): CategoryAccessHints {
+  const category = findBusinessCategoryByKey(codeOrSlug);
+  if (!category) {
+    return { pos_mode: null, mobile_mode: null, mobileLabel: null };
+  }
   return {
-    level: "available" as const,
-    badge: "Responsive web + mobile ready",
-    note: "Use WaamTech on any device in the browser. Native mobile app available when your team needs field access.",
-    useCases: ["Dashboard", "Approvals", "Stock glance", "Alerts"],
+    pos_mode: category.pos_mode,
+    mobile_mode: category.mobile_mode,
+    mobileLabel:
+      category.mobile_mode === "required" ? "Mobile included" : null,
   };
 }
 

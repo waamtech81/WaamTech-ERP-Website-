@@ -243,6 +243,20 @@ export type CatalogBusinessProfile = {
   is_public: boolean;
 };
 
+/** Industry-scoped business type (License Engine catalog_business_types). */
+export type CatalogBusinessType = {
+  id: string;
+  industry_id?: string | null;
+  code: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  icon: string | null;
+  status?: string;
+  display_order: number;
+  is_public?: boolean;
+};
+
 export type CommercialSubscription = {
   id: string;
   subscription_number?: string;

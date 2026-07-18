@@ -7,6 +7,7 @@ import { friendlyNetworkError } from "@/lib/network/errors";
 import type {
   CatalogBusinessCategory,
   CatalogBusinessProfile,
+  CatalogBusinessType,
   CatalogComparisonBundle,
   CatalogFetchResult,
   CatalogIndustry,
@@ -218,6 +219,20 @@ export async function fetchPublicPricing(
   return { ...result, data: asArray(result.data) };
 }
 
+export async function fetchPublicPlanById(
+  planId: string
+): Promise<CatalogFetchResult<CatalogPlan | null>> {
+  const id = String(planId || "").trim();
+  if (!id) {
+    return emptyResult(null, "Missing plan_id.", 400);
+  }
+  return getPublic<CatalogPlan>(
+    `/v1/public/catalog/plans/${encodeURIComponent(id)}`,
+    undefined,
+    { revalidate: false }
+  );
+}
+
 export async function fetchPublicPlanLimits(
   planId: string
 ): Promise<CatalogFetchResult<CatalogPlanLimits | null>> {
@@ -243,10 +258,15 @@ export async function fetchPublicPlanComparison(opts?: {
   };
 }
 
+/** Registry lists must not rely on Engine default pagination (historically 100). */
+const REGISTRY_PAGE_LIMIT = "500";
+
 export async function fetchPublicIndustries(): Promise<
   CatalogFetchResult<CatalogIndustry[]>
 > {
-  const result = await getPublic<CatalogIndustry[]>("/v1/public/catalog/industries");
+  const result = await getPublic<CatalogIndustry[]>("/v1/public/catalog/industries", {
+    limit: REGISTRY_PAGE_LIMIT,
+  });
   return { ...result, data: asArray(result.data) };
 }
 
@@ -255,7 +275,7 @@ export async function fetchPublicBusinessCategories(
 ): Promise<CatalogFetchResult<CatalogBusinessCategory[]>> {
   const result = await getPublic<CatalogBusinessCategory[]>(
     "/v1/public/catalog/business-categories",
-    { industry_id: industryId }
+    { industry_id: industryId, limit: REGISTRY_PAGE_LIMIT }
   );
   return { ...result, data: asArray(result.data) };
 }
@@ -265,7 +285,17 @@ export async function fetchPublicBusinessProfiles(
 ): Promise<CatalogFetchResult<CatalogBusinessProfile[]>> {
   const result = await getPublic<CatalogBusinessProfile[]>(
     "/v1/public/catalog/business-profiles",
-    { category_id: categoryId }
+    { category_id: categoryId, limit: REGISTRY_PAGE_LIMIT }
+  );
+  return { ...result, data: asArray(result.data) };
+}
+
+export async function fetchPublicBusinessTypes(
+  industryId?: string
+): Promise<CatalogFetchResult<CatalogBusinessType[]>> {
+  const result = await getPublic<CatalogBusinessType[]>(
+    "/v1/public/catalog/business-types",
+    { industry_id: industryId, limit: REGISTRY_PAGE_LIMIT }
   );
   return { ...result, data: asArray(result.data) };
 }

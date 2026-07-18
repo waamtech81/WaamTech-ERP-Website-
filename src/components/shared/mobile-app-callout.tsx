@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Smartphone, Check } from "lucide-react";
 import {
   getIndustryMobileApp,
+  getMobileAppForSelection,
   mobileAppLevelCopy,
   type MobileAppLevel,
 } from "@/lib/data/mobile-app";
@@ -23,8 +24,13 @@ const badgeStyles: Record<MobileAppLevel, string> = {
 };
 
 type Props = {
-  industryId: string;
+  /** @deprecated Prefer categoryCode / categorySlug from License Engine catalog. */
+  industryId?: string;
   industryName?: string;
+  categoryCode?: string | null;
+  categorySlug?: string | null;
+  industryCode?: string | null;
+  industrySlug?: string | null;
   className?: string;
   compact?: boolean;
 };
@@ -32,10 +38,22 @@ type Props = {
 export function MobileAppProfileCallout({
   industryId,
   industryName,
+  categoryCode,
+  categorySlug,
+  industryCode,
+  industrySlug,
   className,
   compact,
 }: Props) {
-  const info = getIndustryMobileApp(industryId);
+  const info =
+    categoryCode || categorySlug || industryCode || industrySlug
+      ? getMobileAppForSelection({
+          categoryCode,
+          categorySlug,
+          industryCode,
+          industrySlug,
+        })
+      : getIndustryMobileApp(industryId);
   const copy = mobileAppLevelCopy[info.level];
 
   return (

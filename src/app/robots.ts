@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { siteConfig } from "@/lib/data/site";
+import { buildAbsoluteSiteUrl } from "@/lib/urls";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -17,6 +17,6 @@ export default function robots(): MetadataRoute.Robots {
         "/reset-password",
       ],
     },
-    sitemap: `${siteConfig.url}/sitemap.xml`,
+    sitemap: buildAbsoluteSiteUrl("/sitemap.xml"),
   };
 }

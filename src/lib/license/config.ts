@@ -3,15 +3,24 @@ export const licenseConfig = {
   apiUrl:
     process.env.LICENSE_API_URL ||
     process.env.WAAMTECH_LICENSE_API_URL ||
-    "https://license.waamto.com/api",
+    "https://api.license.waamtech.com/api",
   /** Optional customer/license portal (external) */
   portalUrl:
     process.env.NEXT_PUBLIC_LICENSE_PORTAL_URL ||
     process.env.LICENSE_PORTAL_URL ||
-    "https://license.waamto.com",
+    "https://license.waamtech.com",
   apiKey: process.env.LICENSE_API_KEY || "",
 };
 
 export function normalizeLicenseBase(url: string) {
-  return url.replace(/\/+$/, "");
+  const trimmed = url.trim();
+  try {
+    const u = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+    u.hostname = u.hostname.replace(/\.+$/, "");
+    // Keep pathname but strip trailing slashes (except root)
+    u.pathname = u.pathname.replace(/\/+$/, "") || "";
+    return `${u.origin}${u.pathname === "/" ? "" : u.pathname}`;
+  } catch {
+    return trimmed.replace(/\/+$/, "").replace(/\.+$/, "");
+  }
 }

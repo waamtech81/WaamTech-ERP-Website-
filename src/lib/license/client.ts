@@ -8,18 +8,14 @@ export type TrialRegistrationInput = {
   phone?: string;
   company_name: string;
   country: string;
-  profile_id: string;
-  industry_id?: string;
-  category_id?: string;
-  product_id?: string;
+  /** Required commercial selection — License Engine auto-resolves profile from category. */
+  industry_id: string;
+  category_id: string;
+  product_id: string;
   product_slug?: string;
-  plan_id?: string;
+  plan_id: string;
   plan?: string;
   billing_cycle?: string;
-  price?: number | null;
-  discount?: number | null;
-  original_price?: number | null;
-  savings?: number | null;
   marketing_opt_in?: boolean;
 };
 
@@ -129,7 +125,6 @@ export async function startRegistrationOnLicenseServer(
       company: input.company_name,
       country: input.country,
       country_code: input.country,
-      profile_id: input.profile_id,
       industry_id: input.industry_id,
       category_id: input.category_id,
       business_category_id: input.category_id,
@@ -139,12 +134,6 @@ export async function startRegistrationOnLicenseServer(
       plan: input.plan || undefined,
       plan_slug: input.plan || undefined,
       billing_cycle: input.billing_cycle || undefined,
-      price: input.price ?? undefined,
-      discount: input.discount ?? undefined,
-      discount_percentage: input.discount ?? undefined,
-      original_price: input.original_price ?? undefined,
-      savings: input.savings ?? undefined,
-      savings_amount: input.savings ?? undefined,
       marketing_opt_in: Boolean(input.marketing_opt_in),
       trial_days: authConfig.trialDays,
       source: "waamto-website",

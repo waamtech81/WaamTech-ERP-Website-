@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   fetchPublicBusinessCategories,
   fetchPublicBusinessProfiles,
+  fetchPublicBusinessTypes,
   fetchPublicIndustries,
   fetchPublicPlans,
   fetchPublicPricing,
@@ -137,6 +138,13 @@ export async function GET_businessCategories(req: Request) {
 export async function GET_businessProfiles(req: Request) {
   const categoryId = new URL(req.url).searchParams.get("category_id") || undefined;
   const result = await fetchPublicBusinessProfiles(categoryId);
+  if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
+  return jsonOk(result.data);
+}
+
+export async function GET_businessTypes(req: Request) {
+  const industryId = new URL(req.url).searchParams.get("industry_id") || undefined;
+  const result = await fetchPublicBusinessTypes(industryId);
   if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
   return jsonOk(result.data);
 }

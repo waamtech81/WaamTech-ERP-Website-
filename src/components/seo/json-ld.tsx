@@ -1,4 +1,5 @@
 import { siteConfig } from "@/lib/data/site";
+import { buildAbsoluteSiteUrl, getSiteOrigin } from "@/lib/urls";
 
 type JsonLdProps = {
   data: Record<string, unknown> | Record<string, unknown>[];
@@ -15,13 +16,14 @@ export function JsonLd({ data }: JsonLdProps) {
 
 /** Organization + WebSite schema for the marketing site root. */
 export function SiteJsonLd() {
+  const origin = getSiteOrigin();
   const org = {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: siteConfig.companyName,
     legalName: siteConfig.companyName,
     url: siteConfig.companyUrl,
-    logo: `${siteConfig.url}${siteConfig.logo}`,
+    logo: buildAbsoluteSiteUrl(siteConfig.logo),
     email: siteConfig.email,
     telephone: siteConfig.phone,
     sameAs: Object.values(siteConfig.social).filter(Boolean),
@@ -35,7 +37,7 @@ export function SiteJsonLd() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: siteConfig.name,
-    url: siteConfig.url,
+    url: origin,
     description: siteConfig.description,
     publisher: {
       "@type": "Organization",
@@ -45,7 +47,7 @@ export function SiteJsonLd() {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${siteConfig.url}/knowledge-base?q={search_term_string}`,
+        urlTemplate: `${origin}/knowledge-base?q={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
@@ -57,14 +59,14 @@ export function SiteJsonLd() {
     name: siteConfig.name,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    url: siteConfig.url,
+    url: origin,
     description: siteConfig.description,
     offers: {
       "@type": "Offer",
       price: "0",
       priceCurrency: "USD",
       description: "Free trial available",
-      url: `${siteConfig.url}/signup`,
+      url: buildAbsoluteSiteUrl("/signup"),
     },
     provider: {
       "@type": "Organization",
@@ -85,10 +87,7 @@ export function SiteJsonLd() {
 export function breadcrumbJsonLd(
   items: { name: string; path?: string }[]
 ): Record<string, unknown> {
-  const list = [
-    { name: "Home", path: "/" },
-    ...items,
-  ];
+  const list = [{ name: "Home", path: "/" }, ...items];
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -97,7 +96,11 @@ export function breadcrumbJsonLd(
       position: index + 1,
       name: item.name,
       ...(item.path
-        ? { item: item.path.startsWith("http") ? item.path : `${siteConfig.url}${item.path}` }
+        ? {
+            item: item.path.startsWith("http")
+              ? item.path
+              : buildAbsoluteSiteUrl(item.path),
+          }
         : {}),
     })),
   };

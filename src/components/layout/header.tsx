@@ -21,7 +21,11 @@ import {
   otherMegaMenu,
   siteConfig,
 } from "@/lib/data/site";
-import { getIndustryLucideIcon } from "@/lib/data/business-hierarchy";
+import {
+  getIndustryLucideIcon,
+  hierarchyStats,
+  isHotCategory,
+} from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,6 +34,7 @@ import { GlobalSearch } from "@/components/layout/global-search";
 import { LocaleControls } from "@/components/layout/locale-controls";
 import { useLocale } from "@/components/providers/locale-provider";
 import {
+  useCatalogAllBusinessCategories,
   useCatalogBundle,
   useCatalogBusinessCategories,
   useCatalogIndustries,
@@ -128,6 +133,7 @@ export function Header() {
   const { t, formatPrice } = useLocale();
   const catalog = useCatalogBundle();
   const industriesQuery = useCatalogIndustries();
+  const allCategoriesQuery = useCatalogAllBusinessCategories();
   const prices = publicMarketingPlans(catalog.data.pricingPlans || [])
     .map((p) => p.yearlyPrice ?? p.monthlyPrice)
     .filter((v): v is number => typeof v === "number" && v > 0);
@@ -154,6 +160,12 @@ export function Header() {
     featured[0];
   const activeCategoriesQuery = useCatalogBusinessCategories(activeIndustry?.id || null);
   const activeCategories = activeCategoriesQuery.data.slice(0, 12);
+  const totalIndustries =
+    allIndustries.length > 0 ? allIndustries.length : hierarchyStats.industries;
+  const totalCategories =
+    allCategoriesQuery.data.length > 0
+      ? allCategoriesQuery.data.length
+      : hierarchyStats.categories;
 
   function openMenu(key: DropdownKey) {
     if (closeTimer.current) {
@@ -361,6 +373,9 @@ export function Header() {
                 translate="no"
               >
                 {t("nav.industries", "Industries")}
+                <span className="ml-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary tabular-nums">
+                  {totalIndustries}
+                </span>
                 <ChevronDown
                   className={cn(
                     "h-3.5 w-3.5 transition-transform duration-200",
@@ -384,7 +399,7 @@ export function Header() {
                         <p className="px-2 mb-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/70">
                           Industries
                           <span className="ml-1.5 font-semibold text-muted-foreground normal-case tracking-normal">
-                            ({menuIndustries.length})
+                            ({totalIndustries})
                           </span>
                         </p>
                         {industriesQuery.error && menuIndustries.length === 0 ? (
@@ -484,6 +499,9 @@ export function Header() {
                                       ? "…"
                                       : activeCategoriesQuery.data.length}
                                   </span>
+                                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                    {totalCategories} total
+                                  </span>
                                 </div>
                                 <h3 className="mt-1 text-lg font-semibold text-[#0b1f3a]">
                                   {activeIndustry.name}
@@ -503,24 +521,38 @@ export function Header() {
                               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
                                 {activeCategories.map((cat) => {
                                   const CatIcon = getIcon(industryDisplayIcon(activeIndustry));
+                                  const hot = isHotCategory(cat);
                                   return (
                                     <Link
                                       key={cat.id}
-                                      href={`/signup?industry=${activeIndustry.id}&category=${cat.id}`}
-                                      className="flex items-start gap-2.5 rounded-xl border border-border px-3 py-3 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors min-w-0"
+                                      href={
+                                        activeIndustry.slug && cat.slug
+                                          ? `/signup/${encodeURIComponent(activeIndustry.slug)}/${encodeURIComponent(cat.slug)}`
+                                          : activeIndustry.slug
+                                            ? `/signup/${encodeURIComponent(activeIndustry.slug)}`
+                                            : "/signup"
+                                      }
+                                      className="group flex items-start gap-2.5 rounded-xl border border-border px-3 py-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[0.04] hover:shadow-md min-w-0"
                                     >
-                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
+                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white transition-transform group-hover:scale-105">
                                         <CatIcon className="h-3.5 w-3.5" />
                                       </span>
                                       <span className="min-w-0">
                                         <span className="flex items-center gap-1.5 min-w-0">
-                                          <span className="block text-sm font-medium text-[#0b1f3a] truncate">
+                                          <span className="block text-sm font-medium text-[#0b1f3a] truncate group-hover:text-primary transition-colors">
                                             {cat.name}
                                           </span>
+                                          {hot ? (
+                                            <span className="shrink-0 rounded bg-orange-500/90 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-white leading-none">
+                                              Hot
+                                            </span>
+                                          ) : null}
                                         </span>
-                                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                                          {cat.description || cat.code}
-                                        </span>
+                                        {cat.description || cat.code ? (
+                                          <span className="mt-0.5 block text-[11px] text-muted-foreground line-clamp-2">
+                                            {cat.description || cat.code}
+                                          </span>
+                                        ) : null}
                                       </span>
                                     </Link>
                                   );
@@ -534,14 +566,21 @@ export function Header() {
                             ) : null}
                             <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-border pt-4">
                               <p className="text-sm text-muted-foreground">
-                                Live catalog from License Engine · {allIndustries.length} industries
+                                {totalCategories} business categories across {totalIndustries}{" "}
+                                industries
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 <Button asChild size="sm" variant="outline" className="rounded-full">
                                   <Link href="/industries">Browse all</Link>
                                 </Button>
                                 <Button asChild size="sm" className="rounded-full">
-                                  <Link href={`/signup?industry=${activeIndustry.id}`}>
+                                  <Link
+                                    href={
+                                      activeIndustry.slug
+                                        ? `/signup/${encodeURIComponent(activeIndustry.slug)}`
+                                        : "/signup"
+                                    }
+                                  >
                                     Start trial
                                   </Link>
                                 </Button>
@@ -643,6 +682,21 @@ export function Header() {
             </Button>
             <Button
               asChild
+              variant="outline"
+              size="sm"
+              className="hidden sm:inline-flex rounded-full px-4 lg:px-5 notranslate"
+            >
+              <a
+                href={`${siteConfig.appUrl.replace(/\/+$/, "")}/login`}
+                target="_blank"
+                rel="noopener noreferrer"
+                translate="no"
+              >
+                {t("header.erpLogin", "ERP Login")}
+              </a>
+            </Button>
+            <Button
+              asChild
               size="sm"
               className="hidden sm:inline-flex rounded-full px-4 lg:px-5 shadow-sm shadow-primary/15 notranslate"
             >
@@ -704,8 +758,8 @@ export function Header() {
                 }
               >
                 <p className="px-3 py-1 text-xs text-muted-foreground">
-                  Featured first · {allIndustries.length} industries
-                </p>
+                  Featured first · {totalIndustries} industries · {totalCategories} categories
+                  </p>
                 {featured.map((ind) => (
                   <Link
                     key={ind.id}
@@ -758,16 +812,27 @@ export function Header() {
                 <LocaleControls />
               </div>
 
-              <div className="flex gap-2 pt-2 notranslate" translate="no">
-                <Button asChild variant="outline" className="flex-1 rounded-full">
-                  <Link href="/login">
-                    <LogIn className="h-4 w-4" />
-                    {t("header.login", "Log in")}
-                  </Link>
+              <div className="flex flex-col gap-2 pt-2 notranslate" translate="no">
+                <Button asChild variant="outline" className="w-full rounded-full">
+                  <a
+                    href={`${siteConfig.appUrl.replace(/\/+$/, "")}/login`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("header.erpLogin", "ERP Login")}
+                  </a>
                 </Button>
-                <Button asChild className="flex-1 rounded-full">
-                  <Link href="/signup">{t("header.startTrial", "Start trial")}</Link>
-                </Button>
+                <div className="flex gap-2">
+                  <Button asChild variant="outline" className="flex-1 rounded-full">
+                    <Link href="/login">
+                      <LogIn className="h-4 w-4" />
+                      {t("header.login", "Log in")}
+                    </Link>
+                  </Button>
+                  <Button asChild className="flex-1 rounded-full">
+                    <Link href="/signup">{t("header.startTrial", "Start trial")}</Link>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

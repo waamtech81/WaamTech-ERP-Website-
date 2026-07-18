@@ -9,7 +9,7 @@ const DEFAULT_FALLBACK = "/portal";
 const INTERNAL_PATH_ALLOWLIST: RegExp[] = [
   /^\/portal(?:\/[\w.-]+)*\/?$/,
   /^\/login\/?$/,
-  /^\/signup\/?$/,
+  /^\/signup(?:\/[\w.-]+)*\/?$/,
   /^\/forgot-password\/?$/,
   /^\/reset-password\/?$/,
 ];

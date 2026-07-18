@@ -19,12 +19,21 @@ export function PlanFeatureGroups({
 }: PlanFeatureGroupsProps) {
   if (!groups.length) return null;
 
-  const shown = compact ? groups.slice(0, 3) : groups;
+  const shown = (compact ? groups.slice(0, 3) : groups).filter((g) =>
+    g.features.some((f) => String(f.name || "").trim())
+  );
+  if (!shown.length) return null;
 
   return (
     <div className={cn("space-y-4", className)}>
-      {shown.map((group, gi) => (
+      {shown.map((group, gi) => {
+        const features = (compact ? group.features.slice(0, 4) : group.features).filter(
+          (f) => String(f.name || "").trim()
+        );
+        if (!features.length) return null;
+        return (
         <div key={group.id || group.code || `${group.name}-${gi}`}>
+          {group.name?.trim() ? (
           <p
             className={cn(
               "mb-2 text-[11px] font-semibold uppercase tracking-wide",
@@ -33,8 +42,9 @@ export function PlanFeatureGroups({
           >
             {group.name}
           </p>
+          ) : null}
           <ul className={cn("space-y-1.5", compact ? "text-xs" : "text-sm")}>
-            {(compact ? group.features.slice(0, 4) : group.features).map((feature, i) => (
+            {features.map((feature, i) => (
               <li
                 key={feature.id || `${group.code || group.name}-${feature.name}-${i}`}
                 className={cn(
@@ -80,7 +90,8 @@ export function PlanFeatureGroups({
             ))}
           </ul>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

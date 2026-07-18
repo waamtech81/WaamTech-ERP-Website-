@@ -8,9 +8,9 @@
  * `useCatalogBusinessProfiles` from `@/hooks/use-commercial`.
  */
 
-/** SaaS Core Business Profile hierarchy — Industry (parent) → Business Category (child)
+/** SaaS Core hierarchy — Industry (parent) → Business Category (child).
  * Source: WaamTech SaaS Core backend/src/config/businessProfiles
- * profile_id / business_category_id for signup = category.id
+ * Signup sends industry_id + category_id; License Engine auto-resolves profile.
  */
 
 export type PosMode = "required" | "optional" | "disabled";
@@ -1192,6 +1192,20 @@ export function resolveBusinessCategoryId(profileOrLegacyId: string | null | und
   return "retail_store";
 }
 
+/** Resolve category only when code/slug/legacy id is known — never defaults to retail_store. */
+export function findBusinessCategoryByKey(
+  codeOrSlug: string | null | undefined
+): BusinessCategory | null {
+  const raw = String(codeOrSlug || "").trim();
+  if (!raw) return null;
+  const key = raw.toLowerCase().replace(/-/g, "_");
+  if (categoryById.has(raw)) return categoryById.get(raw) || null;
+  if (categoryById.has(key)) return categoryById.get(key) || null;
+  const mapped = legacyProfileMap[raw] || legacyProfileMap[key];
+  if (mapped && categoryById.has(mapped)) return categoryById.get(mapped) || null;
+  return null;
+}
+
 export function getBusinessCategory(id: string) {
   return categoryById.get(resolveBusinessCategoryId(id));
 }
@@ -1248,8 +1262,19 @@ export const hotCategoryIds = new Set<string>([
   "property_management",
 ]);
 
-export function isHotCategory(categoryId: string): boolean {
-  return hotCategoryIds.has(categoryId);
+export function isHotCategory(
+  category:
+    | string
+    | { id?: string | null; slug?: string | null; code?: string | null }
+): boolean {
+  if (typeof category === "string") {
+    const key = category.trim().toLowerCase();
+    return Boolean(key) && hotCategoryIds.has(key);
+  }
+  const keys = [category.id, category.slug, category.code]
+    .map((v) => String(v || "").trim().toLowerCase())
+    .filter(Boolean);
+  return keys.some((k) => hotCategoryIds.has(k));
 }
 
 /** Lucide icon name overrides for SaaS Core icon keys */

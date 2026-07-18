@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
-import { getIndustryMedia } from "@/lib/data/business-hierarchy";
+import { getIndustryMedia, isHotCategory } from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import {
 } from "@/components/commercial/catalog-states";
 import { industryDisplayIcon } from "@/lib/commercial/mappers";
 import type { CatalogIndustry } from "@/lib/commercial/types";
+import { normalizePermalinkSlug } from "@/lib/signup/permalinks";
 
 type Filter = "featured" | "all";
 
@@ -88,7 +89,11 @@ function IndustryCard({
             View industry <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
           <Link
-            href={`/signup?industry=${encodeURIComponent(industry.id)}`}
+            href={
+              industry.slug
+                ? `/signup/${encodeURIComponent(industry.slug)}`
+                : "/signup"
+            }
             className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-primary"
           >
             Start trial <ArrowRight className="h-3.5 w-3.5" />
@@ -112,7 +117,14 @@ function IndustryCard({
           ) : null}
           <div className="grid gap-2">
             {categories.data.map((cat) => (
-              <CategoryRow key={cat.id} categoryId={cat.id} name={cat.name} industryId={industry.id} />
+              <CategoryRow
+                key={cat.id}
+                categoryId={cat.id}
+                name={cat.name}
+                industrySlug={industry.slug || normalizePermalinkSlug(industry.code) || ""}
+                slug={cat.slug}
+                code={cat.code}
+              />
             ))}
           </div>
         </div>
@@ -124,20 +136,39 @@ function IndustryCard({
 function CategoryRow({
   categoryId,
   name,
-  industryId,
+  industrySlug,
+  slug,
+  code,
 }: {
   categoryId: string;
   name: string;
-  industryId: string;
+  industrySlug: string;
+  slug?: string | null;
+  code?: string | null;
 }) {
   const profiles = useCatalogBusinessProfiles(categoryId);
+  const hot = isHotCategory({ id: categoryId, slug, code });
+  const categorySlug = slug || code;
+  const signupHref = categorySlug
+    ? `/signup/${encodeURIComponent(industrySlug)}/${encodeURIComponent(categorySlug)}`
+    : `/signup/${encodeURIComponent(industrySlug)}`;
   return (
-    <div className="rounded-xl border border-border bg-white px-3 py-2.5">
+    <div className="group rounded-xl border border-border bg-white px-3 py-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[0.03] hover:shadow-md">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-[#0b1f3a]">{name}</p>
         <Link
-          href={`/signup?industry=${encodeURIComponent(industryId)}&category=${encodeURIComponent(categoryId)}`}
-          className="text-xs font-medium text-primary hover:underline"
+          href={signupHref}
+          className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-[#0b1f3a] transition-colors group-hover:text-primary"
+        >
+          <span className="truncate">{name}</span>
+          {hot ? (
+            <span className="shrink-0 rounded bg-orange-500/90 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-white leading-none">
+              Hot
+            </span>
+          ) : null}
+        </Link>
+        <Link
+          href={signupHref}
+          className="shrink-0 text-xs font-medium text-primary hover:underline"
         >
           Select
         </Link>
@@ -147,16 +178,22 @@ function CategoryRow({
       ) : null}
       {profiles.data.length > 0 ? (
         <ul className="mt-2 flex flex-wrap gap-1.5">
-          {profiles.data.map((p) => (
-            <li key={p.id}>
-              <Link
-                href={`/signup?industry=${encodeURIComponent(industryId)}&category=${encodeURIComponent(categoryId)}&profile=${encodeURIComponent(p.id)}`}
-                className="inline-flex rounded-full bg-primary/8 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/15"
-              >
-                {p.name}
-              </Link>
-            </li>
-          ))}
+          {profiles.data.map((p) => {
+            const profileSlug = p.slug || p.code;
+            const href = profileSlug
+              ? `${signupHref}?profile=${encodeURIComponent(profileSlug)}`
+              : signupHref;
+            return (
+              <li key={p.id}>
+                <Link
+                  href={href}
+                  className="inline-flex rounded-full bg-primary/8 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/15"
+                >
+                  {p.name}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </div>

@@ -1,4 +1,5 @@
 import { siteConfig } from "@/lib/data/site";
+import { buildAbsoluteSiteUrl } from "@/lib/urls";
 
 type SendResult = { sent: boolean; mode: "resend" | "console" | "none"; error?: string };
 
@@ -10,17 +11,8 @@ type SendEmailInput = {
   replyTo?: string;
 };
 
-function siteBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.SITE_URL ||
-    siteConfig.url ||
-    "http://localhost:3000"
-  ).replace(/\/+$/, "");
-}
-
 export function buildVerifyUrl(token: string) {
-  return `${siteBaseUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+  return buildAbsoluteSiteUrl("/verify-email", { token });
 }
 
 function verificationHtml(name: string, verifyUrl: string) {

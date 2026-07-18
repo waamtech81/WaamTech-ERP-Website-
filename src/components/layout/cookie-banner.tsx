@@ -4,13 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/components/providers/locale-provider";
+import {
+  CONSENT_EVENT,
+  COOKIE_KEY,
+} from "@/components/analytics/consent";
 
 export function CookieBanner() {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const accepted = localStorage.getItem("waamtech-cookies");
+    const accepted = localStorage.getItem(COOKIE_KEY);
     if (accepted) return;
 
     const show = () => setOpen(true);
@@ -34,7 +38,8 @@ export function CookieBanner() {
   if (!open) return null;
 
   const accept = () => {
-    localStorage.setItem("waamtech-cookies", "accepted");
+    localStorage.setItem(COOKIE_KEY, "accepted");
+    window.dispatchEvent(new Event(CONSENT_EVENT));
     setOpen(false);
   };
 

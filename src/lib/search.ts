@@ -46,7 +46,7 @@ function buildSearchIndex(): SiteSearchResult[] {
       description: industry
         ? `${industry.name} · POS ${cat.pos_mode}`
         : `POS ${cat.pos_mode}`,
-      href: `/signup?industry=${cat.industry_id}&profile=${cat.id}`,
+      href: `/signup/${cat.industry_id.replace(/_/g, "-")}/${cat.id.replace(/_/g, "-")}`,
       type: "Category",
       icon: industry ? getIndustryLucideIcon(industry) : "Boxes",
       color: industry?.color,

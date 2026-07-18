@@ -3,8 +3,10 @@ import { headers, cookies } from "next/headers";
 import { SiteShell } from "@/components/layout/site-shell";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { SiteJsonLd } from "@/components/seo/json-ld";
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { siteConfig } from "@/lib/data/site";
 import { fontVariablesClassName } from "@/lib/fonts";
+import { getSiteOrigin } from "@/lib/urls";
 import {
   directionForLanguage,
   normalizeLanguage,
@@ -31,8 +33,9 @@ async function resolveLocale() {
 export async function generateMetadata(): Promise<Metadata> {
   const { language } = await resolveLocale();
   const ogLocale = (LOCALE_CODE_BY_LANG[language] || "en-US").replace("-", "_");
+  const origin = getSiteOrigin();
   return {
-    metadataBase: new URL(siteConfig.url),
+    metadataBase: new URL(origin),
     title: {
       default: `${siteConfig.name} | ${siteConfig.productLine}`,
       template: `%s | ${siteConfig.name}`,
@@ -60,20 +63,20 @@ export async function generateMetadata(): Promise<Metadata> {
       shortcut: ["/favicon.ico"],
     },
     alternates: {
-      canonical: siteConfig.url,
+      canonical: origin,
       languages: {
-        "x-default": siteConfig.url,
-        en: `${siteConfig.url}?lang=en`,
-        ar: `${siteConfig.url}?lang=ar`,
-        fr: `${siteConfig.url}?lang=fr`,
-        es: `${siteConfig.url}?lang=es`,
-        de: `${siteConfig.url}?lang=de`,
+        "x-default": origin,
+        en: `${origin}?lang=en`,
+        ar: `${origin}?lang=ar`,
+        fr: `${origin}?lang=fr`,
+        es: `${origin}?lang=es`,
+        de: `${origin}?lang=de`,
       },
     },
     openGraph: {
       type: "website",
       locale: ogLocale,
-      url: siteConfig.url,
+      url: origin,
       siteName: siteConfig.name,
       title: `${siteConfig.name} | ${siteConfig.productLine}`,
       description: siteConfig.description,
@@ -127,6 +130,7 @@ export default async function RootLayout({
           initialRates={table.rates}
         >
           <SiteJsonLd />
+          <GoogleAnalytics />
           <SiteShell language={language}>{children}</SiteShell>
         </LocaleProvider>
       </body>

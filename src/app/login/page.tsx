@@ -22,7 +22,35 @@ import { authConfig, getAppLoginUrl } from "@/lib/auth/config";
 import { safeInternalPath } from "@/lib/security/safe-redirect";
 import { friendlyNetworkError } from "@/lib/network/errors";
 
-type LoginStep = "credentials" | "otp";
+type LoginStep = "credentials" | "otp" | "totp";
+type AccountKind = "customer" | "platform";
+
+function postPlatformSso(payload: {
+  redirectUrl: string;
+  accessToken: string;
+  refreshToken: string;
+  user: unknown;
+}) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = payload.redirectUrl;
+  form.style.display = "none";
+
+  const fields: Record<string, string> = {
+    accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
+    user: JSON.stringify(payload.user ?? {}),
+  };
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -38,9 +66,11 @@ function LoginForm() {
   );
 
   const [step, setStep] = useState<LoginStep>("credentials");
+  const [accountKind, setAccountKind] = useState<AccountKind>("customer");
   const [username, setUsername] = useState(prefill);
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
+  const [totp, setTotp] = useState("");
   const [challengeToken, setChallengeToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -84,6 +114,42 @@ function LoginForm() {
       });
   }, [router, nextPath]);
 
+  function finishLogin(json: {
+    data?: {
+      accountKind?: string;
+      redirectUrl?: string;
+      accessToken?: string;
+      refreshToken?: string;
+      user?: unknown;
+    };
+  }) {
+    if (remember) {
+      try {
+        localStorage.setItem("waamtech_last_user", username);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const kind = json.data?.accountKind;
+    if (
+      kind === "platform" &&
+      json.data?.accessToken &&
+      json.data?.refreshToken &&
+      json.data?.redirectUrl
+    ) {
+      postPlatformSso({
+        redirectUrl: json.data.redirectUrl,
+        accessToken: json.data.accessToken,
+        refreshToken: json.data.refreshToken,
+        user: json.data.user,
+      });
+      return;
+    }
+
+    router.replace(safeInternalPath(json.data?.redirectUrl || nextPath));
+  }
+
   async function submitCredentials(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -104,7 +170,26 @@ function LoginForm() {
         return;
       }
 
+      if (json.data?.accountKind === "platform" && json.data?.accessToken) {
+        finishLogin(json);
+        return;
+      }
+
+      if (json.requires2fa || json.requires_2fa) {
+        setAccountKind("platform");
+        setChallengeToken(json.data?.challenge_token || "");
+        setStep("totp");
+        setInfo(json.message || "Enter your authenticator app code.");
+        setLoading(false);
+        return;
+      }
+
       if (json.requiresOtp || json.requires_email_verification) {
+        setAccountKind(
+          json.accountKind === "platform" || json.data?.account_kind === "platform"
+            ? "platform"
+            : "customer"
+        );
         setChallengeToken(json.data?.challenge_token || "");
         setStep("otp");
         setCooldown(60);
@@ -116,7 +201,7 @@ function LoginForm() {
         return;
       }
 
-      // Password-only success must never establish a session — stay on OTP flow
+      // Password-only success must never establish a customer session
       setError(
         json.message ||
           "Login OTP verification is required. Check your email for a code."
@@ -144,6 +229,7 @@ function LoginForm() {
           email_code: otp,
           otp,
           remember,
+          account_kind: accountKind,
         }),
       });
       const json = await res.json();
@@ -154,17 +240,49 @@ function LoginForm() {
         return;
       }
 
-      if (remember) {
-        try {
-          localStorage.setItem("waamtech_last_user", username);
-        } catch {
-          /* ignore */
-        }
+      if (json.requires2fa || json.requires_2fa) {
+        setAccountKind("platform");
+        setChallengeToken(json.data?.challenge_token || challengeToken);
+        setStep("totp");
+        setInfo(json.message || "Enter your authenticator app code.");
+        setLoading(false);
+        return;
       }
 
-      router.replace(
-        safeInternalPath(json.data?.redirectUrl || nextPath)
-      );
+      finishLogin(json);
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Something went wrong. Please try again."));
+      setLoading(false);
+    }
+  }
+
+  async function submitTotp(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          password,
+          challenge_token: challengeToken,
+          totp_code: totp,
+          remember,
+          account_kind: "platform",
+        }),
+      });
+      const json = await res.json();
+
+      if (!json.success) {
+        setError(json.message || "Invalid authenticator code.");
+        setLoading(false);
+        return;
+      }
+
+      finishLogin(json);
     } catch (err) {
       setError(friendlyNetworkError(err, "Something went wrong. Please try again."));
       setLoading(false);
@@ -179,7 +297,10 @@ function LoginForm() {
       const res = await fetch("/api/auth/resend-login-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ challenge_token: challengeToken }),
+        body: JSON.stringify({
+          challenge_token: challengeToken,
+          account_kind: accountKind,
+        }),
       });
       const json = await res.json();
       if (!json.success) {
@@ -198,7 +319,9 @@ function LoginForm() {
 
   function resetToCredentials() {
     setStep("credentials");
+    setAccountKind("customer");
     setOtp("");
+    setTotp("");
     setChallengeToken("");
     setError("");
     setInfo("");
@@ -210,6 +333,19 @@ function LoginForm() {
     registered,
   });
 
+  const heading =
+    step === "otp"
+      ? "Verify your login"
+      : step === "totp"
+        ? "Two-factor authentication"
+        : "Welcome back";
+  const subheading =
+    step === "otp"
+      ? `Enter the code sent to ${username || "your email"}`
+      : step === "totp"
+        ? "Enter the 6-digit code from your authenticator app."
+        : "Choose WAAMTO ERP app login or Customer Portal login. Platform Super Admins sign in with the same email here.";
+
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
@@ -217,12 +353,10 @@ function LoginForm() {
         <div className="w-full max-w-5xl">
           <div className="mb-8 text-center sm:mb-10">
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              {step === "otp" ? "Verify your login" : "Welcome back"}
+              {heading}
             </h1>
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground leading-relaxed">
-              {step === "otp"
-                ? `Enter the code sent to ${username || "your email"}`
-                : "Choose WAAMTO ERP app login or Customer Portal login."}
+              {subheading}
             </p>
           </div>
 
@@ -274,12 +408,20 @@ function LoginForm() {
             <Card className="flex h-full flex-col shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
               <CardHeader className="pb-4">
                 <CardTitle className="text-xl">
-                  {step === "otp" ? "Login verification" : "Customer Portal Login"}
+                  {step === "otp"
+                    ? "Login verification"
+                    : step === "totp"
+                      ? "Authenticator code"
+                      : "Customer Portal Login"}
                 </CardTitle>
                 <CardDescription>
                   {step === "otp"
-                    ? "No OTP — no portal access."
-                    : "Sign in with your License Engine identity for billing, licenses & support."}
+                    ? accountKind === "platform"
+                      ? "Platform Super Admin email verification."
+                      : "No OTP — no portal access."
+                    : step === "totp"
+                      ? "Required for Super Admin accounts with 2FA enabled."
+                      : "Customers use License Engine identity. Platform Super Admins use the same staff email/password as License Engine Admin."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col">
@@ -368,6 +510,67 @@ function LoginForm() {
                       </p>
                     </div>
                   </form>
+                ) : step === "totp" ? (
+                  <form className="flex flex-1 flex-col space-y-5" onSubmit={submitTotp}>
+                    <div className="flex items-start gap-3 rounded-xl border border-border/80 bg-muted/50 px-4 py-3">
+                      <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Enter the 6-digit code from your authenticator app.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="totp">Authenticator code</Label>
+                      <Input
+                        id="totp"
+                        value={totp}
+                        onChange={(e) =>
+                          setTotp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                        }
+                        placeholder="123456"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        className="tracking-[0.35em] text-center text-lg font-semibold"
+                        required
+                      />
+                    </div>
+
+                    {error ? (
+                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {error}
+                      </div>
+                    ) : null}
+                    {info ? (
+                      <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                        {info}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-auto space-y-5 pt-1">
+                      <Button
+                        type="submit"
+                        className="w-full rounded-full"
+                        size="lg"
+                        disabled={loading || totp.length < 6}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Verifying...
+                          </>
+                        ) : (
+                          "Verify & open Admin Portal"
+                        )}
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={resetToCredentials}
+                        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        Back
+                      </button>
+                    </div>
+                  </form>
                 ) : (
                   <form className="flex flex-1 flex-col space-y-5" onSubmit={submitOtp}>
                     <div className="flex items-start gap-3 rounded-xl border border-border/80 bg-muted/50 px-4 py-3">
@@ -415,6 +618,8 @@ function LoginForm() {
                             <Loader2 className="h-4 w-4 animate-spin" />
                             Verifying...
                           </>
+                        ) : accountKind === "platform" ? (
+                          "Verify & open Admin Portal"
                         ) : (
                           "Verify & continue"
                         )}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { identityResendLoginOtp } from "@/lib/license/identity";
+import { platformResendOtp } from "@/lib/license/platform-auth";
 import { friendlyAuthMessage } from "@/lib/auth/session";
 import {
   getClientIp,
@@ -31,11 +32,27 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const challengeToken = sanitizeText(body?.challenge_token, 128);
+    const accountKind = sanitizeText(body?.account_kind, 32);
     if (!challengeToken) {
       return NextResponse.json(
         { success: false, message: "Verification session is required." },
         { status: 400 }
       );
+    }
+
+    if (accountKind === "platform") {
+      const result = await platformResendOtp({ challenge_token: challengeToken });
+      if (!result.ok) {
+        return NextResponse.json(
+          { success: false, message: friendlyAuthMessage(result.message) },
+          { status: result.status >= 400 && result.status < 600 ? result.status : 502 }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        message: result.message || "A new verification code was sent.",
+        data: { otpExpiresInMinutes: 10, account_kind: "platform" },
+      });
     }
 
     const result = await identityResendLoginOtp({ challenge_token: challengeToken });
@@ -59,6 +76,7 @@ export async function POST(req: Request) {
                   .otpExpiresInMinutes || 10
               )
             : 10,
+        account_kind: "customer",
       },
     });
   } catch {

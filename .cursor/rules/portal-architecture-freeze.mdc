@@ -1,0 +1,44 @@
+---
+description: Frozen customer portal architecture — do not redesign or expand scope
+alwaysApply: true
+---
+
+# Portal architecture — FROZEN
+
+Do not redesign, split, or expand the customer portal architecture unless the user explicitly unfreezes it.
+
+## Boundaries
+
+- **waamto-website** = portal UI + BFF (`/api/portal/*`) only.
+- **License Engine (wle-api)** = source of truth for licenses, billing, invoices, notifications, identity, org/users.
+- **WAAMTO app** = product support / tickets. Portal must NOT own a support-ticket system.
+- Do not add a second backend, new DB, or portal-only domain models for commercial data.
+
+## Frozen nav & surfaces
+
+Allowed portal sections (see `portal-nav.ts`):
+
+Dashboard · Licenses · Subscriptions · Invoices · Billing · Organizations · Users · Modules · Business Profile · Notifications · Settings
+
+Plus flows: Plans / Checkout (renew & upgrade). `/portal/support` stays a redirect away from tickets — do not reintroduce portal support UI.
+
+## Patterns to keep
+
+- Aggregate reads via `lib/portal/dashboard.ts` + `/api/portal/dashboard`.
+- Mutations go through existing `/api/portal/*` proxies to Engine/commercial clients — no direct browser→Engine secrets.
+- Renew / upgrade: `resolvePreferredGateway` + billing renew / plan-change → checkout.
+- Invoices: preview always; PDF/download only when Engine marks paid; unpaid watermark on preview.
+- Notifications: Engine-backed list + mark-read (include license-expiry alerts).
+- Settings: profile + password via identity APIs; no portal-local auth store.
+
+## Explicitly out of scope (until unfrozen)
+
+- Portal support tickets / live chat product
+- Portal-side user invite/edit/remove (beyond Engine-fed read views)
+- Editable org/business profile writers (beyond what identity already exposes)
+- New payment gateway orchestration layers
+- Duplicating ERP/app features inside the portal
+
+## Change policy
+
+Bugfixes and Engine-contract wiring inside this shape are OK. New sections, new data stores, or “portal v2” layouts require an explicit user request to unfreeze.

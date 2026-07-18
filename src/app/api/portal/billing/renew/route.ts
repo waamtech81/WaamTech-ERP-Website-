@@ -8,6 +8,7 @@ import {
   clearPortalOnUnauthorized,
   resolvePortalAccess,
 } from "@/lib/portal/access";
+import { resolvePreferredGateway } from "@/lib/portal/gateway";
 import { isSameOrigin } from "@/lib/security/guards";
 import { getSiteOrigin } from "@/lib/urls";
 
@@ -41,12 +42,16 @@ export const POST = withApiHandler(
       return clearPortalOnUnauthorized(res, resolved.status);
     }
 
+    const gateway = await resolvePreferredGateway(
+      resolved.access.accessToken,
+      body.gateway
+    );
     const origin = getSiteOrigin();
     const result = await requestSubscriptionRenewal(
       resolved.access.accessToken,
       subscriptionId,
       {
-        gateway: body.gateway || "simulated",
+        gateway,
         success_url: `${origin}/portal/checkout/success`,
         cancel_url: `${origin}/portal/checkout/cancel`,
       }

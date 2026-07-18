@@ -11,13 +11,17 @@ export function usePortalData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const reload = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+      setError("");
+    }
     try {
       if (isOffline()) {
-        setError("You appear to be offline. Check your connection and try again.");
-        setData(null);
+        if (!opts?.silent) {
+          setError("You appear to be offline. Check your connection and try again.");
+          setData(null);
+        }
         return;
       }
 
@@ -37,8 +41,10 @@ export function usePortalData() {
       try {
         json = (await res.json()) as typeof json;
       } catch {
-        setError(statusToFriendlyMessage(res.status || 502));
-        setData(null);
+        if (!opts?.silent) {
+          setError(statusToFriendlyMessage(res.status || 502));
+          setData(null);
+        }
         return;
       }
 
@@ -57,18 +63,25 @@ export function usePortalData() {
       }
 
       if (!json.success) {
-        setError(statusToFriendlyMessage(res.status, json.message || "Unable to load portal data."));
-        setData(null);
+        if (!opts?.silent) {
+          setError(statusToFriendlyMessage(res.status, json.message || "Unable to load portal data."));
+          setData(null);
+        }
         return;
       }
       setData(json.data as PortalDashboard);
+      if (!opts?.silent) setError("");
     } catch (err) {
-      setError(friendlyNetworkError(err, "Unable to load portal data."));
-      setData(null);
+      if (!opts?.silent) {
+        setError(friendlyNetworkError(err, "Unable to load portal data."));
+        setData(null);
+      }
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, [router]);
+
+  const reloadPublic = useCallback(() => reload(), [reload]);
 
   useEffect(() => {
     void reload();
@@ -82,7 +95,15 @@ export function usePortalData() {
     return () => window.removeEventListener("online", onOnline);
   }, [reload]);
 
-  return { data, loading, error, reload };
+  // Soft real-time: refresh portal payload so notifications/tickets stay in sync.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void reload({ silent: true });
+    }, 45_000);
+    return () => window.clearInterval(id);
+  }, [reload]);
+
+  return { data, loading, error, reload: reloadPublic };
 }
 
 export function formatPortalDate(value?: string | null) {

@@ -142,7 +142,7 @@ function PortalCheckoutInner() {
               Gateway
             </p>
             <p className="mt-1 text-sm font-medium capitalize">
-              {checkout.gateway || "simulated"}
+              {checkout.gateway || "—"}
             </p>
           </div>
         </div>

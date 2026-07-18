@@ -98,11 +98,11 @@ export default function SupportPage() {
                 </CardHeader>
                 <CardContent className="flex flex-1 flex-col">
                   <p className="text-sm text-muted-foreground leading-relaxed flex-1">
-                    Create and track tickets inside the authenticated Customer Portal. Sign in
-                    required — no public ticket forms.
+                    Create and track tickets inside the WAAMTO application. Sign in to your
+                    workspace — support is not hosted in the customer portal.
                   </p>
                   <Button asChild className="mt-6 w-full rounded-full">
-                    <Link href="/portal/support">Support Tickets</Link>
+                    <Link href="/login">Sign in to WAAMTO</Link>
                   </Button>
                 </CardContent>
               </Card>

@@ -434,6 +434,13 @@ html.translated-rtl {
   margin-top: 0 !important;
 }
 
+/*
+ * Resync marker (html.wt-gt-resync) is toggled while GT restores English source
+ * then re-applies the target. We intentionally do NOT hide the body — blanking
+ * on every API-driven resync looks like flicker. The flip is frame-synced and
+ * typically completes within 1–2 paints.
+ */
+
 /* ── AI highlight: ultra-light borders + soft hover glow ── */
 .wt-ai-section [class*="border"] {
   border-color: rgba(255, 255, 255, 0.06) !important;

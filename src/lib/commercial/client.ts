@@ -509,7 +509,7 @@ export async function requestSubscriptionRenewal(
   return postPublic<BillingCheckoutSession>(
     `/v1/public/billing/subscriptions/${encodeURIComponent(subscriptionId)}/renew`,
     {
-      gateway: body?.gateway || "simulated",
+      gateway: body?.gateway || "bank",
       success_url: body?.success_url,
       cancel_url: body?.cancel_url,
     },
@@ -535,7 +535,7 @@ export async function requestPlanChange(
     subscription_id: body.subscription_id,
     to_plan_id: body.to_plan_id,
     timing: body.timing || "immediate",
-    gateway: body.gateway || "simulated",
+    gateway: body.gateway || "bank",
   }, accessToken);
 }
 
@@ -560,6 +560,96 @@ export async function confirmCheckoutSession(
     { reference: body?.reference },
     accessToken
   );
+}
+
+export async function fetchMyInvoice(accessToken: string, invoiceId: string) {
+  return getPublic<CommercialInvoice>(
+    `/v1/public/billing/invoices/${encodeURIComponent(invoiceId)}`,
+    undefined,
+    { revalidate: false, accessToken }
+  );
+}
+
+export async function fetchBillingGateways(accessToken: string) {
+  const result = await getPublic<
+    Array<{ id: string; label: string; configured: boolean; online: boolean }>
+  >("/v1/public/billing/gateways", undefined, {
+    revalidate: false,
+    accessToken,
+  });
+  return { ...result, data: asArray(result.data) };
+}
+
+export async function fetchBillingCompany(accessToken: string) {
+  return getPublic<Record<string, unknown>>("/v1/public/billing/company", undefined, {
+    revalidate: false,
+    accessToken,
+  });
+}
+
+export async function fetchBillingDashboard(accessToken: string) {
+  return getPublic<Record<string, unknown>>("/v1/public/billing/dashboard", undefined, {
+    revalidate: false,
+    accessToken,
+  });
+}
+
+export async function fetchBillingUsage(accessToken: string) {
+  return getPublic<{
+    licenses?: unknown[];
+    identities?: unknown[];
+    users?: Array<{
+      id: string;
+      email?: string | null;
+      username?: string | null;
+      full_name?: string | null;
+      phone?: string | null;
+      photo_url?: string | null;
+      status?: string | null;
+      email_verified_at?: string | null;
+      last_login_at?: string | null;
+      created_at?: string | null;
+      source?: string | null;
+    }>;
+    activations?: unknown[];
+  }>("/v1/public/billing/usage", undefined, {
+    revalidate: false,
+    accessToken,
+  });
+}
+
+export async function requestTrialConvert(
+  accessToken: string,
+  body: {
+    subscription_id: string;
+    billing_cycle: string;
+    plan_id?: string;
+    gateway?: string;
+    success_url?: string;
+    cancel_url?: string;
+  }
+) {
+  return postPublic<BillingCheckoutSession>(
+    "/v1/public/billing/trial-convert",
+    {
+      subscription_id: body.subscription_id,
+      billing_cycle: body.billing_cycle,
+      plan_id: body.plan_id,
+      gateway: body.gateway,
+      success_url: body.success_url,
+      cancel_url: body.cancel_url,
+    },
+    accessToken
+  );
+}
+
+/** Build same-origin proxy URLs for invoice PDF/print (cookies stay on website). */
+export function portalInvoicePdfPath(invoiceId: string) {
+  return `/api/portal/invoices/${encodeURIComponent(invoiceId)}/pdf`;
+}
+
+export function portalInvoiceDocumentPath(invoiceId: string) {
+  return `/api/portal/invoices/${encodeURIComponent(invoiceId)}/document`;
 }
 
 /** Prefer the primary ERP product when the catalog spans multiple products. */

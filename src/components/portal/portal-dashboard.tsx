@@ -3,17 +3,15 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
+  Bell,
   Building2,
   Calendar,
   CreditCard,
   ExternalLink,
-  Factory,
   KeyRound,
   Package,
   RefreshCw,
   Shield,
-  Tags,
-  Ticket,
   Users,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -53,6 +51,13 @@ export function PortalDashboardView() {
     quickActions,
     erp,
     billing,
+    businesses,
+    invoices,
+    notifications,
+    unreadNotifications,
+    renewals,
+    payments,
+    workspaceUsers,
   } = data;
 
   const erpObj = (erp || {}) as Record<string, unknown>;
@@ -63,9 +68,46 @@ export function PortalDashboardView() {
         ? erpObj.branch_count
         : null;
 
+  const expiringLicenses = licenses.filter(
+    (l) =>
+      typeof l.days_remaining === "number" &&
+      l.days_remaining >= 0 &&
+      l.days_remaining <= 30
+  ).length;
+
+  const upcomingRenewals = (renewals || []).length
+    ? renewals.length
+    : licenses.filter(
+        (l) =>
+          typeof l.days_remaining === "number" &&
+          l.days_remaining >= 0 &&
+          l.days_remaining <= 60
+      ).length;
+
+  const paidTotal = (payments || [])
+    .filter((p) => String(p.status).toLowerCase() === "completed" || String(p.status).toLowerCase() === "paid")
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
   const summary = [
     {
-      label: "Subscription",
+      label: "Active licenses",
+      value: licenses.filter((l) =>
+        ["active", "trial", "grace"].includes(
+          String(l.effective_status || l.status).toLowerCase()
+        )
+      ).length,
+      icon: KeyRound,
+      tone: "success" as const,
+      href: "/portal/licenses",
+    },
+    {
+      label: "Active businesses",
+      value: businesses?.length || counts.registeredBusinesses,
+      icon: Building2,
+      href: "/portal/business-profile",
+    },
+    {
+      label: "Current plan",
       value: subscription?.currentPlan || subscription?.status || null,
       hint: subscription?.status,
       icon: Package,
@@ -73,12 +115,37 @@ export function PortalDashboardView() {
       href: "/portal/subscriptions",
     },
     {
-      label: "License status",
-      value: license?.status || null,
-      hint: license?.productName,
-      icon: KeyRound,
-      tone: "success" as const,
+      label: "Expiring licenses",
+      value: expiringLicenses || null,
+      icon: Calendar,
+      tone: "warning" as const,
       href: "/portal/licenses",
+    },
+    {
+      label: "Unread notifications",
+      value: unreadNotifications || null,
+      icon: Bell,
+      href: "/portal/notifications",
+    },
+    {
+      label: "Recent invoices",
+      value: invoices?.length || null,
+      icon: CreditCard,
+      href: "/portal/invoices",
+    },
+    {
+      label: "Upcoming renewals",
+      value: upcomingRenewals || null,
+      icon: Calendar,
+      tone: "warning" as const,
+      href: "/portal/plans?intent=renew",
+    },
+    {
+      label: "Payment summary",
+      value: paidTotal > 0 ? paidTotal.toFixed(2) : billing?.outstandingBalance || null,
+      hint: paidTotal > 0 ? "Total paid (recent)" : "Outstanding",
+      icon: CreditCard,
+      href: "/portal/billing",
     },
     {
       label: "Trial remaining",
@@ -93,15 +160,9 @@ export function PortalDashboardView() {
     },
     {
       label: "Registered users",
-      value: counts.registeredUsers,
+      value: workspaceUsers?.length || counts.registeredUsers,
       icon: Users,
       href: "/portal/users",
-    },
-    {
-      label: "Organizations",
-      value: counts.registeredBusinesses,
-      icon: Building2,
-      href: "/portal/organization",
     },
     {
       label: "Branches",
@@ -109,49 +170,21 @@ export function PortalDashboardView() {
       icon: Building2,
       href: "/portal/organization",
     },
-    {
-      label: "Active modules",
-      value: modules.length || null,
-      hint: modules.slice(0, 3).join(", ") || null,
-      icon: Package,
-      href: "/portal/modules",
-    },
-    {
-      label: "Business category",
-      value: overview.businessCategory,
-      icon: Tags,
-      href: "/portal/business-profile",
-    },
-    {
-      label: "Industry",
-      value: overview.industry,
-      icon: Factory,
-      href: "/portal/business-profile",
-    },
-    {
-      label: "Support tickets",
-      value: counts.openTickets,
-      icon: Ticket,
-      tone: "danger" as const,
-      href: "/portal/support",
-    },
-    {
-      label: "Next invoice",
-      value: billing?.nextInvoice || null,
-      icon: CreditCard,
-      href: "/portal/invoices",
-    },
-    {
-      label: "Outstanding balance",
-      value: billing?.outstandingBalance || null,
-      icon: CreditCard,
-      tone: "warning" as const,
-      href: "/portal/billing",
-    },
   ].filter((item) => item.value !== null && item.value !== undefined && item.value !== "");
 
   const primary = licenses[0];
   const firstName = overview.customerName.split(" ")[0] || "there";
+  const expiredOrExpiring = licenses.filter((l) => {
+    const status = String(l.effective_status || l.status || "").toLowerCase();
+    if (["expired", "suspended"].includes(status)) return true;
+    return typeof l.days_remaining === "number" && l.days_remaining <= 14;
+  });
+  const renewSubId =
+    data.subscriptions?.find((s) =>
+      ["active", "trial", "trialing", "grace", "suspended", "expired"].includes(
+        String(s.status || "").toLowerCase()
+      )
+    )?.id || data.subscriptions?.[0]?.id;
 
   return (
     <div className="space-y-8">
@@ -166,6 +199,40 @@ export function PortalDashboardView() {
           </Button>
         }
       />
+
+      {expiredOrExpiring.length ? (
+        <div
+          role="alert"
+          className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-950 dark:text-amber-100"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">License attention required</p>
+              <p className="mt-1 text-amber-900/80 dark:text-amber-100/80">
+                {expiredOrExpiring.length} license
+                {expiredOrExpiring.length === 1 ? "" : "s"} expired or renewing soon. Check
+                notifications and renew to keep access.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" className="rounded-xl">
+                <Link
+                  href={
+                    renewSubId
+                      ? `/portal/plans?intent=renew&subscription_id=${encodeURIComponent(renewSubId)}`
+                      : "/portal/plans?intent=renew"
+                  }
+                >
+                  Renew now
+                </Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="rounded-xl">
+                <Link href="/portal/notifications">View alerts</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {summary.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -243,10 +310,26 @@ export function PortalDashboardView() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button asChild size="sm" className="rounded-xl">
-                    <Link href="/portal/plans?intent=renew">Renew</Link>
+                    <Link
+                      href={
+                        renewSubId
+                          ? `/portal/plans?intent=renew&subscription_id=${encodeURIComponent(renewSubId)}`
+                          : "/portal/plans?intent=renew"
+                      }
+                    >
+                      Renew
+                    </Link>
                   </Button>
                   <Button asChild size="sm" variant="outline" className="rounded-xl">
-                    <Link href="/portal/plans?intent=upgrade">Upgrade</Link>
+                    <Link
+                      href={
+                        renewSubId
+                          ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
+                          : "/portal/plans?intent=upgrade"
+                      }
+                    >
+                      Upgrade
+                    </Link>
                   </Button>
                   <Button asChild size="sm" variant="ghost" className="rounded-xl">
                     <Link href="/portal/licenses">Download license</Link>
@@ -303,6 +386,82 @@ export function PortalDashboardView() {
             </div>
           </PortalPanel>
         </PortalFadeIn>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <PortalPanel
+          title="Recent notifications"
+          description="License and billing alerts."
+          action={
+            <Button asChild variant="outline" size="sm" className="rounded-xl">
+              <Link href="/portal/notifications">View all</Link>
+            </Button>
+          }
+        >
+          {(notifications || []).length ? (
+            <div className="space-y-2">
+              {(notifications || []).slice(0, 5).map((n) => (
+                <div
+                  key={n.id}
+                  className="rounded-xl border border-[var(--portal-border)] px-4 py-3 text-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium">{n.title}</p>
+                    <PortalStatusBadge status={n.read ? "Read" : "Unread"} />
+                  </div>
+                  {n.created_at ? (
+                    <p className="mt-1 text-xs text-[var(--portal-muted)]">
+                      {formatPortalDate(n.created_at)}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <PortalEmptyState
+              title="No notifications"
+              description="Alerts from License Engine will appear here."
+              icon={Bell}
+            />
+          )}
+        </PortalPanel>
+
+        <PortalPanel
+          title="Recent invoices"
+          action={
+            <Button asChild variant="outline" size="sm" className="rounded-xl">
+              <Link href="/portal/invoices">View all</Link>
+            </Button>
+          }
+        >
+          {(invoices || []).length ? (
+            <div className="space-y-2">
+              {(invoices || []).slice(0, 5).map((inv) => (
+                <div
+                  key={inv.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--portal-border)] px-4 py-3 text-sm"
+                >
+                  <div>
+                    <p className="font-medium">{inv.number}</p>
+                    <p className="text-xs text-[var(--portal-muted)]">
+                      {formatPortalDate(inv.date) || "—"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="tabular-nums font-medium">{inv.amount || "—"}</p>
+                    <PortalStatusBadge status={inv.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <PortalEmptyState
+              title="No invoices yet"
+              description="Invoices from License Engine billing will appear here."
+              icon={CreditCard}
+            />
+          )}
+        </PortalPanel>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

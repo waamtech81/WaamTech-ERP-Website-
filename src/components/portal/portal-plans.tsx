@@ -57,17 +57,29 @@ export function PortalPlansView() {
   const catalog = useCatalogBundle();
   const { formatPrice } = useLocale();
   const [yearly, setYearly] = useState(true);
+  const [renewPeriod, setRenewPeriod] = useState<"monthly" | "yearly" | "lifetime">(
+    "yearly"
+  );
   const [pending, startTransition] = useTransition();
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [compareIds, setCompareIds] = useState<string[]>([]);
 
   const subscriptions = portal?.subscriptions || [];
+  const requestedSubId = searchParams.get("subscription_id");
   const activeSub =
+    (requestedSubId
+      ? subscriptions.find((s) => s.id === requestedSubId)
+      : null) ||
     subscriptions.find((s) =>
       ["active", "trial", "trialing", "grace", "suspended"].includes(
         String(s.status || "").toLowerCase()
       )
-    ) || subscriptions[0] || null;
+    ) ||
+    subscriptions[0] ||
+    null;
+
+  const isTrial = String(activeSub?.status || "").toLowerCase() === "trial";
 
   const pricingPlans = useMemo(
     () => publicMarketingPlans(catalog.data.pricingPlans || []),
@@ -91,6 +103,21 @@ export function PortalPlansView() {
     });
   }, [pricingPlans, intent, activeSub, yearly]);
 
+  const comparePlans = useMemo(
+    () => displayPlans.filter((p) => p.planId && compareIds.includes(p.planId)),
+    [displayPlans, compareIds]
+  );
+
+  function toggleCompare(planId: string) {
+    setCompareIds((prev) =>
+      prev.includes(planId)
+        ? prev.filter((id) => id !== planId)
+        : prev.length >= 3
+          ? prev
+          : [...prev, planId]
+    );
+  }
+
   async function startFlow(plan: PricingPlan) {
     if (!activeSub?.id || !plan.planId || pending) return;
     setError("");
@@ -101,8 +128,10 @@ export function PortalPlansView() {
         const isRenewCurrent =
           intent === "renew" && plan.planId === activeSub.plan_id;
 
+        const useTrialConvert = isTrial && (isRenewCurrent || intent === "renew");
+
         const res = await fetch(
-          isRenewCurrent
+          isRenewCurrent && !useTrialConvert
             ? "/api/portal/billing/renew"
             : "/api/portal/billing/plan-change",
           {
@@ -111,13 +140,19 @@ export function PortalPlansView() {
             credentials: "include",
             cache: "no-store",
             body: JSON.stringify(
-              isRenewCurrent
-                ? { subscription_id: activeSub.id, gateway: "simulated" }
-                : {
+              useTrialConvert
+                ? {
                     subscription_id: activeSub.id,
                     to_plan_id: plan.planId,
-                    gateway: "simulated",
+                    billing_cycle: renewPeriod,
+                    mode: "trial-convert",
                   }
+                : isRenewCurrent
+                  ? { subscription_id: activeSub.id }
+                  : {
+                      subscription_id: activeSub.id,
+                      to_plan_id: plan.planId,
+                    }
             ),
           }
         );
@@ -188,21 +223,55 @@ export function PortalPlansView() {
             <span className="font-semibold">
               {activeSub.plan_name || portal?.subscription?.currentPlan || "—"}
             </span>
+            {activeSub.expiry_date || activeSub.renewal_date ? (
+              <span className="text-[var(--portal-muted)]">
+                {" "}
+                · Expires{" "}
+                {String(activeSub.expiry_date || activeSub.renewal_date).slice(0, 10)}
+              </span>
+            ) : null}
           </p>
         </div>
 
-        <div className="flex items-center gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-panel)] px-4 py-3">
-          <Label htmlFor="portal-billing-cycle" className="text-sm">
-            Monthly
-          </Label>
-          <Switch
-            id="portal-billing-cycle"
-            checked={yearly}
-            onCheckedChange={setYearly}
-          />
-          <Label htmlFor="portal-billing-cycle" className="text-sm">
-            Yearly
-          </Label>
+        <div className="flex flex-col items-end gap-3">
+          {intent === "renew" || isTrial ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-panel)] px-3 py-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
+                Period
+              </span>
+              {(["monthly", "yearly", "lifetime"] as const).map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => {
+                    setRenewPeriod(period);
+                    setYearly(period !== "monthly");
+                  }}
+                  className={`rounded-lg px-3 py-1.5 text-sm capitalize ${
+                    renewPeriod === period
+                      ? "bg-[var(--portal-primary)] text-white"
+                      : "text-[var(--portal-muted)] hover:bg-[var(--portal-soft)]"
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-panel)] px-4 py-3">
+              <Label htmlFor="portal-billing-cycle" className="text-sm">
+                Monthly
+              </Label>
+              <Switch
+                id="portal-billing-cycle"
+                checked={yearly}
+                onCheckedChange={setYearly}
+              />
+              <Label htmlFor="portal-billing-cycle" className="text-sm">
+                Yearly
+              </Label>
+            </div>
+          )}
         </div>
       </div>
 
@@ -215,6 +284,56 @@ export function PortalPlansView() {
         </div>
       ) : null}
 
+      {comparePlans.length >= 2 ? (
+        <PortalPanel title="Plan comparison" description="Side-by-side features and pricing.">
+          <div className="portal-table-wrap">
+            <table className="portal-table">
+              <thead>
+                <tr>
+                  <th scope="col">Feature</th>
+                  {comparePlans.map((p) => (
+                    <th key={p.planId} scope="col">
+                      {p.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="font-medium">Price</td>
+                  {comparePlans.map((p) => {
+                    const cycle = resolveCyclePrice(p, yearly);
+                    return (
+                      <td key={p.planId} className="tabular-nums">
+                        {cycle.price != null ? formatPrice(cycle.price) : "Custom"}
+                      </td>
+                    );
+                  })}
+                </tr>
+                {Array.from(
+                  new Set(comparePlans.flatMap((p) => (p.features || []).slice(0, 8)))
+                )
+                  .slice(0, 10)
+                  .map((feature) => (
+                    <tr key={feature}>
+                      <td>{feature}</td>
+                      {comparePlans.map((p) => (
+                        <td key={p.planId}>
+                          {(p.features || []).includes(feature) ? (
+                            <Check className="h-4 w-4 text-emerald-600" />
+                          ) : (
+                            <span className="text-[var(--portal-muted)]">—</span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </PortalPanel>
+      ) : null}
+
       {!displayPlans.length ? (
         <PortalPanel
           title="No plans available"
@@ -225,7 +344,7 @@ export function PortalPlansView() {
           }
         >
           <Button asChild variant="outline" className="rounded-xl">
-            <Link href="/portal/support">Contact support</Link>
+            <Link href="/portal/notifications">View notifications</Link>
           </Button>
         </PortalPanel>
       ) : (
@@ -263,11 +382,22 @@ export function PortalPlansView() {
                       </p>
                     ) : null}
                   </div>
-                  {isCurrent ? (
-                    <span className="rounded-full bg-[var(--portal-primary-soft)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-primary)]">
-                      Current
-                    </span>
-                  ) : null}
+                  <div className="flex flex-col items-end gap-2">
+                    {isCurrent ? (
+                      <span className="rounded-full bg-[var(--portal-primary-soft)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-primary)]">
+                        Current
+                      </span>
+                    ) : null}
+                    {plan.planId ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleCompare(plan.planId!)}
+                        className="text-xs font-medium text-[var(--portal-primary)] hover:underline"
+                      >
+                        {compareIds.includes(plan.planId) ? "Remove compare" : "Compare"}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="mb-4">

@@ -11,18 +11,46 @@ import {
 import { maskLicenseKey } from "@/lib/auth/session";
 import { authConfig, normalizeApiBase } from "@/lib/auth/config";
 import {
+  fetchBillingCompany,
+  fetchBillingDashboard,
+  fetchBillingGateways,
+  fetchBillingUsage,
   fetchMyBillingHistory,
   fetchMyInvoices,
   fetchMyPayments,
   fetchMyRenewals,
   fetchMySubscriptions,
+  portalInvoiceDocumentPath,
+  portalInvoicePdfPath,
 } from "@/lib/commercial/client";
+import {
+  fetchMyNotifications,
+  type PortalCustomerNotification,
+} from "@/lib/portal/support";
 import type {
   CommercialInvoice,
   CommercialPayment,
   CommercialRenewal,
   CommercialSubscription,
 } from "@/lib/commercial/types";
+
+export type PortalBusinessCard = {
+  businessName: string;
+  industry: string | null;
+  category: string | null;
+  businessProfile: string | null;
+  product: string | null;
+  plan: string | null;
+  featurePacks: string[];
+  workspace: string | null;
+  licenseStatus: string | null;
+  subscriptionStatus: string | null;
+  activationDate: string | null;
+  renewalDate: string | null;
+  expiryDate: string | null;
+  licenseId: string | null;
+  subscriptionId: string | null;
+};
 
 export type PortalLicense = {
   id: string;
@@ -42,6 +70,20 @@ export type PortalLicense = {
   days_remaining?: number | null;
   expiry_date?: string | null;
   grace_period_days?: number | null;
+};
+
+export type PortalWorkspaceUser = {
+  id: string;
+  email: string | null;
+  username: string | null;
+  full_name: string | null;
+  phone: string | null;
+  photo_url: string | null;
+  status: string | null;
+  email_verified_at: string | null;
+  last_login_at: string | null;
+  created_at: string | null;
+  source: string | null;
 };
 
 export type PortalDashboard = {
@@ -117,6 +159,20 @@ export type PortalDashboard = {
   erp: Record<string, unknown> | null;
   notifications: PortalNotification[] | null;
   activities: Array<{ id: string; title: string; created_at?: string }> | null;
+  businesses: PortalBusinessCard[];
+  workspaceUsers: PortalWorkspaceUser[];
+  supportTickets: unknown[] | null;
+  supportCounts: {
+    open: number;
+    pending: number;
+    waiting_customer: number;
+    resolved: number;
+    closed: number;
+  } | null;
+  gateways: Array<{ id: string; label: string; configured: boolean; online: boolean }>;
+  company: Record<string, unknown> | null;
+  engineDashboard: Record<string, unknown> | null;
+  unreadNotifications: number;
 };
 
 export type PortalInvoice = {
@@ -128,6 +184,11 @@ export type PortalInvoice = {
   dueDate: string | null;
   amount: string | null;
   pdfUrl: string | null;
+  documentUrl: string | null;
+  amountDue?: number | string | null;
+  amountPaid?: number | string | null;
+  currency?: string | null;
+  total?: number | string | null;
 };
 
 export type PortalNotification = {
@@ -181,6 +242,264 @@ function sanitizeErpPayload(
     out[key] = value;
   }
   return Object.keys(out).length ? out : null;
+}
+
+function extractFeaturePackNames(source: unknown): string[] {
+  if (!Array.isArray(source)) return [];
+  return source
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      if (item && typeof item === "object") {
+        const row = item as Record<string, unknown>;
+        return String(row.name || row.label || row.code || "").trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+}
+
+function mapWorkspaceUsers(
+  usage: {
+    users?: unknown[];
+    identities?: unknown[];
+  } | null
+): PortalWorkspaceUser[] {
+  const rows = Array.isArray(usage?.users)
+    ? usage!.users!
+    : Array.isArray(usage?.identities)
+      ? usage!.identities!
+      : [];
+  const mapped: PortalWorkspaceUser[] = [];
+  for (const item of rows) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const id = String(row.id || "").trim();
+    if (!id) continue;
+    mapped.push({
+      id,
+      email: row.email != null ? String(row.email) : null,
+      username: row.username != null ? String(row.username) : null,
+      full_name: row.full_name != null ? String(row.full_name) : null,
+      phone: row.phone != null ? String(row.phone) : null,
+      photo_url: row.photo_url != null ? String(row.photo_url) : null,
+      status: row.status != null ? String(row.status) : null,
+      email_verified_at:
+        row.email_verified_at != null ? String(row.email_verified_at) : null,
+      last_login_at: row.last_login_at != null ? String(row.last_login_at) : null,
+      created_at: row.created_at != null ? String(row.created_at) : null,
+      source: row.source != null ? String(row.source) : "license_engine",
+    });
+  }
+  return mapped;
+}
+
+function resolveCompanyNames(
+  company: Record<string, unknown> | null,
+  customer: CustomerProfile | null
+) {
+  return {
+    businessName:
+      String(
+        company?.company_name ||
+          company?.business_name ||
+          customer?.company_name ||
+          customer?.workspace_name ||
+          ""
+      ).trim() || "Workspace",
+    workspace:
+      customer?.workspace_name ||
+      customer?.company_name ||
+      String(company?.workspace_name || company?.company_name || "").trim() ||
+      null,
+    industry:
+      String(
+        company?.industry_name || customer?.industry_name || ""
+      ).trim() || null,
+    category:
+      String(
+        company?.business_category_name || customer?.business_category_name || ""
+      ).trim() || null,
+    businessProfile:
+      String(
+        company?.business_profile_name || customer?.business_profile_name || ""
+      ).trim() || null,
+  };
+}
+
+function buildBusinessCards(
+  rawLicenses: IdentityLicense[],
+  commercialSubs: CommercialSubscription[],
+  company: Record<string, unknown> | null,
+  customer: CustomerProfile | null,
+  featurePacks: string[]
+): PortalBusinessCard[] {
+  const names = resolveCompanyNames(company, customer);
+
+  if (commercialSubs.length > 0) {
+    return commercialSubs.map((sub) => {
+      const lic =
+        rawLicenses.find((l) => l.id === sub.license_id) ||
+        rawLicenses.find(
+          (l) =>
+            sub.product_name &&
+            l.product_name &&
+            l.product_name === sub.product_name
+        );
+      return {
+        businessName: sub.company_name || names.businessName,
+        industry: names.industry,
+        category: names.category,
+        businessProfile: names.businessProfile,
+        product: sub.product_name || lic?.product_name || null,
+        plan: sub.plan_name || lic?.plan_name || null,
+        featurePacks,
+        workspace: names.workspace,
+        licenseStatus: lic?.effective_status || lic?.status || null,
+        subscriptionStatus: sub.status || null,
+        activationDate: lic?.activation_date || sub.start_date || null,
+        renewalDate: sub.renewal_date || null,
+        expiryDate: sub.expiry_date || lic?.expiry_date || null,
+        licenseId: sub.license_id || lic?.id || null,
+        subscriptionId: sub.id || null,
+      };
+    });
+  }
+
+  if (!rawLicenses.length) {
+    return [
+      {
+        businessName: names.businessName,
+        industry: names.industry,
+        category: names.category,
+        businessProfile: names.businessProfile,
+        product: customer?.product_name || null,
+        plan: customer?.preferred_plan_name || customer?.preferred_plan || null,
+        featurePacks,
+        workspace: names.workspace,
+        licenseStatus: null,
+        subscriptionStatus: null,
+        activationDate: null,
+        renewalDate: null,
+        expiryDate: null,
+        licenseId: null,
+        subscriptionId: null,
+      },
+    ];
+  }
+
+  return rawLicenses.map((lic) => ({
+    businessName: names.businessName,
+    industry: names.industry,
+    category: names.category,
+    businessProfile: names.businessProfile,
+    product: lic.product_name || null,
+    plan: lic.plan_name || null,
+    featurePacks,
+    workspace: names.workspace,
+    licenseStatus: lic.effective_status || lic.status || null,
+    subscriptionStatus: null,
+    activationDate: lic.activation_date || null,
+    renewalDate: lic.expiry_date || null,
+    expiryDate: lic.expiry_date || null,
+    licenseId: lic.id,
+    subscriptionId: null,
+  }));
+}
+
+function mapEngineNotifications(
+  items: PortalCustomerNotification[]
+): PortalNotification[] {
+  return items.map((row) => ({
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    category: row.category,
+    read: Boolean(row.is_read),
+    created_at: row.created_at,
+  }));
+}
+
+function toPortalInvoice(inv: CommercialInvoice, index: number): PortalInvoice {
+  const id = inv.id || String(index);
+  const status = String(inv.status || "").toLowerCase();
+  const isPaid =
+    status === "paid" ||
+    (typeof inv.amount_due === "number" && inv.amount_due <= 0 && Number(inv.amount_paid || 0) > 0);
+  return {
+    id,
+    number: inv.invoice_number || inv.id || `INV-${index + 1}`,
+    status: inv.status || null,
+    paymentStatus: isPaid ? "paid" : inv.status || null,
+    date: inv.issue_date || null,
+    dueDate: inv.due_date || null,
+    amount:
+      inv.total != null
+        ? `${inv.currency || "USD"} ${Number(inv.total).toFixed(2)}`
+        : inv.amount_due != null
+          ? `${inv.currency || "USD"} ${Number(inv.amount_due).toFixed(2)}`
+          : null,
+    /** PDF download only after License Engine confirms payment. */
+    pdfUrl: isPaid ? portalInvoicePdfPath(id) : null,
+    documentUrl: portalInvoiceDocumentPath(id),
+    amountDue: inv.amount_due ?? null,
+    amountPaid: inv.amount_paid ?? null,
+    currency: inv.currency ?? null,
+    total: inv.total ?? null,
+  };
+}
+
+function buildActivities(
+  payments: CommercialPayment[],
+  renewals: CommercialRenewal[],
+  invoices: CommercialInvoice[]
+): Array<{ id: string; title: string; created_at?: string }> {
+  const items: Array<{
+    id: string;
+    title: string;
+    created_at?: string;
+    ts: number;
+  }> = [];
+
+  for (const payment of payments) {
+    const created_at = payment.paid_date || undefined;
+    items.push({
+      id: `payment-${payment.id}`,
+      title: `Payment ${payment.status}${payment.invoice_number ? ` · ${payment.invoice_number}` : ""}${
+        payment.amount != null
+          ? ` · ${payment.currency || "USD"} ${Number(payment.amount).toFixed(2)}`
+          : ""
+      }`,
+      created_at,
+      ts: created_at ? Date.parse(created_at) || 0 : 0,
+    });
+  }
+
+  for (const renewal of renewals) {
+    const created_at = renewal.renewal_date || undefined;
+    items.push({
+      id: `renewal-${renewal.id}`,
+      title: `Renewal ${renewal.status || "recorded"}${
+        renewal.new_expiry ? ` · expires ${renewal.new_expiry}` : ""
+      }`,
+      created_at,
+      ts: created_at ? Date.parse(created_at) || 0 : 0,
+    });
+  }
+
+  for (const invoice of invoices) {
+    const created_at = invoice.issue_date || invoice.paid_date || undefined;
+    items.push({
+      id: `invoice-${invoice.id}`,
+      title: `Invoice ${invoice.invoice_number || invoice.id} · ${invoice.status}`,
+      created_at,
+      ts: created_at ? Date.parse(created_at) || 0 : 0,
+    });
+  }
+
+  return items
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, 25)
+    .map(({ id, title, created_at }) => ({ id, title, created_at }));
 }
 
 function trialFromLicenses(licenses: IdentityLicense[]) {
@@ -278,10 +597,21 @@ export async function loadPortalDashboard(
     };
   }
 
-  const [licensesRes, sessionsRes] = await Promise.all([
-    identityListLicenses(token),
-    identityListSessions(token),
-  ]);
+  const [licensesRes, sessionsRes, subsRes, invoicesRes, paymentsRes, renewalsRes, historyRes, notificationsRes, companyRes, engineDashboardRes, gatewaysRes, usageRes] =
+    await Promise.all([
+      identityListLicenses(token),
+      identityListSessions(token),
+      fetchMySubscriptions(token, { limit: 50 }),
+      fetchMyInvoices(token, { limit: 50 }),
+      fetchMyPayments(token, { limit: 50 }),
+      fetchMyRenewals(token),
+      fetchMyBillingHistory(token),
+      fetchMyNotifications(token, { limit: 100 }),
+      fetchBillingCompany(token),
+      fetchBillingDashboard(token),
+      fetchBillingGateways(token),
+      fetchBillingUsage(token),
+    ]);
 
   const identity = me.data.identity;
   const customer = me.data.customer;
@@ -291,6 +621,14 @@ export async function loadPortalDashboard(
   const primary = primaryLicense(rawLicenses);
   const trial = trialFromLicenses(rawLicenses);
   const erp = sanitizeErpPayload(await tryFetchErpStats(identity.email));
+
+  const company = companyRes.ok ? companyRes.data : null;
+  const engineDashboard = engineDashboardRes.ok ? engineDashboardRes.data : null;
+  const gateways = gatewaysRes.ok ? gatewaysRes.data : [];
+  const supportTickets = null;
+  const supportCounts = null;
+  const companyNames = resolveCompanyNames(company, customer);
+  const workspaceUsers = mapWorkspaceUsers(usageRes.ok ? usageRes.data : null);
 
   const modules = Array.from(
     new Set(
@@ -312,8 +650,14 @@ export async function loadPortalDashboard(
     status: customer?.status || identity.status || null,
     customerSince: customer?.created_at || null,
     lastLogin: identity.last_login_at || null,
-    industry: customer?.industry_id || null,
-    businessCategory: customer?.business_category_id || null,
+    industry:
+      companyNames.industry ||
+      (customer?.industry_id ? String(customer.industry_id) : null),
+    businessCategory:
+      companyNames.category ||
+      (customer?.business_category_id
+        ? String(customer.business_category_id)
+        : null),
   };
 
   const subscription =
@@ -346,52 +690,31 @@ export async function loadPortalDashboard(
       : null;
 
   const erpCounts = (erp || {}) as Record<string, unknown>;
+
   const counts = {
     licensedUsers:
       typeof erpCounts.licensed_users === "number"
         ? erpCounts.licensed_users
         : typeof erpCounts.licensedUsers === "number"
           ? (erpCounts.licensedUsers as number)
-          : null,
+          : workspaceUsers.length || null,
     registeredUsers:
-      typeof erpCounts.registered_users === "number"
+      workspaceUsers.length ||
+      (typeof erpCounts.registered_users === "number"
         ? erpCounts.registered_users
         : typeof erpCounts.users === "number"
           ? (erpCounts.users as number)
-          : null,
+          : null),
     registeredBusinesses:
       typeof erpCounts.businesses === "number"
         ? erpCounts.businesses
         : typeof erpCounts.companies === "number"
           ? (erpCounts.companies as number)
           : null,
-    openTickets:
-      typeof erpCounts.open_tickets === "number"
-        ? erpCounts.open_tickets
-        : typeof erpCounts.openTickets === "number"
-          ? (erpCounts.openTickets as number)
-          : null,
-    pendingTickets:
-      typeof erpCounts.pending_tickets === "number"
-        ? erpCounts.pending_tickets
-        : typeof erpCounts.pendingTickets === "number"
-          ? (erpCounts.pendingTickets as number)
-          : null,
-    closedTickets:
-      typeof erpCounts.closed_tickets === "number"
-        ? erpCounts.closed_tickets
-        : typeof erpCounts.closedTickets === "number"
-          ? (erpCounts.closedTickets as number)
-          : null,
+    openTickets: null,
+    pendingTickets: null,
+    closedTickets: null,
   };
-
-  const [subsRes, invoicesRes, paymentsRes, renewalsRes, historyRes] = await Promise.all([
-    fetchMySubscriptions(token, { limit: 50 }),
-    fetchMyInvoices(token, { limit: 50 }),
-    fetchMyPayments(token, { limit: 50 }),
-    fetchMyRenewals(token),
-    fetchMyBillingHistory(token),
-  ]);
 
   const commercialSubs = subsRes.ok ? subsRes.data.data : [];
   const commercialInvoices = invoicesRes.ok ? invoicesRes.data.data : [];
@@ -455,22 +778,7 @@ export async function loadPortalDashboard(
         }
       : null);
 
-  const invoicesFromCommercial: PortalInvoice[] = commercialInvoices.map((inv, index) => ({
-    id: inv.id || String(index),
-    number: inv.invoice_number || inv.id || `INV-${index + 1}`,
-    status: inv.status || null,
-    paymentStatus:
-      typeof inv.amount_due === "number" && inv.amount_due <= 0 ? "paid" : inv.status || null,
-    date: inv.issue_date || null,
-    dueDate: inv.due_date || null,
-    amount:
-      inv.total != null
-        ? `${inv.currency || "USD"} ${Number(inv.total).toFixed(2)}`
-        : inv.amount_due != null
-          ? `${inv.currency || "USD"} ${Number(inv.amount_due).toFixed(2)}`
-          : null,
-    pdfUrl: inv.pdf_url || null,
-  }));
+  const invoicesFromCommercial: PortalInvoice[] = commercialInvoices.map(toPortalInvoice);
 
   const invoices =
     invoicesFromCommercial.length > 0
@@ -487,15 +795,46 @@ export async function loadPortalDashboard(
         renewalDate: primarySub.renewal_date || primarySub.expiry_date || null,
       }
     : subscription;
-  const notifications = mapNotifications(
-    erpCounts.notifications || erpCounts.alerts
-  );
 
-  const featurePacks = Array.isArray(erpCounts.feature_packs)
+  const engineNotificationRows =
+    notificationsRes.ok && Array.isArray(notificationsRes.data)
+      ? notificationsRes.data
+      : [];
+  const notifications =
+    engineNotificationRows.length > 0
+      ? mapEngineNotifications(engineNotificationRows)
+      : mapNotifications(erpCounts.notifications || erpCounts.alerts);
+  const unreadNotifications =
+    typeof notificationsRes.unread_count === "number"
+      ? notificationsRes.unread_count
+      : (notifications || []).filter((n) => !n.read).length;
+
+  const companyFeaturePacks = extractFeaturePackNames(company?.feature_packs);
+  const customerFeaturePacks = extractFeaturePackNames(customer?.feature_packs);
+  const erpFeaturePacks = Array.isArray(erpCounts.feature_packs)
     ? (erpCounts.feature_packs as string[])
     : Array.isArray(erpCounts.featurePacks)
       ? (erpCounts.featurePacks as string[])
       : [];
+  const featurePacks =
+    companyFeaturePacks.length > 0
+      ? companyFeaturePacks
+      : customerFeaturePacks.length > 0
+        ? customerFeaturePacks
+        : erpFeaturePacks;
+
+  const businesses = buildBusinessCards(
+    rawLicenses,
+    commercialSubs,
+    company,
+    customer,
+    featurePacks
+  );
+  const activities = buildActivities(
+    commercialPayments,
+    commercialRenewals,
+    commercialInvoices
+  );
 
   const erpModules = Array.isArray(erpCounts.modules)
     ? (erpCounts.modules as string[])
@@ -536,11 +875,6 @@ export async function loadPortalDashboard(
       href: "/portal/licenses",
     },
     {
-      id: "support",
-      label: "Create Support Ticket",
-      href: "/portal/support",
-    },
-    {
       id: "org",
       label: "Manage Organization",
       href: "/portal/organization",
@@ -557,8 +891,13 @@ export async function loadPortalDashboard(
     },
     {
       id: "invoices",
-      label: "Download Invoice",
+      label: "View Invoices",
       href: "/portal/invoices",
+    },
+    {
+      id: "notifications",
+      label: "Notifications",
+      href: "/portal/notifications",
     },
   ];
 
@@ -603,7 +942,15 @@ export async function loadPortalDashboard(
     quickActions,
     erp: erp && Object.keys(erp).length ? erp : null,
     notifications,
-    activities: null,
+    activities,
+    businesses,
+    workspaceUsers,
+    supportTickets,
+    supportCounts,
+    gateways,
+    company,
+    engineDashboard,
+    unreadNotifications,
   };
 
   return { ok: true, status: 200, message: "OK", data, refreshed };
@@ -611,49 +958,69 @@ export async function loadPortalDashboard(
 
 function mapInvoices(raw: unknown): PortalInvoice[] | null {
   if (!Array.isArray(raw) || !raw.length) return null;
-  const mapped = raw
-    .map((item, index) => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as Record<string, unknown>;
-      const number = String(row.number || row.invoice_number || row.id || "").trim();
-      if (!number) return null;
-      return {
-        id: String(row.id || number || index),
-        number,
-        status: row.status != null ? String(row.status) : null,
-        paymentStatus:
-          row.payment_status != null
-            ? String(row.payment_status)
-            : row.paymentStatus != null
-              ? String(row.paymentStatus)
-              : null,
-        date:
-          row.date != null
-            ? String(row.date)
-            : row.issued_at != null
-              ? String(row.issued_at)
-              : null,
-        dueDate:
-          row.due_date != null
-            ? String(row.due_date)
-            : row.dueDate != null
-              ? String(row.dueDate)
-              : null,
-        amount:
-          row.amount != null
-            ? String(row.amount)
-            : row.total != null
-              ? String(row.total)
-              : null,
-        pdfUrl:
-          row.pdf_url != null
-            ? String(row.pdf_url)
-            : row.pdfUrl != null
-              ? String(row.pdfUrl)
-              : null,
-      } satisfies PortalInvoice;
-    })
-    .filter((v): v is PortalInvoice => Boolean(v));
+  const mapped: PortalInvoice[] = [];
+  raw.forEach((item, index) => {
+    if (!item || typeof item !== "object") return;
+    const row = item as Record<string, unknown>;
+    const number = String(row.number || row.invoice_number || row.id || "").trim();
+    if (!number) return;
+    const id = String(row.id || number || index);
+    mapped.push({
+      id,
+      number,
+      status: row.status != null ? String(row.status) : null,
+      paymentStatus:
+        row.payment_status != null
+          ? String(row.payment_status)
+          : row.paymentStatus != null
+            ? String(row.paymentStatus)
+            : null,
+      date:
+        row.date != null
+          ? String(row.date)
+          : row.issued_at != null
+            ? String(row.issued_at)
+            : null,
+      dueDate:
+        row.due_date != null
+          ? String(row.due_date)
+          : row.dueDate != null
+            ? String(row.dueDate)
+            : null,
+      amount:
+        row.amount != null
+          ? String(row.amount)
+          : row.total != null
+            ? String(row.total)
+            : null,
+      pdfUrl:
+        (() => {
+          const status = String(row.status || row.payment_status || row.paymentStatus || "")
+            .trim()
+            .toLowerCase();
+          const isPaid = status === "paid";
+          if (!isPaid) return null;
+          if (row.pdf_url != null) return String(row.pdf_url);
+          if (row.pdfUrl != null) return String(row.pdfUrl);
+          return portalInvoicePdfPath(id);
+        })(),
+      documentUrl: portalInvoiceDocumentPath(id),
+      amountDue:
+        row.amount_due != null
+          ? (row.amount_due as number | string)
+          : row.amountDue != null
+            ? (row.amountDue as number | string)
+            : null,
+      amountPaid:
+        row.amount_paid != null
+          ? (row.amount_paid as number | string)
+          : row.amountPaid != null
+            ? (row.amountPaid as number | string)
+            : null,
+      currency: row.currency != null ? String(row.currency) : null,
+      total: row.total != null ? (row.total as number | string) : null,
+    });
+  });
   return mapped.length ? mapped : null;
 }
 

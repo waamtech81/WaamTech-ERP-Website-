@@ -109,7 +109,10 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     data?.customer?.workspace_name || data?.overview.company || "Workspace";
   const plan = data?.subscription?.currentPlan || null;
   const notifications = data?.notifications || [];
-  const unread = notifications.filter((n) => !n.read).length || notifications.length;
+  const unread =
+    typeof data?.unreadNotifications === "number"
+      ? data.unreadNotifications
+      : notifications.filter((n) => !n.read).length;
 
   return (
     <div className="portal-app-shell fixed inset-0 z-[100] flex bg-[var(--portal-bg)] text-[var(--portal-fg)]">

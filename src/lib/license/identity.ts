@@ -9,10 +9,13 @@ export type IdentityProfile = {
   email: string;
   full_name: string;
   phone?: string | null;
+  whatsapp_number?: string | null;
+  photo_url?: string | null;
   email_verified_at?: string | null;
   marketing_opt_in?: boolean;
   status: string;
   last_login_at?: string | null;
+  email_readonly?: boolean;
 };
 
 export type CustomerProfile = {
@@ -24,12 +27,21 @@ export type CustomerProfile = {
   phone?: string | null;
   country?: string | null;
   industry_id?: string | null;
+  industry_name?: string | null;
   business_category_id?: string | null;
+  business_category_name?: string | null;
+  business_profile_id?: string | null;
+  business_profile_name?: string | null;
   preferred_plan?: string | null;
+  preferred_plan_name?: string | null;
+  product_id?: string | null;
+  product_name?: string | null;
+  product_slug?: string | null;
   status: string;
   currency?: string | null;
   timezone?: string | null;
   created_at?: string | null;
+  feature_packs?: Array<{ id: string; code: string; name: string; slug?: string }>;
 };
 
 export type IdentityLicense = {
@@ -350,6 +362,38 @@ export async function identityRenewSubscription(
     ["/v1/identity/subscriptions/renew", "/identity/subscriptions/renew"],
     { accessToken, body }
   );
+}
+
+export async function identityUpdateProfile(
+  accessToken: string,
+  body: { full_name?: string; phone?: string; whatsapp_number?: string }
+) {
+  return requestLicense<{ identity: IdentityProfile }>(
+    "PATCH",
+    ["/v1/identity/profile", "/identity/profile"],
+    { accessToken, body }
+  );
+}
+
+export async function identityUploadPhoto(
+  accessToken: string,
+  body: { photo_base64: string; content_type?: string }
+) {
+  return requestLicense<{ identity: IdentityProfile }>(
+    "POST",
+    ["/v1/identity/profile/photo", "/identity/profile/photo"],
+    { accessToken, body }
+  );
+}
+
+export async function identityChangePassword(
+  accessToken: string,
+  body: { current_password: string; new_password: string }
+) {
+  return requestLicense("POST", ["/v1/identity/change-password", "/identity/change-password"], {
+    accessToken,
+    body,
+  });
 }
 
 /** Normalize Engine login payloads (camelCase or snake_case tokens). */

@@ -4,7 +4,6 @@ import {
   Building2,
   CreditCard,
   FileText,
-  HeadphonesIcon,
   KeyRound,
   LayoutDashboard,
   Package,
@@ -37,7 +36,6 @@ export const PORTAL_NAV: PortalNavItem[] = [
     icon: UserCircle2,
     group: "workspace",
   },
-  { href: "/portal/support", label: "Support Tickets", icon: HeadphonesIcon, group: "account" },
   { href: "/portal/notifications", label: "Notifications", icon: Bell, group: "account" },
   { href: "/portal/settings", label: "Settings", icon: Settings, group: "account" },
 ];

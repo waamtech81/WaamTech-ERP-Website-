@@ -1,5 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { createPortalSectionLazy } from "@/components/portal/portal-lazy";
-
-export default createPortalSectionLazy("support");
+/** Support lives in the WAAMTO application — not in the customer portal. */
+export default function PortalSupportRedirectPage() {
+  redirect("/portal");
+}

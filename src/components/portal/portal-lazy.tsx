@@ -21,7 +21,6 @@ export function createPortalSectionLazy(
     | "users"
     | "organization"
     | "modules"
-    | "support"
     | "business-profile"
     | "notifications"
     | "settings"

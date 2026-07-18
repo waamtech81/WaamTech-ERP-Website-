@@ -5,7 +5,17 @@
  * Full-site translate strategy:
  * 1) Keep html lang="en" so GT knows the source language
  * 2) Language change → set googtrans cookie/hash + hard reload
- * 3) SPA route / dynamic DOM → force re-scan via combo flip
+ * 3) SPA route / dynamic DOM → force re-scan via combo flip (frame-synced, no timeouts)
+ *
+ * ROOT CAUSE (dynamic API content):
+ * Google Website Translator walks the DOM once when activated. It does not subscribe
+ * to React commits. When License Engine data arrives and React inserts new English
+ * text nodes, those nodes are never translated unless we explicitly re-trigger GT.
+ *
+ * PERMANENT FIX:
+ * Observe document.body for real app content mutations, coalesce with rAF, and
+ * re-trigger GT. Mutations that arrive during a resync are marked dirty and replayed
+ * after settle — so one-shot API loads cannot be skipped forever.
  */
 import type { UiLanguage } from "@/i18n";
 
@@ -38,6 +48,7 @@ export const GOOGLE_TRANSLATE_ELEMENT_ID = "google_translate_element";
 const GOOGTRANS = "googtrans";
 const SCRIPT_ID = "google-translate-script";
 const RELOAD_KEY = "wt_gt_reload";
+const RESYNC_CLASS = "wt-gt-resync";
 
 /** Hosts where setting a Domain= attribute breaks cookies (browsers reject it). */
 function shouldSetCookieDomain(host: string): boolean {
@@ -232,25 +243,34 @@ export function syncGoogleTranslate(
     return;
   }
 
-  let tries = 0;
-  const maxTries = 40;
-  const id = window.setInterval(() => {
-    tries += 1;
+  // Poll via rAF (no wall-clock timeouts) until combo exists or budget exhausted.
+  let frames = 0;
+  const maxFrames = 120; // ~2s at 60fps — budget, not an arbitrary delay before acting
+  const tick = () => {
+    frames += 1;
     if (setComboValue(code)) {
-      window.clearInterval(id);
       clearReloadGuard();
       return;
     }
-    if (tries < maxTries) return;
-    window.clearInterval(id);
+    if (frames < maxFrames) {
+      window.requestAnimationFrame(tick);
+      return;
+    }
     if (!allowReload) return;
     safeReloadOnce(code);
-  }, 150);
+  };
+  window.requestAnimationFrame(tick);
 }
 
 let loadPromise: Promise<void> | null = null;
-let retranslateTimer = 0;
-let retranslateLockUntil = 0;
+
+/** Resync state — shared with MutationObserver so in-flight GT work is not lost. */
+let resyncActive = false;
+let resyncDirty = false;
+let resyncRaf = 0;
+let settleRaf = 0;
+let gtTouchedThisFrame = false;
+let activeTargetLang: UiLanguage | null = null;
 
 /**
  * Lazily inject the Google Translate script once. Safe to call repeatedly.
@@ -322,54 +342,136 @@ export function mountTranslateElement(force = false): boolean {
   return !!findCombo() || host.childElementCount > 0;
 }
 
+/** True while a forced retranslate is in flight (skip MutationObserver loops). */
+export function isRetranslateLocked(): boolean {
+  return resyncActive;
+}
+
+/** Mark that GT itself mutated the DOM this frame (font wraps, etc.). */
+export function noteGoogleTranslateDomTouch(): void {
+  if (resyncActive) gtTouchedThisFrame = true;
+}
+
+function beginResyncVisual(): void {
+  document.documentElement.classList.add(RESYNC_CLASS);
+}
+
+function endResyncVisual(): void {
+  document.documentElement.classList.remove(RESYNC_CLASS);
+}
+
+function finishResync(): void {
+  resyncActive = false;
+  endResyncVisual();
+  if (resyncDirty && activeTargetLang && activeTargetLang !== "en") {
+    resyncDirty = false;
+    scheduleForceRetranslate(activeTargetLang);
+  }
+}
+
+/**
+ * Wait until GT stops mutating for two consecutive animation frames.
+ * Frame-synced settle — no wall-clock timeouts.
+ */
+function waitForTranslateSettle(onSettled: () => void): void {
+  let quietFrames = 0;
+  const maxFrames = 90;
+
+  const step = (frame: number) => {
+    if (gtTouchedThisFrame) {
+      quietFrames = 0;
+      gtTouchedThisFrame = false;
+    } else {
+      quietFrames += 1;
+    }
+
+    if (quietFrames >= 2 || frame >= maxFrames) {
+      settleRaf = 0;
+      onSettled();
+      return;
+    }
+    settleRaf = window.requestAnimationFrame(() => step(frame + 1));
+  };
+
+  if (settleRaf) window.cancelAnimationFrame(settleRaf);
+  settleRaf = window.requestAnimationFrame(() => step(0));
+}
+
+function runComboFlip(code: string): void {
+  const combo = findCombo();
+  if (!combo) {
+    void ensureGoogleTranslateLoaded().then(() => {
+      mountTranslateElement(false);
+      syncGoogleTranslate(code as UiLanguage, { reloadOnMiss: false });
+      // After sync applies, watch settle then unlock.
+      waitForTranslateSettle(finishResync);
+    });
+    return;
+  }
+
+  const opts = Array.from(combo.options);
+  const enOpt = opts.find((o) => o.value === "" || o.value === "en") || opts[0];
+  if (!enOpt) {
+    setComboValue(code);
+    waitForTranslateSettle(finishResync);
+    return;
+  }
+
+  beginResyncVisual();
+
+  // Restore English source nodes, then re-apply target on the next paint pair.
+  // Double-rAF waits for style/layout after the EN flip without setTimeout.
+  // Keep the previous paint on screen — do not blank the body (avoids flicker).
+  combo.value = enOpt.value;
+  fireComboChange(combo);
+
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      combo.value = code;
+      fireComboChange(combo);
+      waitForTranslateSettle(finishResync);
+    });
+  });
+}
+
+function scheduleForceRetranslate(lang: UiLanguage): void {
+  activeTargetLang = lang;
+  if (resyncRaf) return;
+  resyncRaf = window.requestAnimationFrame(() => {
+    resyncRaf = 0;
+    if (resyncActive) {
+      resyncDirty = true;
+      return;
+    }
+    const code = lang === "en" ? "en" : lang;
+    if (code === "en") return;
+
+    resyncActive = true;
+    gtTouchedThisFrame = false;
+    ensureSourceLangForTranslate();
+    writeGoogTrans(`/en/${code}`);
+    setGoogTransHash(code);
+    runComboFlip(code);
+  });
+}
+
 /**
  * Force Google Translate to re-scan the current DOM.
  * Used after Next.js client navigations and dynamic content inserts.
+ * Coalesced to one pass per frame; dirty-flag replays if more content arrives mid-pass.
  */
 export function forceRetranslate(lang: UiLanguage): void {
   if (typeof document === "undefined") return;
   const code = lang === "en" ? "en" : lang;
   if (code === "en") return;
 
-  ensureSourceLangForTranslate();
-  writeGoogTrans(`/en/${code}`);
-  setGoogTransHash(code);
+  if (resyncActive) {
+    resyncDirty = true;
+    activeTargetLang = lang;
+    return;
+  }
 
-  const run = () => {
-    const combo = findCombo();
-    if (!combo) {
-      void ensureGoogleTranslateLoaded().then(() => {
-        mountTranslateElement(false);
-        syncGoogleTranslate(lang, { reloadOnMiss: false });
-      });
-      return;
-    }
-
-    retranslateLockUntil = Date.now() + 1200;
-    const opts = Array.from(combo.options);
-    const enOpt = opts.find((o) => o.value === "" || o.value === "en") || opts[0];
-
-    // Flip away then back so GT re-walks the DOM (SPA + dynamic nodes).
-    if (enOpt && combo.value === code) {
-      combo.value = enOpt.value;
-      fireComboChange(combo);
-      window.setTimeout(() => {
-        combo.value = code;
-        fireComboChange(combo);
-      }, 80);
-      return;
-    }
-
-    setComboValue(code);
-  };
-
-  window.clearTimeout(retranslateTimer);
-  retranslateTimer = window.setTimeout(run, 120);
-}
-
-/** True while a forced retranslate is in flight (skip MutationObserver loops). */
-export function isRetranslateLocked(): boolean {
-  return Date.now() < retranslateLockUntil;
+  scheduleForceRetranslate(lang);
 }
 
 /**

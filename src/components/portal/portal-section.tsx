@@ -11,13 +11,15 @@ import {
   Package,
   RefreshCw,
   Settings,
-  Shield,
-  Ticket,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
-import { formatPortalDate, formatPortalDateTime } from "@/components/portal/use-portal-data";
+import { formatPortalDate } from "@/components/portal/use-portal-data";
+import { PortalBusinessProfileView } from "@/components/portal/portal-business-profile";
+import { PortalInvoicesView } from "@/components/portal/portal-invoices";
+import { PortalNotificationsView } from "@/components/portal/portal-notifications";
+import { PortalSettingsView } from "@/components/portal/portal-settings";
 import {
   PortalDataRow,
   PortalEmptyState,
@@ -28,7 +30,6 @@ import {
   PortalStatusBadge,
   PortalUsageMeter,
 } from "@/components/portal/portal-ui";
-import { siteConfig } from "@/lib/data/site";
 
 export type PortalSectionKey =
   | "licenses"
@@ -38,10 +39,18 @@ export type PortalSectionKey =
   | "users"
   | "organization"
   | "modules"
-  | "support"
   | "business-profile"
   | "notifications"
   | "settings";
+
+function plansHref(
+  intent: "renew" | "upgrade",
+  subscriptionId?: string | null
+) {
+  const q = new URLSearchParams({ intent });
+  if (subscriptionId) q.set("subscription_id", subscriptionId);
+  return `/portal/plans?${q.toString()}`;
+}
 
 const META: Record<
   PortalSectionKey,
@@ -78,9 +87,9 @@ const META: Record<
   },
   users: {
     title: "Users",
-    description: "Licensed seats, registered users, and usage against your plan.",
-    emptyTitle: "User counts unavailable",
-    emptyDescription: "Connect optional ERP stats to show registered and licensed users.",
+    description: "Workspace users provisioned via License Engine and WAAMTO SaaS.",
+    emptyTitle: "No users yet",
+    emptyDescription: "Users set up from SaaS through your license will appear here.",
     eyebrow: "Workspace",
   },
   organization: {
@@ -96,14 +105,6 @@ const META: Record<
     emptyTitle: "No modules assigned",
     emptyDescription: "Modules appear from licenses and optional ERP workspace data.",
     eyebrow: "Products",
-  },
-  support: {
-    title: "Support tickets",
-    description: "Open, pending, and closed tickets for your workspace.",
-    emptyTitle: "No ticket data yet",
-    emptyDescription:
-      "Ticket lists appear when Engine support APIs are available for identity sessions.",
-    eyebrow: "Help",
   },
   "business-profile": {
     title: "Business profile",
@@ -142,9 +143,18 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   let flush = false;
 
   if (section === "licenses") {
+    const primarySubId =
+      data.subscriptions?.find((s) =>
+        ["active", "trial", "trialing", "grace", "suspended"].includes(
+          String(s.status || "").toLowerCase()
+        )
+      )?.id || data.subscriptions?.[0]?.id || null;
     body = data.licenses.length ? (
       <div className="space-y-4">
-        {data.licenses.map((lic) => (
+        {data.licenses.map((lic) => {
+          const linkedSubId =
+            data.subscriptions?.find((s) => s.license_id === lic.id)?.id || primarySubId;
+          return (
           <article
             key={lic.id}
             className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-5"
@@ -178,10 +188,10 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               <Button asChild size="sm" className="rounded-xl">
-                <Link href="/portal/plans?intent=renew">Renew</Link>
+                <Link href={plansHref("renew", linkedSubId)}>Renew</Link>
               </Button>
               <Button asChild size="sm" variant="outline" className="rounded-xl">
-                <Link href="/portal/plans?intent=upgrade">Upgrade</Link>
+                <Link href={plansHref("upgrade", linkedSubId)}>Upgrade</Link>
               </Button>
               <Button size="sm" variant="outline" className="rounded-xl" disabled title="Available when License Engine exposes downloadable license files">
                 <Download className="h-4 w-4" />
@@ -192,7 +202,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               </Button>
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
     ) : null;
   }
@@ -231,10 +242,10 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   <td>
                     <div className="flex flex-wrap gap-1.5">
                       <Button asChild size="sm" className="rounded-lg h-8">
-                        <Link href="/portal/plans?intent=renew">Renew</Link>
+                        <Link href={plansHref("renew", sub.id)}>Renew</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
-                        <Link href="/portal/plans?intent=upgrade">Upgrade</Link>
+                        <Link href={plansHref("upgrade", sub.id)}>Upgrade</Link>
                       </Button>
                     </div>
                   </td>
@@ -279,10 +290,10 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           </div>
           <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" className="rounded-xl">
-                <Link href="/portal/plans?intent=renew">Renew</Link>
+                <Link href={plansHref("renew", data.subscriptions?.[0]?.id)}>Renew</Link>
               </Button>
               <Button asChild size="sm" variant="outline" className="rounded-xl">
-                <Link href="/portal/plans?intent=upgrade">Upgrade</Link>
+                <Link href={plansHref("upgrade", data.subscriptions?.[0]?.id)}>Upgrade</Link>
               </Button>
           </div>
           <p className="text-xs text-[var(--portal-muted)]">
@@ -294,62 +305,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   }
 
   if (section === "invoices") {
-    const invoices = data.invoices || [];
-    if (invoices.length) {
-      flush = true;
-      body = (
-        <div className="portal-table-wrap">
-          <table className="portal-table">
-            <thead>
-              <tr>
-                <th scope="col">Invoice</th>
-                <th scope="col">Status</th>
-                <th scope="col">Date</th>
-                <th scope="col">Due date</th>
-                <th scope="col">Amount</th>
-                <th scope="col">Payment</th>
-                <th scope="col">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((invoice) => (
-                <tr key={invoice.id}>
-                  <td className="font-medium">{invoice.number}</td>
-                  <td>
-                    <PortalStatusBadge status={invoice.status} />
-                  </td>
-                  <td>{formatPortalDate(invoice.date) || "—"}</td>
-                  <td>{formatPortalDate(invoice.dueDate) || "—"}</td>
-                  <td className="tabular-nums font-medium">{invoice.amount || "—"}</td>
-                  <td>
-                    <PortalStatusBadge status={invoice.paymentStatus} />
-                  </td>
-                  <td>
-                    {invoice.pdfUrl ? (
-                      <a
-                        href={invoice.pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--portal-primary)] hover:underline"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        PDF
-                      </a>
-                    ) : (
-                      <span className="text-xs text-[var(--portal-muted)]">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-    } else {
-      body = null;
-    }
+    flush = true;
+    body = <PortalInvoicesView />;
   }
 
   if (section === "billing") {
@@ -465,9 +422,10 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   }
 
   if (section === "users") {
+    const users = data.workspaceUsers || [];
     const userLimit = typeof erp.user_limit === "number" ? erp.user_limit : null;
-    const licensed = data.counts.licensedUsers;
-    const registered = data.counts.registeredUsers;
+    const licensed = data.counts.licensedUsers ?? users.length;
+    const registered = data.counts.registeredUsers ?? users.length;
     const rows = [
       { label: "Registered users", value: registered },
       { label: "Licensed users", value: licensed },
@@ -478,21 +436,53 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           licensed != null && userLimit != null ? `${licensed} / ${userLimit}` : null,
       },
     ].filter((r) => r.value !== null && r.value !== undefined);
-    body = rows.length ? (
+    body = users.length || rows.length ? (
       <div className="space-y-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {rows.map((r) => (
-            <PortalDataRow key={r.label} label={r.label} value={String(r.value)} />
-          ))}
-        </div>
+        {rows.length ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {rows.map((r) => (
+              <PortalDataRow key={r.label} label={r.label} value={String(r.value)} />
+            ))}
+          </div>
+        ) : null}
         {licensed != null && userLimit != null && userLimit > 0 ? (
-          <PortalUsageMeter label="Seat usage" used={licensed} limit={userLimit} />
+          <PortalUsageMeter label="Seat usage" used={Number(licensed)} limit={userLimit} />
+        ) : null}
+        {users.length ? (
+          <div className="portal-table-wrap">
+            <table className="portal-table">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Username</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Last login</th>
+                  <th scope="col">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id}>
+                    <td className="font-medium">{user.full_name || "—"}</td>
+                    <td>{user.email || "—"}</td>
+                    <td>{user.username || "—"}</td>
+                    <td>
+                      <PortalStatusBadge status={user.status} />
+                    </td>
+                    <td>{formatPortalDate(user.last_login_at) || "—"}</td>
+                    <td>{formatPortalDate(user.created_at) || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : null}
       </div>
     ) : null;
   }
 
-  if (section === "organization" || section === "business-profile") {
+  if (section === "organization") {
     const rows = [
       { label: "Workspace", value: data.overview.company },
       { label: "Customer name", value: data.overview.customerName },
@@ -529,12 +519,21 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
       },
     ].filter((r) => r.value);
     body = rows.length ? (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {rows.map((r) => (
-          <PortalDataRow key={r.label} label={r.label} value={r.value} />
-        ))}
+      <div className="space-y-8">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {rows.map((r) => (
+            <PortalDataRow key={r.label} label={r.label} value={r.value} />
+          ))}
+        </div>
+        <PortalBusinessProfileView embedded />
       </div>
-    ) : null;
+    ) : (
+      <PortalBusinessProfileView />
+    );
+  }
+
+  if (section === "business-profile") {
+    body = <PortalBusinessProfileView />;
   }
 
   if (section === "modules") {
@@ -588,173 +587,12 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     ) : null;
   }
 
-  if (section === "support") {
-    const tickets = Array.isArray(erp.tickets) ? (erp.tickets as Array<Record<string, unknown>>) : [];
-    body = (
-      <div className="space-y-6">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <PortalDataRow
-            label="Open tickets"
-            value={data.counts.openTickets != null ? String(data.counts.openTickets) : "—"}
-          />
-          <PortalDataRow
-            label="Pending tickets"
-            value={data.counts.pendingTickets != null ? String(data.counts.pendingTickets) : "—"}
-          />
-          <PortalDataRow
-            label="Closed tickets"
-            value={data.counts.closedTickets != null ? String(data.counts.closedTickets) : "—"}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" className="rounded-xl">
-            <a href={`mailto:${siteConfig.supportEmail}?subject=Support%20ticket`}>
-              <Ticket className="h-4 w-4" />
-              Create ticket
-            </a>
-          </Button>
-          <Button asChild size="sm" variant="outline" className="rounded-xl">
-            <a href={`mailto:${siteConfig.supportEmail}`}>Email support</a>
-          </Button>
-        </div>
-        {tickets.length ? (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--portal-muted)]">
-              Timeline
-            </p>
-            {tickets.slice(0, 8).map((ticket, index) => (
-              <div
-                key={String(ticket.id || index)}
-                className="rounded-xl border border-[var(--portal-border)] px-4 py-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium">
-                    {String(ticket.subject || ticket.title || `Ticket ${index + 1}`)}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <PortalStatusBadge
-                      status={ticket.priority != null ? String(ticket.priority) : null}
-                    />
-                    <PortalStatusBadge
-                      status={ticket.status != null ? String(ticket.status) : null}
-                    />
-                  </div>
-                </div>
-                {ticket.updated_at || ticket.created_at ? (
-                  <p className="mt-1 text-xs text-[var(--portal-muted)]">
-                    {formatPortalDateTime(
-                      String(ticket.updated_at || ticket.created_at || "")
-                    )}
-                  </p>
-                ) : null}
-                {ticket.latest_reply ? (
-                  <p className="mt-2 text-sm text-[var(--portal-muted)]">
-                    {String(ticket.latest_reply)}
-                  </p>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <PortalEmptyState
-            title="Ticket timeline coming soon"
-            description="When support tickets are available for your identity session, open/pending/closed lists and recent replies will render here."
-            icon={Ticket}
-          />
-        )}
-      </div>
-    );
-  }
-
   if (section === "notifications") {
-    const notifications = data.notifications || [];
-    body = notifications.length ? (
-      <div className="space-y-2">
-        {notifications.map((n) => {
-          const category = (n.category || "system").toLowerCase();
-          return (
-            <div
-              key={n.id}
-              className="flex items-start justify-between gap-3 rounded-xl border border-[var(--portal-border)] px-4 py-3.5"
-            >
-              <div className="flex min-w-0 items-start gap-3">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--portal-primary-soft)] text-[var(--portal-primary)]">
-                  <Bell className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{n.title}</p>
-                  {n.body ? (
-                    <p className="mt-1 text-sm text-[var(--portal-muted)]">{n.body}</p>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <PortalStatusBadge status={category} />
-                    {n.created_at ? (
-                      <span className="text-xs text-[var(--portal-muted)]">
-                        {formatPortalDateTime(n.created_at)}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-              <PortalStatusBadge status={n.read ? "Read" : "Unread"} />
-            </div>
-          );
-        })}
-      </div>
-    ) : null;
+    body = <PortalNotificationsView />;
   }
 
   if (section === "settings") {
-    body = (
-      <div className="space-y-6">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <PortalDataRow label="Customer name" value={data.overview.customerName} />
-          <PortalDataRow label="Primary email (read only)" value={data.overview.primaryEmail} />
-          <PortalDataRow label="Username (read only)" value={data.identity.username} />
-          <PortalDataRow label="Identity provider" value="License Engine" />
-          <PortalDataRow label="Security" value={data.identity.status} />
-          <PortalDataRow label="Last login" value={formatPortalDateTime(data.overview.lastLogin)} />
-        </div>
-        <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-5">
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-[var(--portal-fg)]">Sessions</h3>
-            <p className="mt-1 text-xs text-[var(--portal-muted)]">
-              Active refresh sessions from License Engine.
-            </p>
-          </div>
-          {data.sessions.length ? (
-            <div className="space-y-2">
-              {data.sessions.map((s, i) => (
-                <div
-                  key={s.id || String(i)}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-panel)] px-4 py-3 text-sm"
-                >
-                  <span className="inline-flex min-w-0 items-center gap-2 text-[var(--portal-muted)]">
-                    <Shield className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">
-                      {formatPortalDateTime(s.created_at) || `Session ${i + 1}`}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-xs text-[var(--portal-muted)]">
-                    {s.expires_at ? `Expires ${formatPortalDate(s.expires_at)}` : "Active"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-[var(--portal-muted)]">No active sessions listed.</p>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="outline" className="rounded-xl">
-            <Link href="/forgot-password">Manage password</Link>
-          </Button>
-          <Button asChild size="sm" variant="outline" className="rounded-xl">
-            <Link href="/portal/business-profile">Manage account</Link>
-          </Button>
-        </div>
-      </div>
-    );
+    body = <PortalSettingsView />;
   }
 
   const emptyIcons = {
@@ -765,7 +603,6 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     users: Users,
     organization: Building2,
     modules: Package,
-    support: Ticket,
     "business-profile": Building2,
     notifications: Bell,
     settings: Settings,
@@ -835,12 +672,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               title={meta.emptyTitle}
               description={meta.emptyDescription}
               icon={emptyIcons[section]}
-              actionLabel={section === "support" ? "Create ticket" : undefined}
-              actionHref={
-                section === "support"
-                  ? `mailto:${siteConfig.supportEmail}?subject=Support%20ticket`
-                  : undefined
-              }
+              actionLabel={undefined}
+              actionHref={undefined}
             />
           )}
         </PortalPanel>

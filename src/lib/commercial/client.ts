@@ -226,11 +226,22 @@ export async function fetchPublicPlanById(
   if (!id) {
     return emptyResult(null, "Missing plan_id.", 400);
   }
-  return getPublic<CatalogPlan>(
+  const result = await getPublic<CatalogPlan | { plan?: CatalogPlan }>(
     `/v1/public/catalog/plans/${encodeURIComponent(id)}`,
     undefined,
     { revalidate: false }
   );
+  if (!result.ok || !result.data) {
+    return { ...result, data: null };
+  }
+  // License Engine detail returns { plan, pricing, marketing, ... }.
+  // List endpoint returns a flat CatalogPlan — support both shapes.
+  const raw = result.data as CatalogPlan & { plan?: CatalogPlan };
+  const plan = raw.plan && typeof raw.plan === "object" && raw.plan.id ? raw.plan : raw;
+  if (!plan?.id) {
+    return emptyResult(null, "Plan not found.", 404);
+  }
+  return { ...result, data: plan as CatalogPlan };
 }
 
 export async function fetchPublicPlanLimits(

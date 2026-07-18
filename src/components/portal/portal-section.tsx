@@ -178,7 +178,10 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               <Button asChild size="sm" className="rounded-xl">
-                <Link href="/portal/subscriptions">Renew</Link>
+                <Link href="/portal/plans?intent=renew">Renew</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="rounded-xl">
+                <Link href="/portal/plans?intent=upgrade">Upgrade</Link>
               </Button>
               <Button size="sm" variant="outline" className="rounded-xl" disabled title="Available when License Engine exposes downloadable license files">
                 <Download className="h-4 w-4" />
@@ -209,6 +212,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 <th scope="col">Billing cycle</th>
                 <th scope="col">Renewal</th>
                 <th scope="col">Auto renew</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -224,6 +228,16 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   <td>{sub.billing_cycle || "—"}</td>
                   <td>{formatPortalDate(sub.renewal_date || sub.expiry_date) || "—"}</td>
                   <td>{sub.auto_renewal ? "Enabled" : "Off"}</td>
+                  <td>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button asChild size="sm" className="rounded-lg h-8">
+                        <Link href="/portal/plans?intent=renew">Renew</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
+                        <Link href="/portal/plans?intent=upgrade">Upgrade</Link>
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -264,12 +278,12 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm" className="rounded-xl">
-              <Link href="/pricing">Renew</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline" className="rounded-xl">
-              <Link href="/pricing">Upgrade</Link>
-            </Button>
+              <Button asChild size="sm" className="rounded-xl">
+                <Link href="/portal/plans?intent=renew">Renew</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="rounded-xl">
+                <Link href="/portal/plans?intent=upgrade">Upgrade</Link>
+              </Button>
           </div>
           <p className="text-xs text-[var(--portal-muted)]">
             Subscriptions load from License Engine public billing APIs.

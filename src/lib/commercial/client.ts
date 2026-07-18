@@ -421,6 +421,147 @@ export async function fetchMyBillingHistory(accessToken: string) {
   };
 }
 
+export type BillingCheckoutSession = {
+  id?: string;
+  session_token?: string;
+  checkout_url?: string;
+  status?: string;
+  purpose?: string;
+  amount?: number | null;
+  currency?: string | null;
+  gateway?: string | null;
+};
+
+async function postPublic<T>(
+  path: string,
+  body: Record<string, unknown>,
+  accessToken: string
+): Promise<CatalogFetchResult<T | null>> {
+  const base = commercialApiBase();
+  const url = `${base}${path}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...commercialHeaders(accessToken),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    let json: LicenseEnvelope<T> = {};
+    try {
+      json = (await res.json()) as LicenseEnvelope<T>;
+    } catch {
+      json = { success: false, message: "Invalid response from License Engine." };
+    }
+
+    if (!res.ok || json.success === false) {
+      return {
+        ok: false,
+        status: res.status,
+        message: publicUpstreamMessage(
+          json.message || json.error?.message,
+          res.status,
+          `License Engine request failed (${res.status}).`,
+          json.code || json.error?.code
+        ),
+        data: (json.data as T) ?? null,
+      };
+    }
+
+    return {
+      ok: true,
+      status: res.status,
+      message: json.message || "OK",
+      data: (json.data as T) ?? null,
+    };
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
+    return emptyResult(
+      null,
+      toPublicError(
+        friendlyNetworkError(
+          error,
+          aborted
+            ? "The request timed out. Please retry."
+            : "Something went wrong. Please try again later."
+        ),
+        aborted ? 504 : 502
+      ).message,
+      aborted ? 504 : 502
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Start renewal checkout for an existing subscription. */
+export async function requestSubscriptionRenewal(
+  accessToken: string,
+  subscriptionId: string,
+  body?: { gateway?: string; success_url?: string; cancel_url?: string }
+) {
+  return postPublic<BillingCheckoutSession>(
+    `/v1/public/billing/subscriptions/${encodeURIComponent(subscriptionId)}/renew`,
+    {
+      gateway: body?.gateway || "simulated",
+      success_url: body?.success_url,
+      cancel_url: body?.cancel_url,
+    },
+    accessToken
+  );
+}
+
+/** Request plan upgrade (Engine rejects downgrades when filtered client-side). */
+export async function requestPlanChange(
+  accessToken: string,
+  body: {
+    subscription_id: string;
+    to_plan_id: string;
+    timing?: "immediate" | "end_of_period" | "scheduled";
+    gateway?: string;
+  }
+) {
+  return postPublic<{
+    plan_change?: unknown;
+    checkout?: BillingCheckoutSession;
+    applied?: boolean;
+  }>("/v1/public/billing/plan-changes", {
+    subscription_id: body.subscription_id,
+    to_plan_id: body.to_plan_id,
+    timing: body.timing || "immediate",
+    gateway: body.gateway || "simulated",
+  }, accessToken);
+}
+
+export async function fetchCheckoutSession(
+  accessToken: string,
+  sessionToken: string
+) {
+  return getPublic<BillingCheckoutSession>(
+    `/v1/public/billing/checkout/${encodeURIComponent(sessionToken)}`,
+    undefined,
+    { revalidate: false, accessToken }
+  );
+}
+
+export async function confirmCheckoutSession(
+  accessToken: string,
+  sessionToken: string,
+  body?: { reference?: string }
+) {
+  return postPublic(
+    `/v1/public/billing/checkout/${encodeURIComponent(sessionToken)}/confirm`,
+    { reference: body?.reference },
+    accessToken
+  );
+}
+
 /** Prefer the primary ERP product when the catalog spans multiple products. */
 export function resolvePrimaryProductSlug(
   products: CatalogProduct[],

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -69,7 +69,6 @@ function postPlatformSso(payload: {
 }
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const prefill = searchParams.get("username") || searchParams.get("email") || "";
   const registered = searchParams.get("registered") === "1";
@@ -120,15 +119,18 @@ function LoginForm() {
   }, [prefill]);
 
   useEffect(() => {
-    fetch("/api/portal/dashboard", { cache: "no-store" })
+    fetch("/api/portal/dashboard", { cache: "no-store", credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
-        if (json?.success) router.replace(safeInternalPath(nextPath));
+        if (json?.success) {
+          // Full navigation so portal layout + topbar mount cleanly.
+          window.location.replace(safeInternalPath(nextPath));
+        }
       })
       .catch(() => {
         /* stay on login */
       });
-  }, [router, nextPath]);
+  }, [nextPath]);
 
   function finishLogin(json: {
     data?: {
@@ -168,8 +170,8 @@ function LoginForm() {
       return;
     }
 
-    // Customer / password-only — same-origin portal navigation only.
-    router.replace(safeInternalPath(json.data?.redirectUrl || nextPath));
+    // Full document navigation so SiteShell + PortalShell remount with cookies.
+    window.location.assign(safeInternalPath(json.data?.redirectUrl || nextPath));
   }
 
   async function submitCredentials(e: React.FormEvent) {
@@ -184,6 +186,7 @@ function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password, remember }),
         cache: "no-store",
+        credentials: "include",
       });
       const json = await res.json();
 
@@ -275,6 +278,8 @@ function LoginForm() {
           remember,
           account_kind: accountKind,
         }),
+        credentials: "include",
+        cache: "no-store",
       });
       const json = await res.json();
 
@@ -317,6 +322,8 @@ function LoginForm() {
           remember,
           account_kind: "platform",
         }),
+        credentials: "include",
+        cache: "no-store",
       });
       const json = await res.json();
 

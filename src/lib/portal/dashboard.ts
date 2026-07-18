@@ -507,7 +507,12 @@ export async function loadPortalDashboard(
     {
       id: "renew",
       label: "Renew Subscription",
-      href: "/portal/subscriptions",
+      href: "/portal/plans?intent=renew",
+    },
+    {
+      id: "upgrade",
+      label: "Upgrade Plan",
+      href: "/portal/plans?intent=upgrade",
     },
     {
       id: "users",

@@ -243,9 +243,12 @@ export function PortalDashboardView() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button asChild size="sm" className="rounded-xl">
-                    <Link href="/portal/subscriptions">Renew</Link>
+                    <Link href="/portal/plans?intent=renew">Renew</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline" className="rounded-xl">
+                    <Link href="/portal/plans?intent=upgrade">Upgrade</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="ghost" className="rounded-xl">
                     <Link href="/portal/licenses">Download license</Link>
                   </Button>
                 </div>

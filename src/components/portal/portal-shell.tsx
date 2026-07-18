@@ -9,9 +9,7 @@ import {
   ChevronDown,
   LogOut,
   Menu,
-  Moon,
   Search,
-  Sun,
   X,
 } from "lucide-react";
 import { BrandLogo } from "@/components/shared/brand-logo";
@@ -27,7 +25,6 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { data } = usePortalContext();
   const [pending, startTransition] = useTransition();
-  const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -36,18 +33,15 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  // Portal is light-only — never follow OS dark preference or saved dark theme.
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("wt_portal_theme");
-      const preferDark =
-        saved === "dark" ||
-        (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches);
-      setDark(preferDark);
-      document.documentElement.classList.toggle("portal-dark", preferDark);
-      document.documentElement.classList.add("portal-app");
+      localStorage.setItem("wt_portal_theme", "light");
     } catch {
       /* ignore */
     }
+    document.documentElement.classList.remove("portal-dark");
+    document.documentElement.classList.add("portal-app");
     return () => {
       document.documentElement.classList.remove("portal-app");
     };
@@ -83,17 +77,6 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       document.removeEventListener("keydown", onKey);
     };
   }, []);
-
-  function toggleTheme() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("portal-dark", next);
-    try {
-      localStorage.setItem("wt_portal_theme", next ? "dark" : "light");
-    } catch {
-      /* ignore */
-    }
-  }
 
   async function logout(allDevices = false) {
     startTransition(async () => {
@@ -375,15 +358,6 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
                 ) : null}
               </AnimatePresence>
             </div>
-
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="portal-focus-ring rounded-xl border border-[var(--portal-border)] p-2 text-[var(--portal-muted)] transition hover:bg-[var(--portal-soft)] hover:text-[var(--portal-fg)]"
-              aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
-            >
-              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
 
             <div className="relative" ref={profileRef}>
               <button

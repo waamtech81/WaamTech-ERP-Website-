@@ -156,41 +156,74 @@ function LoginForm() {
     setInfo("");
     setLoading(true);
 
+    const requestUrl = "/api/auth/login";
+
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(requestUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password, remember }),
+        cache: "no-store",
       });
       const json = await res.json();
 
+      const challengeTokenValue = String(json.data?.challenge_token || "").trim();
+      const requiresEmailVerification = json.requires_email_verification === true;
+      const requiresOtpFlag = json.requiresOtp === true;
+      const accountType =
+        json.accountKind === "platform" ||
+        json.data?.accountKind === "platform" ||
+        json.data?.account_kind === "platform"
+          ? "platform"
+          : "customer";
+
+      // Temporary production diagnostics — remove after OTP migration is verified.
+      console.info("[auth-login-debug]", {
+        requestUrl,
+        success: json.success,
+        requires_email_verification: json.requires_email_verification,
+        requiresOtp: json.requiresOtp,
+        challenge_token: Boolean(challengeTokenValue),
+        account_type: accountType,
+        has_access_token: Boolean(json.data?.accessToken),
+        redirectUrl: json.data?.redirectUrl || null,
+        status: res.status,
+      });
+
       if (!json.success) {
+        console.info("[auth-login-debug]", {
+          redirect_decision: "error",
+          message: json.message,
+        });
         setError(json.message || "Login failed.");
         setLoading(false);
         return;
       }
 
       if (json.data?.accountKind === "platform" && json.data?.accessToken) {
+        console.info("[auth-login-debug]", { redirect_decision: "platform_sso" });
         finishLogin(json);
         return;
       }
 
       if (json.requires2fa || json.requires_2fa) {
+        console.info("[auth-login-debug]", { redirect_decision: "totp" });
         setAccountKind("platform");
-        setChallengeToken(json.data?.challenge_token || "");
+        setChallengeToken(challengeTokenValue);
         setStep("totp");
         setInfo(json.message || "Enter your authenticator app code.");
         setLoading(false);
         return;
       }
 
-      if (json.requiresOtp || json.requires_email_verification) {
-        setAccountKind(
-          json.accountKind === "platform" || json.data?.account_kind === "platform"
-            ? "platform"
-            : "customer"
-        );
-        setChallengeToken(json.data?.challenge_token || "");
+      // OTP only when backend explicitly requires verification AND issues a challenge.
+      if (
+        challengeTokenValue &&
+        (requiresEmailVerification || requiresOtpFlag)
+      ) {
+        console.info("[auth-login-debug]", { redirect_decision: "otp" });
+        setAccountKind(accountType);
+        setChallengeToken(challengeTokenValue);
         setStep("otp");
         setCooldown(60);
         setInfo(
@@ -201,11 +234,17 @@ function LoginForm() {
         return;
       }
 
-      // Password-only success must never establish a customer session
-      setError(
-        json.message ||
-          "Login OTP verification is required. Check your email for a code."
-      );
+      // Verified customer / password-only success — session cookies already set by API.
+      if (json.success) {
+        console.info("[auth-login-debug]", {
+          redirect_decision: "portal",
+          next: json.data?.redirectUrl || nextPath,
+        });
+        finishLogin(json);
+        return;
+      }
+
+      setError(json.message || "Login failed. Please try again.");
       setLoading(false);
     } catch (err) {
       setError(friendlyNetworkError(err, "Something went wrong. Please try again."));

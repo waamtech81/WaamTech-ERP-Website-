@@ -148,7 +148,7 @@ async function requestLicense<T>(
   return { ok: false, status: lastStatus, message: lastError };
 }
 
-/** Customer identity login — Engine validates password, lock, status; may require Login OTP. */
+/** Customer identity login — Engine validates password; OTP only if email is not yet verified. */
 export async function identityLogin(input: {
   username?: string;
   email?: string;
@@ -157,20 +157,29 @@ export async function identityLogin(input: {
   email_code?: string;
   otp?: string;
 }) {
-  return requestLicense<IdentityLoginSuccess & Partial<IdentityLoginChallenge>>(
-    "POST",
-    ["/v1/identity/login", "/identity/login"],
-    {
-      body: {
-        username: input.username,
-        email: input.email,
-        password: input.password,
-        challenge_token: input.challenge_token,
-        email_code: input.email_code || input.otp,
-        otp: input.otp || input.email_code,
-      },
+  const result = await requestLicense<
+    IdentityLoginSuccess & Partial<IdentityLoginChallenge>
+  >("POST", ["/v1/identity/login", "/identity/login"], {
+    body: {
+      username: input.username,
+      email: input.email,
+      password: input.password,
+      challenge_token: input.challenge_token,
+      email_code: input.email_code || input.otp,
+      otp: input.otp || input.email_code,
+    },
+  });
+
+  if (result.data) {
+    const normalized = normalizeIdentityLoginData(result.data);
+    if (normalized) {
+      return {
+        ...result,
+        data: normalized as IdentityLoginSuccess & Partial<IdentityLoginChallenge>,
+      };
     }
-  );
+  }
+  return result;
 }
 
 export async function identityResendLoginOtp(input: { challenge_token: string }) {
@@ -278,21 +287,58 @@ export async function identityRenewSubscription(
   );
 }
 
+/** Normalize Engine login payloads (camelCase or snake_case tokens). */
+export function normalizeIdentityLoginData(
+  data: unknown
+): (IdentityLoginSuccess & Partial<IdentityLoginChallenge>) | Record<string, unknown> | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const d = data as Record<string, unknown>;
+  const accessToken =
+    (typeof d.accessToken === "string" && d.accessToken) ||
+    (typeof d.access_token === "string" && d.access_token) ||
+    "";
+  const refreshToken =
+    (typeof d.refreshToken === "string" && d.refreshToken) ||
+    (typeof d.refresh_token === "string" && d.refresh_token) ||
+    "";
+  if (accessToken && refreshToken) {
+    return {
+      ...d,
+      accessToken,
+      refreshToken,
+      identity: (d.identity as IdentityProfile) || ({} as IdentityProfile),
+      customer_id: String(d.customer_id || ""),
+    };
+  }
+  return d;
+}
+
 export function isLoginChallenge(
   data: unknown
 ): data is IdentityLoginChallenge {
   if (!data || typeof data !== "object") return false;
+  // Tokens always win — verified users must not be forced into OTP.
+  if (hasLoginTokens(data)) return false;
   const d = data as Record<string, unknown>;
+  const challenge =
+    typeof d.challenge_token === "string" ? d.challenge_token.trim() : "";
+  if (!challenge) return false;
   return (
-    (d.requires_email_verification === true ||
-      d.requiresOtp === true ||
-      d.requires_otp === true) &&
-    typeof d.challenge_token === "string"
+    d.requires_email_verification === true ||
+    d.requiresOtp === true ||
+    d.requires_otp === true
   );
 }
 
 export function hasLoginTokens(data: unknown): data is IdentityLoginSuccess {
   if (!data || typeof data !== "object") return false;
   const d = data as Record<string, unknown>;
-  return Boolean(d.accessToken && d.refreshToken);
+  const accessToken = d.accessToken || d.access_token;
+  const refreshToken = d.refreshToken || d.refresh_token;
+  return Boolean(
+    typeof accessToken === "string" &&
+      accessToken &&
+      typeof refreshToken === "string" &&
+      refreshToken
+  );
 }

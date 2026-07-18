@@ -166,12 +166,26 @@ export function isPlatformTotpChallenge(data: unknown): data is PlatformTotpChal
 export function hasPlatformTokens(data: unknown): data is PlatformLoginSuccess {
   if (!data || typeof data !== "object") return false;
   const d = data as Record<string, unknown>;
-  return Boolean(
-    d.accessToken &&
-      d.refreshToken &&
-      d.user &&
-      typeof d.user === "object"
-  );
+  const accessToken =
+    (typeof d.accessToken === "string" && d.accessToken) ||
+    (typeof d.access_token === "string" && d.access_token) ||
+    "";
+  const refreshToken =
+    (typeof d.refreshToken === "string" && d.refreshToken) ||
+    (typeof d.refresh_token === "string" && d.refresh_token) ||
+    "";
+  if (
+    !accessToken ||
+    !refreshToken ||
+    !d.user ||
+    typeof d.user !== "object"
+  ) {
+    return false;
+  }
+  // Normalize snake_case onto the object for callers.
+  (d as PlatformLoginSuccess).accessToken = accessToken;
+  (d as PlatformLoginSuccess).refreshToken = refreshToken;
+  return true;
 }
 
 export function isPlatformStaffRole(role: string | null | undefined): boolean {

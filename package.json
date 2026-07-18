@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "clean": "node -e \"const fs=require('fs'); for (const p of ['.next','node_modules/.cache']) { try { fs.rmSync(p,{recursive:true,force:true}); console.log('cleared',p);} catch {} }\"",
+    "rebuild": "npm run clean && npm run build"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

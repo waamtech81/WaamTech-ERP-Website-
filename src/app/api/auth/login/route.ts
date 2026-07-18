@@ -25,17 +25,6 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
-import { licenseConfig } from "@/lib/license/config";
-
-/** Temporary production auth diagnostics — remove after OTP migration is verified. */
-function authDebug(event: string, payload: Record<string, unknown>) {
-  console.info("[auth-login-debug]", {
-    event,
-    ts: new Date().toISOString(),
-    licenseApi: licenseConfig.apiUrl,
-    ...payload,
-  });
-}
 
 function platformSuccessPayload(data: {
   accessToken: string;
@@ -47,10 +36,33 @@ function platformSuccessPayload(data: {
     first_name?: string | null;
     last_name?: string | null;
   };
-}) {
+}):
+  | {
+      accountKind: "platform";
+      redirectUrl: string;
+      role: string;
+      user: {
+        id: string;
+        email: string;
+        role: string;
+        first_name: string | null;
+        last_name: string | null;
+      };
+      accessToken: string;
+      refreshToken: string;
+    }
+  | { ok: false; message: string } {
+  const portal = platformAdminPortalUrl();
+  if (!portal.ok) {
+    return {
+      ok: false,
+      message:
+        "Unable to complete platform sign-in from this environment. Contact your administrator.",
+    };
+  }
   return {
     accountKind: "platform" as const,
-    redirectUrl: platformAdminPortalUrl(),
+    redirectUrl: portal.url,
     role: data.user.role,
     user: {
       id: data.user.id,
@@ -59,16 +71,25 @@ function platformSuccessPayload(data: {
       first_name: data.user.first_name ?? null,
       last_name: data.user.last_name ?? null,
     },
-    // Tokens are posted via browser form to License Engine /sso (not stored in Website cookies).
     accessToken: data.accessToken,
     refreshToken: data.refreshToken,
   };
 }
 
+function isPlatformSuperAdminPayload(data: unknown): boolean {
+  if (!data || typeof data !== "object") return false;
+  const d = data as Record<string, unknown>;
+  if (d.account_type === "platform_super_admin") return true;
+  const user = d.user as { role?: string } | undefined;
+  return user?.role === "super_admin" && (hasPlatformTokens(data) || hasLoginTokens(data) || d.requires_step_up === true);
+}
+
 /**
- * Unified login:
- * 1) If identifier is an email, try Platform Super Admin / staff auth first (License Engine /auth).
- * 2) Otherwise (or on staff invalid-credentials) continue with commercial customer identity login.
+ * Unified login (permanent policy):
+ * 1) Password step uses identity login ONLY (Engine also resolves Platform Super Admin
+ *    via tryLogin — never probe mutating staff /auth/login with commercial emails).
+ * 2) Verified customers receive tokens and get a session immediately.
+ * 3) OTP only when Engine returns a genuine unverified-email challenge.
  */
 export async function POST(req: Request) {
   try {
@@ -102,7 +123,8 @@ export async function POST(req: Request) {
 
     const username = sanitizeText(body?.username || body?.email, 254);
     const password = String(body?.password || "");
-    const challengeToken = sanitizeText(body?.challenge_token, 128);
+    // JWT challenge tokens exceed 128 chars — truncating breaks OTP completion permanently.
+    const challengeToken = sanitizeText(body?.challenge_token, 4096);
     const emailCode = sanitizeText(body?.email_code || body?.otp, 12);
     const totpCode = sanitizeText(body?.totp_code, 12);
     const recoveryCode = sanitizeText(body?.recovery_code, 64);
@@ -113,18 +135,7 @@ export async function POST(req: Request) {
       body?.platform === true ||
       Boolean(totpCode || recoveryCode);
 
-    authDebug("request", {
-      path: "/api/auth/login",
-      upstreamBase: licenseConfig.apiUrl,
-      hasPassword: Boolean(password),
-      hasChallengeToken: Boolean(challengeToken),
-      hasEmailCode: Boolean(emailCode),
-      hasTotp: Boolean(totpCode),
-      accountKindHint: accountKindHint || null,
-      identifierKind: looksLikeEmail(username) ? "email" : "username",
-    });
-
-    // ── Platform staff challenge completion (email OTP / TOTP) ──────────────
+    // Platform staff challenge completion (email OTP / TOTP) — explicit step only.
     if (challengeToken && (emailCode || totpCode || recoveryCode) && isPlatformChallenge) {
       const otpLimited = await rateLimit(`portal-login-otp:${ip}`, 20, 15 * 60_000);
       if (!otpLimited.ok) {
@@ -147,15 +158,6 @@ export async function POST(req: Request) {
       });
 
       if (platformResult.ok && isPlatformTotpChallenge(platformResult.data)) {
-        authDebug("decision", {
-          account_type: "platform",
-          redirect: "totp",
-          success: true,
-          requires_email_verification: false,
-          challenge_token: Boolean(
-            platformResult.data.challenge_token || challengeToken
-          ),
-        });
         return NextResponse.json({
           success: true,
           accountKind: "platform",
@@ -179,18 +181,17 @@ export async function POST(req: Request) {
             { status: 401 }
           );
         }
-        authDebug("decision", {
-          account_type: "platform",
-          redirect: "sso",
-          success: true,
-          requires_email_verification: false,
-          challenge_token: false,
-          has_tokens: true,
-        });
+        const sso = platformSuccessPayload(platformResult.data);
+        if ("ok" in sso && sso.ok === false) {
+          return NextResponse.json(
+            { success: false, message: sso.message },
+            { status: 409 }
+          );
+        }
         return NextResponse.json({
           success: true,
           message: "Logged in successfully.",
-          data: platformSuccessPayload(platformResult.data),
+          data: sso,
         });
       }
 
@@ -208,7 +209,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── Customer identity OTP verification ──────────────────────────────────
+    // Customer identity OTP verification (unverified emails only).
     if (challengeToken && emailCode && !isPlatformChallenge) {
       const otpLimited = await rateLimit(`portal-login-otp:${ip}`, 20, 15 * 60_000);
       if (!otpLimited.ok) {
@@ -250,16 +251,6 @@ export async function POST(req: Request) {
         );
       }
 
-      authDebug("decision", {
-        account_type: "customer",
-        redirect: "portal",
-        success: true,
-        requires_email_verification: false,
-        challenge_token: false,
-        has_tokens: true,
-        via: "otp_complete",
-      });
-
       const res = NextResponse.json({
         success: true,
         message: "Logged in successfully.",
@@ -282,125 +273,15 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── 1) Platform Super Admin / staff first (email identifiers only) ──────
-    if (looksLikeEmail(username)) {
-      const platformResult = await platformLogin({
-        email: username,
-        password,
-      });
-
-      if (platformResult.ok && isPlatformEmailChallenge(platformResult.data)) {
-        authDebug("decision", {
-          account_type: "platform",
-          redirect: "otp",
-          success: true,
-          requires_email_verification: true,
-          challenge_token: Boolean(platformResult.data.challenge_token),
-        });
-        return NextResponse.json({
-          success: true,
-          accountKind: "platform",
-          requiresOtp: true,
-          requires_email_verification: true,
-          message:
-            platformResult.data.message ||
-            "Enter the verification code sent to your registered email.",
-          data: {
-            challenge_token: platformResult.data.challenge_token,
-            email: platformResult.data.email,
-            account_kind: "platform",
-            otpExpiresInMinutes: 10,
-          },
-        });
-      }
-
-      if (platformResult.ok && isPlatformTotpChallenge(platformResult.data)) {
-        authDebug("decision", {
-          account_type: "platform",
-          redirect: "totp",
-          success: true,
-          requires_email_verification: false,
-          challenge_token: Boolean(platformResult.data.challenge_token),
-        });
-        return NextResponse.json({
-          success: true,
-          accountKind: "platform",
-          requires2fa: true,
-          requires_2fa: true,
-          message:
-            platformResult.data.message ||
-            "Enter your authenticator app code.",
-          data: {
-            challenge_token: platformResult.data.challenge_token || "",
-            account_kind: "platform",
-          },
-        });
-      }
-
-      if (platformResult.ok && hasPlatformTokens(platformResult.data)) {
-        if (!isPlatformStaffRole(platformResult.data.user.role)) {
-          return NextResponse.json(
-            { success: false, message: friendlyAuthMessage("invalid") },
-            { status: 401 }
-          );
-        }
-        authDebug("decision", {
-          account_type: "platform",
-          redirect: "sso",
-          success: true,
-          requires_email_verification: false,
-          challenge_token: false,
-          has_tokens: true,
-        });
-        return NextResponse.json({
-          success: true,
-          message: "Logged in successfully.",
-          data: platformSuccessPayload(platformResult.data),
-        });
-      }
-
-      const staffMsg = String(platformResult.message || "").toLowerCase();
-      if (
-        platformResult.status === 429 ||
-        staffMsg.includes("lock") ||
-        staffMsg.includes("too many") ||
-        staffMsg.includes("blocked")
-      ) {
-        return NextResponse.json(
-          { success: false, message: friendlyAuthMessage(platformResult.message) },
-          {
-            status:
-              platformResult.status >= 400 && platformResult.status < 600
-                ? platformResult.status
-                : 401,
-          }
-        );
-      }
-      // 401 invalid credentials → continue to commercial customer identity
-    }
-
-    // ── 2) Commercial customer identity login ───────────────────────────────
+    /**
+     * Password step — identity login ONLY.
+     * Do NOT probe staff /auth/login: that recorded IP failures for commercial emails
+     * and could surface staff Login OTP incorrectly.
+     */
     const result = await identityLogin({
       username,
       email: username.includes("@") ? username : undefined,
       password,
-    });
-
-    authDebug("upstream_identity", {
-      ok: result.ok,
-      status: result.status,
-      message: result.message,
-      success: result.ok,
-      requires_email_verification:
-        result.data && typeof result.data === "object"
-          ? (result.data as Record<string, unknown>).requires_email_verification
-          : undefined,
-      challenge_token:
-        result.data && typeof result.data === "object"
-          ? Boolean((result.data as Record<string, unknown>).challenge_token)
-          : false,
-      has_access_token: hasLoginTokens(result.data),
-      account_type: "customer",
     });
 
     if (!result.ok) {
@@ -415,20 +296,72 @@ export async function POST(req: Request) {
 
     const data = normalizeIdentityLoginData(result.data) ?? result.data;
 
-    /**
-     * Verified customers (tokens from Control Center) authenticate with password only.
-     * Prefer tokens over any leftover challenge-shaped fields.
-     */
+    // Platform Super Admin resolved by Engine identity tryLogin.
+    if (isPlatformSuperAdminPayload(data)) {
+      const d = data as Record<string, unknown>;
+      if (d.requires_step_up === true && typeof d.redirect_url === "string") {
+        return NextResponse.json({
+          success: true,
+          accountKind: "platform",
+          requiresStepUp: true,
+          message:
+            (typeof d.message === "string" && d.message) ||
+            "Complete sign-in on the License Engine Admin Portal.",
+          data: {
+            accountKind: "platform",
+            account_kind: "platform",
+            redirectUrl: d.redirect_url,
+          },
+        });
+      }
+
+      if (hasPlatformTokens(data) || hasLoginTokens(data)) {
+        const user = (d.user || {}) as {
+          id?: string;
+          email?: string;
+          role?: string;
+          first_name?: string | null;
+          last_name?: string | null;
+        };
+        if (!user.id || !user.email || !isPlatformStaffRole(user.role)) {
+          return NextResponse.json(
+            { success: false, message: friendlyAuthMessage("invalid") },
+            { status: 401 }
+          );
+        }
+        const tokens = hasPlatformTokens(data)
+          ? data
+          : (normalizeIdentityLoginData(data) as {
+              accessToken: string;
+              refreshToken: string;
+            });
+        const sso = platformSuccessPayload({
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role || "super_admin",
+            first_name: user.first_name ?? null,
+            last_name: user.last_name ?? null,
+          },
+        });
+        if ("ok" in sso && sso.ok === false) {
+          return NextResponse.json(
+            { success: false, message: sso.message },
+            { status: 409 }
+          );
+        }
+        return NextResponse.json({
+          success: true,
+          message: "Logged in successfully.",
+          data: sso,
+        });
+      }
+    }
+
+    // Verified customers: tokens always win — create session, never force OTP.
     if (hasLoginTokens(data)) {
-      authDebug("decision", {
-        account_type: "customer",
-        redirect: "portal",
-        success: true,
-        requires_email_verification: false,
-        challenge_token: false,
-        has_tokens: true,
-        via: "password_only",
-      });
       const res = NextResponse.json({
         success: true,
         message: "Logged in successfully.",
@@ -445,15 +378,8 @@ export async function POST(req: Request) {
       });
     }
 
+    // Genuinely unverified identities only.
     if (isLoginChallenge(data)) {
-      authDebug("decision", {
-        account_type: "customer",
-        redirect: "otp",
-        success: true,
-        requires_email_verification: true,
-        challenge_token: true,
-        has_tokens: false,
-      });
       return NextResponse.json({
         success: true,
         accountKind: "customer",
@@ -471,50 +397,23 @@ export async function POST(req: Request) {
       });
     }
 
-    if (
-      data &&
-      typeof data === "object" &&
-      typeof (data as Record<string, unknown>).challenge_token === "string" &&
-      String((data as Record<string, unknown>).challenge_token).trim() &&
-      ((data as Record<string, unknown>).requires_email_verification === true ||
-        (data as Record<string, unknown>).requiresOtp === true ||
-        (data as Record<string, unknown>).requires_otp === true)
-    ) {
-      const challenge = data as Record<string, unknown>;
-      authDebug("decision", {
-        account_type: "customer",
-        redirect: "otp",
-        success: true,
-        requires_email_verification: true,
-        challenge_token: true,
-        has_tokens: false,
-        via: "fallback_challenge",
-      });
+    if (data && typeof data === "object" && isPlatformEmailChallenge(data)) {
       return NextResponse.json({
         success: true,
-        accountKind: "customer",
+        accountKind: "platform",
         requiresOtp: true,
         requires_email_verification: true,
         message:
-          String(challenge.message || "") ||
+          data.message ||
           "Enter the verification code sent to your registered email.",
         data: {
-          challenge_token: String(challenge.challenge_token),
-          email: String(challenge.email || ""),
-          account_kind: "customer",
-          otpExpiresInMinutes: Number(challenge.otpExpiresInMinutes || 10),
+          challenge_token: data.challenge_token,
+          email: data.email,
+          account_kind: "platform",
+          otpExpiresInMinutes: 10,
         },
       });
     }
-
-    authDebug("decision", {
-      account_type: "customer",
-      redirect: "error",
-      success: false,
-      requires_email_verification: false,
-      challenge_token: false,
-      has_tokens: false,
-    });
 
     return NextResponse.json(
       {
@@ -523,10 +422,7 @@ export async function POST(req: Request) {
       },
       { status: 401 }
     );
-  } catch (error) {
-    authDebug("error", {
-      message: error instanceof Error ? error.message : "unknown",
-    });
+  } catch {
     return NextResponse.json(
       {
         success: false,

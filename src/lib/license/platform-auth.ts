@@ -3,7 +3,10 @@
  * Super Admin / administrator / support_staff live in Engine `users` —
  * one identity, one password across Website, Admin Portal, and ERP integrations.
  */
+import { toPublicError } from "@/lib/api/errors";
+import { logApiError } from "@/lib/api/logger";
 import { licenseConfig, normalizeLicenseBase } from "@/lib/license/config";
+import { isLoopbackHostname, isLoopbackUrl } from "@/lib/network/address-space";
 
 export type PlatformRole = "super_admin" | "administrator" | "support_staff";
 
@@ -43,6 +46,7 @@ export type PlatformLoginResult =
 type LicenseApiResponse<T = Record<string, unknown>> = {
   success?: boolean;
   message?: string;
+  code?: string;
   data?: T;
   error?: { message?: string; code?: string };
 };
@@ -66,8 +70,31 @@ async function parseJson<T>(res: Response): Promise<LicenseApiResponse<T>> {
   }
 }
 
-function extractMessage(json: LicenseApiResponse<unknown>, fallback: string) {
-  return json.message || json.error?.message || fallback;
+function rawMessage(json: LicenseApiResponse<unknown>): string {
+  if (typeof json.message === "string" && json.message.trim()) return json.message;
+  if (typeof json.error?.message === "string" && json.error.message.trim()) {
+    return json.error.message;
+  }
+  return "";
+}
+
+function rawCode(json: LicenseApiResponse<unknown>): string | undefined {
+  if (typeof json.code === "string" && json.code.trim()) return json.code.trim();
+  if (typeof json.error?.code === "string" && json.error.code.trim()) {
+    return json.error.code.trim();
+  }
+  return undefined;
+}
+
+function extractError(
+  json: LicenseApiResponse<unknown>,
+  status: number,
+  fallback: string
+): { message: string; code?: string } {
+  const publicError = toPublicError(rawMessage(json) || fallback, status, {
+    code: rawCode(json),
+  });
+  return { message: publicError.message, code: publicError.code };
 }
 
 /**
@@ -78,9 +105,10 @@ async function requestPlatformAuth<T>(
   method: "GET" | "POST",
   paths: string[],
   body?: unknown
-): Promise<{ ok: boolean; status: number; message: string; data?: T }> {
+): Promise<{ ok: boolean; status: number; message: string; code?: string; data?: T }> {
   const base = normalizeLicenseBase(licenseConfig.apiUrl);
   let lastError = "License service unavailable.";
+  let lastCode: string | undefined;
   let lastStatus = 502;
 
   for (const path of paths) {
@@ -98,23 +126,51 @@ async function requestPlatformAuth<T>(
         return {
           ok: true,
           status: res.status,
-          message: extractMessage(json, "OK"),
+          message: rawMessage(json) || "OK",
           data: json.data,
         };
       }
 
-      lastError = extractMessage(json, `License request failed (${res.status}).`);
+      const technical =
+        rawMessage(json) || `License request failed (${res.status}).`;
+      logApiError(new Error(technical), {
+        endpoint: path,
+        httpStatus: res.status,
+        technicalMessage: technical,
+      });
+      const extracted = extractError(json, res.status, technical);
+      lastError = extracted.message;
+      lastCode = extracted.code;
       // 401/403 = not a staff account or bad password — caller may fall through
       if (res.status !== 404) {
-        return { ok: false, status: res.status, message: lastError, data: json.data };
+        return {
+          ok: false,
+          status: res.status,
+          message: lastError,
+          code: lastCode,
+          data: json.data,
+        };
       }
     } catch (error) {
-      lastError =
+      const technical =
         error instanceof Error ? error.message : "Could not reach license server.";
+      logApiError(error, {
+        endpoint: path,
+        httpStatus: 502,
+        technicalMessage: technical,
+      });
+      const publicError = toPublicError(technical, 502);
+      lastError = publicError.message;
+      lastCode = publicError.code;
     }
   }
 
-  return { ok: false, status: lastStatus, message: lastError };
+  return {
+    ok: false,
+    status: lastStatus,
+    message: lastError,
+    code: lastCode,
+  };
 }
 
 export async function platformLogin(input: {
@@ -193,25 +249,87 @@ export function isPlatformStaffRole(role: string | null | undefined): boolean {
   return r === "super_admin" || r === "administrator" || r === "support_staff";
 }
 
-/** Where Platform staff land after Website login (License Engine Admin). */
-export function platformAdminPortalUrl(): string {
+const DEFAULT_LICENSE_PORTAL_SSO = "https://license.waamtech.com/sso";
+
+/**
+ * Where Platform staff land after Website login (License Engine Admin).
+ *
+ * Never return a loopback SSO URL when the browser page is not also loopback —
+ * that triggers Chrome's "Allow other apps and services on this device"
+ * (loopback-network) permission prompt. Local Control Center tokens also cannot
+ * be posted to production SSO; callers must handle `ok: false`.
+ */
+export function platformAdminPortalUrl(opts?: {
+  /** Origin of the page that will perform the browser SSO form POST. */
+  browserOrigin?: string | null;
+}): { ok: true; url: string } | { ok: false; reason: string; configuredUrl: string } {
   const raw =
     process.env.NEXT_PUBLIC_LICENSE_PORTAL_URL ||
     process.env.LICENSE_PORTAL_URL ||
     licenseConfig.portalUrl ||
     "https://license.waamtech.com";
+
+  let configuredUrl = DEFAULT_LICENSE_PORTAL_SSO;
   try {
     const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
     u.hostname = u.hostname.replace(/\.+$/, "");
     u.pathname = "/sso";
     u.search = "";
     u.hash = "";
-    return u.toString();
+    configuredUrl = u.toString();
   } catch {
-    return "https://license.waamtech.com/sso";
+    configuredUrl = DEFAULT_LICENSE_PORTAL_SSO;
   }
+
+  const browserOrigin = opts?.browserOrigin?.trim() || "";
+  if (browserOrigin && isLoopbackUrl(configuredUrl)) {
+    try {
+      const pageHost = new URL(browserOrigin).hostname;
+      if (!isLoopbackHostname(pageHost)) {
+        return {
+          ok: false,
+          configuredUrl,
+          reason:
+            "Platform SSO target is localhost but this page is not. Browser→loopback would trigger Chrome Apps-on-device (loopback-network). Open the site via http://localhost:<port> for local Super Admin SSO, or set NEXT_PUBLIC_LICENSE_PORTAL_URL to a non-loopback Admin Portal.",
+        };
+      }
+    } catch {
+      /* ignore bad origin — allow configured URL */
+    }
+  }
+
+  return { ok: true, url: configuredUrl };
 }
 
 export function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+/**
+ * Identity `/login` may return Platform Super Admin payloads (via Engine
+ * tryLogin) before falling through to commercial customers.
+ */
+export function isPlatformSuperAdminPayload(data: unknown): boolean {
+  if (!data || typeof data !== "object") return false;
+  const d = data as Record<string, unknown>;
+  if (d.account_type === "platform_super_admin") return true;
+  if (d.user && typeof d.user === "object") {
+    const role = String((d.user as { role?: string }).role || "").toLowerCase();
+    return role === "super_admin";
+  }
+  return false;
+}
+
+export function isPlatformStepUpRedirect(data: unknown): data is {
+  requires_step_up: true;
+  redirect_url: string;
+  message?: string;
+} {
+  if (!data || typeof data !== "object") return false;
+  const d = data as Record<string, unknown>;
+  return (
+    d.requires_step_up === true &&
+    typeof d.redirect_url === "string" &&
+    Boolean(String(d.redirect_url).trim())
+  );
 }

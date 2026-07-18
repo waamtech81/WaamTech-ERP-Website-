@@ -1,3 +1,5 @@
+import { toPublicError } from "@/lib/api/errors";
+import { logApiError } from "@/lib/api/logger";
 import { licenseConfig, normalizeLicenseBase } from "@/lib/license/config";
 
 export type IdentityProfile = {
@@ -74,6 +76,7 @@ export type IdentityLoginChallenge = {
 type LicenseApiResponse<T = Record<string, unknown>> = {
   success?: boolean;
   message?: string;
+  code?: string;
   data?: T;
   error?: { message?: string; code?: string };
 };
@@ -99,8 +102,41 @@ async function parseJson<T>(res: Response): Promise<LicenseApiResponse<T>> {
   }
 }
 
-function extractMessage(json: LicenseApiResponse<unknown>, fallback: string) {
-  return json.message || json.error?.message || fallback;
+function rawMessage(json: LicenseApiResponse<unknown>): string {
+  if (typeof json.message === "string" && json.message.trim()) return json.message;
+  if (
+    json.error &&
+    typeof json.error === "object" &&
+    typeof (json.error as { message?: string }).message === "string" &&
+    (json.error as { message: string }).message.trim()
+  ) {
+    return (json.error as { message: string }).message;
+  }
+  return "";
+}
+
+function rawCode(json: LicenseApiResponse<unknown>): string | undefined {
+  if (typeof json.code === "string" && json.code.trim()) return json.code.trim();
+  if (
+    json.error &&
+    typeof json.error === "object" &&
+    typeof (json.error as { code?: string }).code === "string" &&
+    (json.error as { code: string }).code.trim()
+  ) {
+    return (json.error as { code: string }).code.trim();
+  }
+  return undefined;
+}
+
+function extractError(
+  json: LicenseApiResponse<unknown>,
+  status: number,
+  fallback: string
+): { message: string; code?: string } {
+  const publicError = toPublicError(rawMessage(json) || fallback, status, {
+    code: rawCode(json),
+  });
+  return { message: publicError.message, code: publicError.code };
 }
 
 async function requestLicense<T>(
@@ -110,9 +146,10 @@ async function requestLicense<T>(
     body?: unknown;
     accessToken?: string;
   }
-): Promise<{ ok: boolean; status: number; message: string; data?: T }> {
+): Promise<{ ok: boolean; status: number; message: string; code?: string; data?: T }> {
   const base = normalizeLicenseBase(licenseConfig.apiUrl);
   let lastError = "License service unavailable.";
+  let lastCode: string | undefined;
   let lastStatus = 502;
 
   for (const path of paths) {
@@ -130,22 +167,50 @@ async function requestLicense<T>(
         return {
           ok: true,
           status: res.status,
-          message: extractMessage(json, "OK"),
+          message: rawMessage(json) || "OK",
           data: json.data,
         };
       }
 
-      lastError = extractMessage(json, `License request failed (${res.status}).`);
+      const technical =
+        rawMessage(json) || `License request failed (${res.status}).`;
+      logApiError(new Error(technical), {
+        endpoint: path,
+        httpStatus: res.status,
+        technicalMessage: technical,
+      });
+      const extracted = extractError(json, res.status, technical);
+      lastError = extracted.message;
+      lastCode = extracted.code;
       if (res.status !== 404) {
-        return { ok: false, status: res.status, message: lastError, data: json.data };
+        return {
+          ok: false,
+          status: res.status,
+          message: lastError,
+          code: lastCode,
+          data: json.data,
+        };
       }
     } catch (error) {
-      lastError =
+      const technical =
         error instanceof Error ? error.message : "Could not reach license server.";
+      logApiError(error, {
+        endpoint: path,
+        httpStatus: 502,
+        technicalMessage: technical,
+      });
+      const publicError = toPublicError(technical, 502);
+      lastError = publicError.message;
+      lastCode = publicError.code;
     }
   }
 
-  return { ok: false, status: lastStatus, message: lastError };
+  return {
+    ok: false,
+    status: lastStatus,
+    message: lastError,
+    code: lastCode,
+  };
 }
 
 /** Customer identity login — Engine validates password; OTP only if email is not yet verified. */

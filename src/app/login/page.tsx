@@ -20,17 +20,32 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authConfig, getAppLoginUrl } from "@/lib/auth/config";
 import { safeInternalPath } from "@/lib/security/safe-redirect";
-import { friendlyNetworkError } from "@/lib/network/errors";
+import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
+import { wouldTriggerLoopbackPermission } from "@/lib/network/address-space";
 
 type LoginStep = "credentials" | "otp" | "totp";
 type AccountKind = "customer" | "platform";
 
+/**
+ * Platform Super Admin handoff — posts tokens to License Engine /sso.
+ * Must never target localhost from a non-loopback page origin (Chrome
+ * "Apps on device" / loopback-network permission).
+ */
 function postPlatformSso(payload: {
   redirectUrl: string;
   accessToken: string;
   refreshToken: string;
   user: unknown;
-}) {
+}): { ok: true } | { ok: false; message: string } {
+  const pageOrigin = window.location.origin;
+  if (wouldTriggerLoopbackPermission(pageOrigin, payload.redirectUrl)) {
+    return {
+      ok: false,
+      message:
+        "Blocked browser→localhost SSO handoff. Open this site via http://localhost for local Super Admin SSO.",
+    };
+  }
+
   const form = document.createElement("form");
   form.method = "POST";
   form.action = payload.redirectUrl;
@@ -50,6 +65,7 @@ function postPlatformSso(payload: {
   }
   document.body.appendChild(form);
   form.submit();
+  return { ok: true };
 }
 
 function LoginForm() {
@@ -138,15 +154,21 @@ function LoginForm() {
       json.data?.refreshToken &&
       json.data?.redirectUrl
     ) {
-      postPlatformSso({
+      const sso = postPlatformSso({
         redirectUrl: json.data.redirectUrl,
         accessToken: json.data.accessToken,
         refreshToken: json.data.refreshToken,
         user: json.data.user,
       });
+      if (!sso.ok) {
+        setError(sso.message);
+        setLoading(false);
+        return;
+      }
       return;
     }
 
+    // Customer / password-only — same-origin portal navigation only.
     router.replace(safeInternalPath(json.data?.redirectUrl || nextPath));
   }
 
@@ -156,10 +178,8 @@ function LoginForm() {
     setInfo("");
     setLoading(true);
 
-    const requestUrl = "/api/auth/login";
-
     try {
-      const res = await fetch(requestUrl, {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password, remember }),
@@ -177,37 +197,24 @@ function LoginForm() {
           ? "platform"
           : "customer";
 
-      // Temporary production diagnostics — remove after OTP migration is verified.
-      console.info("[auth-login-debug]", {
-        requestUrl,
-        success: json.success,
-        requires_email_verification: json.requires_email_verification,
-        requiresOtp: json.requiresOtp,
-        challenge_token: Boolean(challengeTokenValue),
-        account_type: accountType,
-        has_access_token: Boolean(json.data?.accessToken),
-        redirectUrl: json.data?.redirectUrl || null,
-        status: res.status,
-      });
-
       if (!json.success) {
-        console.info("[auth-login-debug]", {
-          redirect_decision: "error",
-          message: json.message,
-        });
-        setError(json.message || "Login failed.");
+        setError(apiMessageFromJson(json, "Login failed."));
         setLoading(false);
         return;
       }
 
+      // Platform Super Admin step-up — complete on License Engine Admin Portal.
+      if (json.requiresStepUp === true && json.data?.redirectUrl) {
+        window.location.assign(String(json.data.redirectUrl));
+        return;
+      }
+
       if (json.data?.accountKind === "platform" && json.data?.accessToken) {
-        console.info("[auth-login-debug]", { redirect_decision: "platform_sso" });
         finishLogin(json);
         return;
       }
 
       if (json.requires2fa || json.requires_2fa) {
-        console.info("[auth-login-debug]", { redirect_decision: "totp" });
         setAccountKind("platform");
         setChallengeToken(challengeTokenValue);
         setStep("totp");
@@ -216,12 +223,14 @@ function LoginForm() {
         return;
       }
 
-      // OTP only when backend explicitly requires verification AND issues a challenge.
+      // OTP only when Engine explicitly requires verification for an unverified account.
+      // Tokens / success without requiresOtp must never open the OTP step.
       if (
         challengeTokenValue &&
-        (requiresEmailVerification || requiresOtpFlag)
+        (requiresEmailVerification || requiresOtpFlag) &&
+        !json.data?.accessToken &&
+        json.data?.accountKind !== "platform"
       ) {
-        console.info("[auth-login-debug]", { redirect_decision: "otp" });
         setAccountKind(accountType);
         setChallengeToken(challengeTokenValue);
         setStep("otp");
@@ -234,17 +243,13 @@ function LoginForm() {
         return;
       }
 
-      // Verified customer / password-only success — session cookies already set by API.
+      // Verified customer — session cookies already set by API.
       if (json.success) {
-        console.info("[auth-login-debug]", {
-          redirect_decision: "portal",
-          next: json.data?.redirectUrl || nextPath,
-        });
         finishLogin(json);
         return;
       }
 
-      setError(json.message || "Login failed. Please try again.");
+      setError(apiMessageFromJson(json, "Login failed. Please try again."));
       setLoading(false);
     } catch (err) {
       setError(friendlyNetworkError(err, "Something went wrong. Please try again."));
@@ -274,7 +279,7 @@ function LoginForm() {
       const json = await res.json();
 
       if (!json.success) {
-        setError(json.message || "Invalid verification code.");
+        setError(apiMessageFromJson(json, "Invalid verification code."));
         setLoading(false);
         return;
       }
@@ -316,7 +321,7 @@ function LoginForm() {
       const json = await res.json();
 
       if (!json.success) {
-        setError(json.message || "Invalid authenticator code.");
+        setError(apiMessageFromJson(json, "Invalid authenticator code."));
         setLoading(false);
         return;
       }
@@ -343,7 +348,7 @@ function LoginForm() {
       });
       const json = await res.json();
       if (!json.success) {
-        setError(json.message || "Could not resend code.");
+        setError(apiMessageFromJson(json, "Could not resend code."));
       } else {
         setInfo("A new verification code was sent.");
         setCooldown(60);

@@ -90,10 +90,10 @@ export function LocaleProvider({
 }: LocaleProviderProps) {
   const [language, setLanguageState] = useState<UiLanguage>(initialLanguage);
   const [currency, setCurrencyState] = useState<CurrencyCode>(initialCurrency);
+  const [country, setCountryState] = useState<string | null>(initialCountry);
   const [rates, setRates] = useState<RateMap>(initialRates);
   const [ratesSource, setRatesSource] =
     useState<LocaleContextValue["ratesSource"]>("initial");
-  const country = initialCountry;
   const manualRef = useRef(false);
 
   const direction = directionForLanguage(language);
@@ -111,7 +111,44 @@ export function LocaleProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only on mount
   }, []);
 
+  // Auto currency from visitor geo (IP) when the user has not manually chosen.
+  // Fixes hosts without CDN country headers (e.g. Webdock) locking USD.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (document.cookie.includes(`${MANUAL_COOKIE}=1`)) {
+      manualRef.current = true;
+      return;
+    }
+
+    let alive = true;
+    fetch("/api/geo", { cache: "no-store", credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!alive || manualRef.current || !data) return;
+        const nextCountry = data.country
+          ? String(data.country).trim().toUpperCase()
+          : "";
+        if (nextCountry.length === 2) {
+          setCountryState(nextCountry);
+          writeCookie(LOCALE_STORAGE.countryCookie, nextCountry);
+        }
+        if (data.currency) {
+          const cur = normalizeCurrency(String(data.currency));
+          setCurrencyState(cur);
+          writeCookie(LOCALE_STORAGE.currencyCookie, cur);
+        }
+      })
+      .catch(() => {
+        /* keep SSR / cookie currency */
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // Refresh USD exchange rates after idle (layout already provides fallback rates).
+  // Also refresh promptly so geo currencies convert with current-day rates.
   useEffect(() => {
     let alive = true;
     let intervalId = 0;
@@ -136,10 +173,12 @@ export function LocaleProvider({
 
     let idleId: number | undefined;
     let timeoutId: number | undefined;
-    if (typeof window.requestIdleCallback === "function") {
+    // Pull sooner when not USD so local currency prices update quickly.
+    const eagerMs = currency === "USD" ? 2000 : 200;
+    if (typeof window.requestIdleCallback === "function" && currency === "USD") {
       idleId = window.requestIdleCallback(start, { timeout: 4000 });
     } else {
-      timeoutId = window.setTimeout(start, 2000);
+      timeoutId = window.setTimeout(start, eagerMs);
     }
 
     return () => {
@@ -150,7 +189,7 @@ export function LocaleProvider({
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, []);
+  }, [currency]);
 
   // SaaS sync only when an auth bearer might exist (Authorization is set by
   // Core apps). Anonymous visitors already have GeoIP + cookie locale from SSR.

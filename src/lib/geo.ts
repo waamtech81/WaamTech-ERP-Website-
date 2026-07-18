@@ -1,9 +1,9 @@
 /**
  * Country / language / currency detection helpers.
  *
- * Country detection uses standard edge/CDN geo headers (Vercel, Cloudflare,
- * Akamai) — no third-party GeoIP dependency required. Everything degrades
- * gracefully to English + USD.
+ * Country detection uses CDN geo headers when present (Vercel, Cloudflare),
+ * and falls back to IP lookup via `geo-ip.ts` on hosts like Webdock/cPanel.
+ * Everything degrades gracefully to English + USD.
  */
 import { normalizeLanguage, type UiLanguage } from "@/i18n";
 import { normalizeCurrency, type CurrencyCode } from "@/lib/currency/config";

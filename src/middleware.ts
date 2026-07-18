@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isBlockedPath, rateLimit, safeInternalPath } from "@/lib/security/guards";
 import { isValidSessionToken } from "@/lib/security/session-token";
-import { detectCurrency, detectLanguage, countryFromHeaders } from "@/lib/geo";
+import { detectCurrency, detectLanguage, countryFromHeaders, currencyForCountry } from "@/lib/geo";
+import { currencyFromCountryCode, countryFromIp } from "@/lib/geo-ip";
 import { normalizeLanguage, LOCALE_STORAGE } from "@/i18n";
 import { normalizeCurrency } from "@/lib/currency/config";
 
@@ -164,10 +165,26 @@ export async function middleware(req: NextRequest) {
 
   const cookieLang = req.cookies.get(LOCALE_STORAGE.langCookie)?.value;
   const cookieCurrency = req.cookies.get(LOCALE_STORAGE.currencyCookie)?.value;
+  const cookieCountry = req.cookies.get(LOCALE_STORAGE.countryCookie)?.value || "";
   const queryLang = searchParams.get("lang");
   const queryCurrency = searchParams.get("currency");
+  const manualLocale = req.cookies.get("wt_locale_manual")?.value === "1";
+  const ip = clientIp(req);
 
-  // Priority: explicit ?lang= → saved cookie → Accept-Language → GeoIP → default
+  // CDN header first; if missing (Webdock/cPanel), resolve country from client IP.
+  let country =
+    countryFromHeaders(req.headers) ||
+    (await countryFromIp(ip)) ||
+    cookieCountry ||
+    "";
+  country = String(country || "")
+    .trim()
+    .toUpperCase();
+  if (country.length !== 2) country = "";
+
+  const geoCurrency = currencyFromCountryCode(country) || currencyForCountry(country);
+
+  // Priority: ?currency= → manual cookie → GeoIP currency → saved cookie → USD
   const language = queryLang
     ? normalizeLanguage(queryLang)
     : cookieLang
@@ -176,11 +193,13 @@ export async function middleware(req: NextRequest) {
 
   const currency = queryCurrency
     ? normalizeCurrency(queryCurrency)
-    : cookieCurrency
+    : manualLocale && cookieCurrency
       ? normalizeCurrency(cookieCurrency)
-      : detectCurrency(req.headers);
-
-  const country = countryFromHeaders(req.headers) || req.cookies.get(LOCALE_STORAGE.countryCookie)?.value || "";
+      : geoCurrency
+        ? normalizeCurrency(geoCurrency)
+        : cookieCurrency
+          ? normalizeCurrency(cookieCurrency)
+          : detectCurrency(req.headers);
 
   // Forward detection to the server layout so first paint is correct (no flicker).
   const requestHeaders = new Headers(req.headers);
@@ -199,14 +218,21 @@ export async function middleware(req: NextRequest) {
       sameSite: "lax",
     });
   }
-  if (cookieCurrency !== currency || queryCurrency) {
+  // Persist currency when user chose it, or when geo resolved a real currency
+  // (do not lock a bare USD fallback that blocks later geo).
+  const shouldPersistCurrency =
+    Boolean(queryCurrency) ||
+    manualLocale ||
+    Boolean(geoCurrency) ||
+    (Boolean(cookieCurrency) && cookieCurrency !== currency);
+  if (shouldPersistCurrency && (cookieCurrency !== currency || queryCurrency)) {
     res.cookies.set(LOCALE_STORAGE.currencyCookie, currency, {
       path: "/",
       maxAge: COOKIE_MAX_AGE,
       sameSite: "lax",
     });
   }
-  if (country && req.cookies.get(LOCALE_STORAGE.countryCookie)?.value !== country) {
+  if (country && cookieCountry !== country) {
     res.cookies.set(LOCALE_STORAGE.countryCookie, country, {
       path: "/",
       maxAge: COOKIE_MAX_AGE,

@@ -70,7 +70,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!resolved) return { title: "Industry" };
 
   const { industry } = resolved;
-  const media = getIndustryMedia(industry.id);
+  const media = getIndustryMedia(industry.id, 1400);
   const categories = getCategoriesForIndustry(industry.id);
   const title = `${industry.name} ERP Software — ${categories.length} Business Categories`;
   const description = `${industry.description} Configure ${siteConfig.name} with ${categories.length} business categories under ${industry.name}.`;
@@ -97,7 +97,7 @@ export default async function IndustryDetailPage({ params }: Props) {
 
   const { industry, highlightCategoryId } = resolved;
   const Icon = getIcon(getIndustryLucideIcon(industry));
-  const media = getIndustryMedia(industry.id);
+  const media = getIndustryMedia(industry.id, 1400);
   const categories = getCategoriesForIndustry(industry.id);
   const related = getFeaturedIndustries()
     .all.filter((i) => i.id !== industry.id)

@@ -1300,72 +1300,72 @@ export const industryIconMap: Record<string, string> = {
 
 export const industryImages: Record<string, { image: string; imageAlt: string }> = {
   automotive_vehicle: {
-    image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Auto parts and vehicle workshop",
+    image: "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Automotive workshop and vehicle service bay",
   },
   healthcare_pharmacy: {
-    image: "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Pharmacy shelves with medicines",
+    image: "https://images.unsplash.com/photo-1576602976047-174e57a47881?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Pharmacy counter and medicine shelves",
   },
   real_estate_property: {
-    image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Modern property buildings",
+    image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Modern commercial property exterior",
   },
   manufacturing: {
-    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Manufacturing factory floor",
+    image: "https://images.unsplash.com/photo-1565043589221-1a6fd9ae45c7?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Manufacturing production line",
   },
   retail_commerce: {
-    image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Modern retail store interior",
+    image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Retail checkout and in-store commerce",
   },
   wholesale_distribution: {
-    image: "https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Wholesale warehouse boxes",
+    image: "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Wholesale distribution warehouse aisle",
   },
   warehouse_logistics: {
-    image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Warehouse logistics operations",
+    image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Warehouse logistics and pallet racks",
   },
   restaurant_food_service: {
-    image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Restaurant dining interior",
+    image: "https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Restaurant kitchen and food service",
   },
   education: {
-    image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Education campus",
+    image: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Education campus and learning spaces",
   },
   hospital_medical: {
-    image: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Hospital medical facility",
+    image: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Hospital and medical care facility",
   },
   agriculture: {
-    image: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Agriculture and farming",
+    image: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Agriculture field and farming operations",
   },
   textile_garments: {
-    image: "https://images.unsplash.com/photo-1558171813-4c088753af8f?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Textile and garments",
+    image: "https://images.unsplash.com/photo-1558171813-4c088753af8f?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Textile and garment production",
   },
   furniture_interior: {
-    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Furniture showroom",
+    image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Furniture showroom interior",
   },
   building_materials_hardware: {
-    image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Building materials and hardware",
+    image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Building materials and hardware yard",
   },
   beauty_cosmetics: {
-    image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Beauty and cosmetics retail",
+    image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Beauty and cosmetics retail display",
   },
   pet_veterinary: {
-    image: "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Pet store and veterinary",
+    image: "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Pet care and veterinary clinic",
   },
   water_management: {
-    image: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fm=webp&fit=crop&w=1600&q=70",
-    imageAlt: "Water management and delivery",
+    image: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fm=webp&fit=crop&w=1200&q=70",
+    imageAlt: "Water bottles and delivery operations",
   },
 };
 
@@ -1375,15 +1375,16 @@ export function getIndustryLucideIcon(industry: BusinessIndustry | { icon: strin
 
 import { optimizeImageUrl } from "@/lib/images";
 
-export function getIndustryMedia(industryId: string) {
+/** Industry imagery — WebP via Unsplash helpers; width defaults to card size. */
+export function getIndustryMedia(industryId: string, width = 640) {
   const raw =
     industryImages[industryId] || {
       image:
-        "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fm=webp&fit=crop&w=1200&q=70",
-      imageAlt: "Business operations",
+        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fm=webp&fit=crop&w=1200&q=70",
+      imageAlt: "Business team reviewing operations",
     };
   return {
-    image: optimizeImageUrl(raw.image, { width: 1200 }),
+    image: optimizeImageUrl(raw.image, { width, quality: 70 }),
     imageAlt: raw.imageAlt,
   };
 }

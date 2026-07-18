@@ -24,6 +24,8 @@ function SimpleDropdown({
   placement = "bottom",
   panelClassName,
   tone = "light",
+  /** Keep panel LTR even when the page is RTL (language codes stay readable). */
+  forceLtr = false,
 }: {
   trigger: React.ReactNode;
   ariaLabel: string;
@@ -35,6 +37,7 @@ function SimpleDropdown({
   placement?: "top" | "bottom";
   panelClassName?: string;
   tone?: "light" | "dark";
+  forceLtr?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -81,7 +84,13 @@ function SimpleDropdown({
   }
 
   return (
-    <div className="relative notranslate" ref={rootRef} onKeyDown={onKeyDown} translate="no">
+    <div
+      className="relative notranslate"
+      ref={rootRef}
+      onKeyDown={onKeyDown}
+      translate="no"
+      dir={forceLtr ? "ltr" : undefined}
+    >
       <button
         type="button"
         onClick={() => (open ? setOpen(false) : openDropdown())}
@@ -90,7 +99,7 @@ function SimpleDropdown({
         aria-label={ariaLabel}
         title={ariaLabel}
         className={cn(
-          "inline-flex items-center justify-center gap-1 rounded-lg border px-2.5 py-1.5 text-sm font-semibold tracking-wide transition-colors",
+          "inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-semibold tracking-wide transition-colors",
           tone === "dark"
             ? "border-white/[0.06] bg-white/[0.05] text-slate-200 hover:border-white/10 hover:text-white"
             : "border-border bg-white text-foreground/80 hover:border-primary/30 hover:text-primary"
@@ -101,14 +110,16 @@ function SimpleDropdown({
 
       {open ? (
         <div
+          dir={forceLtr ? "ltr" : undefined}
           className={cn(
             "absolute z-[60] overflow-hidden rounded-xl border border-border/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.16)] ring-1 ring-black/[0.03]",
             placement === "top" ? "bottom-full mb-2" : "top-full mt-2",
-            align === "end" ? "right-0" : "left-0",
+            // Logical inset so RTL pages still anchor the panel to the control edge
+            align === "end" ? "end-0" : "start-0",
             panelClassName ?? "w-auto min-w-max"
           )}
         >
-          <ul id={listId} role="listbox" aria-label={ariaLabel} className="max-h-72 overflow-y-auto py-1">
+          <ul id={listId} role="listbox" aria-label={ariaLabel} className="max-h-72 overflow-y-auto py-1.5">
             {options.map((opt, i) => {
               const selected = opt.value === value;
               const active = i === safeActive;
@@ -118,22 +129,33 @@ function SimpleDropdown({
                     type="button"
                     role="option"
                     aria-selected={selected}
-                    dir={opt.dir}
+                    dir={forceLtr ? "ltr" : opt.dir}
                     onMouseEnter={() => setActiveIndex(i)}
                     onClick={() => choose(opt.value)}
                     className={cn(
-                      "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors",
+                      "flex w-full items-center gap-3 px-3.5 py-2.5 text-sm transition-colors",
                       active ? "bg-primary/5" : "hover:bg-muted",
                       selected && "font-semibold text-primary"
                     )}
                   >
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="shrink-0 font-semibold tracking-wide">{opt.primary}</span>
-                      {opt.secondary ? (
-                        <span className="truncate text-xs text-muted-foreground">{opt.secondary}</span>
-                      ) : null}
+                    <span className="inline-flex min-w-[2rem] shrink-0 justify-start font-semibold tracking-wide tabular-nums">
+                      {opt.primary}
                     </span>
-                    {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
+                    {opt.secondary ? (
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 truncate text-start text-xs",
+                          selected ? "text-primary/80" : "text-muted-foreground"
+                        )}
+                      >
+                        {opt.secondary}
+                      </span>
+                    ) : (
+                      <span className="flex-1" />
+                    )}
+                    <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+                      {selected ? <Check className="h-3.5 w-3.5 text-primary" /> : null}
+                    </span>
                   </button>
                 </li>
               );
@@ -145,7 +167,7 @@ function SimpleDropdown({
   );
 }
 
-/** Header language control — short codes only (EN, FR, AR…), no search. */
+/** Header language control — EN / AR / FR only (default English). */
 export function LanguageSwitcher({ align = "end" }: { align?: "start" | "end" }) {
   const { language, supportedLanguages, setLanguage, t } = useLocale();
   const current = supportedLanguages.find((l) => l.code === language);
@@ -153,15 +175,17 @@ export function LanguageSwitcher({ align = "end" }: { align?: "start" | "end" })
   const options: Option[] = supportedLanguages.map((l) => ({
     value: l.code,
     primary: l.short,
+    secondary: l.nativeLabel,
     dir: l.direction,
   }));
 
   return (
     <SimpleDropdown
+      forceLtr
       trigger={
         <>
           <Globe className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-          <span className="min-w-[1.5rem]" dir={current?.direction}>
+          <span className="min-w-[1.5rem] text-center tabular-nums" dir="ltr">
             {current?.short ?? "EN"}
           </span>
         </>
@@ -172,13 +196,13 @@ export function LanguageSwitcher({ align = "end" }: { align?: "start" | "end" })
       onSelect={(v) => setLanguage(v as UiLanguage)}
       align={align}
       placement="bottom"
-      panelClassName="w-auto min-w-max"
+      panelClassName="w-[11.5rem]"
     />
   );
 }
 
 /**
- * Footer currency control — clean list of name + symbol.
+ * Footer currency control — symbols only ($, €, AED…).
  * Master billing currency remains USD; this only changes display.
  */
 export function CurrencySwitcher({
@@ -195,22 +219,21 @@ export function CurrencySwitcher({
     const c = currencies[code];
     return {
       value: code,
-      primary: c.name,
-      secondary: c.symbol,
+      primary: c.symbol,
     };
   });
 
   return (
     <SimpleDropdown
+      forceLtr
       tone={tone}
       trigger={
         <>
-          <span className="max-w-[9rem] truncate font-medium">{meta.name}</span>
           <span
             translate="no"
             className={cn(
-              "font-semibold",
-              tone === "dark" ? "text-slate-400" : "text-muted-foreground"
+              "min-w-[1.75rem] text-center font-semibold tabular-nums",
+              tone === "dark" ? "text-slate-200" : "text-foreground/80"
             )}
           >
             {meta.symbol}
@@ -230,7 +253,7 @@ export function CurrencySwitcher({
       onSelect={(v) => setCurrency(v as CurrencyCode)}
       align={align}
       placement="top"
-      panelClassName="w-[14rem]"
+      panelClassName="w-auto min-w-[4.5rem]"
     />
   );
 }

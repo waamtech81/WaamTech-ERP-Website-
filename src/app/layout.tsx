@@ -76,8 +76,6 @@ export async function generateMetadata(): Promise<Metadata> {
         en: `${origin}?lang=en`,
         ar: `${origin}?lang=ar`,
         fr: `${origin}?lang=fr`,
-        es: `${origin}?lang=es`,
-        de: `${origin}?lang=de`,
       },
     },
     openGraph: {
@@ -132,7 +130,7 @@ export default async function RootLayout({
 
   return (
     <html
-      lang={language}
+      lang="en"
       dir={direction}
       data-locale={language}
       data-dir={direction}

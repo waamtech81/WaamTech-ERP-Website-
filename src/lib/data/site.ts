@@ -69,12 +69,6 @@ export const otherMegaMenu: {
         description: "Cloud hosting, own server & local deployment.",
         icon: "Server",
       },
-      {
-        title: "Security & Trust",
-        href: "/security",
-        description: "Enterprise security, RBAC, isolation & trust.",
-        icon: "ShieldCheck",
-      },
     ],
   },
   {
@@ -90,7 +84,6 @@ export const otherMegaMenu: {
     category: "Company",
     items: [
       { title: "About WaamTech", href: "/about", description: "Our story since 2012 — mission, vision & team.", icon: "Building2" },
-      { title: "Security & Trust", href: "/security", description: "How we protect your business data.", icon: "ShieldCheck" },
       { title: "Blog", href: "/blog", description: "Product updates, guides & industry insights.", icon: "FileText" },
       { title: "Contact", href: "/contact", description: "Sales, support & partnership inquiries.", icon: "MessageCircle" },
     ],

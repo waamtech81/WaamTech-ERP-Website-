@@ -1,83 +1,150 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import {
   ensureGoogleTranslateLoaded,
-  GOOGLE_TRANSLATE_LANGUAGES,
+  forceRetranslate,
+  isRetranslateLocked,
+  mountTranslateElement,
   readGoogTransLang,
+  syncGoogleTranslate,
+  GOOGLE_TRANSLATE_ELEMENT_ID,
+  ensureSourceLangForTranslate,
 } from "@/lib/google-translate";
+import { useLocale } from "@/components/providers/locale-provider";
 import type { UiLanguage } from "@/i18n";
 
-declare global {
-  interface Window {
-    googleTranslateElementInit?: () => void;
-    google?: {
-      translate: {
-        TranslateElement: {
-          new (
-            options: {
-              pageLanguage: string;
-              includedLanguages?: string;
-              autoDisplay: boolean;
-              multilanguagePage?: boolean;
-              layout?: number;
-            },
-            elementId: string
-          ): void;
-          InlineLayout?: { SIMPLE: number; HORIZONTAL: number; VERTICAL: number };
-        };
-      };
-    };
+function shouldIgnoreMutation(node: Node): boolean {
+  if (!(node instanceof Element)) {
+    const parent = node.parentElement;
+    return !parent || shouldIgnoreMutation(parent);
   }
+  if (node.id === GOOGLE_TRANSLATE_ELEMENT_ID) return true;
+  if (node.tagName === "FONT") return true;
+  if (node.classList.contains("skiptranslate")) return true;
+  if (node.classList.contains("notranslate")) return true;
+  if (node.classList.contains("goog-te-spinner-pos")) return true;
+  if (node.closest?.(".skiptranslate, .notranslate, #goog-gt-tt, .goog-te-banner-frame, .wt-google-translate")) {
+    return true;
+  }
+  return false;
 }
 
-const ELEMENT_ID = "google_translate_element";
-
-export function mountTranslateElement() {
-  if (typeof window === "undefined") return;
-  const TE = window.google?.translate?.TranslateElement;
-  if (!TE) return;
-  const host = document.getElementById(ELEMENT_ID);
-  if (!host) return;
-  if (host.querySelector(".goog-te-combo") || host.childElementCount > 0) return;
-
-  // eslint-disable-next-line no-new
-  new TE(
-    {
-      pageLanguage: "en",
-      includedLanguages: GOOGLE_TRANSLATE_LANGUAGES,
-      autoDisplay: false,
-      multilanguagePage: true,
-      layout: TE.InlineLayout?.SIMPLE,
-    },
-    ELEMENT_ID
-  );
+function mutationLooksLikeAppContent(mutations: MutationRecord[]): boolean {
+  for (const m of mutations) {
+    if (m.type === "characterData") {
+      const el = m.target.parentElement;
+      if (el && !shouldIgnoreMutation(el)) return true;
+      continue;
+    }
+    for (const node of m.addedNodes) {
+      if (shouldIgnoreMutation(node)) continue;
+      if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) return true;
+      if (node instanceof Element) {
+        const text = node.textContent?.trim();
+        if (text && text.length > 1) return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**
- * Host node for Google Translate. Script loads only when needed
- * (non-English locale, existing googtrans cookie, or language switch).
+ * Host node + keep-alive for Google Translate across the whole site:
+ * - boots GT for non-English
+ * - re-translates after Next.js client navigations
+ * - re-translates when dynamic content is injected into <main>
  */
 export function GoogleTranslateBoot({ language }: { language: UiLanguage }) {
+  const { language: liveLanguage } = useLocale();
+  const pathname = usePathname();
+  const lang = liveLanguage || language;
+  const activeLang = (readGoogTransLang() as UiLanguage | null) || lang;
+  const bootRef = useRef(false);
+
+  // Keep html[lang]=en so GT always treats the page as English source.
   useEffect(() => {
-    const needsNow = language !== "en" || !!readGoogTransLang();
+    ensureSourceLangForTranslate();
+  }, [lang, pathname]);
+
+  // Boot / sync Google Translate whenever we need a non-English page.
+  useEffect(() => {
+    const needsNow = lang !== "en" || !!readGoogTransLang();
     if (!needsNow) return;
 
+    let cancelled = false;
     const run = () => {
-      void ensureGoogleTranslateLoaded().then(() => mountTranslateElement());
+      void ensureGoogleTranslateLoaded().then(() => {
+        if (cancelled) return;
+        ensureSourceLangForTranslate();
+        mountTranslateElement(false);
+        syncGoogleTranslate(lang, { reloadOnMiss: true });
+        bootRef.current = true;
+      });
     };
 
-    if (typeof window.requestIdleCallback === "function") {
-      const id = window.requestIdleCallback(run, { timeout: 2500 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const t = window.setTimeout(run, 1200);
+    const t = window.setTimeout(run, 60);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [lang]);
+
+  // After every client-side route change, force a full DOM re-scan.
+  useEffect(() => {
+    if (lang === "en" && !readGoogTransLang()) return;
+
+    const t = window.setTimeout(() => {
+      ensureSourceLangForTranslate();
+      void ensureGoogleTranslateLoaded().then(() => {
+        mountTranslateElement(false);
+        forceRetranslate(activeLang === "en" ? lang : activeLang);
+      });
+    }, 280);
+
     return () => window.clearTimeout(t);
-  }, [language]);
+    // pathname is the trigger; lang/activeLang used inside
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, lang]);
+
+  // Dynamic content (pricing catalog, signup selects, etc.) → retranslate.
+  useEffect(() => {
+    if (lang === "en" && !readGoogTransLang()) return;
+    if (typeof MutationObserver === "undefined") return;
+
+    const root =
+      document.querySelector("main") ||
+      document.getElementById("__next") ||
+      document.body;
+    if (!root) return;
+
+    let debounce = 0;
+    const obs = new MutationObserver((mutations) => {
+      if (isRetranslateLocked()) return;
+      if (!mutationLooksLikeAppContent(mutations)) return;
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(() => {
+        if (isRetranslateLocked()) return;
+        forceRetranslate(lang);
+      }, 450);
+    });
+
+    obs.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: false,
+    });
+
+    return () => {
+      obs.disconnect();
+      window.clearTimeout(debounce);
+    };
+  }, [lang]);
 
   return (
     <div
-      id={ELEMENT_ID}
+      id={GOOGLE_TRANSLATE_ELEMENT_ID}
       className="wt-google-translate"
       aria-hidden
       suppressHydrationWarning

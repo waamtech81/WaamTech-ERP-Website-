@@ -8,39 +8,30 @@
 import { normalizeLanguage, type UiLanguage } from "@/i18n";
 import { normalizeCurrency, type CurrencyCode } from "@/lib/currency/config";
 
-/** ISO 3166-1 alpha-2 country → preferred SaaS-supported language. */
+/** ISO 3166-1 alpha-2 country → preferred SaaS-supported language (EN / AR / FR). */
 export const COUNTRY_TO_LANGUAGE: Record<string, UiLanguage> = {
   // Arabic
   SA: "ar", AE: "ar", QA: "ar", KW: "ar", BH: "ar", OM: "ar", JO: "ar",
   LB: "ar", IQ: "ar", EG: "ar", DZ: "ar", MA: "ar", TN: "ar", LY: "ar",
   SD: "ar", YE: "ar", SY: "ar", PS: "ar",
-  // German
-  DE: "de", AT: "de", CH: "de", LI: "de",
   // French
   FR: "fr", BE: "fr", LU: "fr", MC: "fr", SN: "fr", CI: "fr", CM: "fr",
-  // Spanish
-  ES: "es", MX: "es", AR: "es", CO: "es", CL: "es", PE: "es", VE: "es",
-  EC: "es", GT: "es", CU: "es", BO: "es", DO: "es", HN: "es", PY: "es",
-  SV: "es", NI: "es", CR: "es", UY: "es", PA: "es",
   // English (explicit) — PK uses English UI; currency still maps to PKR
+  // DE / ES / AT / etc. fall through to English (only EN / AR / FR are offered)
   US: "en", GB: "en", CA: "en", AU: "en", NZ: "en", IE: "en", IN: "en",
   ZA: "en", NG: "en", KE: "en", SG: "en", PH: "en", PK: "en",
+  DE: "en", AT: "en", CH: "en", LI: "en",
+  ES: "en", MX: "en", AR: "en", CO: "en", CL: "en", PE: "en", VE: "en",
+  EC: "en", GT: "en", CU: "en", BO: "en", DO: "en", HN: "en", PY: "en",
+  SV: "en", NI: "en", CR: "en", UY: "en", PA: "en",
 };
 
 /** ISO 3166-1 alpha-2 country → preferred display currency. */
 export const COUNTRY_TO_CURRENCY: Record<string, CurrencyCode> = {
   US: "USD", EC: "USD",
-  GB: "GBP",
   PK: "PKR",
-  IN: "INR",
   CA: "CAD",
   AU: "AUD", NZ: "AUD",
-  JP: "JPY",
-  CN: "CNY",
-  SG: "SGD",
-  ZA: "ZAR",
-  TR: "TRY",
-  BR: "BRL",
   AE: "AED",
   SA: "SAR", BH: "SAR",
   QA: "SAR", KW: "SAR", OM: "SAR",

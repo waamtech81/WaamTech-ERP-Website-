@@ -1,9 +1,11 @@
 /**
  * Google Website Translator helpers.
- * Source page language is always English; visitor picks EN / FR / AR / ES / DE.
+ * Source page language is always English (html[lang=en]); visitor picks EN / AR / FR.
  *
- * IMPORTANT: Never infinite-reload. GT often fails (adblock, CSP, privacy mode).
- * Local JSON catalogs already translate chrome; GT is best-effort for page body.
+ * Full-site translate strategy:
+ * 1) Keep html lang="en" so GT knows the source language
+ * 2) Language change → set googtrans cookie/hash + hard reload
+ * 3) SPA route / dynamic DOM → force re-scan via combo flip
  */
 import type { UiLanguage } from "@/i18n";
 
@@ -30,9 +32,12 @@ declare global {
   }
 }
 
-export const GOOGLE_TRANSLATE_LANGUAGES = "en,ar,fr,es,de" as const;
+export const GOOGLE_TRANSLATE_LANGUAGES = "en,ar,fr" as const;
+export const GOOGLE_TRANSLATE_ELEMENT_ID = "google_translate_element";
 
 const GOOGTRANS = "googtrans";
+const SCRIPT_ID = "google-translate-script";
+const RELOAD_KEY = "wt_gt_reload";
 
 /** Hosts where setting a Domain= attribute breaks cookies (browsers reject it). */
 function shouldSetCookieDomain(host: string): boolean {
@@ -67,6 +72,7 @@ function clearGoogTrans() {
   const expired = `${GOOGTRANS}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
   document.cookie = expired;
   if (domain) document.cookie = `${expired}; domain=${domain}`;
+  document.cookie = `${GOOGTRANS}=; path=/; max-age=0`;
 }
 
 /** Read current googtrans target (e.g. "ar") or null when English / unset. */
@@ -79,27 +85,6 @@ export function readGoogTransLang(): string | null {
   const target = parts[parts.length - 1]?.toLowerCase();
   if (!target || target === "en") return null;
   return target;
-}
-
-function fireComboChange(combo: HTMLSelectElement) {
-  combo.dispatchEvent(new Event("change", { bubbles: true }));
-  combo.dispatchEvent(new Event("input", { bubbles: true }));
-}
-
-function setComboValue(code: string): boolean {
-  const combo = document.querySelector<HTMLSelectElement>(".goog-te-combo");
-  if (!combo) return false;
-  const opts = Array.from(combo.options);
-  if (opts.length === 0) return false;
-  const hasOption = opts.some((o) => o.value === code);
-  if (!hasOption && code !== "en") return false;
-  if (combo.value === code) {
-    fireComboChange(combo);
-    return true;
-  }
-  combo.value = code;
-  fireComboChange(combo);
-  return combo.value === code || opts.some((o) => o.value === code);
 }
 
 function setGoogTransHash(lang: string) {
@@ -127,85 +112,145 @@ function canUseSessionStorage(): boolean {
   }
 }
 
+function fireComboChange(combo: HTMLSelectElement) {
+  combo.dispatchEvent(new Event("change", { bubbles: true }));
+  combo.dispatchEvent(new Event("input", { bubbles: true }));
+  try {
+    const ev = document.createEvent("HTMLEvents");
+    ev.initEvent("change", true, true);
+    combo.dispatchEvent(ev);
+  } catch {
+    /* ignore */
+  }
+}
+
+function findCombo(): HTMLSelectElement | null {
+  return (
+    document.querySelector<HTMLSelectElement>(".goog-te-combo") ||
+    document.querySelector<HTMLSelectElement>("#google_translate_element select") ||
+    document.querySelector<HTMLSelectElement>(".skiptranslate select")
+  );
+}
+
+function pageLooksTranslated(): boolean {
+  const html = document.documentElement;
+  return (
+    html.classList.contains("translated-ltr") ||
+    html.classList.contains("translated-rtl") ||
+    !!document.querySelector("html[class*='translated']") ||
+    !!readGoogTransLang()
+  );
+}
+
+/** Keep source language English so Google Translate scans the full page. */
+export function ensureSourceLangForTranslate(): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.lang = "en";
+  document.documentElement.setAttribute("lang", "en");
+}
+
+function setComboValue(code: string): boolean {
+  const combo = findCombo();
+  if (!combo) return false;
+  const opts = Array.from(combo.options);
+  if (opts.length === 0) return false;
+
+  if (code === "en") {
+    const enOpt =
+      opts.find((o) => o.value === "" || o.value === "en") || opts[0];
+    if (!enOpt) return false;
+    if (combo.value !== enOpt.value) combo.value = enOpt.value;
+    fireComboChange(combo);
+    return true;
+  }
+
+  const hasOption = opts.some((o) => o.value === code);
+  if (!hasOption) return false;
+  if (combo.value !== code) combo.value = code;
+  fireComboChange(combo);
+  return combo.value === code;
+}
+
+function safeReloadOnce(code: string): void {
+  if (!canUseSessionStorage()) {
+    const guard = `wt_gt_reload_${code}`;
+    if (document.cookie.includes(`${guard}=1`)) return;
+    document.cookie = `${guard}=1; path=/; max-age=30; SameSite=Lax`;
+    window.location.reload();
+    return;
+  }
+  try {
+    if (sessionStorage.getItem(RELOAD_KEY) === code) return;
+    sessionStorage.setItem(RELOAD_KEY, code);
+  } catch {
+    window.location.reload();
+    return;
+  }
+  window.location.reload();
+}
+
+function clearReloadGuard(): void {
+  try {
+    sessionStorage.removeItem(RELOAD_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Wait for the Google Translate combo, then apply language.
- * At most ONE reload, and only when sessionStorage works (avoids incognito loops).
+ * Reloads at most once per target language when the combo is missing.
  */
-export function syncGoogleTranslate(lang: UiLanguage, opts?: { reloadOnMiss?: boolean }): void {
+export function syncGoogleTranslate(
+  lang: UiLanguage,
+  opts?: { reloadOnMiss?: boolean }
+): void {
   if (typeof document === "undefined") return;
   const code = lang === "en" ? "en" : lang;
-  const reloadKey = "wt_gt_reload";
+  const allowReload = opts?.reloadOnMiss !== false;
+
+  ensureSourceLangForTranslate();
 
   if (code === "en") {
     clearGoogTrans();
     setGoogTransHash("en");
-    try {
-      sessionStorage.removeItem(reloadKey);
-    } catch {
-      /* ignore */
+    if (setComboValue("en")) {
+      clearReloadGuard();
+      return;
     }
-    if (setComboValue("en")) return;
-    // Already translated? One safe reload back to English source.
-    if (
-      opts?.reloadOnMiss !== false &&
-      canUseSessionStorage() &&
-      (document.documentElement.classList.contains("translated-ltr") ||
-        document.documentElement.classList.contains("translated-rtl") ||
-        readGoogTransLang())
-    ) {
-      try {
-        if (sessionStorage.getItem(reloadKey) === "en") return;
-        sessionStorage.setItem(reloadKey, "en");
-      } catch {
-        return;
-      }
-      window.location.reload();
+    if (allowReload && pageLooksTranslated()) {
+      safeReloadOnce("en");
     }
     return;
   }
 
   writeGoogTrans(`/en/${code}`);
   setGoogTransHash(code);
+
   if (setComboValue(code)) {
-    try {
-      sessionStorage.removeItem(reloadKey);
-    } catch {
-      /* ignore */
-    }
+    clearReloadGuard();
     return;
   }
 
   let tries = 0;
-  const maxTries = 30; // ~4.5s
+  const maxTries = 40;
   const id = window.setInterval(() => {
     tries += 1;
     if (setComboValue(code)) {
       window.clearInterval(id);
-      try {
-        sessionStorage.removeItem(reloadKey);
-      } catch {
-        /* ignore */
-      }
+      clearReloadGuard();
       return;
     }
     if (tries < maxTries) return;
-
     window.clearInterval(id);
-    // Do NOT reload when storage is unavailable (incognito / blocked) — that
-    // caused infinite blank reloads. Chrome strings still work via local JSON.
-    if (opts?.reloadOnMiss === false || !canUseSessionStorage()) return;
-    try {
-      if (sessionStorage.getItem(reloadKey) === code) return;
-      sessionStorage.setItem(reloadKey, code);
-    } catch {
-      return;
-    }
-    window.location.reload();
+    if (!allowReload) return;
+    safeReloadOnce(code);
   }, 150);
 }
 
-const SCRIPT_ID = "google-translate-script";
 let loadPromise: Promise<void> | null = null;
+let retranslateTimer = 0;
+let retranslateLockUntil = 0;
 
 /**
  * Lazily inject the Google Translate script once. Safe to call repeatedly.
@@ -244,27 +289,108 @@ export function ensureGoogleTranslateLoaded(): Promise<void> {
   return loadPromise;
 }
 
-/** Apply Google Translate for a user-initiated language change. */
-export function applyGoogleTranslate(lang: UiLanguage): void {
-  void ensureGoogleTranslateLoaded().then(() => {
-    // Mount widget if host exists (dynamic import avoids circular deps at module init).
-    const host = document.getElementById("google_translate_element");
-    if (host && !host.querySelector(".goog-te-combo") && window.google?.translate?.TranslateElement) {
-      const TE = window.google.translate.TranslateElement;
-      if (host.childElementCount === 0) {
-        // eslint-disable-next-line no-new
-        new TE(
-          {
-            pageLanguage: "en",
-            includedLanguages: GOOGLE_TRANSLATE_LANGUAGES,
-            autoDisplay: false,
-            multilanguagePage: true,
-            layout: TE.InlineLayout?.SIMPLE,
-          },
-          "google_translate_element"
-        );
-      }
+/** Create / refresh the hidden Google Translate widget host. */
+export function mountTranslateElement(force = false): boolean {
+  if (typeof window === "undefined") return false;
+  const TE = window.google?.translate?.TranslateElement;
+  if (!TE) return false;
+  const host = document.getElementById(GOOGLE_TRANSLATE_ELEMENT_ID);
+  if (!host) return false;
+
+  ensureSourceLangForTranslate();
+
+  if (force) {
+    host.innerHTML = "";
+  } else if (host.querySelector(".goog-te-combo") || host.querySelector("select")) {
+    return true;
+  } else if (host.childElementCount > 0) {
+    host.innerHTML = "";
+  }
+
+  // multilanguagePage:false → translate the whole page from English source
+  // eslint-disable-next-line no-new
+  new TE(
+    {
+      pageLanguage: "en",
+      includedLanguages: GOOGLE_TRANSLATE_LANGUAGES,
+      autoDisplay: false,
+      multilanguagePage: false,
+      layout: TE.InlineLayout?.SIMPLE,
+    },
+    GOOGLE_TRANSLATE_ELEMENT_ID
+  );
+  return !!findCombo() || host.childElementCount > 0;
+}
+
+/**
+ * Force Google Translate to re-scan the current DOM.
+ * Used after Next.js client navigations and dynamic content inserts.
+ */
+export function forceRetranslate(lang: UiLanguage): void {
+  if (typeof document === "undefined") return;
+  const code = lang === "en" ? "en" : lang;
+  if (code === "en") return;
+
+  ensureSourceLangForTranslate();
+  writeGoogTrans(`/en/${code}`);
+  setGoogTransHash(code);
+
+  const run = () => {
+    const combo = findCombo();
+    if (!combo) {
+      void ensureGoogleTranslateLoaded().then(() => {
+        mountTranslateElement(false);
+        syncGoogleTranslate(lang, { reloadOnMiss: false });
+      });
+      return;
     }
-    syncGoogleTranslate(lang, { reloadOnMiss: true });
-  });
+
+    retranslateLockUntil = Date.now() + 1200;
+    const opts = Array.from(combo.options);
+    const enOpt = opts.find((o) => o.value === "" || o.value === "en") || opts[0];
+
+    // Flip away then back so GT re-walks the DOM (SPA + dynamic nodes).
+    if (enOpt && combo.value === code) {
+      combo.value = enOpt.value;
+      fireComboChange(combo);
+      window.setTimeout(() => {
+        combo.value = code;
+        fireComboChange(combo);
+      }, 80);
+      return;
+    }
+
+    setComboValue(code);
+  };
+
+  window.clearTimeout(retranslateTimer);
+  retranslateTimer = window.setTimeout(run, 120);
+}
+
+/** True while a forced retranslate is in flight (skip MutationObserver loops). */
+export function isRetranslateLocked(): boolean {
+  return Date.now() < retranslateLockUntil;
+}
+
+/**
+ * Apply Google Translate for a user-initiated language change.
+ * Cookie + hash first, then hard reload so the entire page (all nodes) translate.
+ */
+export function applyGoogleTranslate(lang: UiLanguage): void {
+  if (typeof document === "undefined") return;
+  const code = lang === "en" ? "en" : lang;
+
+  ensureSourceLangForTranslate();
+
+  if (code === "en") {
+    clearGoogTrans();
+    setGoogTransHash("en");
+  } else {
+    writeGoogTrans(`/en/${code}`);
+    setGoogTransHash(code);
+  }
+
+  clearReloadGuard();
+  // Hard reload = full DOM translate (static + whatever SSR sent).
+  window.location.reload();
 }

@@ -7,7 +7,6 @@ import { ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
 import { getIndustryMedia, isHotCategory } from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { AnimateIn } from "@/components/shared/animate-in";
 import {
   useCatalogBusinessCategories,
@@ -30,78 +29,113 @@ function IndustryCard({
   expanded,
   onToggle,
   featured,
+  large,
 }: {
   industry: CatalogIndustry;
   expanded: boolean;
   onToggle: () => void;
   featured?: boolean;
+  large?: boolean;
 }) {
   const categories = useCatalogBusinessCategories(expanded ? industry.id : null);
   const Icon = getIcon(industryDisplayIcon(industry));
-  const media = getIndustryMedia(industry.slug || industry.id);
+  const media = getIndustryMedia(industry.slug || industry.id, large ? 900 : 640);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+    <article
+      className={cn(
+        "group overflow-hidden rounded-[1.35rem] bg-[#0b1f3a] ring-1 ring-black/5 transition-[transform,box-shadow] duration-300",
+        "hover:-translate-y-1 hover:shadow-[0_28px_60px_-28px_rgba(11,31,58,0.55)]",
+        expanded && "ring-primary/30"
+      )}
+    >
       <button
         type="button"
         onClick={onToggle}
-        className="w-full text-left"
+        className="relative block w-full text-left"
         aria-expanded={expanded}
       >
-        <div className="relative aspect-[16/10] overflow-hidden">
+        <div
+          className={cn(
+            "relative overflow-hidden",
+            large ? "aspect-[16/10] sm:aspect-[21/11]" : "aspect-[5/4] sm:aspect-[4/3]"
+          )}
+        >
           <Image
             src={media.image}
             alt={media.imageAlt}
             fill
             quality={70}
-            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-            className="object-cover"
+            sizes={
+              large
+                ? "(max-width: 768px) 100vw, 66vw"
+                : "(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+            }
+            className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/75 to-transparent" />
-          <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white/90 text-primary">
-            <Icon className="h-4 w-4" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#071528] via-[#071528]/45 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+
+          <div className="absolute left-4 top-4 flex items-center gap-2">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/95 text-primary shadow-sm backdrop-blur">
+              <Icon className="h-4 w-4" />
+            </span>
+            {featured ? (
+              <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#0b1f3a]">
+                Featured
+              </span>
+            ) : null}
           </div>
-          {featured ? (
-            <Badge className="absolute right-3 top-3 bg-white/90 text-[#0b1f3a] hover:bg-white text-[10px]">
-              Featured
-            </Badge>
-          ) : null}
-          <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2">
-            <p className="text-base font-semibold text-white">{industry.name}</p>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 text-white/80 transition-transform",
-                expanded && "rotate-180"
-              )}
-            />
+
+          <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <h3
+                  className={cn(
+                    "font-semibold tracking-tight text-white text-balance",
+                    large ? "text-xl sm:text-2xl" : "text-lg"
+                  )}
+                >
+                  {industry.name}
+                </h3>
+                <p className="mt-1.5 line-clamp-2 text-sm text-white/70 leading-relaxed">
+                  {industry.description || `Business categories for ${industry.name}.`}
+                </p>
+              </div>
+              <span
+                className={cn(
+                  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur transition-transform",
+                  expanded && "rotate-180"
+                )}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </span>
+            </div>
           </div>
         </div>
       </button>
-      <div className="p-4">
-        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-          {industry.description || `Business categories for ${industry.name}.`}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link
-            href={`/industries/${industry.slug || industry.id}`}
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-          >
-            View industry <ArrowUpRight className="h-3.5 w-3.5" />
-          </Link>
-          <Link
-            href={
-              industry.slug
-                ? `/signup/${encodeURIComponent(industry.slug)}`
-                : "/signup"
-            }
-            className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-primary"
-          >
-            Start trial <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 bg-[#0b1f3a] px-4 py-3 sm:px-5">
+        <Link
+          href={`/industries/${industry.slug || industry.id}`}
+          className="inline-flex items-center gap-1 text-sm font-medium text-sky-300 hover:text-white"
+        >
+          View industry <ArrowUpRight className="h-3.5 w-3.5" />
+        </Link>
+        <Link
+          href={
+            industry.slug
+              ? `/signup/${encodeURIComponent(industry.slug)}`
+              : "/signup"
+          }
+          className="inline-flex items-center gap-1 text-sm font-medium text-white/65 hover:text-white"
+        >
+          Start trial <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
+
       {expanded ? (
-        <div className="border-t border-border bg-slate-50/70 px-4 py-4">
+        <div className="border-t border-white/10 bg-slate-50 px-4 py-4 sm:px-5">
           {categories.loading ? (
             <p className="text-sm text-muted-foreground">Loading categories…</p>
           ) : null}
@@ -129,7 +163,7 @@ function IndustryCard({
           </div>
         </div>
       ) : null}
-    </div>
+    </article>
   );
 }
 
@@ -153,11 +187,11 @@ function CategoryRow({
     ? `/signup/${encodeURIComponent(industrySlug)}/${encodeURIComponent(categorySlug)}`
     : `/signup/${encodeURIComponent(industrySlug)}`;
   return (
-    <div className="group rounded-xl border border-border bg-white px-3 py-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[0.03] hover:shadow-md">
+    <div className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-border/80 transition-colors hover:ring-primary/35">
       <div className="flex items-center justify-between gap-2">
         <Link
           href={signupHref}
-          className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-[#0b1f3a] transition-colors group-hover:text-primary"
+          className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-[#0b1f3a] hover:text-primary"
         >
           <span className="truncate">{name}</span>
           {hot ? (
@@ -208,6 +242,8 @@ export function IndustriesGallery() {
   const all = industriesQuery.data;
   const featured = useMemo(() => all.slice(0, 8), [all]);
   const items = filter === "featured" ? featured : all;
+  const lead = items[0];
+  const rest = items.slice(1);
 
   if (industriesQuery.loading) return <CatalogSkeleton rows={6} />;
   if (industriesQuery.error) {
@@ -227,9 +263,9 @@ export function IndustriesGallery() {
     <div>
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          Showing {items.length} of {all.length} industries from License Engine
+          Showing {items.length} of {all.length} industries
         </p>
-        <div className="inline-flex rounded-full border border-border bg-white p-1 shadow-sm">
+        <div className="inline-flex rounded-full border border-border/80 bg-white p-1">
           {(
             [
               { id: "featured" as const, label: "Featured" },
@@ -246,7 +282,7 @@ export function IndustriesGallery() {
               className={cn(
                 "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
                 filter === c.id
-                  ? "bg-primary text-white"
+                  ? "bg-[#0b1f3a] text-white"
                   : "text-muted-foreground hover:text-primary"
               )}
             >
@@ -256,16 +292,30 @@ export function IndustriesGallery() {
         </div>
       </div>
 
+      {lead ? (
+        <AnimateIn className="mb-5">
+          <IndustryCard
+            industry={lead}
+            large
+            featured={featured.some((f) => f.id === lead.id)}
+            expanded={expandedId === lead.id}
+            onToggle={() =>
+              setExpandedId((prev) => (prev === lead.id ? null : lead.id))
+            }
+          />
+        </AnimateIn>
+      ) : null}
+
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {items.map((industry, i) => (
-          <AnimateIn key={industry.id} delay={(i % 6) * 0.04}>
+        {rest.map((industry, i) => (
+          <AnimateIn key={industry.id} delay={(i % 6) * 0.05}>
             <IndustryCard
               industry={industry}
+              featured={featured.some((f) => f.id === industry.id)}
               expanded={expandedId === industry.id}
               onToggle={() =>
                 setExpandedId((prev) => (prev === industry.id ? null : industry.id))
               }
-              featured={featured.some((f) => f.id === industry.id)}
             />
           </AnimateIn>
         ))}

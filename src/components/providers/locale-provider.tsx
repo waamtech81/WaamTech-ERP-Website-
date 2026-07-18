@@ -104,9 +104,8 @@ export function LocaleProvider({
     applyDocumentLocale(language, direction);
   }, [language, direction]);
 
-  // On first paint, sync Google Translate if the widget is already ready.
-  // Never auto-reload on mount — that caused blank infinite loops in
-  // incognito / when translate.google.com is blocked.
+  // Soft sync on mount. Forceful translate for non-English is owned by
+  // GoogleTranslateBoot + applyGoogleTranslate on user language changes.
   useEffect(() => {
     syncGoogleTranslate(language, { reloadOnMiss: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only on mount

@@ -3,15 +3,13 @@
  *
  * Chrome strings (nav, header, cookie banner, pricing labels) come from local
  * locale JSON catalogs. Full marketing page copy stays English in source and is
- * localized in the browser via Google Website Translator.
+ * localized in the browser via Google Website Translator (EN / AR / FR).
  */
 import en from "./locales/en.json";
 import ar from "./locales/ar.json";
 import fr from "./locales/fr.json";
-import es from "./locales/es.json";
-import de from "./locales/de.json";
 
-export type UiLanguage = "en" | "ar" | "fr" | "es" | "de";
+export type UiLanguage = "en" | "ar" | "fr";
 export type TextDirection = "ltr" | "rtl";
 
 export const SUPPORTED_LANGUAGES: {
@@ -25,8 +23,6 @@ export const SUPPORTED_LANGUAGES: {
   { code: "en", short: "EN", label: "English", nativeLabel: "English", direction: "ltr" },
   { code: "ar", short: "AR", label: "Arabic", nativeLabel: "العربية", direction: "rtl" },
   { code: "fr", short: "FR", label: "French", nativeLabel: "Français", direction: "ltr" },
-  { code: "es", short: "ES", label: "Spanish", nativeLabel: "Español", direction: "ltr" },
-  { code: "de", short: "DE", label: "German", nativeLabel: "Deutsch", direction: "ltr" },
 ];
 
 export const RTL_LANGS = new Set<UiLanguage>(["ar"]);
@@ -37,8 +33,6 @@ const CORE_CATALOGS: Record<UiLanguage, Record<string, string>> = {
   en: en as Record<string, string>,
   ar: ar as Record<string, string>,
   fr: fr as Record<string, string>,
-  es: es as Record<string, string>,
-  de: de as Record<string, string>,
 };
 
 export function isUiLanguage(code: string): code is UiLanguage {
@@ -48,8 +42,8 @@ export function isUiLanguage(code: string): code is UiLanguage {
 /** Same normalization as SaaS Core: 2-letter, fall back to English. */
 export function normalizeLanguage(code?: string | null): UiLanguage {
   const lang = String(code || "en").toLowerCase().slice(0, 2);
-  // Legacy cookie "ur" maps to English (Urdu removed from the site).
-  if (lang === "ur") return "en";
+  // Legacy / removed languages map to English.
+  if (lang === "ur" || lang === "es" || lang === "de") return "en";
   return isUiLanguage(lang) ? lang : "en";
 }
 
@@ -98,12 +92,15 @@ export function translate(
 
 const LOCALE_DIR_STORAGE_KEY = "wt_document_locale";
 
-/** Keep <html lang/dir> aligned (RTL for Arabic). */
+/** Keep layout dir / data-locale aligned. html[lang] stays "en" so Google
+ *  Website Translator can translate the full page from English source. */
 export function applyDocumentLocale(lang: UiLanguage | string, direction?: TextDirection) {
   if (typeof document === "undefined") return;
   const code = normalizeLanguage(lang);
   const dir = direction || directionForLanguage(code);
-  document.documentElement.lang = code;
+  // Source language for GT must remain English — preference lives in data-locale.
+  document.documentElement.lang = "en";
+  document.documentElement.setAttribute("lang", "en");
   document.documentElement.dir = dir;
   document.documentElement.setAttribute("data-locale", code);
   document.documentElement.setAttribute("data-dir", dir);
@@ -120,8 +117,6 @@ export const LOCALE_CODE_BY_LANG: Record<UiLanguage, string> = {
   en: "en-US",
   ar: "ar-SA",
   fr: "fr-FR",
-  es: "es-ES",
-  de: "de-DE",
 };
 
 /** Shared persistence keys. */

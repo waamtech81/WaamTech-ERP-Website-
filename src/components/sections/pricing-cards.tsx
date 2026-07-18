@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check, HardDrive, Sparkles, Users } from "lucide-react";
+import { Check, Sparkles, Users } from "lucide-react";
 import type { PricingPlan } from "@/types";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { PlanFeatureGroups } from "@/components/sections/plan-feature-groups";
@@ -33,29 +33,25 @@ function usersLabel(plan: PricingPlan) {
   return null;
 }
 
-function storageLabel(plan: PricingPlan) {
-  if (plan.storageIncludedGb === "unlimited") return "Unlimited storage";
-  if (typeof plan.storageIncludedGb === "number" && plan.storageIncludedGb > 0) {
-    return `${plan.storageIncludedGb} GB storage included`;
-  }
-  return null;
-}
-
-function cardBodyCopy(plan: PricingPlan): string | null {
-  return (
+function cardBodyCopy(plan: PricingPlan, subtitle?: string | null): string | null {
+  const body =
     [plan.marketingSummary, plan.description]
       .map((v) => String(v || "").trim())
-      .find((v) => v.length > 0) || null
-  );
+      .find((v) => v.length > 0) || null;
+  if (!body) return null;
+  const sub = String(subtitle || plan.subtitle || "").trim();
+  if (sub && body.toLowerCase() === sub.toLowerCase()) return null;
+  return body;
 }
 
 function dedupeFeatureLines(
   features: string[],
   seats: string | null,
-  storage: string | null
+  subtitle?: string | null,
+  bodyCopy?: string | null
 ): string[] {
   const skip = new Set(
-    [seats, storage]
+    [seats, subtitle, bodyCopy]
       .filter(Boolean)
       .map((s) => String(s).toLowerCase().trim())
   );
@@ -64,9 +60,12 @@ function dedupeFeatureLines(
     if (!t) return false;
     const lower = t.toLowerCase();
     if (skip.has(lower)) return false;
-    // Hide seat/storage lines already shown as chips
     if (seats && /\busers?\b/i.test(t) && /\d+|unlimited/i.test(t)) return false;
-    if (storage && /\bstorage\b|\bGB\b/i.test(t)) return false;
+    // Hide all storage lines on pricing cards
+    if (/\bstorage\b|\bGB\b/i.test(t)) return false;
+    if (subtitle && subtitle.toLowerCase().startsWith(lower) && lower.length >= 12) {
+      return false;
+    }
     return true;
   });
 }
@@ -96,8 +95,7 @@ export function PricingCards({
         const isLifetime = cycle.billingCycle === "lifetime";
         const isPopular = Boolean(plan.popular);
         const seats = usersLabel(plan);
-        const storage = storageLabel(plan);
-        const bodyCopy = cardBodyCopy(plan);
+        const bodyCopy = cardBodyCopy(plan, plan.subtitle);
         // Single badge source — never stack ribbon + badge + launchBadge
         const ribbon =
           [plan.ribbon, plan.badge, plan.launchBadge]
@@ -118,7 +116,12 @@ export function PricingCards({
               ? (plan.features || []).slice(0, 8)
               : plan.features || []
             : [];
-        const shownFeatures = dedupeFeatureLines(rawFeatures, seats, storage);
+        const shownFeatures = dedupeFeatureLines(
+          rawFeatures,
+          seats,
+          plan.subtitle,
+          bodyCopy
+        );
 
         const showOriginal =
           cycle.originalPrice != null &&
@@ -130,8 +133,6 @@ export function PricingCards({
         // Prefer one discount signal: savings amount when present, else % chip
         const showDiscountChip = showDiscount && !showSavings;
         const showExtraUser = plan.extraUserPrice != null && plan.extraUserPrice > 0;
-        const showExtraStorage =
-          plan.extraStoragePricePerGb != null && plan.extraStoragePricePerGb > 0;
 
         return (
           <AnimateIn key={plan.id} delay={i * 0.05} className="h-full">
@@ -202,32 +203,18 @@ export function PricingCards({
                   </p>
                 ) : null}
 
-                {seats || storage ? (
+                {seats ? (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {seats ? (
-                      <div
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          isPopular
-                            ? "bg-white text-[var(--brand-dark)] shadow-sm"
-                            : "bg-primary/8 text-primary"
-                        }`}
-                      >
-                        <Users className="h-3.5 w-3.5 shrink-0" />
-                        <span>{seats}</span>
-                      </div>
-                    ) : null}
-                    {storage ? (
-                      <div
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          isPopular
-                            ? "bg-white/15 text-white"
-                            : "bg-slate-100 text-slate-700"
-                        }`}
-                      >
-                        <HardDrive className="h-3.5 w-3.5 shrink-0" />
-                        <span>{storage}</span>
-                      </div>
-                    ) : null}
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        isPopular
+                          ? "bg-white text-[var(--brand-dark)] shadow-sm"
+                          : "bg-primary/8 text-primary"
+                      }`}
+                    >
+                      <Users className="h-3.5 w-3.5 shrink-0" />
+                      <span>{seats}</span>
+                    </div>
                   </div>
                 ) : null}
 
@@ -324,18 +311,13 @@ export function PricingCards({
               </CardHeader>
 
               <CardContent className="flex flex-1 flex-col pt-0 pb-6">
-                {showExtraUser || showExtraStorage ? (
+                {showExtraUser ? (
                   <div
                     className={`mb-4 space-y-1 text-xs ${
                       isPopular ? "text-white/75" : "text-muted-foreground"
                     }`}
                   >
-                    {showExtraUser ? (
-                      <p>Extra user: {formatPrice(plan.extraUserPrice!)}</p>
-                    ) : null}
-                    {showExtraStorage ? (
-                      <p>Extra storage: {formatPrice(plan.extraStoragePricePerGb!)}/GB</p>
-                    ) : null}
+                    <p>Extra user: {formatPrice(plan.extraUserPrice!)}</p>
                   </div>
                 ) : null}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -143,7 +143,15 @@ export function Header() {
   const [dropdown, setDropdown] = useState<DropdownKey>(null);
   const [mobileAccordion, setMobileAccordion] = useState<DropdownKey>(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const allIndustries = industriesQuery.data;
+  const allIndustries = useMemo(
+    () =>
+      [...industriesQuery.data].sort((a, b) =>
+        String(a.name || "").localeCompare(String(b.name || ""), undefined, {
+          sensitivity: "base",
+        })
+      ),
+    [industriesQuery.data]
+  );
   const featured = allIndustries.slice(0, 8);
   const [activeIndustryId, setActiveIndustryId] = useState<string>("");
   const [industriesExpanded, setIndustriesExpanded] = useState(false);
@@ -159,7 +167,17 @@ export function Header() {
     featured.find((i) => i.id === activeIndustryId) ||
     featured[0];
   const activeCategoriesQuery = useCatalogBusinessCategories(activeIndustry?.id || null);
-  const activeCategories = activeCategoriesQuery.data.slice(0, 12);
+  const activeCategories = useMemo(
+    () =>
+      [...activeCategoriesQuery.data]
+        .sort((a, b) =>
+          String(a.name || "").localeCompare(String(b.name || ""), undefined, {
+            sensitivity: "base",
+          })
+        )
+        .slice(0, 12),
+    [activeCategoriesQuery.data]
+  );
   const totalIndustries =
     allIndustries.length > 0 ? allIndustries.length : hierarchyStats.industries;
   const totalCategories =
@@ -734,7 +752,13 @@ export function Header() {
                   setMobileAccordion((v) => (v === "products" ? null : "products"))
                 }
               >
-                {productMegaMenu.flatMap((col) => col.items).map((link) => (
+                {productMegaMenu
+                  .flatMap((col) => col.items)
+                  .slice()
+                  .sort((a, b) =>
+                    a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+                  )
+                  .map((link) => (
                   <Link
                     key={link.href + link.title}
                     href={link.href}
@@ -758,7 +782,7 @@ export function Header() {
                 }
               >
                 <p className="px-3 py-1 text-xs text-muted-foreground">
-                  Featured first · {totalIndustries} industries · {totalCategories} categories
+                  A–Z · {totalIndustries} industries · {totalCategories} categories
                   </p>
                 {featured.map((ind) => (
                   <Link

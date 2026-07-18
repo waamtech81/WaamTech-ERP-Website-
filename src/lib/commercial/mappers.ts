@@ -190,22 +190,41 @@ function firstText(
 function ctaText(
   plan: Pick<
     CatalogPlan,
-    "cta" | "cta_button_text" | "contact_sales" | "lifetime_price" | "has_free_trial"
+    | "cta"
+    | "cta_button_text"
+    | "contact_sales"
+    | "lifetime_price"
+    | "has_free_trial"
+    | "slug"
+    | "tier"
+    | "name"
   >
 ): string {
-  const fromEngine = firstText(plan.cta?.text, plan.cta_button_text);
-  if (fromEngine) return fromEngine;
   if (plan.contact_sales) return "Contact sales";
   if (plan.lifetime_price != null) return "Get lifetime access";
-  // Starter / Business and other self-serve plans — free trial CTA (Engine may omit has_free_trial)
-  return "Start free trial";
+
+  const slug = String(plan.slug || plan.tier || plan.name || "").toLowerCase();
+  const fromEngine = firstText(plan.cta?.text, plan.cta_button_text);
+  // Business card: always Start Free Trial (Engine may send "Get Started")
+  if (slug.includes("business") || /^get\s*started$/i.test(fromEngine || "")) {
+    return "Start Free Trial";
+  }
+  if (fromEngine) return fromEngine;
+  return "Start Free Trial";
 }
 
 /** Public helper — same CTA rules as pricing cards (Engine SSOT). */
 export function planCtaLabel(
   plan: Pick<
     CatalogPlan,
-    "cta" | "cta_button_text" | "contact_sales" | "lifetime_price" | "has_free_trial"
+    | "cta"
+    | "cta_button_text"
+    | "contact_sales"
+    | "lifetime_price"
+    | "has_free_trial"
+    | "slug"
+    | "tier"
+    | "name"
   >
 ): string {
   return ctaText(plan);
@@ -460,8 +479,33 @@ export function mapCatalogPlanToPricingPlan(
         ? (plan.highlights || []).filter((h) => String(h || "").trim())
         : featureLinesFromDescription(plan.description);
 
-  // Do not inject trial into features — CTA already communicates trial; avoids duplicate rows
-  const features = featureNames.filter((f) => String(f || "").trim());
+  const description = firstText(
+    plan.short_description,
+    plan.description
+  );
+  const subtitle = firstText(plan.subtitle, plan.tagline);
+  // Prefer one body copy — never repeat subtitle / marketing_summary
+  const marketingRaw = firstText(plan.marketing_summary);
+  const marketingSummary =
+    marketingRaw &&
+    marketingRaw.toLowerCase() !== String(subtitle || "").toLowerCase() &&
+    marketingRaw.toLowerCase() !== String(description || "").toLowerCase()
+      ? marketingRaw
+      : undefined;
+
+  const norm = (s: string) => s.trim().toLowerCase();
+  const features = featureNames
+    .filter((f) => String(f || "").trim())
+    .filter((f) => {
+      const t = norm(f);
+      if (subtitle && t === norm(subtitle)) return false;
+      if (marketingSummary && t === norm(marketingSummary)) return false;
+      if (description && t === norm(description)) return false;
+      // Drop short marketing echoes like "Perfect for small businesses"
+      if (subtitle && subtitle.toLowerCase().startsWith(t) && t.length >= 12) return false;
+      if (/\bstorage\b|\bGB\b/i.test(f)) return false;
+      return true;
+    });
 
   const usersIncluded = fromLimits.usersIncluded ?? fromHighlights;
   const badge = firstText(
@@ -469,17 +513,6 @@ export function mapCatalogPlanToPricingPlan(
     plan.ribbon,
     plan.badge ? String(plan.badge).replace(/_/g, " ") : undefined
   );
-  const description = firstText(
-    plan.short_description,
-    plan.marketing_summary,
-    plan.description
-  );
-  // Prefer one body copy — avoid rendering the same Engine string twice
-  const marketingSummary =
-    firstText(plan.marketing_summary) &&
-    firstText(plan.marketing_summary) !== firstText(plan.short_description)
-      ? firstText(plan.marketing_summary)
-      : undefined;
 
   if (isEnterprise) {
     return {
@@ -810,19 +843,6 @@ function baseLimitComparisonRows(
       ),
     },
     {
-      name: "Storage",
-      ...Object.fromEntries(
-        plans.map((p) => [
-          p.id,
-          p.storageIncludedGb === "unlimited"
-            ? "Unlimited"
-            : p.storageIncludedGb != null
-              ? `${p.storageIncludedGb} GB`
-              : "—",
-        ])
-      ),
-    },
-    {
       name: "Support",
       ...Object.fromEntries(plans.map((p) => [p.id, p.supportLevel || "—"])),
     },
@@ -852,19 +872,6 @@ function baseLimitComparisonRows(
         ])
       ),
     },
-    {
-      name: "Extra storage price",
-      ...Object.fromEntries(
-        plans.map((p) => [
-          p.id,
-          p.extraStoragePricePerGb != null
-            ? `$${p.extraStoragePricePerGb}/GB`
-            : p.storageIncludedGb === "unlimited"
-              ? "Included"
-              : "—",
-        ])
-      ),
-    },
   ];
 }
 
@@ -882,7 +889,6 @@ export function buildDynamicComparison(
 
     const limitRows: Array<{ name: string; key: string }> = [
       { name: "Users", key: "max_users" },
-      { name: "Storage", key: "max_storage_gb" },
       { name: "Branches", key: "max_branches" },
       { name: "Warehouses", key: "max_warehouses" },
     ];
@@ -909,11 +915,6 @@ export function buildDynamicComparison(
               : plan.usersIncluded === 1
                 ? "1 Included User"
                 : `${plan.usersIncluded} Included Users`;
-        } else if (lr.key === "max_storage_gb" && plan.storageIncludedGb != null) {
-          row[plan.id] =
-            plan.storageIncludedGb === "unlimited"
-              ? "Unlimited"
-              : `${plan.storageIncludedGb} GB`;
         } else {
           row[plan.id] = formatLimitValue(lr.key, engineRow?.limits);
         }
@@ -953,19 +954,6 @@ export function buildDynamicComparison(
         ])
       ),
     });
-    matrix.push({
-      name: "Extra storage price",
-      ...Object.fromEntries(
-        visible.map((p) => [
-          p.id,
-          p.extraStoragePricePerGb != null
-            ? `$${p.extraStoragePricePerGb}/GB`
-            : p.storageIncludedGb === "unlimited"
-              ? "Included"
-              : "—",
-        ])
-      ),
-    });
 
     matrix.push(...featureGroupComparisonRows(visible));
 
@@ -975,7 +963,9 @@ export function buildDynamicComparison(
         if (row[key] === undefined) row[key] = "—";
       }
     }
-    return matrix;
+    return matrix.filter(
+      (row) => !/\bstorage\b/i.test(String(row.name || ""))
+    );
   }
 
   // Fallback when comparison API is unavailable — limits + full feature groups from plans.
@@ -990,7 +980,7 @@ export function buildDynamicComparison(
       if (row[key] === undefined) row[key] = false;
     }
   }
-  return rows;
+  return rows.filter((row) => !/\bstorage\b/i.test(String(row.name || "")));
 }
 
 /** Promo strip sourced from Engine launch campaign fields (never hardcoded). */

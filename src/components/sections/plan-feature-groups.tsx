@@ -19,16 +19,25 @@ export function PlanFeatureGroups({
 }: PlanFeatureGroupsProps) {
   if (!groups.length) return null;
 
-  const shown = (compact ? groups.slice(0, 3) : groups).filter((g) =>
-    g.features.some((f) => String(f.name || "").trim())
-  );
+  const shown = (compact ? groups.slice(0, 3) : groups).filter((g) => {
+    if (/\bstorage\b/i.test(String(g.name || ""))) return false;
+    return g.features.some((f) => {
+      const name = String(f.name || "").trim();
+      return name.length > 0 && !/\bstorage\b|\bGB\b/i.test(name);
+    });
+  });
   if (!shown.length) return null;
 
   return (
     <div className={cn("space-y-4", className)}>
       {shown.map((group, gi) => {
         const features = (compact ? group.features.slice(0, 4) : group.features).filter(
-          (f) => String(f.name || "").trim()
+          (f) => {
+            const name = String(f.name || "").trim();
+            if (!name) return false;
+            if (/\bstorage\b|\bGB\b/i.test(name)) return false;
+            return true;
+          }
         );
         if (!features.length) return null;
         return (

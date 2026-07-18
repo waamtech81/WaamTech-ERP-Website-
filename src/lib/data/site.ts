@@ -20,7 +20,7 @@ export const siteConfig = {
   productLine: "Enterprise ERP Platform",
   tagline: "Enterprise ERP Platform by WaamTech",
   description:
-    "WAAMTO is a modular Enterprise ERP by WaamTech — Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, plus built-in AI Assistant, Document AI, and smart recommendations across 17 industries and 100+ business categories.",
+    "WAAMTO is a cloud Enterprise ERP by WaamTech — Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and AI Workspace. Run multi-branch operations across 17+ industries. Start a free trial.",
   url: "https://waamto.com",
   appUrl: "https://app.waamto.com",
   licensePortalUrl: "https://license.waamtech.com",
@@ -105,30 +105,30 @@ export const productMegaMenu: {
   items: NavItem[];
 }[] = [
   {
-    category: "Operations",
+    category: "Intelligence",
     items: [
-      { title: "Inventory", href: "/products#inventory", description: "Multi-warehouse stock, batches, serials & reorders.", icon: "Package" },
-      { title: "POS", href: "/products#pos", description: "Fast checkout with offline mode & shifts.", icon: "ShoppingCart" },
-      { title: "Sales", href: "/products#sales", description: "Quotes, orders, deliveries & invoicing.", icon: "TrendingUp" },
-      { title: "Purchasing", href: "/products#wms", description: "POs, GRN, 3-way match & vendor scores.", icon: "ShoppingBag" },
+      { title: "AI Workspace", href: "/products#ai", description: "Assistant, Document AI, insights & recommendations.", icon: "Bot" },
+      { title: "All Modules", href: "/products", description: "Explore the full WAAMTO module suite.", icon: "Boxes" },
+      { title: "ERP Features", href: "/erp-features", description: "Deep capabilities across every department.", icon: "Sparkles" },
+      { title: "Mobile App", href: "/mobile-app", description: "Responsive web + native field app.", icon: "Smartphone" },
     ],
   },
   {
     category: "Management",
     items: [
-      { title: "Finance", href: "/products#finance", description: "GL, banks, budgets & period close.", icon: "Wallet" },
       { title: "CRM", href: "/products#crm", description: "Pipeline, loyalty & customer 360.", icon: "Users" },
+      { title: "Finance", href: "/products#finance", description: "GL, banks, budgets & period close.", icon: "Wallet" },
       { title: "HR & Payroll", href: "/products#hr", description: "Attendance, leave, payroll & ESS.", icon: "UserCog" },
       { title: "Manufacturing", href: "/products#manufacturing", description: "BOM, MRP, work orders & shop floor.", icon: "Factory" },
     ],
   },
   {
-    category: "Intelligence",
+    category: "Operations",
     items: [
-      { title: "AI Workspace", href: "/products#ai", description: "Assistant, Document AI, insights & recommendations.", icon: "Bot" },
-      { title: "All Modules", href: "/products", description: "Explore the full WAAMTO module suite.", icon: "Boxes" },
-      { title: "Mobile App", href: "/mobile-app", description: "Responsive web + native field app.", icon: "Smartphone" },
-      { title: "ERP Features", href: "/erp-features", description: "Deep capabilities across every department.", icon: "Sparkles" },
+      { title: "Inventory", href: "/products#inventory", description: "Multi-warehouse stock, batches, serials & reorders.", icon: "Package" },
+      { title: "POS", href: "/products#pos", description: "Fast checkout with offline mode & shifts.", icon: "ShoppingCart" },
+      { title: "Purchasing", href: "/products#wms", description: "POs, GRN, 3-way match & vendor scores.", icon: "ShoppingBag" },
+      { title: "Sales", href: "/products#sales", description: "Quotes, orders, deliveries & invoicing.", icon: "TrendingUp" },
     ],
   },
 ];

@@ -8,6 +8,11 @@ import { siteConfig } from "@/lib/data/site";
 import { fontVariablesClassName } from "@/lib/fonts";
 import { getSiteOrigin } from "@/lib/urls";
 import {
+  seoDescription,
+  seoKeywords,
+  seoTitleDefault,
+} from "@/lib/seo";
+import {
   directionForLanguage,
   normalizeLanguage,
   LOCALE_CODE_BY_LANG,
@@ -37,21 +42,23 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(origin),
     title: {
-      default: `${siteConfig.name} | ${siteConfig.productLine}`,
+      default: seoTitleDefault,
       template: `%s | ${siteConfig.name}`,
     },
-    description: siteConfig.description,
-    keywords: [
-      "ERP",
-      "enterprise software",
-      "inventory management",
-      "POS",
-      "CRM",
-      "WAAMTO",
-      "WaamTech",
-      "business software",
-    ],
-    authors: [{ name: siteConfig.companyName }],
+    description: seoDescription,
+    applicationName: siteConfig.name,
+    keywords: [...seoKeywords],
+    authors: [{ name: siteConfig.companyName, url: siteConfig.companyUrl }],
+    creator: siteConfig.companyName,
+    publisher: siteConfig.companyName,
+    category: "Business Software",
+    classification: "Enterprise Resource Planning (ERP)",
+    referrer: "origin-when-cross-origin",
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
     icons: {
       icon: [
         { url: "/favicon.ico", sizes: "32x32" },
@@ -78,26 +85,38 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: ogLocale,
       url: origin,
       siteName: siteConfig.name,
-      title: `${siteConfig.name} | ${siteConfig.productLine}`,
-      description: siteConfig.description,
+      title: seoTitleDefault,
+      description: seoDescription,
       images: [
         {
           url: siteConfig.logo,
           width: 512,
           height: 204,
-          alt: siteConfig.name,
+          alt: `${siteConfig.name} — ${siteConfig.productLine}`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${siteConfig.name} | ${siteConfig.productLine}`,
-      description: siteConfig.description,
+      title: seoTitleDefault,
+      description: seoDescription,
       images: [siteConfig.logo],
+      creator: "@waamto",
     },
     robots: {
       index: true,
       follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
+    other: {
+      "geo.region": "AE-DU",
+      "geo.placename": "Dubai",
     },
   };
 }

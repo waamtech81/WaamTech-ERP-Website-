@@ -7,7 +7,6 @@ import {
   SocialProofSection,
   PricingTeaser,
   SoftCTA,
-  FeaturedProductsSection,
 } from "@/components/sections/home-swiver";
 import { MobileAccessSection } from "@/components/sections/mobile-access-section";
 import { AiHighlightSection } from "@/components/sections/ai-highlight-section";
@@ -25,7 +24,6 @@ export default function HomePage() {
   return (
     <>
       <SwiverHero />
-      <FeaturedProductsSection />
       <ModuleShowcase />
       <AiHighlightSection />
       <StatsBand />

@@ -1,5 +1,6 @@
+import { withApiHandler } from "@/lib/api/handler";
 import { GET_catalog } from "../_handlers";
 
-export async function GET(req: Request) {
-  return GET_catalog(req);
-}
+export const GET = withApiHandler(async (req) => GET_catalog(req), {
+  endpoint: "/api/commercial/catalog",
+});

@@ -1,5 +1,6 @@
+import { withApiHandler } from "@/lib/api/handler";
 import { GET_pricing } from "../_handlers";
 
-export async function GET(req: Request) {
-  return GET_pricing(req);
-}
+export const GET = withApiHandler(async (req) => GET_pricing(req), {
+  endpoint: "/api/commercial/pricing",
+});

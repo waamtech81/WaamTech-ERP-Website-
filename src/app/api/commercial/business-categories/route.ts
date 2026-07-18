@@ -1,5 +1,6 @@
+import { withApiHandler } from "@/lib/api/handler";
 import { GET_businessCategories } from "../_handlers";
 
-export async function GET(req: Request) {
-  return GET_businessCategories(req);
-}
+export const GET = withApiHandler(async (req) => GET_businessCategories(req), {
+  endpoint: "/api/commercial/business-categories",
+});

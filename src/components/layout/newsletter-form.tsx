@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import { cn } from "@/lib/utils";
 
 export function NewsletterForm({
@@ -35,14 +36,16 @@ export function NewsletterForm({
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.success) {
-        setError(json.message || "Could not subscribe. Please try again.");
+        setError(
+          apiMessageFromJson(json, "Could not subscribe. Please try again.")
+        );
         return;
       }
-      setMessage(json.message || "Thanks — you are subscribed.");
+      setMessage(apiMessageFromJson(json, "Thanks — you are subscribed."));
       setEmail("");
       formStartedAt.current = Date.now();
-    } catch {
-      setError("Could not subscribe. Please try again.");
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Could not subscribe. Please try again."));
     } finally {
       setLoading(false);
     }

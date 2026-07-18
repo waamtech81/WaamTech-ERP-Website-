@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { withApiHandler } from "@/lib/api/handler";
+import { toPublicError } from "@/lib/api/errors";
+import { apiFail, apiSuccess } from "@/lib/api/response";
 import { fetchPublicPlanById, fetchPublicProducts } from "@/lib/commercial/client";
 
 type Params = { params: Promise<{ id: string }> };
@@ -10,7 +12,6 @@ function isPlanExpired(plan: {
   if (!plan.launch_end_date) return false;
   const end = Date.parse(plan.launch_end_date);
   if (!Number.isFinite(end)) return false;
-  // Only treat as expired when launch window ended AND launch is required/active flag false
   return Date.now() > end && plan.launch_active === false;
 }
 
@@ -18,91 +19,71 @@ function isPlanExpired(plan: {
  * GET /api/commercial/plans/:id
  * Proxies License Engine public plan detail (SSOT). Never trusts client pricing.
  */
-export async function GET(_req: Request, { params }: Params) {
-  const { id } = await params;
-  const planResult = await fetchPublicPlanById(id);
+export const GET = withApiHandler(
+  async (_req, context) => {
+    const { id } = await (context as Params).params;
+    const planResult = await fetchPublicPlanById(id);
 
-  if (!planResult.ok || !planResult.data) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: planResult.message || "Plan not found.",
-        code: planResult.status === 404 ? "PLAN_NOT_FOUND" : "PLAN_LOOKUP_FAILED",
-        data: null,
-      },
-      { status: planResult.status === 404 ? 404 : planResult.status || 502 }
-    );
-  }
+    if (!planResult.ok || !planResult.data) {
+      const publicError = toPublicError(
+        planResult.message || "Plan not found.",
+        planResult.status === 404 ? 404 : planResult.status || 502
+      );
+      return apiFail(
+        planResult.status === 404 ? "Plan not found." : publicError.message,
+        {
+          status: planResult.status === 404 ? 404 : publicError.status >= 500 ? 502 : publicError.status,
+          code: planResult.status === 404 ? "PLAN_NOT_FOUND" : publicError.code,
+          data: null,
+        }
+      );
+    }
 
-  const plan = planResult.data;
+    const plan = planResult.data;
 
-  if (!plan.is_active || plan.is_public === false) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "This plan is not available for signup.",
+    if (!plan.is_active || plan.is_public === false) {
+      return apiFail("This plan is not available for signup.", {
+        status: 410,
         code: "PLAN_DISABLED",
         data: null,
-      },
-      { status: 410 }
-    );
-  }
+      });
+    }
 
-  if (isPlanExpired(plan)) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "This plan offer has expired.",
+    if (isPlanExpired(plan)) {
+      return apiFail("This plan offer has expired.", {
+        status: 410,
         code: "PLAN_EXPIRED",
         data: null,
-      },
-      { status: 410 }
-    );
-  }
+      });
+    }
 
-  // Validate parent product from Engine catalog
-  const products = await fetchPublicProducts();
-  const product =
-    products.data.find(
-      (p) => p.id === plan.product_id || p.slug === plan.product_slug
-    ) || null;
+    const products = await fetchPublicProducts();
+    const product =
+      products.data.find(
+        (p) => p.id === plan.product_id || p.slug === plan.product_slug
+      ) || null;
 
-  if (!product) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Product for this plan was not found.",
+    if (!product) {
+      return apiFail("Product for this plan was not found.", {
+        status: 404,
         code: "PRODUCT_NOT_FOUND",
         data: null,
-      },
-      { status: 404 }
-    );
-  }
+      });
+    }
 
-  if (product.status !== "active" || product.is_public === false) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "This product is not available for signup.",
+    if (product.status !== "active" || product.is_public === false) {
+      return apiFail("This product is not available for signup.", {
+        status: 410,
         code: "PRODUCT_DISABLED",
         data: null,
-      },
-      { status: 410 }
-    );
-  }
-
-  return NextResponse.json(
-    {
-      success: true,
-      data: {
-        plan,
-        product,
-      },
-    },
-    {
-      headers: {
-        "Cache-Control": "private, no-store",
-      },
+      });
     }
-  );
-}
+
+    const res = apiSuccess("OK", {
+      data: { plan, product },
+    });
+    res.headers.set("Cache-Control", "private, no-store");
+    return res;
+  },
+  { endpoint: "/api/commercial/plans/[id]" }
+);

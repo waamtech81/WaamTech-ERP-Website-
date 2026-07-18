@@ -46,7 +46,7 @@ import {
   CatalogSelectError,
 } from "@/components/commercial/catalog-states";
 import { MobileAppProfileCallout } from "@/components/shared/mobile-app-callout";
-import { friendlyNetworkError } from "@/lib/network/errors";
+import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import {
   industryDisplayIcon,
   mapCatalogPlanToPricingPlan,
@@ -675,7 +675,7 @@ function SignUpForm({
       const json = await res.json();
 
       if (!json.success) {
-        setError(json.message || "Signup failed.");
+        setError(apiMessageFromJson(json, "Signup failed."));
         setLoading(false);
         return;
       }
@@ -723,7 +723,7 @@ function SignUpForm({
       });
       const json = await res.json();
       if (!json.success) {
-        setError(json.message || "Verification failed.");
+        setError(apiMessageFromJson(json, "Verification failed."));
         setLoading(false);
         return;
       }
@@ -764,7 +764,7 @@ function SignUpForm({
       });
       const json = await res.json();
       if (!json.success) {
-        setError(json.message || "Could not resend code.");
+        setError(apiMessageFromJson(json, "Could not resend code."));
       } else {
         setSuccess(json.message || "A new code was sent.");
       }

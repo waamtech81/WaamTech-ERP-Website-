@@ -10,7 +10,10 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "X-DNS-Prefetch-Control": "off",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+  // Deny Chrome Local Network Access so login never prompts
+  // "Allow other apps and services on this device" (loopback-network).
+  "Permissions-Policy":
+    "camera=(), microphone=(), geolocation=(), payment=(), local-network=(), loopback-network=()",
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Resource-Policy": "same-origin",
   "X-Permitted-Cross-Domain-Policies": "none",
@@ -102,7 +105,11 @@ export async function middleware(req: NextRequest) {
     if (!limited.ok) {
       return applyHeaders(
         NextResponse.json(
-          { success: false, message: "Too many requests." },
+          {
+            success: false,
+            code: "RATE_LIMITED",
+            message: "Too many requests. Please wait a moment and try again.",
+          },
           { status: 429, headers: { "Retry-After": String(limited.retryAfter) } }
         ),
         pathname
@@ -115,7 +122,11 @@ export async function middleware(req: NextRequest) {
     if (!limited.ok) {
       return applyHeaders(
         NextResponse.json(
-          { success: false, message: "Too many requests." },
+          {
+            success: false,
+            code: "RATE_LIMITED",
+            message: "Too many requests. Please wait a moment and try again.",
+          },
           { status: 429 }
         ),
         pathname
@@ -128,7 +139,11 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return applyHeaders(
         NextResponse.json(
-          { success: false, message: "Authentication required." },
+          {
+            success: false,
+            code: "UNAUTHORIZED",
+            message: "Authentication required.",
+          },
           { status: 401 }
         ),
         pathname

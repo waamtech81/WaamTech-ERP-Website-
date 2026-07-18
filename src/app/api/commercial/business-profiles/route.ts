@@ -1,5 +1,6 @@
+import { withApiHandler } from "@/lib/api/handler";
 import { GET_businessProfiles } from "../_handlers";
 
-export async function GET(req: Request) {
-  return GET_businessProfiles(req);
-}
+export const GET = withApiHandler(async (req) => GET_businessProfiles(req), {
+  endpoint: "/api/commercial/business-profiles",
+});

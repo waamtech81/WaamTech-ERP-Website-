@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { ApiErrorCode } from "@/lib/api/codes";
+import { withApiHandler } from "@/lib/api/handler";
+import { apiFail, apiSuccess } from "@/lib/api/response";
 import { identityForgotPassword } from "@/lib/license/identity";
 import {
   getClientIp,
@@ -8,48 +10,39 @@ import {
   sanitizeText,
 } from "@/lib/security/guards";
 
-export async function POST(req: Request) {
-  try {
+const GENERIC_RESET_MESSAGE =
+  "If an account exists for that email, a reset link has been sent.";
+
+export const POST = withApiHandler(
+  async (req) => {
     if (!isSameOrigin(req)) {
-      return NextResponse.json(
-        { success: false, message: "Invalid request origin." },
-        { status: 403 }
-      );
+      return apiFail("Invalid request origin.", {
+        status: 403,
+        code: ApiErrorCode.FORBIDDEN,
+      });
     }
 
     const ip = getClientIp(req);
     const limited = await rateLimit(`portal-forgot:${ip}`, 6, 15 * 60_000);
     if (!limited.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Too many requests. Try again in ${limited.retryAfter}s.`,
-        },
-        { status: 429 }
+      return apiFail(
+        `Too many requests. Try again in ${limited.retryAfter}s.`,
+        { status: 429, code: ApiErrorCode.RATE_LIMITED }
       );
     }
 
     const body = await req.json();
     const email = sanitizeText(body?.email, 254).toLowerCase();
     if (!email || !isValidEmail(email)) {
-      return NextResponse.json(
-        { success: false, message: "Enter a valid email address." },
-        { status: 400 }
-      );
+      return apiFail("Enter a valid email address.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
-    const result = await identityForgotPassword(email);
-    // Always return a generic success-style message (Engine also avoids enumeration)
-    return NextResponse.json({
-      success: true,
-      message:
-        result.message ||
-        "If an account exists for that email, a reset link has been sent.",
-    });
-  } catch {
-    return NextResponse.json({
-      success: true,
-      message: "If an account exists for that email, a reset link has been sent.",
-    });
-  }
-}
+    // Always return a generic success-style message (anti-enumeration)
+    await identityForgotPassword(email).catch(() => null);
+    return apiSuccess(GENERIC_RESET_MESSAGE);
+  },
+  { endpoint: "/api/auth/forgot-password" }
+);

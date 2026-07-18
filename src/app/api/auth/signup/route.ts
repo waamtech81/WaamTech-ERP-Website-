@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { ApiErrorCode } from "@/lib/api/codes";
+import { withApiHandler } from "@/lib/api/handler";
+import { apiFail, apiSuccess, upstreamFail } from "@/lib/api/response";
 import { authConfig } from "@/lib/auth/config";
 import { startRegistrationOnLicenseServer } from "@/lib/license/client";
 import {
@@ -23,35 +25,36 @@ function maskEmail(email: string): string {
   return `${visible}${"*".repeat(Math.max(1, local.length - 2))}@${domain}`;
 }
 
-export async function POST(req: Request) {
-  try {
+export const POST = withApiHandler(
+  async (req) => {
     if (!isSameOrigin(req)) {
-      return NextResponse.json(
-        { success: false, message: "Invalid request origin." },
-        { status: 403 }
-      );
+      return apiFail("Invalid request origin.", {
+        status: 403,
+        code: ApiErrorCode.FORBIDDEN,
+      });
     }
 
     const ip = getClientIp(req);
     const limited = await rateLimit(`signup:${ip}`, 5, 15 * 60_000);
     if (!limited.ok) {
-      return NextResponse.json(
+      return apiFail(
+        `Too many signup attempts. Try again in ${limited.retryAfter}s.`,
         {
-          success: false,
-          message: `Too many signup attempts. Try again in ${limited.retryAfter}s.`,
-        },
-        { status: 429, headers: { "Retry-After": String(limited.retryAfter) } }
+          status: 429,
+          code: ApiErrorCode.RATE_LIMITED,
+          headers: { "Retry-After": String(limited.retryAfter) },
+        }
       );
     }
 
     const body = await req.json();
 
     if (looksLikeBotPayload(body || {})) {
-      return NextResponse.json({
-        success: true,
-        requiresOtp: true,
-        message: "Check your email for a verification code.",
-        data: { email: "hidden" },
+      return apiSuccess("Check your email for a verification code.", {
+        extra: {
+          requiresOtp: true,
+          data: { email: "hidden" },
+        },
       });
     }
 
@@ -69,7 +72,6 @@ export async function POST(req: Request) {
       phoneCountryCode: phoneCountryCode || undefined,
       countryCode: country || undefined,
     });
-    // Prefer local number + dial merge on server so license always gets country code.
     const phoneLocal = sanitizeText(body?.phone_local || body?.phoneLocal, 40);
     const phoneRaw = sanitizeText(body?.phone || body?.company_phone, 40);
     const phone =
@@ -80,12 +82,8 @@ export async function POST(req: Request) {
       sanitizeText(body?.category_id || body?.business_category_id, 80) || undefined;
     const industry_id = sanitizeText(body?.industry_id, 80) || undefined;
     const plan_id = sanitizeText(body?.plan_id, 80) || undefined;
-    // Optional hint only — product is always derived from Engine plan (SSOT).
     const product_id_hint = sanitizeText(body?.product_id, 80) || undefined;
     const marketing_opt_in = Boolean(body?.marketing_opt_in);
-
-    // Never trust browser-supplied price / discount / savings / modules / limits / plan slug.
-    // Commercial selection is plan_id + industry_id + category_id only.
 
     if (
       !name ||
@@ -97,42 +95,38 @@ export async function POST(req: Request) {
       !industry_id ||
       !category_id
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Please fill name, email, password, company name, country, plan, industry, and business category.",
-        },
-        { status: 400 }
+      return apiFail(
+        "Please fill name, email, password, company name, country, plan, industry, and business category.",
+        { status: 400, code: ApiErrorCode.VALIDATION_ERROR }
       );
     }
 
     if (!phone) {
-      return NextResponse.json(
-        { success: false, message: "Please enter a phone number." },
-        { status: 400 }
-      );
+      return apiFail("Please enter a phone number.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     if (!isValidCountryCode(country)) {
-      return NextResponse.json(
-        { success: false, message: "Please select a valid country." },
-        { status: 400 }
-      );
+      return apiFail("Please select a valid country.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     if (!isValidEmail(email)) {
-      return NextResponse.json(
-        { success: false, message: "Please enter a valid work email." },
-        { status: 400 }
-      );
+      return apiFail("Please enter a valid work email.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     if (password.length < 8 || password.length > 128) {
-      return NextResponse.json(
-        { success: false, message: "Password must be 8–128 characters." },
-        { status: 400 }
-      );
+      return apiFail("Password must be 8–128 characters.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     const commercial = await validateSignupCommercialSelection({
@@ -143,24 +137,17 @@ export async function POST(req: Request) {
     });
 
     if (!commercial.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: commercial.message,
-          code: commercial.code,
-        },
-        { status: commercial.status }
-      );
+      return apiFail(commercial.message, {
+        status: commercial.status,
+        code: commercial.code || ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     const emailLimited = await rateLimit(`signup-email:${email}`, 3, 60 * 60_000);
     if (!emailLimited.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Too many verification emails requested for this address. Try later.",
-        },
-        { status: 429 }
+      return apiFail(
+        "Too many verification emails requested for this address. Try later.",
+        { status: 429, code: ApiErrorCode.RATE_LIMITED }
       );
     }
 
@@ -179,39 +166,35 @@ export async function POST(req: Request) {
     });
 
     if (!license.ok || !license.data?.registrationId) {
-      return NextResponse.json(
+      return upstreamFail(
+        license.message,
+        license.status,
         {
-          success: false,
-          message: license.message || "Could not start registration with license server.",
+          endpoint: "/api/auth/signup",
+          userEmail: email,
+          workspace: company_name,
         },
-        { status: license.status >= 400 && license.status < 600 ? license.status : 502 }
+        license.code
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      requiresOtp: true,
-      message:
-        license.message ||
+    return apiSuccess(
+      license.message ||
         `We sent a verification code to ${maskEmail(email)}. Enter it to activate your trial.`,
-      data: {
-        registrationId: license.data.registrationId,
-        email: license.data.email || maskEmail(email),
-        trialDays: license.data.trialDays || authConfig.trialDays,
-        otpExpiresInMinutes: license.data.otpExpiresInMinutes || 10,
-      },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to process signup.";
-    return NextResponse.json(
       {
-        success: false,
-        message:
-          message.includes("fetch") || message.includes("ECONNREFUSED")
-            ? "Signup service temporarily unavailable. Please try again."
-            : "Unable to process signup. Please try again.",
-      },
-      { status: 502 }
+        extra: {
+          requiresOtp: true,
+          data: {
+            registrationId: license.data.registrationId,
+            email: license.data.email || maskEmail(email),
+            trialDays: license.data.trialDays || authConfig.trialDays,
+            otpExpiresInMinutes: license.data.otpExpiresInMinutes || 10,
+          },
+        },
+      }
     );
+  },
+  {
+    endpoint: "/api/auth/signup",
   }
-}
+);

@@ -6,7 +6,8 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), payment=()",
+    value:
+      "camera=(), microphone=(), geolocation=(), payment=(), local-network=(), loopback-network=()",
   },
   { key: "X-DNS-Prefetch-Control", value: "off" },
   {
@@ -21,12 +22,17 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://www.gstatic.com https://translate.googleapis.com",
       "img-src 'self' data: blob: https://images.unsplash.com https://www.gstatic.com https://translate.googleapis.com https://translate.google.com https://www.google.com https://fonts.gstatic.com https://www.google-analytics.com https://www.googletagmanager.com",
       "font-src 'self' data: https://fonts.gstatic.com",
+      // Same-origin only for XHR/fetch — Control Center identity is server-side via /api/auth/*.
+      // No localhost in connect-src: prevents Chrome Apps-on-device (loopback-network) prompts.
       "connect-src 'self' https://www.google.com https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com https://www.googletagmanager.com https://translate.googleapis.com https://translate.google.com https://translate-pa.googleapis.com https://www.gstatic.com https://clients5.google.com https://translation.googleapis.com",
       "frame-src https://www.google.com https://recaptcha.google.com https://www.gstatic.com https://translate.google.com https://maps.google.com",
       "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
-      "form-action 'self'",
+      // Allow Super Admin SSO form POST to License Engine Admin Portal only.
+      // Never allow localhost/127.0.0.1 form-action from production pages —
+      // that triggers Chrome Apps-on-device (loopback-network) permission prompts.
+      "form-action 'self' https://license.waamtech.com",
       "object-src 'none'",
       "upgrade-insecure-requests",
     ].join("; "),

@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { ApiErrorCode } from "@/lib/api/codes";
+import { withApiHandler } from "@/lib/api/handler";
+import { apiFail, apiSuccess, upstreamFail } from "@/lib/api/response";
 import { authConfig } from "@/lib/auth/config";
 import {
   resendRegistrationOtp,
@@ -11,24 +13,25 @@ import {
   sanitizeText,
 } from "@/lib/security/guards";
 
-export async function POST(req: Request) {
-  try {
+export const POST = withApiHandler(
+  async (req) => {
     if (!isSameOrigin(req)) {
-      return NextResponse.json(
-        { success: false, message: "Invalid request origin." },
-        { status: 403 }
-      );
+      return apiFail("Invalid request origin.", {
+        status: 403,
+        code: ApiErrorCode.FORBIDDEN,
+      });
     }
 
     const ip = getClientIp(req);
     const limited = await rateLimit(`verify-otp:${ip}`, 20, 15 * 60_000);
     if (!limited.ok) {
-      return NextResponse.json(
+      return apiFail(
+        `Too many attempts. Try again in ${limited.retryAfter}s.`,
         {
-          success: false,
-          message: `Too many attempts. Try again in ${limited.retryAfter}s.`,
-        },
-        { status: 429, headers: { "Retry-After": String(limited.retryAfter) } }
+          status: 429,
+          code: ApiErrorCode.RATE_LIMITED,
+          headers: { "Retry-After": String(limited.retryAfter) },
+        }
       );
     }
 
@@ -42,10 +45,10 @@ export async function POST(req: Request) {
     const otp = sanitizeText(body?.otp || body?.code, 10);
 
     if (!registrationId) {
-      return NextResponse.json(
-        { success: false, message: "Registration session is required." },
-        { status: 400 }
-      );
+      return apiFail("Registration session is required.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     if (action === "resend") {
@@ -54,14 +57,17 @@ export async function POST(req: Request) {
         email,
       });
       if (!result.ok) {
-        return NextResponse.json(
-          { success: false, message: result.message },
-          { status: result.status >= 400 && result.status < 600 ? result.status : 502 }
+        return upstreamFail(
+          result.message,
+          result.status,
+          {
+            endpoint: "/api/auth/verify-otp",
+            userEmail: email,
+          },
+          result.code
         );
       }
-      return NextResponse.json({
-        success: true,
-        message: result.message || "A new verification code was sent.",
+      return apiSuccess(result.message || "A new verification code was sent.", {
         data: {
           otpExpiresInMinutes:
             typeof result.data?.otpExpiresInMinutes === "number"
@@ -72,10 +78,10 @@ export async function POST(req: Request) {
     }
 
     if (!otp || otp.length < 4) {
-      return NextResponse.json(
-        { success: false, message: "Enter the verification code from your email." },
-        { status: 400 }
-      );
+      return apiFail("Enter the verification code from your email.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     const result = await verifyRegistrationOtp({
@@ -85,38 +91,34 @@ export async function POST(req: Request) {
     });
 
     if (!result.ok || !result.data) {
-      return NextResponse.json(
-        { success: false, message: result.message || "Verification failed." },
-        { status: result.status >= 400 && result.status < 600 ? result.status : 502 }
+      return upstreamFail(
+        result.message || "Verification failed.",
+        result.status,
+        {
+          endpoint: "/api/auth/verify-otp",
+          userEmail: email,
+        },
+        result.code
       );
     }
 
     const appUrl = result.data.appUrl || result.data.loginUrl || authConfig.appUrl;
     const trialDays = result.data.trialDays || authConfig.trialDays;
 
-    // Allowlist only — never return licenseKey, tokens, or raw Engine payload
-    return NextResponse.json({
-      success: true,
-      message:
-        result.message ||
-        `Email verified. Your ${trialDays}-day trial is ready.`,
-      data: {
-        appUrl,
-        loginUrl: result.data.loginUrl || appUrl,
-        trialDays,
-        trialEndsAt: result.data.trialEndsAt || undefined,
-        username: result.data.username || undefined,
-        email: result.data.email || undefined,
-        redirectUrl: appUrl,
-      },
-    });
-  } catch {
-    return NextResponse.json(
+    return apiSuccess(
+      result.message || `Email verified. Your ${trialDays}-day trial is ready.`,
       {
-        success: false,
-        message: "Unable to verify code. Please try again.",
-      },
-      { status: 502 }
+        data: {
+          appUrl,
+          loginUrl: result.data.loginUrl || appUrl,
+          trialDays,
+          trialEndsAt: result.data.trialEndsAt || undefined,
+          username: result.data.username || undefined,
+          email: result.data.email || undefined,
+          redirectUrl: appUrl,
+        },
+      }
     );
-  }
-}
+  },
+  { endpoint: "/api/auth/verify-otp" }
+);

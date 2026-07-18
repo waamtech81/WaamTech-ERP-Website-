@@ -3,6 +3,8 @@ import {
   commercialApiBase,
   commercialHeaders,
 } from "@/lib/commercial/config";
+import { toPublicError } from "@/lib/api/errors";
+import { logApiError } from "@/lib/api/logger";
 import { friendlyNetworkError } from "@/lib/network/errors";
 import type {
   CatalogBusinessCategory,
@@ -26,6 +28,7 @@ import type {
 type LicenseEnvelope<T> = {
   success?: boolean;
   message?: string;
+  code?: string;
   data?: T;
   total?: number;
   page?: number;
@@ -36,6 +39,22 @@ type LicenseEnvelope<T> = {
 
 function emptyResult<T>(data: T, message: string, status = 502): CatalogFetchResult<T> {
   return { ok: false, status, message, data };
+}
+
+function publicUpstreamMessage(
+  raw: string | undefined,
+  status: number,
+  fallback: string,
+  code?: string | null
+): string {
+  const technical = raw || fallback;
+  if (raw || status >= 400) {
+    logApiError(new Error(technical), {
+      httpStatus: status,
+      technicalMessage: technical,
+    });
+  }
+  return toPublicError(technical, status, { code }).message;
 }
 
 async function getPublic<T>(
@@ -86,10 +105,12 @@ async function getPublic<T>(
       return {
         ok: false,
         status: res.status,
-        message:
-          json.message ||
-          json.error?.message ||
+        message: publicUpstreamMessage(
+          json.message || json.error?.message,
+          res.status,
           `License Engine request failed (${res.status}).`,
+          json.code || json.error?.code
+        ),
         data: (json.data as T) ?? null,
       };
     }
@@ -102,14 +123,22 @@ async function getPublic<T>(
     };
   } catch (error) {
     const aborted = error instanceof Error && error.name === "AbortError";
+    logApiError(error, {
+      httpStatus: aborted ? 504 : 502,
+      technicalMessage:
+        error instanceof Error ? error.message : "Commercial fetch failed",
+    });
     return emptyResult(
       null,
-      friendlyNetworkError(
-        error,
-        aborted
-          ? "License Engine timed out. Please retry."
-          : "Could not reach License Engine."
-      ),
+      toPublicError(
+        friendlyNetworkError(
+          error,
+          aborted
+            ? "The request timed out. Please retry."
+            : "Something went wrong. Please try again later."
+        ),
+        aborted ? 504 : 502
+      ).message,
       aborted ? 504 : 502
     );
   } finally {
@@ -153,10 +182,12 @@ async function getPublicPaginated<T>(
       return {
         ok: false,
         status: res.status,
-        message:
-          json.message ||
-          json.error?.message ||
+        message: publicUpstreamMessage(
+          json.message || json.error?.message,
+          res.status,
           `License Engine request failed (${res.status}).`,
+          json.code || json.error?.code
+        ),
         data: { data: [], total: 0 },
       };
     }
@@ -176,15 +207,23 @@ async function getPublicPaginated<T>(
     };
   } catch (error) {
     const aborted = error instanceof Error && error.name === "AbortError";
+    logApiError(error, {
+      httpStatus: aborted ? 504 : 502,
+      technicalMessage:
+        error instanceof Error ? error.message : "Commercial paginated fetch failed",
+    });
     return {
       ok: false,
       status: aborted ? 504 : 502,
-      message: friendlyNetworkError(
-        error,
-        aborted
-          ? "License Engine timed out. Please retry."
-          : "Could not reach License Engine."
-      ),
+      message: toPublicError(
+        friendlyNetworkError(
+          error,
+          aborted
+            ? "The request timed out. Please retry."
+            : "Something went wrong. Please try again later."
+        ),
+        aborted ? 504 : 502
+      ).message,
       data: { data: [], total: 0 },
     };
   } finally {

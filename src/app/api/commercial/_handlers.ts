@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { ApiErrorCode, PUBLIC_MESSAGES } from "@/lib/api/codes";
+import { logApiError } from "@/lib/api/logger";
+import { apiFail, apiSuccess } from "@/lib/api/response";
 import {
   fetchPublicBusinessCategories,
   fetchPublicBusinessProfiles,
@@ -23,19 +25,33 @@ import {
 
 function jsonOk(data: unknown, init?: { status?: number; cacheSeconds?: number }) {
   const cacheSeconds = init?.cacheSeconds ?? 60;
-  return NextResponse.json(
-    { success: true, data },
-    {
-      status: init?.status ?? 200,
-      headers: {
-        "Cache-Control": `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 5}`,
-      },
-    }
+  const res = apiSuccess("OK", {
+    data,
+    status: init?.status ?? 200,
+  });
+  res.headers.set(
+    "Cache-Control",
+    `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 5}`
   );
+  return res;
 }
 
 function jsonFail(message: string, status = 502) {
-  return NextResponse.json({ success: false, message, data: [] }, { status });
+  return apiFail(
+    status >= 500
+      ? PUBLIC_MESSAGES[ApiErrorCode.INTERNAL_ERROR]
+      : message || PUBLIC_MESSAGES[ApiErrorCode.SERVICE_UNAVAILABLE],
+    {
+      status,
+      code:
+        status >= 500
+          ? ApiErrorCode.INTERNAL_ERROR
+          : status === 404
+            ? ApiErrorCode.NOT_FOUND
+            : ApiErrorCode.SERVICE_UNAVAILABLE,
+      data: [],
+    }
+  );
 }
 
 /** Last successful catalog payload — soft-serve when License Engine is briefly down. */
@@ -176,8 +192,12 @@ export async function GET_catalog(req: Request) {
     if (stale) {
       return jsonOk({ ...(stale as object), meta: { ...(stale as { meta?: object }).meta, stale: true } });
     }
-    const message =
-      error instanceof Error ? error.message : "Commercial catalog unavailable.";
-    return jsonFail(message, 502);
+    logApiError(error, {
+      endpoint: "/api/commercial/catalog",
+      httpStatus: 502,
+      technicalMessage:
+        error instanceof Error ? error.message : "Commercial catalog unavailable.",
+    });
+    return jsonFail(PUBLIC_MESSAGES[ApiErrorCode.INTERNAL_ERROR], 502);
   }
 }

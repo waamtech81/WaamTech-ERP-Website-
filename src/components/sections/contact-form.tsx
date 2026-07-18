@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RecaptchaV2, resetRecaptcha } from "@/components/security/recaptcha-v2";
-import { friendlyNetworkError } from "@/lib/network/errors";
+import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 
 const empty = {
   name: "",
@@ -86,13 +86,13 @@ export function ContactForm({
       };
 
       if (!res.ok || !data.success) {
-        setError(data.message || "Could not send your message. Please try again.");
+        setError(apiMessageFromJson(data, "Could not send your message. Please try again."));
         setRecaptchaToken(null);
         resetRecaptcha();
         return;
       }
 
-      setSuccess(data.message || "Thanks — your message has been sent.");
+      setSuccess(apiMessageFromJson(data, "Thanks — your message has been sent."));
       setValues({ ...empty, subject: initialSubject });
       setRecaptchaToken(null);
       resetRecaptcha();

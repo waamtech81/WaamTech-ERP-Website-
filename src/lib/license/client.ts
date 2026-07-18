@@ -1,3 +1,5 @@
+import { toPublicError } from "@/lib/api/errors";
+import { logApiError } from "@/lib/api/logger";
 import { authConfig } from "@/lib/auth/config";
 import { licenseConfig, normalizeLicenseBase } from "@/lib/license/config";
 
@@ -45,8 +47,52 @@ export type RegistrationCompleteResult = {
 type LicenseApiResponse<T = Record<string, unknown>> = {
   success?: boolean;
   message?: string;
+  code?: string;
   data?: T;
+  error?: { message?: string; code?: string; details?: unknown } | string;
 };
+
+function rawLicenseMessage(json: LicenseApiResponse<unknown>): string {
+  if (typeof json.message === "string" && json.message.trim()) return json.message;
+  if (typeof json.error === "string" && json.error.trim()) return json.error;
+  if (
+    json.error &&
+    typeof json.error === "object" &&
+    typeof json.error.message === "string" &&
+    json.error.message.trim()
+  ) {
+    return json.error.message;
+  }
+  return "";
+}
+
+function rawLicenseCode(json: LicenseApiResponse<unknown>): string | undefined {
+  if (typeof json.code === "string" && json.code.trim()) return json.code.trim();
+  if (
+    json.error &&
+    typeof json.error === "object" &&
+    typeof json.error.code === "string" &&
+    json.error.code.trim()
+  ) {
+    return json.error.code.trim();
+  }
+  return undefined;
+}
+
+/** Public-safe message — prefers Engine message; never returns technical text. */
+function extractLicenseError(
+  json: LicenseApiResponse<unknown>,
+  status: number,
+  fallback: string
+): { message: string; code?: string } {
+  const raw = rawLicenseMessage(json);
+  const code = rawLicenseCode(json);
+  const publicError = toPublicError(raw || fallback, status, {
+    code,
+    preferEmailConflictOn409: !raw && !code,
+  });
+  return { message: publicError.message, code: publicError.code };
+}
 
 function licenseHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -62,9 +108,10 @@ function licenseHeaders(): Record<string, string> {
 async function postLicense<T>(
   paths: string[],
   body: unknown
-): Promise<{ ok: boolean; status: number; message: string; data?: T }> {
+): Promise<{ ok: boolean; status: number; message: string; code?: string; data?: T }> {
   const base = normalizeLicenseBase(licenseConfig.apiUrl);
   let lastError = "License service unavailable.";
+  let lastCode: string | undefined;
   let lastStatus = 502;
 
   for (const path of paths) {
@@ -88,26 +135,54 @@ async function postLicense<T>(
         return {
           ok: true,
           status: res.status,
-          message: json.message || "OK",
+          message: rawLicenseMessage(json) || "OK",
           data: json.data,
         };
       }
 
-      lastError = json.message || `License request failed (${res.status}).`;
+      const technical =
+        rawLicenseMessage(json) || `License request failed (${res.status}).`;
+      logApiError(new Error(technical), {
+        endpoint: path,
+        httpStatus: res.status,
+        technicalMessage: technical,
+      });
+      const extracted = extractLicenseError(json, res.status, technical);
+      lastError = extracted.message;
+      lastCode = extracted.code;
       if (res.status !== 404) break;
     } catch (error) {
-      lastError =
+      const technical =
         error instanceof Error ? error.message : "Could not reach license server.";
+      logApiError(error, {
+        endpoint: path,
+        httpStatus: 502,
+        technicalMessage: technical,
+      });
+      const publicError = toPublicError(technical, 502);
+      lastError = publicError.message;
+      lastCode = publicError.code;
     }
   }
 
-  return { ok: false, status: lastStatus, message: lastError };
+  return {
+    ok: false,
+    status: lastStatus,
+    message: lastError,
+    code: lastCode,
+  };
 }
 
 /** Start registration — License Engine stores pending identity + emails OTP. */
 export async function startRegistrationOnLicenseServer(
   input: TrialRegistrationInput
-): Promise<{ ok: boolean; message: string; data?: RegistrationStartResult; status: number }> {
+): Promise<{
+  ok: boolean;
+  message: string;
+  code?: string;
+  data?: RegistrationStartResult;
+  status: number;
+}> {
   const result = await postLicense<RegistrationStartResult>(
     ["/v1/registrations/start", "/registrations/start"],
     {
@@ -145,6 +220,7 @@ export async function verifyRegistrationOtp(input: {
 }): Promise<{
   ok: boolean;
   message: string;
+  code?: string;
   data?: RegistrationCompleteResult;
   status: number;
 }> {
@@ -161,7 +237,13 @@ export async function verifyRegistrationOtp(input: {
 export async function resendRegistrationOtp(input: {
   registration_id: string;
   email?: string;
-}): Promise<{ ok: boolean; message: string; data?: RegistrationStartResult; status: number }> {
+}): Promise<{
+  ok: boolean;
+  message: string;
+  code?: string;
+  data?: RegistrationStartResult;
+  status: number;
+}> {
   return postLicense<RegistrationStartResult>(
     ["/v1/registrations/otp/resend", "/registrations/otp/resend"],
     input

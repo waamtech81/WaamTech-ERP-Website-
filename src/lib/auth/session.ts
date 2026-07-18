@@ -1,5 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import {
+  ApiErrorCode,
+  messageForCode,
+  PUBLIC_MESSAGES,
+  resolveApiErrorCode,
+} from "@/lib/api/codes";
+import { isTechnicalMessage } from "@/lib/api/errors";
 import { isValidSessionToken } from "@/lib/security/session-token";
 
 export { isValidSessionToken } from "@/lib/security/session-token";
@@ -124,20 +131,38 @@ export function maskLicenseKey(key: string | null | undefined): string {
   return `XXXX-XXXX-XXXX-${last}`;
 }
 
-export function friendlyAuthMessage(raw?: string | null): string {
-  const msg = String(raw || "").toLowerCase();
+export function friendlyAuthMessage(
+  raw?: string | null,
+  code?: string | null
+): string {
+  const known = resolveApiErrorCode(code);
+  const trimmed = String(raw || "").trim();
+  const isBusinessSentence =
+    trimmed.length >= 20 &&
+    trimmed.length <= 180 &&
+    /\s/.test(trimmed) &&
+    !isTechnicalMessage(trimmed);
+
+  if (known) {
+    return isBusinessSentence ? trimmed : messageForCode(known);
+  }
+
+  if (isBusinessSentence) {
+    return trimmed;
+  }
+
+  const msg = trimmed.toLowerCase();
   if (msg.includes("lock")) {
-    return "Your account is temporarily locked. Please try again in about 30 minutes.";
+    return PUBLIC_MESSAGES[ApiErrorCode.ACCOUNT_LOCKED];
   }
   if (msg.includes("rate") || msg.includes("too many")) {
-    return "Too many attempts. Please wait a moment and try again.";
+    return PUBLIC_MESSAGES[ApiErrorCode.RATE_LIMITED];
   }
   if (msg.includes("otp") || msg.includes("verification code") || msg.includes("email_code")) {
     return "Invalid or expired verification code. Please try again.";
   }
   if (msg.includes("session") || msg.includes("token") || msg.includes("unauthorized")) {
-    return "Your session expired. Please sign in again.";
+    return PUBLIC_MESSAGES[ApiErrorCode.INVALID_TOKEN];
   }
-  // Never reveal whether email or password was wrong
-  return "Login failed. Check your credentials and try again.";
+  return PUBLIC_MESSAGES[ApiErrorCode.INVALID_CREDENTIALS];
 }

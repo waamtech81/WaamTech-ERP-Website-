@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { ApiErrorCode } from "@/lib/api/codes";
+import { withApiHandler } from "@/lib/api/handler";
+import { apiFail, apiSuccess, upstreamFail } from "@/lib/api/response";
 import { identityResetPassword } from "@/lib/license/identity";
 import {
   getClientIp,
@@ -11,24 +13,25 @@ import {
  * Password reset completion — forwards new password to License Engine.
  * Website never stores or hashes passwords locally.
  */
-export async function POST(req: Request) {
-  try {
+export const POST = withApiHandler(
+  async (req) => {
     if (!isSameOrigin(req)) {
-      return NextResponse.json(
-        { success: false, message: "Invalid request origin." },
-        { status: 403 }
-      );
+      return apiFail("Invalid request origin.", {
+        status: 403,
+        code: ApiErrorCode.FORBIDDEN,
+      });
     }
 
     const ip = getClientIp(req);
     const limited = await rateLimit(`portal-reset:${ip}`, 8, 15 * 60_000);
     if (!limited.ok) {
-      return NextResponse.json(
+      return apiFail(
+        `Too many attempts. Try again in ${limited.retryAfter}s.`,
         {
-          success: false,
-          message: `Too many attempts. Try again in ${limited.retryAfter}s.`,
-        },
-        { status: 429, headers: { "Retry-After": String(limited.retryAfter) } }
+          status: 429,
+          code: ApiErrorCode.RATE_LIMITED,
+          headers: { "Retry-After": String(limited.retryAfter) },
+        }
       );
     }
 
@@ -38,39 +41,36 @@ export async function POST(req: Request) {
     const confirm = String(body?.confirm_password || body?.confirmPassword || "");
 
     if (!token || token.length < 20) {
-      return NextResponse.json(
-        { success: false, message: "This reset link is invalid or incomplete." },
-        { status: 400 }
-      );
+      return apiFail("This reset link is invalid or incomplete.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     if (password.length < 8) {
-      return NextResponse.json(
-        { success: false, message: "Password must be at least 8 characters." },
-        { status: 400 }
-      );
+      return apiFail("Password must be at least 8 characters.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
     if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Password must include uppercase, lowercase, and a number.",
-        },
-        { status: 400 }
+      return apiFail(
+        "Password must include uppercase, lowercase, and a number.",
+        { status: 400, code: ApiErrorCode.VALIDATION_ERROR }
       );
     }
     if (!/[^A-Za-z0-9]/.test(password)) {
-      return NextResponse.json(
-        { success: false, message: "Password must include a special character." },
-        { status: 400 }
-      );
+      return apiFail("Password must include a special character.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     if (password !== confirm) {
-      return NextResponse.json(
-        { success: false, message: "Passwords do not match." },
-        { status: 400 }
-      );
+      return apiFail("Passwords do not match.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     const result = await identityResetPassword({
@@ -79,33 +79,23 @@ export async function POST(req: Request) {
     });
 
     if (!result.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            result.message ||
-            "Reset link is invalid or expired. Request a new one.",
-        },
-        { status: result.status >= 400 && result.status < 600 ? result.status : 400 }
+      return upstreamFail(
+        result.message || "Reset link is invalid or expired. Request a new one.",
+        result.status >= 400 && result.status < 600 ? result.status : 400,
+        { endpoint: "/api/auth/reset-password" },
+        result.code
       );
     }
 
-    const appLogin = (
-      process.env.NEXT_PUBLIC_APP_URL || "https://app.waamto.com"
-    ).replace(/\/$/, "") + "/login";
+    const appLogin =
+      (process.env.NEXT_PUBLIC_APP_URL || "https://app.waamto.com").replace(
+        /\/$/,
+        ""
+      ) + "/login";
 
-    return NextResponse.json({
-      success: true,
-      message: result.message || "Password updated successfully.",
-      redirectUrl: appLogin,
+    return apiSuccess(result.message || "Password updated successfully.", {
+      extra: { redirectUrl: appLogin },
     });
-  } catch {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Unable to reset password right now. Please try again.",
-      },
-      { status: 502 }
-    );
-  }
-}
+  },
+  { endpoint: "/api/auth/reset-password" }
+);

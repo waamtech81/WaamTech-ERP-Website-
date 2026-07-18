@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { friendlyNetworkError } from "@/lib/network/errors";
+import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 
 const passwordRules = [
   { id: "length", label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -79,11 +79,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
       });
       const json = await res.json();
       if (!json.success) {
-        setError(json.message || "Unable to reset password.");
+        setError(apiMessageFromJson(json, "Unable to reset password."));
         setLoading(false);
         return;
       }
-      setSuccess(json.message || "Password updated successfully.");
+      setSuccess(apiMessageFromJson(json, "Password updated successfully."));
       const redirectTo = json.redirectUrl || APP_LOGIN_URL;
       window.setTimeout(() => {
         if (String(redirectTo).startsWith("http")) {

@@ -1,7 +1,15 @@
 /**
  * Map raw fetch / Abort / offline failures to user-facing copy.
- * Never surface "Failed to fetch" or similar engine messages in the UI.
+ * Never surface "Failed to fetch", Engine status text, or other technical messages.
  */
+
+import { isTechnicalMessage } from "@/lib/api/errors";
+import {
+  PUBLIC_MESSAGES,
+  ApiErrorCode,
+  messageForCode,
+  resolveApiErrorCode,
+} from "@/lib/api/codes";
 
 export function isOffline(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -38,24 +46,28 @@ export function friendlyNetworkError(error: unknown, fallback?: string): string 
       return "Unable to reach the server. Check your connection and try again.";
     }
 
-    // Already-friendly API messages
-    if (error.message && !msg.includes("fetch") && error.message.length < 180) {
+    // Only pass through short, already-friendly API messages
+    if (
+      error.message &&
+      !isTechnicalMessage(error.message) &&
+      error.message.length < 180
+    ) {
       return error.message;
     }
   }
 
-  return fallback || "Something went wrong. Please try again.";
+  return fallback || PUBLIC_MESSAGES[ApiErrorCode.INTERNAL_ERROR];
 }
 
 export function statusToFriendlyMessage(status: number, apiMessage?: string): string {
   const cleaned = String(apiMessage || "").trim();
-  const lower = cleaned.toLowerCase();
   const isRawNetwork =
     !cleaned ||
-    lower.includes("failed to fetch") ||
-    lower.includes("fetch failed") ||
-    lower.includes("networkerror") ||
-    lower.includes("econnrefused");
+    isTechnicalMessage(cleaned) ||
+    cleaned.toLowerCase().includes("failed to fetch") ||
+    cleaned.toLowerCase().includes("fetch failed") ||
+    cleaned.toLowerCase().includes("networkerror") ||
+    cleaned.toLowerCase().includes("econnrefused");
 
   if (cleaned && cleaned.length < 180 && !isRawNetwork) {
     return cleaned;
@@ -71,13 +83,28 @@ export function statusToFriendlyMessage(status: number, apiMessage?: string): st
     case 504:
       return "The request timed out. Please retry.";
     case 429:
-      return "Too many requests. Please wait a moment and try again.";
+      return PUBLIC_MESSAGES[ApiErrorCode.RATE_LIMITED];
     case 503:
-      return "The service is temporarily unavailable. Please try again shortly.";
+      return PUBLIC_MESSAGES[ApiErrorCode.SERVICE_UNAVAILABLE];
     default:
-      if (status >= 500) return "A server error occurred. Please try again.";
+      if (status >= 500) return PUBLIC_MESSAGES[ApiErrorCode.INTERNAL_ERROR];
       return cleaned && !isRawNetwork
         ? cleaned
         : "Request failed. Please try again.";
   }
+}
+
+/** Prefer API `message` field; never fall back to HTTP status text. */
+export function apiMessageFromJson(
+  json: { message?: unknown; code?: unknown; success?: unknown } | null | undefined,
+  fallback: string
+): string {
+  const msg = typeof json?.message === "string" ? json.message.trim() : "";
+  if (msg && !isTechnicalMessage(msg) && msg.length < 180) return msg;
+
+  const code =
+    typeof json?.code === "string" ? resolveApiErrorCode(json.code) : null;
+  if (code) return messageForCode(code);
+
+  return fallback || PUBLIC_MESSAGES[ApiErrorCode.INTERNAL_ERROR];
 }

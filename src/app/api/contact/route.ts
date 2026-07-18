@@ -1,4 +1,7 @@
-import { NextResponse } from "next/server";
+import { ApiErrorCode } from "@/lib/api/codes";
+import { withApiHandler } from "@/lib/api/handler";
+import { logApiError } from "@/lib/api/logger";
+import { apiFail, apiSuccess } from "@/lib/api/response";
 import { sendContactFormMessage } from "@/lib/auth/email";
 import { verifyGoogleRecaptcha } from "@/lib/security/google-recaptcha";
 import {
@@ -14,25 +17,23 @@ import {
   sanitizeText,
 } from "@/lib/security/guards";
 
-export async function POST(request: Request) {
-  try {
+export const POST = withApiHandler(
+  async (request) => {
     if (!isSameOrigin(request)) {
-      return NextResponse.json(
-        { success: false, message: "Invalid request origin." },
-        { status: 403 }
-      );
+      return apiFail("Invalid request origin.", {
+        status: 403,
+        code: ApiErrorCode.FORBIDDEN,
+      });
     }
 
     const ip = getClientIp(request);
     const limited = await rateLimit(`contact:${ip}`, 5, 15 * 60_000);
     if (!limited.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Too many messages. Please try again later.",
-        },
-        { status: 429, headers: { "Retry-After": String(limited.retryAfter) } }
-      );
+      return apiFail("Too many messages. Please try again later.", {
+        status: 429,
+        code: ApiErrorCode.RATE_LIMITED,
+        headers: { "Retry-After": String(limited.retryAfter) },
+      });
     }
 
     const body = (await request.json().catch(() => ({}))) as Record<
@@ -40,20 +41,16 @@ export async function POST(request: Request) {
       unknown
     >;
 
-    // Honeypot + minimum fill time
     if (looksLikeBotPayload(body)) {
-      return NextResponse.json({
-        success: true,
-        message: "Thanks — your message has been sent.",
-      });
+      return apiSuccess("Thanks — your message has been sent.");
     }
 
     const started = Number(body._t || 0);
     if (!started || Date.now() - started < 1500) {
-      return NextResponse.json(
-        { success: false, message: "Please complete the security check carefully." },
-        { status: 400 }
-      );
+      return apiFail("Please complete the security check carefully.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     const name = sanitizeText(body.name, 120);
@@ -66,7 +63,6 @@ export async function POST(request: Request) {
       4000
     );
 
-    // Intent must be allowlisted — never trust raw query/body strings
     const intent = parseContactIntent(
       typeof body.intent === "string" ? body.intent : null
     );
@@ -74,39 +70,34 @@ export async function POST(request: Request) {
     const subject = subjectFromIntent || sanitizeText(body.subject, 160);
 
     if (!name || !email || !company || !phone || !subject || !message) {
-      return NextResponse.json(
-        { success: false, message: "Please fill in all required fields." },
-        { status: 400 }
-      );
+      return apiFail("Please fill in all required fields.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     if (!isValidEmail(email)) {
-      return NextResponse.json(
-        { success: false, message: "Please enter a valid work email." },
-        { status: 400 }
-      );
+      return apiFail("Please enter a valid work email.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     const captchaResult = await verifyGoogleRecaptcha(recaptchaToken, ip);
     if (!captchaResult.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: captchaResult.reason,
-        },
-        { status: 400 }
-      );
+      return apiFail(captchaResult.reason, {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
     }
 
     const emailLimited = await rateLimit(`contact-email:${email}`, 3, 60 * 60_000);
     if (!emailLimited.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Too many messages from this email. Please try again later.",
-        },
+      return apiFail(
+        "Too many messages from this email. Please try again later.",
         {
           status: 429,
+          code: ApiErrorCode.RATE_LIMITED,
           headers: { "Retry-After": String(emailLimited.retryAfter) },
         }
       );
@@ -122,23 +113,21 @@ export async function POST(request: Request) {
     });
 
     if (!result.sent) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Could not send your message. Please try again.",
-        },
-        { status: 502 }
-      );
+      logApiError(new Error(result.error || "Contact email send failed"), {
+        endpoint: "/api/contact",
+        userEmail: email,
+        httpStatus: 502,
+        technicalMessage: result.error || "Contact email send failed",
+      });
+      return apiFail("Could not send your message. Please try again.", {
+        status: 502,
+        code: ApiErrorCode.SERVICE_UNAVAILABLE,
+      });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Thanks — your message has been sent. We'll get back to you soon.",
-    });
-  } catch {
-    return NextResponse.json(
-      { success: false, message: "Something went wrong. Please try again." },
-      { status: 500 }
+    return apiSuccess(
+      "Thanks — your message has been sent. We'll get back to you soon."
     );
-  }
-}
+  },
+  { endpoint: "/api/contact" }
+);

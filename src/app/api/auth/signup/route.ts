@@ -14,6 +14,7 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
+import { validateSignupCommercialSelection } from "@/lib/signup/validate-commercial";
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
@@ -78,14 +79,13 @@ export async function POST(req: Request) {
     const category_id =
       sanitizeText(body?.category_id || body?.business_category_id, 80) || undefined;
     const industry_id = sanitizeText(body?.industry_id, 80) || undefined;
-    const product_id = sanitizeText(body?.product_id, 80) || undefined;
-    const product_slug = sanitizeText(body?.product_slug, 80) || undefined;
     const plan_id = sanitizeText(body?.plan_id, 80) || undefined;
-    const plan = sanitizeText(body?.plan, 40) || undefined;
-    const billing_cycle =
-      sanitizeText(body?.billing_cycle || body?.billingCycle, 20) || undefined;
-    // Never trust browser-supplied price / discount / savings — License Engine is SSOT.
+    // Optional hint only — product is always derived from Engine plan (SSOT).
+    const product_id_hint = sanitizeText(body?.product_id, 80) || undefined;
     const marketing_opt_in = Boolean(body?.marketing_opt_in);
+
+    // Never trust browser-supplied price / discount / savings / modules / limits / plan slug.
+    // Commercial selection is plan_id + industry_id + category_id only.
 
     if (
       !name ||
@@ -93,7 +93,6 @@ export async function POST(req: Request) {
       !email ||
       !company_name ||
       !country ||
-      !product_id ||
       !plan_id ||
       !industry_id ||
       !category_id
@@ -102,7 +101,7 @@ export async function POST(req: Request) {
         {
           success: false,
           message:
-            "Please fill name, email, password, company name, country, product, plan, industry, and business category.",
+            "Please fill name, email, password, company name, country, plan, industry, and business category.",
         },
         { status: 400 }
       );
@@ -136,6 +135,24 @@ export async function POST(req: Request) {
       );
     }
 
+    const commercial = await validateSignupCommercialSelection({
+      plan_id,
+      industry_id,
+      category_id,
+      product_id: product_id_hint,
+    });
+
+    if (!commercial.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: commercial.message,
+          code: commercial.code,
+        },
+        { status: commercial.status }
+      );
+    }
+
     const emailLimited = await rateLimit(`signup-email:${email}`, 3, 60 * 60_000);
     if (!emailLimited.ok) {
       return NextResponse.json(
@@ -154,13 +171,10 @@ export async function POST(req: Request) {
       phone,
       company_name,
       country,
-      industry_id,
-      category_id,
-      product_id,
-      product_slug,
-      plan_id,
-      plan,
-      billing_cycle,
+      industry_id: commercial.data.industry.id,
+      category_id: commercial.data.category.id,
+      product_id: commercial.data.product.id,
+      plan_id: commercial.data.plan.id,
       marketing_opt_in,
     });
 

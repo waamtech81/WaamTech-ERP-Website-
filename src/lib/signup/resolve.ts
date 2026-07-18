@@ -20,25 +20,47 @@ export type ResolvedSignupHierarchy = {
   profile: CatalogBusinessProfile | null;
 };
 
+/** Public + active catalog rows only — never bind signup to hidden/disabled Engine records. */
+export function isSignupCatalogVisible(row: {
+  status?: string | null;
+  is_public?: boolean | null;
+  is_active?: boolean | null;
+}): boolean {
+  if (row.is_public === false) return false;
+  if (row.is_active === false) return false;
+  if (row.status && String(row.status).toLowerCase() !== "active") return false;
+  return true;
+}
+
 function findIndustry(
   industries: CatalogIndustry[],
   needle: string
 ): CatalogIndustry | undefined {
-  return industries.find((i) => catalogSlugMatches(i, needle));
+  return industries.find(
+    (i) => isSignupCatalogVisible(i) && catalogSlugMatches(i, needle)
+  );
 }
 
 function findCategory(
   categories: CatalogBusinessCategory[],
-  needle: string
+  needle: string,
+  industryId: string
 ): CatalogBusinessCategory | undefined {
-  return categories.find((c) => catalogSlugMatches(c, needle));
+  return categories.find(
+    (c) =>
+      isSignupCatalogVisible(c) &&
+      catalogSlugMatches(c, needle) &&
+      (!c.industry_id || c.industry_id === industryId)
+  );
 }
 
 function findProfile(
   profiles: CatalogBusinessProfile[],
   needle: string
 ): CatalogBusinessProfile | undefined {
-  return profiles.find((p) => catalogSlugMatches(p, needle));
+  return profiles.find(
+    (p) => isSignupCatalogVisible(p) && catalogSlugMatches(p, needle)
+  );
 }
 
 /** Resolve public permalink slugs → Engine records (UUIDs stay server/internal only). */
@@ -48,7 +70,8 @@ export async function resolveSignupBySlugs(opts: {
   profileSlug?: string | null;
 }): Promise<ResolvedSignupHierarchy | null> {
   const industrySlug = normalizePermalinkSlug(opts.industrySlug);
-  if (!industrySlug || isUuid(industrySlug)) return null;
+  // Never accept raw UUIDs in public path segments
+  if (!industrySlug || isUuid(industrySlug) || isUuid(opts.industrySlug)) return null;
 
   const industries = await fetchPublicIndustries();
   if (!industries.ok || !industries.data.length) return null;
@@ -59,10 +82,10 @@ export async function resolveSignupBySlugs(opts: {
   let category: CatalogBusinessCategory | null = null;
   const categorySlug = normalizePermalinkSlug(opts.categorySlug);
   if (categorySlug) {
-    if (isUuid(categorySlug)) return null;
+    if (isUuid(categorySlug) || isUuid(opts.categorySlug)) return null;
     const categories = await fetchPublicBusinessCategories(industry.id);
     if (!categories.ok) return null;
-    category = findCategory(categories.data, categorySlug) || null;
+    category = findCategory(categories.data, categorySlug, industry.id) || null;
     if (!category) return null;
   }
 
@@ -72,7 +95,9 @@ export async function resolveSignupBySlugs(opts: {
     if (isUuid(profileSlug)) {
       // Caller should rewrite UUID → slug; still resolve for redirect
       const profiles = await fetchPublicBusinessProfiles(category.id);
-      profile = profiles.data.find((p) => p.id === opts.profileSlug?.trim()) || null;
+      const byId =
+        profiles.data.find((p) => p.id === opts.profileSlug?.trim()) || null;
+      profile = byId && isSignupCatalogVisible(byId) ? byId : null;
     } else {
       const profiles = await fetchPublicBusinessProfiles(category.id);
       profile = findProfile(profiles.data, profileSlug) || null;
@@ -99,7 +124,9 @@ export async function resolveSignupByIds(opts: {
 
   let industry: CatalogIndustry | undefined;
   if (industryId) {
-    industry = industries.data.find((i) => i.id === industryId);
+    industry = industries.data.find(
+      (i) => i.id === industryId && isSignupCatalogVisible(i)
+    );
   }
 
   let category: CatalogBusinessCategory | null = null;
@@ -107,9 +134,22 @@ export async function resolveSignupByIds(opts: {
     const categories = await fetchPublicBusinessCategories(
       industry?.id || undefined
     );
-    category = categories.data.find((c) => c.id === categoryId) || null;
+    category =
+      categories.data.find(
+        (c) => c.id === categoryId && isSignupCatalogVisible(c)
+      ) || null;
     if (category && !industry && category.industry_id) {
-      industry = industries.data.find((i) => i.id === category!.industry_id);
+      industry = industries.data.find(
+        (i) => i.id === category!.industry_id && isSignupCatalogVisible(i)
+      );
+    }
+    if (
+      category &&
+      industry &&
+      category.industry_id &&
+      category.industry_id !== industry.id
+    ) {
+      return null;
     }
   }
 
@@ -120,7 +160,8 @@ export async function resolveSignupByIds(opts: {
   let profile: CatalogBusinessProfile | null = null;
   if (profileId && category) {
     const profiles = await fetchPublicBusinessProfiles(category.id);
-    profile = profiles.data.find((p) => p.id === profileId) || null;
+    const byId = profiles.data.find((p) => p.id === profileId) || null;
+    profile = byId && isSignupCatalogVisible(byId) ? byId : null;
   }
 
   return { industry, category, profile };

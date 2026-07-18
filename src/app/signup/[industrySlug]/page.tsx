@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import {
   buildSignupPermalink,
@@ -25,7 +26,20 @@ function first(
   return (Array.isArray(raw) ? raw[0] : raw)?.trim() || "";
 }
 
-/** /signup/retail-commerce */
+/** /signup/:industrySlug */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { industrySlug: raw } = await params;
+  const industrySlug = normalizePermalinkSlug(raw);
+  if (!industrySlug || isUuid(raw)) return { title: "Sign up" };
+  const resolved = await resolveSignupBySlugs({ industrySlug });
+  if (!resolved?.industry) return { title: "Sign up" };
+  return {
+    title: `Sign up — ${resolved.industry.name}`,
+    description: `Create your WAAMTO account for ${resolved.industry.name}.`,
+    robots: { index: true, follow: true },
+  };
+}
+
 export default async function SignUpIndustryPage({ params, searchParams }: PageProps) {
   const { industrySlug: raw } = await params;
   const sp = await searchParams;
@@ -39,6 +53,8 @@ export default async function SignUpIndustryPage({ params, searchParams }: PageP
   const resolved = await resolveSignupBySlugs({ industrySlug });
   if (!resolved?.industry) notFound();
 
+  const canonicalIndustry = publicCatalogSlug(resolved.industry);
+
   // ?category= on industry path → nest under /signup/{industry}/{category}
   if (categoryQ) {
     if (isUuid(categoryQ)) {
@@ -47,53 +63,69 @@ export default async function SignUpIndustryPage({ params, searchParams }: PageP
         categoryId: categoryQ,
         profileId: isUuid(profileRaw) ? profileRaw : undefined,
       });
-      if (fromUuid?.category) {
-        redirect(
-          buildSignupPermalink({
-            industrySlug: publicCatalogSlug(fromUuid.industry),
-            categorySlug: publicCatalogSlug(fromUuid.category),
-            profileSlug: fromUuid.profile
-              ? publicCatalogSlug(fromUuid.profile)
-              : profileRaw && !isUuid(profileRaw)
-                ? normalizePermalinkSlug(profileRaw)
-                : undefined,
-            product: preserved.product,
-            planId: preserved.plan_id,
-            planSlug: preserved.plan,
-            billingCycle: preserved.billing_cycle,
-          })
-        );
-      }
-    } else {
-      const nested = await resolveSignupBySlugs({
-        industrySlug: publicCatalogSlug(resolved.industry),
-        categorySlug: categoryQ,
-        profileSlug: profileRaw && !isUuid(profileRaw) ? profileRaw : undefined,
-      });
-      if (nested?.category) {
-        redirect(
-          buildSignupPermalink({
-            industrySlug: publicCatalogSlug(nested.industry),
-            categorySlug: publicCatalogSlug(nested.category),
-            profileSlug: nested.profile
-              ? publicCatalogSlug(nested.profile)
-              : profileRaw && !isUuid(profileRaw)
-                ? normalizePermalinkSlug(profileRaw)
-                : undefined,
-            product: preserved.product,
-            planId: preserved.plan_id,
-            planSlug: preserved.plan,
-            billingCycle: preserved.billing_cycle,
-          })
-        );
-      }
+      if (!fromUuid?.category) notFound();
+      redirect(
+        buildSignupPermalink({
+          industrySlug: publicCatalogSlug(fromUuid.industry),
+          categorySlug: publicCatalogSlug(fromUuid.category),
+          profileSlug: fromUuid.profile
+            ? publicCatalogSlug(fromUuid.profile)
+            : profileRaw && !isUuid(profileRaw)
+              ? normalizePermalinkSlug(profileRaw)
+              : undefined,
+          product: preserved.product,
+          planId: preserved.plan_id,
+          planSlug: preserved.plan,
+          billingCycle: preserved.billing_cycle,
+        })
+      );
     }
+
+    const nested = await resolveSignupBySlugs({
+      industrySlug: canonicalIndustry,
+      categorySlug: categoryQ,
+      profileSlug: profileRaw && !isUuid(profileRaw) ? profileRaw : undefined,
+    });
+    if (!nested?.category) notFound();
+    redirect(
+      buildSignupPermalink({
+        industrySlug: publicCatalogSlug(nested.industry),
+        categorySlug: publicCatalogSlug(nested.category),
+        profileSlug: nested.profile
+          ? publicCatalogSlug(nested.profile)
+          : profileRaw && !isUuid(profileRaw)
+            ? normalizePermalinkSlug(profileRaw)
+            : undefined,
+        product: preserved.product,
+        planId: preserved.plan_id,
+        planSlug: preserved.plan,
+        billingCycle: preserved.billing_cycle,
+      })
+    );
+  }
+
+  // Canonical industry slug in the path
+  if (industrySlug !== canonicalIndustry) {
+    redirect(
+      buildSignupPermalink({
+        industrySlug: canonicalIndustry,
+        profileSlug:
+          profileRaw && !isUuid(profileRaw)
+            ? normalizePermalinkSlug(profileRaw)
+            : undefined,
+        product: preserved.product,
+        planId: preserved.plan_id,
+        planSlug: preserved.plan,
+        billingCycle: preserved.billing_cycle,
+      })
+    );
   }
 
   return (
     <SignUpClient
-      industrySlug={publicCatalogSlug(resolved.industry)}
+      industrySlug={canonicalIndustry}
       resolvedIndustryId={resolved.industry.id}
+      hierarchyValidated
     />
   );
 }

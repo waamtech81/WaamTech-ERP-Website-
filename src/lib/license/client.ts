@@ -8,14 +8,11 @@ export type TrialRegistrationInput = {
   phone?: string;
   company_name: string;
   country: string;
-  /** Required commercial selection — License Engine auto-resolves profile from category. */
+  /** Required commercial selection — License Engine validates + auto-resolves profile from category. */
   industry_id: string;
   category_id: string;
   product_id: string;
-  product_slug?: string;
   plan_id: string;
-  plan?: string;
-  billing_cycle?: string;
   marketing_opt_in?: boolean;
 };
 
@@ -125,15 +122,12 @@ export async function startRegistrationOnLicenseServer(
       company: input.company_name,
       country: input.country,
       country_code: input.country,
+      // Commercial IDs only — Engine re-validates product/plan/industry/category server-side
       industry_id: input.industry_id,
       category_id: input.category_id,
       business_category_id: input.category_id,
       product_id: input.product_id,
-      product_slug: input.product_slug,
       plan_id: input.plan_id,
-      plan: input.plan || undefined,
-      plan_slug: input.plan || undefined,
-      billing_cycle: input.billing_cycle || undefined,
       marketing_opt_in: Boolean(input.marketing_opt_in),
       trial_days: authConfig.trialDays,
       source: "waamto-website",

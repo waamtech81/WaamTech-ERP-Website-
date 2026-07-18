@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Check,
   ChevronDown,
@@ -55,7 +55,6 @@ import {
 } from "@/lib/commercial/mappers";
 import { getCategoryAccessHints } from "@/lib/data/mobile-app";
 import {
-  catalogSlugMatches,
   normalizePermalinkSlug,
 } from "@/lib/signup/permalinks";
 
@@ -67,6 +66,8 @@ export type SignUpClientProps = {
   resolvedProfileId?: string;
   industrySlug?: string;
   categorySlug?: string;
+  /** True when server already validated permalink slugs via License Engine. */
+  hierarchyValidated?: boolean;
 };
 
 type StrengthRule = { id: string; label: string; test: (v: string) => boolean };
@@ -181,23 +182,20 @@ function SignUpForm({
   resolvedCategoryId = "",
   industrySlug: industrySlugProp = "",
   categorySlug: categorySlugProp = "",
+  hierarchyValidated = false,
 }: SignUpClientProps) {
   const searchParams = useSearchParams();
-  const routeParams = useParams<{ industrySlug?: string; categorySlug?: string }>();
   const { country: detectedCountry, formatPrice } = useLocale();
 
-  const industrySlug =
-    normalizePermalinkSlug(industrySlugProp) ||
-    normalizePermalinkSlug(
-      typeof routeParams.industrySlug === "string" ? routeParams.industrySlug : ""
-    );
-  const categorySlug =
-    normalizePermalinkSlug(categorySlugProp) ||
-    normalizePermalinkSlug(
-      typeof routeParams.categorySlug === "string" ? routeParams.categorySlug : ""
-    );
+  // Display-only slugs from server props — never bind commercial IDs from path params
+  const industrySlug = normalizePermalinkSlug(industrySlugProp);
+  const categorySlug = normalizePermalinkSlug(categorySlugProp);
+  const permalinkReady =
+    !hierarchyValidated ||
+    (Boolean(resolvedIndustryId) &&
+      (!categorySlug || Boolean(resolvedCategoryId)));
 
-  // Safe URL identifiers only — never trust price/discount or UUIDs from the query string
+  // Query hints only — plan/product/price always reloaded from License Engine
   const defaultProductSlug = searchParams.get("product") || "";
   const defaultPlanSlug = searchParams.get("plan") || "";
   const defaultPlanId = searchParams.get("plan_id") || "";
@@ -509,41 +507,13 @@ function SignUpForm({
   const passwordStrong = ruleStatus.every((r) => r.ok);
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
 
-  // Seed from server-resolved UUIDs (slug routes) — never from public UUID query params
+  // Seed from server-resolved UUIDs (slug routes) — never from public URL text
   useEffect(() => {
     if (resolvedIndustryId) setIndustryId(resolvedIndustryId);
   }, [resolvedIndustryId]);
   useEffect(() => {
     if (resolvedCategoryId) setCategoryId(resolvedCategoryId);
   }, [resolvedCategoryId]);
-
-  // Resolve permalink slugs → Engine UUIDs via live catalog (client fallback)
-  useEffect(() => {
-    if (resolvedIndustryId || !industrySlug || industriesQuery.loading) return;
-    if (industriesQuery.error || !industriesQuery.data.length) return;
-    const match = industriesQuery.data.find((i) => catalogSlugMatches(i, industrySlug));
-    if (match) setIndustryId(match.id);
-  }, [
-    resolvedIndustryId,
-    industrySlug,
-    industriesQuery.data,
-    industriesQuery.loading,
-    industriesQuery.error,
-  ]);
-
-  useEffect(() => {
-    if (resolvedCategoryId || !categorySlug || !industryId) return;
-    if (categoriesQuery.loading || categoriesQuery.error) return;
-    const match = categoriesQuery.data.find((c) => catalogSlugMatches(c, categorySlug));
-    if (match) setCategoryId(match.id);
-  }, [
-    resolvedCategoryId,
-    categorySlug,
-    industryId,
-    categoriesQuery.data,
-    categoriesQuery.loading,
-    categoriesQuery.error,
-  ]);
 
   // Only clear after Engine list has loaded — never wipe during empty loading state
   useEffect(() => {
@@ -617,6 +587,11 @@ function SignUpForm({
     setError("");
     setSuccess("");
 
+    if (!permalinkReady) {
+      setError("This signup link is invalid. Please start again from pricing.");
+      return;
+    }
+
     if (!agree) {
       setError("Please accept the Terms and Privacy Policy.");
       return;
@@ -637,7 +612,7 @@ function SignUpForm({
       return;
     }
 
-    if (!planId || !planSlug) {
+    if (!planId) {
       setError("Please choose a plan.");
       return;
     }
@@ -688,14 +663,10 @@ function SignUpForm({
           phone_country_code: selectedPhoneDial?.code || phoneDialCode || undefined,
           company_name: companyName,
           country: countryCode,
-          product_id: productId,
-          product_slug: productSlug,
+          // Commercial: IDs only — Engine is SSOT for product/price/modules/limits
           plan_id: planId,
-          plan: planSlug,
-          billing_cycle: billingCycle || undefined,
           industry_id: industryId,
           category_id: categoryId,
-          business_category_id: categoryId,
           marketing_opt_in: marketingOptIn,
           website: honeypot,
           _t: formStartedAt,
@@ -969,6 +940,14 @@ function SignUpForm({
           {planLookupError ? (
             <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
               {planLookupError}{" "}
+              <Link href="/pricing" className="font-medium underline">
+                View pricing
+              </Link>
+            </div>
+          ) : null}
+          {!permalinkReady ? (
+            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+              This signup link is invalid or expired.{" "}
               <Link href="/pricing" className="font-medium underline">
                 View pricing
               </Link>

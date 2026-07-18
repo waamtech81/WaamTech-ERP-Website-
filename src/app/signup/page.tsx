@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   buildSignupPermalink,
   isUuid,
@@ -64,7 +64,7 @@ export default async function SignUpPage({ searchParams }: PageProps) {
       }
 
       if (!industryRecord) {
-        redirect(buildSignupPermalink(commercial));
+        redirect("/pricing");
       }
 
       let categorySlug: string | undefined;
@@ -99,7 +99,7 @@ export default async function SignUpPage({ searchParams }: PageProps) {
     if (industrySlug) {
       const industryOnly = await resolveSignupBySlugs({ industrySlug });
       if (!industryOnly?.industry) {
-        redirect(buildSignupPermalink(commercial));
+        redirect("/pricing");
       }
 
       const categorySlug = category ? normalizePermalinkSlug(category) : "";
@@ -123,13 +123,8 @@ export default async function SignUpPage({ searchParams }: PageProps) {
             })
           );
         }
-        // Invalid category slug → industry-only path
-        redirect(
-          buildSignupPermalink({
-            industrySlug: publicCatalogSlug(industryOnly.industry),
-            ...commercial,
-          })
-        );
+        // Invalid category slug with industry → reject (do not soft-fall back)
+        notFound();
       }
 
       redirect(

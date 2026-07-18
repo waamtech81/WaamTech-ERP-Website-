@@ -8,14 +8,47 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+
+const APP_LOGIN_URL = (
+  process.env.NEXT_PUBLIC_APP_URL || "https://app.waamto.com"
+).replace(/\/$/, "") + "/login";
 
 function ForgotPasswordForm() {
   const searchParams = useSearchParams();
+  const token = (searchParams.get("token") || "").trim();
   const [email, setEmail] = useState(searchParams.get("email") || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Email link lands here with ?token= — show reset form (Signup-style UI).
+  if (token) {
+    if (token.length < 20) {
+      return (
+        <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
+          <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
+          <div className="container-site relative flex justify-center py-20">
+            <Card className="w-full max-w-md shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
+              <CardHeader>
+                <CardTitle>Invalid reset link</CardTitle>
+                <CardDescription>
+                  This reset link is incomplete. Request a new one below.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild className="w-full rounded-full">
+                  <Link href="/forgot-password">Request reset link</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+    return <ResetPasswordForm token={token} />;
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,7 +84,7 @@ function ForgotPasswordForm() {
               Reset your password
             </h1>
             <p className="mt-3 text-muted-foreground leading-relaxed">
-              We&apos;ll ask License Engine to email a secure, single-use reset link.
+              We&apos;ll email a secure, single-use link to set a new password.
             </p>
           </div>
 
@@ -77,7 +110,7 @@ function ForgotPasswordForm() {
                     .
                   </p>
                   <Button asChild variant="outline" className="w-full rounded-full">
-                    <Link href="/login">Back to login</Link>
+                    <a href={APP_LOGIN_URL}>Back to ERP login</a>
                   </Button>
                 </div>
               ) : (
@@ -110,13 +143,13 @@ function ForgotPasswordForm() {
                       "Send reset link"
                     )}
                   </Button>
-                  <Link
-                    href="/login"
+                  <a
+                    href={APP_LOGIN_URL}
                     className="inline-flex w-full items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
-                    Back to login
-                  </Link>
+                    Back to ERP login
+                  </a>
                 </form>
               )}
             </CardContent>

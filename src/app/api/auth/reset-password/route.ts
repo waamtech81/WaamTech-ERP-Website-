@@ -50,6 +50,21 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Password must include uppercase, lowercase, and a number.",
+        },
+        { status: 400 }
+      );
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      return NextResponse.json(
+        { success: false, message: "Password must include a special character." },
+        { status: 400 }
+      );
+    }
 
     if (password !== confirm) {
       return NextResponse.json(
@@ -75,12 +90,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const appLogin = (
+      process.env.NEXT_PUBLIC_APP_URL || "https://app.waamto.com"
+    ).replace(/\/$/, "") + "/login";
+
     return NextResponse.json({
       success: true,
-      message:
-        result.message ||
-        "Password updated. You can sign in to the Website, Customer Portal, and WAAMTO ERP.",
-      redirectUrl: "/login?reset=1",
+      message: result.message || "Password updated successfully.",
+      redirectUrl: appLogin,
     });
   } catch {
     return NextResponse.json(

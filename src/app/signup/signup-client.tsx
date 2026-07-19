@@ -892,7 +892,7 @@ function SignUpForm({
                   />
                 </div>
                 {error ? (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-black">
                     {error}
                   </div>
                 ) : null}
@@ -977,7 +977,7 @@ function SignUpForm({
             ))}
           </ul>
           {planLookupError ? (
-            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-black">
               {planLookupError}{" "}
               <Link href="/pricing" className="font-medium underline">
                 View pricing
@@ -985,7 +985,7 @@ function SignUpForm({
             </div>
           ) : null}
           {!permalinkReady ? (
-            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-black">
               This signup link is invalid or expired.{" "}
               <Link href="/pricing" className="font-medium underline">
                 View pricing
@@ -1762,7 +1762,7 @@ function SignUpForm({
               </div>
 
               {error ? (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-black">
                   {error}
                 </div>
               ) : null}

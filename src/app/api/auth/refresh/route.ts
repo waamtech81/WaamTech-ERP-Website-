@@ -20,7 +20,7 @@ export const POST = withApiHandler(
     }
 
     const ip = getClientIp(req);
-    const limited = await rateLimit(`portal-refresh:${ip}`, 30, 15 * 60_000);
+    const limited = await rateLimit(`portal-refresh:${ip}`, 90, 15 * 60_000);
     if (!limited.ok) {
       return apiFail("Too many refresh attempts.", {
         status: 429,

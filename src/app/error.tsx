@@ -6,6 +6,9 @@ import { AlertTriangle, Home, RefreshCw, LifeBuoy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/shared/section";
 
+/**
+ * Self-contained colors so portal dark theme / muted tokens cannot wash out the copy.
+ */
 export default function Error({
   error,
   reset,
@@ -18,21 +21,44 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="relative flex min-h-[70vh] items-center">
-      <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
+    <div
+      className="relative flex min-h-[70vh] items-center"
+      style={{ background: "#f8fafc", color: "#0f172a" }}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-hero-glow opacity-60" />
       <Container className="relative py-20 text-center">
-        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-100 bg-rose-50 text-rose-600">
+        <div
+          className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border"
+          style={{
+            borderColor: "#fecdd3",
+            background: "#fff1f2",
+            color: "#e11d48",
+          }}
+        >
           <AlertTriangle className="h-7 w-7" aria-hidden />
         </div>
-        <p className="text-sm font-medium uppercase tracking-wide text-primary">500</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
+        <p
+          className="text-sm font-semibold uppercase tracking-wide"
+          style={{ color: "#0549a4" }}
+        >
+          500
+        </p>
+        <h1
+          className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl"
+          style={{ color: "#0f172a" }}
+        >
           Something went wrong
         </h1>
-        <p className="mx-auto mt-4 max-w-md text-muted-foreground">
+        <p
+          className="mx-auto mt-4 max-w-md text-base leading-relaxed"
+          style={{ color: "#334155" }}
+        >
           We hit an unexpected error loading this page. You can retry, or head back home.
         </p>
         {error?.digest ? (
-          <p className="mt-2 text-xs text-muted-foreground/80">Reference: {error.digest}</p>
+          <p className="mt-2 text-xs" style={{ color: "#64748b" }}>
+            Reference: {error.digest}
+          </p>
         ) : null}
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Button type="button" onClick={reset}>

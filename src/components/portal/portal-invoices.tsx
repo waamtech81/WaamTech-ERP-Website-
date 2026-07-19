@@ -292,7 +292,7 @@ export function PortalInvoicesView() {
               {!isInvoicePaid(selected) ? (
                 <div
                   role="status"
-                  className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100"
+                  className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-black"
                 >
                   Preview only with an <strong>UNPAID</strong> watermark. PDF download unlocks
                   after License Engine confirms payment.

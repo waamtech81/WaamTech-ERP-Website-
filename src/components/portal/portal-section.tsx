@@ -704,7 +704,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
         <PortalPanel title={meta.title} flush={flush && Boolean(body)}>
           {billingUnavailable || billingPartial ? (
             <div
-              className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200"
+              className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-black"
               role="status"
             >
               {billingUnavailable

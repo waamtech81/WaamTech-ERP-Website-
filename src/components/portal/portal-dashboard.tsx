@@ -266,12 +266,12 @@ export function PortalDashboardView() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold text-[var(--portal-fg)]">
+                <p className="text-sm font-semibold text-black">
                   {data.accessNotice.title}
                 </p>
                 <PortalStatusBadge status={data.accessNotice.status} />
               </div>
-              <p className="text-sm text-[var(--portal-muted)]">{data.accessNotice.message}</p>
+              <p className="text-sm text-black">{data.accessNotice.message}</p>
             </div>
             {data.accessNotice.actionHref ? (
               <Button asChild size="sm" className="rounded-xl">
@@ -287,12 +287,12 @@ export function PortalDashboardView() {
       {expiredOrExpiring.length ? (
         <div
           role="alert"
-          className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-950 dark:text-amber-100"
+          className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-black"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="font-semibold">License attention required</p>
-              <p className="mt-1 text-amber-900/80 dark:text-amber-100/80">
+              <p className="font-semibold text-black">License attention required</p>
+              <p className="mt-1 text-black">
                 {expiredOrExpiring.length} license
                 {expiredOrExpiring.length === 1 ? "" : "s"} expired or renewing soon. Check
                 notifications and renew to keep access.

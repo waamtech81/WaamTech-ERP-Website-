@@ -126,20 +126,34 @@ export type ServerOffering = {
   external?: boolean;
 };
 
+export type BlogBlock =
+  | { type: "p"; text: string }
+  | { type: "h2"; text: string }
+  | { type: "h3"; text: string }
+  | { type: "quote"; text: string; attribution?: string }
+  | { type: "note"; text: string }
+  | { type: "image"; src: string; alt: string; caption?: string };
+
 export type BlogPost = {
   id: string;
   title: string;
   slug: string;
   excerpt: string;
+  /** Topic filter (ERP, Inventory, Industry, etc.) */
   category: string;
+  /** Linked industry name when post is industry-focused */
+  industry?: string;
   author: string;
   date: string;
   readTime: string;
   /** WebP cover — Unsplash or local, sized for cards/detail. */
   image: string;
-  /** Detail body paragraphs shown on `/blog/[slug]`. */
-  content: string[];
+  /** Rich body blocks (headings, quotes, notes, inline images). */
+  blocks: BlogBlock[];
+  /** @deprecated Prefer `blocks`. Kept for older callers. */
+  content?: string[];
   featured?: boolean;
+  tags?: string[];
 };
 
 export type FaqItem = {

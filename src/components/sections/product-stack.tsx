@@ -1,5 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { useRef, type CSSProperties, type ReactNode } from "react";
+import {
+  motion,
+  useScroll,
+  useTransform,
+  useReducedMotion,
+  type MotionValue,
+} from "framer-motion";
 import { ArrowRight, Check, Target, Users } from "lucide-react";
 import {
   getProductThumb,
@@ -12,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Container } from "@/components/shared/section";
 
 export function ProductStack({ products }: { products: ProductShowcase[] }) {
+  const reduce = useReducedMotion();
+
   return (
     <div className="relative">
       {products.map((product, index) => (
@@ -20,6 +32,7 @@ export function ProductStack({ products }: { products: ProductShowcase[] }) {
           product={product}
           index={index}
           total={products.length}
+          reduceMotion={!!reduce}
         />
       ))}
     </div>
@@ -30,44 +43,89 @@ function ProductStackCard({
   product,
   index,
   total,
+  reduceMotion,
 }: {
   product: ProductShowcase;
   index: number;
   total: number;
+  reduceMotion: boolean;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // While this card is sticky, progress 0→1 as the next card slides over it
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start start", "end start"],
+  });
+
+  const scale = useTransform(scrollYProgress, [0, 0.85], [1, 0.9]);
+  const opacity = useTransform(scrollYProgress, [0, 0.85], [1, 0.65]);
+  const brightness = useTransform(scrollYProgress, [0, 0.85], [1, 0.92]);
+
+  const stackOffset = Math.min(index, 8) * 14;
   const isLast = index === total - 1;
-  // Peek offset so cards stack softly instead of hard-covering
-  const stackOffset = Math.min(index, 6) * 10;
 
   return (
     <div
+      ref={ref}
       id={product.slug}
       className={cn(
         "relative scroll-mt-28",
-        isLast ? "h-auto min-h-[100svh] pb-10" : "h-[118svh] md:h-[112svh]"
+        isLast ? "min-h-[calc(100svh-5rem)] pb-10" : "h-[115svh] md:h-[110svh]"
       )}
       style={{ zIndex: index + 1 }}
     >
       <div
         className={cn(
-          "flex items-start md:items-center",
+          "flex items-center",
           isLast
-            ? "relative min-h-[calc(100svh-6rem)] py-6"
-            : "sticky h-[calc(100svh-5.5rem)]"
+            ? "relative min-h-[calc(100svh-6rem)] py-4"
+            : "sticky top-[calc(5rem+var(--stack-peek))] h-[calc(100svh-5.5rem)]"
         )}
-        style={
-          isLast
-            ? undefined
-            : { top: `calc(5rem + ${stackOffset}px)` }
-        }
+        style={{ ["--stack-peek" as string]: `${stackOffset}px` } as CSSProperties}
       >
         <Container className="w-full py-2">
-          <article className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.1)]">
-            <ProductCardBody product={product} index={index} total={total} />
-          </article>
+          <StackMotion
+            reduceMotion={reduceMotion}
+            isLast={isLast}
+            scale={scale}
+            opacity={opacity}
+            brightness={brightness}
+          >
+            <article className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-white shadow-[0_24px_64px_rgba(15,23,42,0.12)] will-change-transform">
+              <ProductCardBody product={product} index={index} total={total} />
+            </article>
+          </StackMotion>
         </Container>
       </div>
     </div>
+  );
+}
+
+function StackMotion({
+  children,
+  reduceMotion,
+  isLast,
+  scale,
+  opacity,
+  brightness,
+}: {
+  children: ReactNode;
+  reduceMotion: boolean;
+  isLast: boolean;
+  scale: MotionValue<number>;
+  opacity: MotionValue<number>;
+  brightness: MotionValue<number>;
+}) {
+  const filter = useTransform(brightness, (v) => `brightness(${v})`);
+
+  if (reduceMotion || isLast) {
+    return <div>{children}</div>;
+  }
+
+  return (
+    <motion.div style={{ scale, opacity, filter }} className="origin-top">
+      {children}
+    </motion.div>
   );
 }
 
@@ -84,9 +142,9 @@ function ProductCardBody({
   const imageSrc = getProductThumb(product.image);
 
   return (
-    <div className="grid lg:grid-cols-[1.05fr_0.95fr] min-h-[min(68svh,600px)]">
-      <div className="flex flex-col p-6 sm:p-8 lg:p-10 border-b lg:border-b-0 lg:border-r border-border">
-        <div className="flex flex-wrap items-center gap-2 mb-5">
+    <div className="grid lg:grid-cols-[1.05fr_0.95fr] min-h-[min(62svh,560px)] max-h-[calc(100svh-6.5rem)] overflow-hidden">
+      <div className="flex flex-col p-5 sm:p-7 lg:p-9 border-b lg:border-b-0 lg:border-r border-border overflow-y-auto">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
           <Badge variant="outline" className="tabular-nums">
             {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
           </Badge>
@@ -98,9 +156,9 @@ function ProductCardBody({
           />
         </div>
 
-        <div className="flex items-start gap-3 mb-4">
+        <div className="flex items-start gap-3 mb-3">
           <span
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-md"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-md"
             style={{ backgroundColor: product.accent }}
           >
             <Icon className="h-5 w-5" />
@@ -119,16 +177,16 @@ function ProductCardBody({
           {product.about}
         </p>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-border bg-slate-50/80 p-4">
-            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-border bg-slate-50/80 p-3.5">
+            <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
               <Target className="h-3.5 w-3.5" />
               What it is
             </div>
             <p className="text-sm text-[#0b1f3a]/85 leading-relaxed">{product.description}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-slate-50/80 p-4">
-            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+          <div className="rounded-2xl border border-border bg-slate-50/80 p-3.5">
+            <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
               <Users className="h-3.5 w-3.5" />
               Who it&apos;s for
             </div>
@@ -136,8 +194,8 @@ function ProductCardBody({
           </div>
         </div>
 
-        <div className="mt-6">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="mt-5">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Key benefits
           </p>
           <ul className="grid gap-2 sm:grid-cols-2">
@@ -155,7 +213,7 @@ function ProductCardBody({
           </ul>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           {product.features.map((f) => (
             <Badge key={f} variant="muted">
               {f}
@@ -163,7 +221,7 @@ function ProductCardBody({
           ))}
         </div>
 
-        <div className="mt-auto pt-8 flex flex-wrap gap-3">
+        <div className="mt-auto pt-6 flex flex-wrap gap-3">
           <Button asChild size="lg" className="rounded-full">
             <Link href={`/signup?module=${product.id}`}>
               Start with {product.name}
@@ -176,8 +234,8 @@ function ProductCardBody({
         </div>
       </div>
 
-      <div className="relative bg-[#f4f7fb] p-5 sm:p-6 lg:p-7 flex flex-col gap-4 min-h-[280px]">
-        <div className="relative flex-1 min-h-[200px] overflow-hidden rounded-2xl border border-border shadow-sm">
+      <div className="relative bg-[#f4f7fb] p-4 sm:p-5 lg:p-6 flex flex-col gap-3 min-h-[240px]">
+        <div className="relative flex-1 min-h-[180px] overflow-hidden rounded-2xl border border-border shadow-sm">
           <Image
             src={imageSrc}
             alt={product.imageAlt}
@@ -207,8 +265,8 @@ function ProductCardBody({
         </div>
 
         {product.preview ? (
-          <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
+          <div className="rounded-2xl border border-border bg-white p-3.5 shadow-sm">
+            <div className="mb-2.5 flex items-center justify-between">
               <p className="text-sm font-semibold text-[#0b1f3a]">{product.preview.title}</p>
               <Badge variant="accent">Live preview</Badge>
             </div>
@@ -232,7 +290,7 @@ function ProductCardBody({
                 </div>
               ))}
             </div>
-            <div className="mt-3 overflow-hidden rounded-xl border border-border">
+            <div className="mt-2.5 overflow-hidden rounded-xl border border-border">
               {product.preview.rows.slice(0, 2).map((row) => (
                 <div
                   key={row.ref}

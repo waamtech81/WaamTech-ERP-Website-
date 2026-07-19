@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { blogPosts } from "@/lib/data/site";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
@@ -47,7 +48,17 @@ export default function BlogPage() {
             <Link href={`/blog/${featured.slug}`} className="group block mb-10">
               <Card className="overflow-hidden hover:shadow-[0_16px_48px_rgba(15,23,42,0.08)] transition-shadow">
                 <div className="grid lg:grid-cols-2">
-                  <div className="min-h-[220px] bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10" />
+                  <div className="relative min-h-[220px] bg-muted">
+                    <Image
+                      src={featured.image}
+                      alt={featured.title}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 50vw"
+                      quality={70}
+                      className="object-cover"
+                      priority
+                    />
+                  </div>
                   <div className="p-8 md:p-10">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="muted">{featured.category}</Badge>
@@ -70,7 +81,17 @@ export default function BlogPage() {
             {rest.map((post, i) => (
               <AnimateIn key={post.id} delay={i * 0.05}>
                 <Link href={`/blog/${post.slug}`} className="group block h-full">
-                  <Card className="h-full hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
+                  <Card className="h-full overflow-hidden hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
+                    <div className="relative aspect-[16/10] bg-muted">
+                      <Image
+                        src={post.image}
+                        alt={post.title}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        quality={70}
+                        className="object-cover"
+                      />
+                    </div>
                     <CardHeader>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Badge variant="muted">{post.category}</Badge>

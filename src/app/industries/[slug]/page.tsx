@@ -54,7 +54,10 @@ function resolveIndustrySlug(slug: string) {
 }
 
 export function generateStaticParams() {
-  const industryParams = businessIndustries.map((i) => ({ slug: i.id }));
+  const industryParams = businessIndustries.flatMap((i) => [
+    { slug: i.id },
+    { slug: i.id.replace(/_/g, "-") },
+  ]);
   const legacyParams = industriesServing.map((i) => ({ slug: i.id }));
   const seen = new Set<string>();
   return [...industryParams, ...legacyParams].filter((p) => {
@@ -335,20 +338,34 @@ export default async function IndustryDetailPage({ params }: Props) {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {related.map((rel) => {
                 const RelIcon = getIcon(getIndustryLucideIcon(rel));
+                const relMedia = getIndustryMedia(rel.id, 480);
                 return (
                   <Link
                     key={rel.id}
-                    href={`/industries/${rel.id}`}
-                    className="flex items-center gap-3 rounded-xl border border-border bg-white px-4 py-3 hover:border-primary/30 transition-colors"
+                    href={`/industries/${rel.id.replace(/_/g, "-")}`}
+                    className="group overflow-hidden rounded-xl border border-border bg-white transition-colors hover:border-primary/30"
                   >
-                    <span
-                      className="flex h-9 w-9 items-center justify-center rounded-lg text-white"
-                      style={{ backgroundColor: rel.color }}
-                    >
-                      <RelIcon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium truncate">{rel.name}</span>
+                    <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+                      <Image
+                        src={relMedia.image}
+                        alt={relMedia.imageAlt}
+                        fill
+                        quality={70}
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/55 to-transparent" />
+                      <span
+                        className="absolute left-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-lg text-white shadow-sm"
+                        style={{ backgroundColor: rel.color }}
+                      >
+                        <RelIcon className="h-3.5 w-3.5" />
+                      </span>
+                    </div>
+                    <span className="block px-3 py-2.5">
+                      <span className="block text-sm font-medium truncate text-[#0b1f3a]">
+                        {rel.name}
+                      </span>
                       <span className="text-xs text-muted-foreground">
                         {getCategoriesForIndustry(rel.id).length} categories
                       </span>

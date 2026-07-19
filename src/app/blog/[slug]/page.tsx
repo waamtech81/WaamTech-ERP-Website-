@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { blogPosts } from "@/lib/data/site";
@@ -38,20 +39,23 @@ export default async function BlogPostPage({ params }: Props) {
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-balance">{post.title}</h1>
         <p className="mt-4 text-lg text-muted-foreground leading-relaxed">{post.excerpt}</p>
         <p className="mt-6 text-sm text-muted-foreground">By {post.author}</p>
+
+        <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-xl bg-muted">
+          <Image
+            src={post.image}
+            alt={post.title}
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            quality={70}
+            className="object-cover"
+            priority
+          />
+        </div>
+
         <div className="mt-10 space-y-5 text-muted-foreground leading-relaxed">
-          <p>
-            Modern enterprises lose time and money when systems don&apos;t talk to each other.
-            WaamTech is designed to reduce those blind spots by unifying operational data into
-            a single, trustworthy layer.
-          </p>
-          <p>
-            This article explores practical patterns for connecting inventory, finance, and sales
-            workflows — and why clarity in software design is as important as feature depth.
-          </p>
-          <p>
-            Whether you&apos;re evaluating ERP platforms or optimizing an existing stack, focus on
-            adoption, data integrity, and the quality of daily operator experience.
-          </p>
+          {post.content.map((paragraph, i) => (
+            <p key={i}>{paragraph}</p>
+          ))}
         </div>
         <div className="mt-12">
           <Button asChild variant="outline">

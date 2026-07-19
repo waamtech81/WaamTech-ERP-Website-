@@ -8,6 +8,8 @@
  * `useCatalogBusinessProfiles` from `@/hooks/use-commercial`.
  */
 
+import { optimizeImageUrl } from "@/lib/images";
+
 /** SaaS Core hierarchy — Industry (parent) → Business Category (child).
  * Source: WaamTech SaaS Core backend/src/config/businessProfiles
  * Signup sends industry_id + category_id; License Engine auto-resolves profile.
@@ -1211,11 +1213,20 @@ export function getBusinessCategory(id: string) {
 }
 
 export function getBusinessIndustry(id: string) {
-  return industryById.get(String(id || "").trim()) || null;
+  const raw = String(id || "").trim();
+  if (!raw) return null;
+  return (
+    industryById.get(raw) ||
+    industryById.get(raw.replace(/-/g, "_")) ||
+    industryById.get(raw.replace(/_/g, "-")) ||
+    null
+  );
 }
 
 export function getCategoriesForIndustry(industryId: string) {
-  return businessCategories.filter((c) => c.industry_id === industryId);
+  const industry = getBusinessIndustry(industryId);
+  const id = industry?.id || String(industryId || "").trim().replace(/-/g, "_");
+  return businessCategories.filter((c) => c.industry_id === id);
 }
 
 export function getIndustryForCategory(categoryId: string) {
@@ -1300,72 +1311,89 @@ export const industryIconMap: Record<string, string> = {
 
 export const industryImages: Record<string, { image: string; imageAlt: string }> = {
   automotive_vehicle: {
-    image: "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Automotive workshop and vehicle service bay",
+    image:
+      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Auto mechanic working on a vehicle in a service bay",
   },
   healthcare_pharmacy: {
-    image: "https://images.unsplash.com/photo-1576602976047-174e57a47881?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Pharmacy counter and medicine shelves",
+    image:
+      "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Pharmacy shelves stocked with medicines",
   },
   real_estate_property: {
-    image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Modern commercial property exterior",
+    image:
+      "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Modern residential and commercial property exterior",
   },
   manufacturing: {
-    image: "https://images.unsplash.com/photo-1565043589221-1a6fd9ae45c7?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Manufacturing production line",
+    image:
+      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Manufacturing engineer on a modern production floor",
   },
   retail_commerce: {
-    image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Retail checkout and in-store commerce",
+    image:
+      "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Bright modern retail store aisle",
   },
   wholesale_distribution: {
-    image: "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Wholesale distribution warehouse aisle",
+    image:
+      "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Wholesale distribution center with pallet racks",
   },
   warehouse_logistics: {
-    image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Warehouse logistics and pallet racks",
+    image:
+      "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Warehouse logistics team moving inventory",
   },
   restaurant_food_service: {
-    image: "https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Restaurant kitchen and food service",
+    image:
+      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Restaurant dining room ready for service",
   },
   education: {
-    image: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Education campus and learning spaces",
+    image:
+      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "University lecture hall and campus learning space",
   },
   hospital_medical: {
-    image: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Hospital and medical care facility",
+    image:
+      "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Hospital corridor and medical care facility",
   },
   agriculture: {
-    image: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Agriculture field and farming operations",
+    image:
+      "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Green agriculture field and farming operations",
   },
   textile_garments: {
-    image: "https://images.unsplash.com/photo-1558171813-4c088753af8f?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Textile and garment production",
+    image:
+      "https://images.unsplash.com/photo-1558171813-4c088753af8f?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Colorful textile fabric rolls in a garment factory",
   },
   furniture_interior: {
-    image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Furniture showroom interior",
+    image:
+      "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Styled furniture and interior design showroom",
   },
   building_materials_hardware: {
-    image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Building materials and hardware yard",
+    image:
+      "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Building materials and hardware at a construction site",
   },
   beauty_cosmetics: {
-    image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Beauty and cosmetics retail display",
+    image:
+      "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Beauty and cosmetics products on display",
   },
   pet_veterinary: {
-    image: "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Pet care and veterinary clinic",
+    image:
+      "https://images.unsplash.com/photo-1450778869180-41d0601e046e?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Pet care and veterinary clinic setting",
   },
   water_management: {
-    image: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fm=webp&fit=crop&w=1200&q=70",
-    imageAlt: "Water bottles and delivery operations",
+    image:
+      "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fm=webp&fit=crop&w=900&q=70",
+    imageAlt: "Bottled water packaging and delivery operations",
   },
 };
 
@@ -1373,16 +1401,34 @@ export function getIndustryLucideIcon(industry: BusinessIndustry | { icon: strin
   return industryIconMap[industry.icon] || "Boxes";
 }
 
-import { optimizeImageUrl } from "@/lib/images";
+/** Resolve Engine slug/code/id (hyphen or underscore) to a media key. */
+function industryMediaLookupKeys(raw: string): string[] {
+  const s = String(raw || "")
+    .trim()
+    .toLowerCase();
+  if (!s) return [];
+  const underscored = s.replace(/-/g, "_");
+  const hyphenated = s.replace(/_/g, "-");
+  return [...new Set([s, underscored, hyphenated])];
+}
 
-/** Industry imagery — WebP via Unsplash helpers; width defaults to card size. */
+/** Industry imagery — unique WebP per industry; width defaults to card size. */
 export function getIndustryMedia(industryId: string, width = 640) {
-  const raw =
-    industryImages[industryId] || {
+  const keys = industryMediaLookupKeys(industryId);
+  let raw: { image: string; imageAlt: string } | undefined;
+  for (const key of keys) {
+    if (industryImages[key]) {
+      raw = industryImages[key];
+      break;
+    }
+  }
+  if (!raw) {
+    raw = {
       image:
-        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fm=webp&fit=crop&w=1200&q=70",
+        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fm=webp&fit=crop&w=900&q=70",
       imageAlt: "Business team reviewing operations",
     };
+  }
   return {
     image: optimizeImageUrl(raw.image, { width, quality: 70 }),
     imageAlt: raw.imageAlt,

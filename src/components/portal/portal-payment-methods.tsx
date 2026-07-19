@@ -67,11 +67,19 @@ export function PortalPaymentMethodPicker({
   );
 
   useEffect(() => {
-    if (!value && methods[0]?.id) onChange(methods[0].id);
-    if (value && !methods.some((m) => m.id === value) && methods[0]?.id) {
-      onChange(methods[0].id);
+    if (!methods.length) return;
+    const firstId = methods[0]?.id;
+    if (!firstId) return;
+    if (!value) {
+      onChange(firstId);
+      return;
     }
-  }, [methods, value, onChange]);
+    if (!methods.some((m) => m.id === value)) {
+      onChange(firstId);
+    }
+    // Intentionally omit onChange from deps — parent setters are stable; including it can loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [methods, value]);
 
   const selected: PortalPaymentMethod | undefined = methods.find((m) => m.id === value);
   const bank = standardCharteredDetails();

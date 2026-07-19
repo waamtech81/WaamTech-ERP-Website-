@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PortalDataProvider } from "@/components/portal/portal-data-provider";
+import { PortalErrorBoundary } from "@/components/portal/portal-error-boundary";
 import { PortalShell } from "@/components/portal/portal-shell";
 
 export const metadata: Metadata = {
@@ -14,7 +15,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   return (
     <div className="portal-font-root">
       <PortalDataProvider>
-        <PortalShell>{children}</PortalShell>
+        <PortalErrorBoundary>
+          <PortalShell>
+            {children}
+          </PortalShell>
+        </PortalErrorBoundary>
       </PortalDataProvider>
     </div>
   );

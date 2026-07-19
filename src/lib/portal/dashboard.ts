@@ -15,7 +15,6 @@ import {
   fetchBillingDashboard,
   fetchBillingGateways,
   fetchBillingUsage,
-  fetchMyBillingHistory,
   fetchMyInvoices,
   fetchMyPayments,
   fetchMyRenewals,
@@ -24,7 +23,6 @@ import {
   portalInvoicePdfPath,
 } from "@/lib/commercial/client";
 import {
-  fetchMyNotifications,
   type PortalCustomerNotification,
 } from "@/lib/portal/support";
 import {
@@ -569,7 +567,59 @@ async function tryFetchErpStats(email: string): Promise<Record<string, unknown> 
   return null;
 }
 
+const DASHBOARD_CACHE_MS = 25_000;
+const dashboardCache = new Map<string, { expires: number; data: PortalDashboard }>();
+
 export async function loadPortalDashboard(
+  accessToken: string,
+  refreshToken?: string | null
+): Promise<{
+  ok: boolean;
+  status: number;
+  message: string;
+  code?: string;
+  data?: PortalDashboard;
+  refreshed?: { accessToken: string; refreshToken: string };
+}> {
+  try {
+    const cacheKey = `${String(accessToken || "").slice(0, 24)}:${String(refreshToken || "").slice(0, 12)}`;
+    const cached = dashboardCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      return {
+        ok: true,
+        status: 200,
+        message: "OK",
+        data: cached.data,
+      };
+    }
+
+    const result = await loadPortalDashboardUncached(accessToken, refreshToken);
+    if (result.ok && result.data && !result.refreshed) {
+      dashboardCache.set(cacheKey, {
+        expires: Date.now() + DASHBOARD_CACHE_MS,
+        data: result.data,
+      });
+    } else if (result.ok && result.data && result.refreshed) {
+      const refreshedKey = `${result.refreshed.accessToken.slice(0, 24)}:${result.refreshed.refreshToken.slice(0, 12)}`;
+      dashboardCache.set(refreshedKey, {
+        expires: Date.now() + DASHBOARD_CACHE_MS,
+        data: result.data,
+      });
+    }
+    return result;
+  } catch (error) {
+    return {
+      ok: false,
+      status: 500,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unable to load portal dashboard. Please try again.",
+    };
+  }
+}
+
+async function loadPortalDashboardUncached(
   accessToken: string,
   refreshToken?: string | null
 ): Promise<{
@@ -618,21 +668,32 @@ export async function loadPortalDashboard(
     };
   }
 
-  const [licensesRes, sessionsRes, subsRes, invoicesRes, paymentsRes, renewalsRes, historyRes, notificationsRes, companyRes, engineDashboardRes, gatewaysRes, usageRes] =
+  // Two waves instead of one 12-way fan-out — cuts License Engine rate-limit spikes.
+  const [licensesRes, sessionsRes, subsRes, companyRes, gatewaysRes, usageRes] =
     await Promise.all([
       identityListLicenses(token),
       identityListSessions(token),
       fetchMySubscriptions(token, { limit: 50 }),
-      fetchMyInvoices(token, { limit: 50 }),
-      fetchMyPayments(token, { limit: 50 }),
-      fetchMyRenewals(token),
-      fetchMyBillingHistory(token),
-      fetchMyNotifications(token, { limit: 100 }),
       fetchBillingCompany(token),
-      fetchBillingDashboard(token),
       fetchBillingGateways(token),
       fetchBillingUsage(token),
     ]);
+
+  const [invoicesRes, paymentsRes, renewalsRes, engineDashboardRes] =
+    await Promise.all([
+      fetchMyInvoices(token, { limit: 50 }),
+      fetchMyPayments(token, { limit: 50 }),
+      fetchMyRenewals(token),
+      fetchBillingDashboard(token),
+    ]);
+
+  // Notifications loaded via /api/portal/notifications — skip here to avoid Engine
+  // migration 500s burning the public billing rate limit on every dashboard refresh.
+  const notificationsRes = {
+    ok: true as const,
+    data: [] as PortalCustomerNotification[],
+    unread_count: 0,
+  };
 
   const identity = me.data.identity;
   const customer = me.data.customer;
@@ -676,13 +737,16 @@ export async function loadPortalDashboard(
   );
 
   const overview = {
-    customerName: identity.full_name || customer?.owner_name || identity.username,
-    company:
+    customerName: String(
+      identity.full_name || customer?.owner_name || identity.username || "Customer"
+    ),
+    company: String(
       customer?.workspace_name ||
-      customer?.company_name ||
-      identity.username ||
-      "Workspace",
-    primaryEmail: identity.email || customer?.email || "",
+        customer?.company_name ||
+        identity.username ||
+        "Workspace"
+    ),
+    primaryEmail: String(identity.email || customer?.email || ""),
     country: customer?.country || null,
     status: customer?.status || identity.status || null,
     customerSince: customer?.created_at || null,
@@ -757,16 +821,14 @@ export async function loadPortalDashboard(
   const commercialInvoices = invoicesRes.ok ? invoicesRes.data.data : [];
   const commercialPayments = paymentsRes.ok ? paymentsRes.data.data : [];
   const commercialRenewals = renewalsRes.ok ? renewalsRes.data : [];
-  const history = historyRes.ok ? historyRes.data : null;
 
   const commercialBillingOk =
-    subsRes.ok || invoicesRes.ok || paymentsRes.ok || renewalsRes.ok || historyRes.ok;
+    subsRes.ok || invoicesRes.ok || paymentsRes.ok || renewalsRes.ok;
   const commercialBillingMessage = !commercialBillingOk
     ? subsRes.message ||
       invoicesRes.message ||
       paymentsRes.message ||
       renewalsRes.message ||
-      historyRes.message ||
       "Billing services are temporarily unavailable."
     : null;
 
@@ -962,22 +1024,15 @@ export async function loadPortalDashboard(
       invoicesOk: invoicesRes.ok,
       paymentsOk: paymentsRes.ok,
       renewalsOk: renewalsRes.ok,
-      historyOk: historyRes.ok,
+      historyOk: commercialBillingOk,
       message: commercialBillingMessage,
     },
-    billingHistory: history
-      ? {
-          subscriptions: history.subscriptions || commercialSubs,
-          invoices: history.invoices || commercialInvoices,
-          payments: history.payments || commercialPayments,
-          renewals: history.renewals || commercialRenewals,
-        }
-      : {
-          subscriptions: commercialSubs,
-          invoices: commercialInvoices,
-          payments: commercialPayments,
-          renewals: commercialRenewals,
-        },
+    billingHistory: {
+      subscriptions: commercialSubs,
+      invoices: commercialInvoices,
+      payments: commercialPayments,
+      renewals: commercialRenewals,
+    },
     counts,
     modules: [...modules, ...erpModules].filter(Boolean),
     featurePacks,

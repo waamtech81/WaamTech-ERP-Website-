@@ -153,9 +153,9 @@ export function PortalPlansView() {
   useEffect(() => {
     // Prefill industry/category from current business when upgrading.
     if (mode !== "upgrade" && mode !== "renew") return;
-    const industryName = portal?.overview.industry || portal?.businesses?.[0]?.industry;
+    const industryName = portal?.overview?.industry || portal?.businesses?.[0]?.industry;
     const categoryName =
-      portal?.overview.businessCategory || portal?.businesses?.[0]?.category;
+      portal?.overview?.businessCategory || portal?.businesses?.[0]?.category;
     const industries = industriesQuery.data || [];
     if (!industryId && industryName && industries.length) {
       const match = industries.find(
@@ -386,7 +386,11 @@ export function PortalPlansView() {
               <span className="font-semibold">
                 {activeSub?.plan_name || portal?.subscription?.currentPlan || "Trial"}
               </span>
-              <PortalStatusBadge status={activeSub.status} className="ml-2" />
+              {activeSub?.status ? (
+                <PortalStatusBadge status={activeSub.status} className="ml-2" />
+              ) : trialFromLicense ? (
+                <PortalStatusBadge status="trial" className="ml-2" />
+              ) : null}
             </p>
           ) : null}
         </div>

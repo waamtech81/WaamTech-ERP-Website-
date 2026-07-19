@@ -1,0 +1,23 @@
+---
+description: Architecture Freeze v1.0 — Waamto Website (no redesign without version upgrade)
+alwaysApply: true
+---
+
+# Architecture Freeze v1.0 — Waamto Website
+
+**Status: ARCHITECTURE FROZEN v1.0** (2026-07-20)
+
+Before architectural decisions, read and follow:
+
+`docs/architecture/ARCHITECTURE_FREEZE_V1_0.md`
+
+## Hard rules
+
+- Do not redesign folders, modules, APIs, auth, licensing/portal contracts, routing, or project structure.
+- Do not move responsibilities to/from SaaS ERP or License Engine.
+- Preserve API contracts and backward compatibility.
+- Allowed: new features inside frozen shape, bug fixes, performance, security, UI/UX.
+- Architectural change requires an **explicit** Architecture Version Upgrade (v1.1 / v2.0…) — never automatic.
+
+Portal detail freeze remains in force: `portal-architecture-freeze.mdc`  
+Webdock deploy: build-only — `webdock-build-only-deploy.mdc` / `scripts/DEPLOY-WEBDOCK.md`

@@ -1,6 +1,7 @@
 import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess, upstreamFail } from "@/lib/api/response";
+import { getPortalLoginPath } from "@/lib/auth/config";
 import { identityResetPassword } from "@/lib/license/identity";
 import {
   getClientIp,
@@ -87,14 +88,10 @@ export const POST = withApiHandler(
       );
     }
 
-    const appLogin =
-      (process.env.NEXT_PUBLIC_APP_URL || "https://app.waamto.com").replace(
-        /\/$/,
-        ""
-      ) + "/login";
+    const portalLogin = getPortalLoginPath({ next: "/portal" });
 
     return apiSuccess(result.message || "Password updated successfully.", {
-      extra: { redirectUrl: appLogin },
+      extra: { redirectUrl: portalLogin },
     });
   },
   { endpoint: "/api/auth/reset-password" }

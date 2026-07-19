@@ -196,7 +196,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 <Link href={plansHref("upgrade", linkedSubId)}>Upgrade</Link>
               </Button>
               <Button asChild size="sm" variant="outline" className="rounded-xl">
-                <Link href={plansHref("new_place")}>Add place</Link>
+                <Link href={plansHref("new_place")}>Create New Business</Link>
               </Button>
               <Button size="sm" variant="outline" className="rounded-xl" disabled title="Available when License Engine exposes downloadable license files">
                 <Download className="h-4 w-4" />
@@ -253,7 +253,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                         <Link href={plansHref("upgrade", sub.id)}>Upgrade</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
-                        <Link href={plansHref("new_place")}>Add place</Link>
+                        <Link href={plansHref("new_place")}>Create New Business</Link>
                       </Button>
                     </div>
                   </td>

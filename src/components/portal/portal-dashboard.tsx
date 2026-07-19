@@ -226,7 +226,7 @@ export function PortalDashboardView() {
             },
             {
               href: "/portal/plans?intent=new_place",
-              label: "Add new place",
+              label: "Create New Business",
               hint: "New business on same account",
             },
             {
@@ -416,7 +416,7 @@ export function PortalDashboardView() {
                     </Link>
                   </Button>
                   <Button asChild size="sm" variant="outline" className="rounded-xl">
-                    <Link href="/portal/plans?intent=new_place">Add place</Link>
+                    <Link href="/portal/plans?intent=new_place">Create New Business</Link>
                   </Button>
                   <Button asChild size="sm" variant="ghost" className="rounded-xl">
                     <Link href="/portal/billing">Payments</Link>

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
+import { getPortalLoginPath } from "@/lib/auth/config";
 
 const passwordRules = [
   { id: "length", label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -22,9 +23,7 @@ const passwordRules = [
   },
 ];
 
-const APP_LOGIN_URL = (
-  process.env.NEXT_PUBLIC_APP_URL || "https://app.waamto.com"
-).replace(/\/$/, "") + "/login";
+const PORTAL_LOGIN_PATH = getPortalLoginPath({ next: "/portal" });
 
 /**
  * Shared Reset Password form — used at /forgot-password?token=… (canonical)
@@ -84,7 +83,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         return;
       }
       setSuccess(apiMessageFromJson(json, "Password updated successfully."));
-      const redirectTo = json.redirectUrl || APP_LOGIN_URL;
+      const redirectTo = json.redirectUrl || PORTAL_LOGIN_PATH;
       window.setTimeout(() => {
         if (String(redirectTo).startsWith("http")) {
           window.location.href = redirectTo;
@@ -231,8 +230,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
                 <p className="text-center text-xs text-muted-foreground">
                   After update you&apos;ll be taken to{" "}
-                  <Link href={APP_LOGIN_URL} className="text-primary hover:underline">
-                    WAAMTO ERP login
+                  <Link href={PORTAL_LOGIN_PATH} className="text-primary hover:underline">
+                    Customer Portal login
                   </Link>
                   .
                 </p>

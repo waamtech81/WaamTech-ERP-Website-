@@ -9,10 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { getPortalLoginPath } from "@/lib/auth/config";
 
-const APP_LOGIN_URL = (
-  process.env.NEXT_PUBLIC_APP_URL || "https://app.waamto.com"
-).replace(/\/$/, "") + "/login";
+const PORTAL_LOGIN_PATH = getPortalLoginPath({ next: "/portal" });
 
 function ForgotPasswordForm() {
   const searchParams = useSearchParams();
@@ -110,7 +109,7 @@ function ForgotPasswordForm() {
                     .
                   </p>
                   <Button asChild variant="outline" className="w-full rounded-full">
-                    <a href={APP_LOGIN_URL}>Back to ERP login</a>
+                    <Link href={PORTAL_LOGIN_PATH}>Back to Portal login</Link>
                   </Button>
                 </div>
               ) : (
@@ -143,13 +142,13 @@ function ForgotPasswordForm() {
                       "Send reset link"
                     )}
                   </Button>
-                  <a
-                    href={APP_LOGIN_URL}
+                  <Link
+                    href={PORTAL_LOGIN_PATH}
                     className="inline-flex w-full items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
-                    Back to ERP login
-                  </a>
+                    Back to Portal login
+                  </Link>
                 </form>
               )}
             </CardContent>

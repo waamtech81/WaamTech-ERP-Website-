@@ -954,7 +954,7 @@ async function loadPortalDashboardUncached(
     },
     {
       id: "new_place",
-      label: "Add New Place",
+      label: "Create New Business",
       href: "/portal/plans?intent=new_place",
     },
     {

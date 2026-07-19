@@ -11,6 +11,7 @@ import {
   clearPortalOnUnauthorized,
   resolvePortalAccess,
 } from "@/lib/portal/access";
+import { isPasswordStrong } from "@/lib/auth/password-rules";
 import { isSameOrigin } from "@/lib/security/guards";
 
 export const PATCH = withApiHandler(
@@ -26,7 +27,11 @@ export const PATCH = withApiHandler(
     if (!resolved.ok) {
       const res = apiFail(resolved.message, {
         status: resolved.status,
-        code: ApiErrorCode.UNAUTHORIZED,
+        code:
+          resolved.status === 403
+            ? ApiErrorCode.FORBIDDEN
+            : ApiErrorCode.UNAUTHORIZED,
+        ...(resolved.code ? { extra: { reason: resolved.code } } : {}),
       });
       return clearPortalOnUnauthorized(res, resolved.status);
     }
@@ -50,6 +55,12 @@ export const PATCH = withApiHandler(
       const next = String(body.new_password || "");
       if (!current || !next) {
         return apiFail("Current and new password are required.", {
+          status: 400,
+          code: ApiErrorCode.VALIDATION_ERROR,
+        });
+      }
+      if (!isPasswordStrong(next)) {
+        return apiFail("Password does not meet strength requirements.", {
           status: 400,
           code: ApiErrorCode.VALIDATION_ERROR,
         });

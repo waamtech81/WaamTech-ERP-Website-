@@ -51,14 +51,24 @@ export function usePortalData() {
       if (res.status === 401) {
         setError(statusToFriendlyMessage(401, json.message));
         setData(null);
-        router.replace("/unauthorized");
+        router.replace("/login?next=/portal");
         return;
       }
 
       if (res.status === 403) {
+        const reason = String(
+          (json as { reason?: string }).reason ||
+            (json as { data?: { reason?: string } }).data?.reason ||
+            ""
+        );
+        const msg = String(json.message || "");
+        const deleted =
+          reason === "ACCOUNT_DELETED" ||
+          reason === "ACCOUNT_DISABLED" ||
+          /deleted|disabled|no longer available|cannot be used/i.test(msg);
         setError(statusToFriendlyMessage(403, json.message));
         setData(null);
-        router.replace("/forbidden");
+        router.replace(deleted ? "/account-unavailable" : "/forbidden");
         return;
       }
 

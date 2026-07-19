@@ -1,29 +1,50 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
-import { useCatalogBundle } from "@/hooks/use-commercial";
+import { ArrowLeft, Building2, Check, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import {
+  useCatalogBundle,
+  useCatalogBusinessCategories,
+  useCatalogBusinessProfiles,
+  useCatalogIndustries,
+} from "@/hooks/use-commercial";
 import {
   cardPlans,
   publicMarketingPlans,
   resolveCyclePrice,
 } from "@/lib/commercial/mappers";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
-import { PortalPanel, PortalSkeleton } from "@/components/portal/portal-ui";
+import { PortalPanel, PortalSkeleton, PortalStatusBadge } from "@/components/portal/portal-ui";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLocale } from "@/components/providers/locale-provider";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
+import { cn } from "@/lib/utils";
 import type { PricingPlan } from "@/types";
 import type { BillingCycle } from "@/lib/commercial/types";
 
-function planSortPrice(plan: PricingPlan, yearly: boolean): number {
-  const cycle = resolveCyclePrice(plan, yearly);
-  if (cycle.price == null) return Number.POSITIVE_INFINITY;
-  return cycle.price;
+type FlowMode = "upgrade" | "new_place" | "renew";
+type Step = "mode" | "industry" | "category" | "plan" | "confirm";
+
+function priceForCycle(plan: PricingPlan, cycle: BillingCycle) {
+  if (cycle === "lifetime" && plan.lifetimePrice != null) {
+    return {
+      billingCycle: "lifetime" as BillingCycle,
+      price: plan.lifetimePrice,
+      contactSales: Boolean(plan.contactSales),
+      unitLabel: "one-time",
+    };
+  }
+  const resolved = resolveCyclePrice(plan, cycle !== "monthly");
+  return {
+    billingCycle: (resolved.billingCycle || cycle) as BillingCycle,
+    price: resolved.price,
+    contactSales: Boolean(resolved.contactSales),
+    unitLabel: resolved.unitLabel || "/user/mo",
+  };
 }
 
 function checkoutHrefFromPayload(data: unknown): string | null {
@@ -51,19 +72,35 @@ function checkoutHrefFromPayload(data: unknown): string | null {
 export function PortalPlansView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const intent =
-    searchParams.get("intent") === "upgrade" ? "upgrade" : "renew";
+  const intentParam = searchParams.get("intent");
+  const initialMode: FlowMode =
+    intentParam === "new_place" || intentParam === "add"
+      ? "new_place"
+      : intentParam === "upgrade"
+        ? "upgrade"
+        : "renew";
+
   const { data: portal, loading: portalLoading } = usePortalContext();
   const catalog = useCatalogBundle();
+  const industriesQuery = useCatalogIndustries();
   const { formatPrice } = useLocale();
-  const [yearly, setYearly] = useState(true);
-  const [renewPeriod, setRenewPeriod] = useState<"monthly" | "yearly" | "lifetime">(
-    "yearly"
+
+  const [mode, setMode] = useState<FlowMode>(initialMode);
+  const [step, setStep] = useState<Step>(
+    initialMode === "renew" ? "plan" : "mode"
   );
+  const [industryId, setIndustryId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [profileId, setProfileId] = useState("");
+  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("yearly");
+  const [companyName, setCompanyName] = useState("");
+  const [gatewayId, setGatewayId] = useState("");
   const [pending, startTransition] = useTransition();
-  const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [compareIds, setCompareIds] = useState<string[]>([]);
+
+  const categoriesQuery = useCatalogBusinessCategories(industryId || null);
+  const profilesQuery = useCatalogBusinessProfiles(categoryId || null);
 
   const subscriptions = portal?.subscriptions || [];
   const requestedSubId = searchParams.get("subscription_id");
@@ -80,6 +117,45 @@ export function PortalPlansView() {
     null;
 
   const isTrial = String(activeSub?.status || "").toLowerCase() === "trial";
+  const gateways = (portal?.gateways || []).filter((g) => g.configured || g.online);
+
+  useEffect(() => {
+    setMode(initialMode);
+    setStep(initialMode === "renew" ? "plan" : "mode");
+  }, [initialMode]);
+
+  useEffect(() => {
+    if (!gatewayId && gateways[0]?.id) setGatewayId(gateways[0].id);
+  }, [gateways, gatewayId]);
+
+  useEffect(() => {
+    // Prefill industry/category from current business when upgrading.
+    if (mode !== "upgrade" && mode !== "renew") return;
+    const industryName = portal?.overview.industry || portal?.businesses?.[0]?.industry;
+    const categoryName =
+      portal?.overview.businessCategory || portal?.businesses?.[0]?.category;
+    const industries = industriesQuery.data || [];
+    if (!industryId && industryName && industries.length) {
+      const match = industries.find(
+        (i) => i.name.toLowerCase() === String(industryName).toLowerCase()
+      );
+      if (match) setIndustryId(match.id);
+    }
+    const categories = categoriesQuery.data || [];
+    if (industryId && !categoryId && categoryName && categories.length) {
+      const match = categories.find(
+        (c) => c.name.toLowerCase() === String(categoryName).toLowerCase()
+      );
+      if (match) setCategoryId(match.id);
+    }
+  }, [
+    mode,
+    portal,
+    industriesQuery.data,
+    categoriesQuery.data,
+    industryId,
+    categoryId,
+  ]);
 
   const pricingPlans = useMemo(
     () => publicMarketingPlans(catalog.data.pricingPlans || []),
@@ -90,95 +166,115 @@ export function PortalPlansView() {
     const cards = cardPlans(pricingPlans).filter(
       (p) => !/enterprise/i.test(p.id) && p.planId
     );
-    if (intent !== "upgrade" || !activeSub?.plan_id) return cards;
+    // Always show the full License catalog list for upgrade / renew / new place.
+    return cards;
+  }, [pricingPlans]);
 
-    const current = cards.find((p) => p.planId === activeSub.plan_id);
-    const currentPrice = current
-      ? planSortPrice(current, yearly)
-      : Number(activeSub.unit_price) || 0;
+  const selectedPlan =
+    displayPlans.find((p) => p.planId === selectedPlanId) || null;
+  const selectedPrice = selectedPlan
+    ? priceForCycle(selectedPlan, billingCycle)
+    : null;
 
-    return cards.filter((p) => {
-      if (p.planId === activeSub.plan_id) return false;
-      return planSortPrice(p, yearly) > currentPrice;
-    });
-  }, [pricingPlans, intent, activeSub, yearly]);
-
-  const comparePlans = useMemo(
-    () => displayPlans.filter((p) => p.planId && compareIds.includes(p.planId)),
-    [displayPlans, compareIds]
+  const industries = (industriesQuery.data || []).filter(
+    (i) => i.is_public !== false && String(i.status || "active").toLowerCase() !== "inactive"
   );
+  const categories = (categoriesQuery.data || []).filter(
+    (c) => c.is_public !== false && String(c.status || "active").toLowerCase() !== "inactive"
+  );
+  const profiles = profilesQuery.data || [];
 
-  function toggleCompare(planId: string) {
-    setCompareIds((prev) =>
-      prev.includes(planId)
-        ? prev.filter((id) => id !== planId)
-        : prev.length >= 3
-          ? prev
-          : [...prev, planId]
-    );
+  function goNextFromMode(next: FlowMode) {
+    setMode(next);
+    setError("");
+    if (next === "renew") {
+      setStep("plan");
+      return;
+    }
+    setStep("industry");
   }
 
-  async function startFlow(plan: PricingPlan) {
-    if (!activeSub?.id || !plan.planId || pending) return;
+  async function subscribe() {
+    if (!selectedPlan?.planId || pending) return;
     setError("");
-    setBusyPlanId(plan.planId);
+
+    if ((mode === "upgrade" || mode === "new_place") && (!industryId || !categoryId)) {
+      setError("Choose industry and category before continuing.");
+      setStep(!industryId ? "industry" : "category");
+      return;
+    }
+
+    if (mode === "upgrade" && !activeSub?.id) {
+      setError("No active subscription found to upgrade.");
+      return;
+    }
+
+    if (mode === "renew" && !activeSub?.id) {
+      setError("No active subscription found to renew.");
+      return;
+    }
 
     startTransition(async () => {
       try {
         const isRenewCurrent =
-          intent === "renew" && plan.planId === activeSub.plan_id;
+          mode === "renew" && selectedPlan.planId === activeSub?.plan_id;
+        const useTrialConvert =
+          isTrial && (mode === "renew" || mode === "upgrade");
 
-        const useTrialConvert = isTrial && (isRenewCurrent || intent === "renew");
+        const payload: Record<string, unknown> = {
+          mode: useTrialConvert
+            ? "trial-convert"
+            : isRenewCurrent
+              ? "renew"
+              : mode === "new_place"
+                ? "new_place"
+                : "upgrade",
+          plan_id: selectedPlan.planId,
+          to_plan_id: selectedPlan.planId,
+          product_id: selectedPlan.productId,
+          billing_cycle: billingCycle,
+          industry_id: industryId || undefined,
+          category_id: categoryId || undefined,
+          business_profile_id: profileId || undefined,
+          gateway: gatewayId || undefined,
+          company_name: companyName.trim() || undefined,
+          subscription_id: activeSub?.id,
+        };
 
-        const res = await fetch(
-          isRenewCurrent && !useTrialConvert
-            ? "/api/portal/billing/renew"
-            : "/api/portal/billing/plan-change",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            cache: "no-store",
-            body: JSON.stringify(
-              useTrialConvert
-                ? {
-                    subscription_id: activeSub.id,
-                    to_plan_id: plan.planId,
-                    billing_cycle: renewPeriod,
-                    mode: "trial-convert",
-                  }
-                : isRenewCurrent
-                  ? { subscription_id: activeSub.id }
-                  : {
-                      subscription_id: activeSub.id,
-                      to_plan_id: plan.planId,
-                    }
-            ),
-          }
-        );
+        const res = await fetch("/api/portal/billing/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          cache: "no-store",
+          body: JSON.stringify(payload),
+        });
         const json = await res.json();
         if (!json.success) {
           setError(apiMessageFromJson(json, "Unable to continue. Please try again."));
-          setBusyPlanId(null);
           return;
         }
 
         if (json.data?.applied === true) {
-          router.push("/portal/checkout/success?applied=1");
+          router.push(
+            `/portal/checkout/success?applied=1&mode=${encodeURIComponent(mode)}`
+          );
           return;
         }
 
         const href = checkoutHrefFromPayload(json.data);
         if (href) {
-          router.push(href);
+          const sep = href.includes("?") ? "&" : "?";
+          router.push(
+            `${href}${sep}mode=${encodeURIComponent(mode)}&plan=${encodeURIComponent(
+              selectedPlan.name
+            )}`
+          );
           return;
         }
 
         setError("Checkout session was not returned. Please contact support.");
-        setBusyPlanId(null);
       } catch (err) {
         setError(friendlyNetworkError(err, "Unable to continue. Please try again."));
-        setBusyPlanId(null);
       }
     });
   }
@@ -187,18 +283,34 @@ export function PortalPlansView() {
     return <PortalSkeleton rows={3} />;
   }
 
-  if (!activeSub) {
+  if ((mode === "upgrade" || mode === "renew") && !activeSub) {
     return (
       <PortalPanel
-        title={intent === "upgrade" ? "Upgrade plan" : "Renew subscription"}
-        description="No active subscription was found for this account."
+        title="No subscription found"
+        description="Add a new place to create another subscription on this account, or contact support."
       >
-        <Button asChild className="rounded-xl">
-          <Link href="/portal/subscriptions">Back to subscriptions</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            className="rounded-xl"
+            onClick={() => goNextFromMode("new_place")}
+          >
+            Add new place
+          </Button>
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link href="/portal/subscriptions">Back to subscriptions</Link>
+          </Button>
+        </div>
       </PortalPanel>
     );
   }
+
+  const title =
+    mode === "new_place"
+      ? "Add a new place"
+      : mode === "upgrade"
+        ? "Upgrade your plan"
+        : "Renew your plan";
 
   return (
     <div className="space-y-6">
@@ -212,68 +324,49 @@ export function PortalPlansView() {
             Subscriptions
           </Link>
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--portal-fg)]">
-            {intent === "upgrade" ? "Upgrade your plan" : "Renew your plan"}
+            {title}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--portal-muted)]">
-            Choose a plan below. Checkout stays inside your customer portal —
-            you will not leave this workspace.
+            Choose industry, category, plan, and price. Then continue to billing
+            checkout with your preferred payment method. License Engine stays the
+            source of truth — SaaS picks up the update after payment.
           </p>
-          <p className="mt-2 text-sm text-[var(--portal-fg)]">
-            Current plan:{" "}
-            <span className="font-semibold">
-              {activeSub.plan_name || portal?.subscription?.currentPlan || "—"}
-            </span>
-            {activeSub.expiry_date || activeSub.renewal_date ? (
-              <span className="text-[var(--portal-muted)]">
-                {" "}
-                · Expires{" "}
-                {String(activeSub.expiry_date || activeSub.renewal_date).slice(0, 10)}
+          {activeSub && mode !== "new_place" ? (
+            <p className="mt-2 text-sm text-[var(--portal-fg)]">
+              Current plan:{" "}
+              <span className="font-semibold">
+                {activeSub.plan_name || portal?.subscription?.currentPlan || "—"}
               </span>
-            ) : null}
-          </p>
-        </div>
-
-        <div className="flex flex-col items-end gap-3">
-          {intent === "renew" || isTrial ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-panel)] px-3 py-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
-                Period
-              </span>
-              {(["monthly", "yearly", "lifetime"] as const).map((period) => (
-                <button
-                  key={period}
-                  type="button"
-                  onClick={() => {
-                    setRenewPeriod(period);
-                    setYearly(period !== "monthly");
-                  }}
-                  className={`rounded-lg px-3 py-1.5 text-sm capitalize ${
-                    renewPeriod === period
-                      ? "bg-[var(--portal-primary)] text-white"
-                      : "text-[var(--portal-muted)] hover:bg-[var(--portal-soft)]"
-                  }`}
-                >
-                  {period}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-panel)] px-4 py-3">
-              <Label htmlFor="portal-billing-cycle" className="text-sm">
-                Monthly
-              </Label>
-              <Switch
-                id="portal-billing-cycle"
-                checked={yearly}
-                onCheckedChange={setYearly}
-              />
-              <Label htmlFor="portal-billing-cycle" className="text-sm">
-                Yearly
-              </Label>
-            </div>
-          )}
+              <PortalStatusBadge status={activeSub.status} className="ml-2" />
+            </p>
+          ) : null}
         </div>
       </div>
+
+      {/* Steps */}
+      <ol className="flex flex-wrap gap-2 text-xs font-medium">
+        {(
+          [
+            ["mode", "1. Action"],
+            ["industry", "2. Industry"],
+            ["category", "3. Category"],
+            ["plan", "4. Plan & price"],
+            ["confirm", "5. Subscribe"],
+          ] as const
+        ).map(([key, label]) => (
+          <li
+            key={key}
+            className={cn(
+              "rounded-full border px-3 py-1.5",
+              step === key
+                ? "border-[var(--portal-primary)] bg-[var(--portal-primary-soft)] text-[var(--portal-primary)]"
+                : "border-[var(--portal-border)] text-[var(--portal-muted)]"
+            )}
+          >
+            {label}
+          </li>
+        ))}
+      </ol>
 
       {error ? (
         <div
@@ -284,174 +377,382 @@ export function PortalPlansView() {
         </div>
       ) : null}
 
-      {comparePlans.length >= 2 ? (
-        <PortalPanel title="Plan comparison" description="Side-by-side features and pricing.">
-          <div className="portal-table-wrap">
-            <table className="portal-table">
-              <thead>
-                <tr>
-                  <th scope="col">Feature</th>
-                  {comparePlans.map((p) => (
-                    <th key={p.planId} scope="col">
-                      {p.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="font-medium">Price</td>
-                  {comparePlans.map((p) => {
-                    const cycle = resolveCyclePrice(p, yearly);
-                    return (
-                      <td key={p.planId} className="tabular-nums">
-                        {cycle.price != null ? formatPrice(cycle.price) : "Custom"}
-                      </td>
-                    );
-                  })}
-                </tr>
-                {Array.from(
-                  new Set(comparePlans.flatMap((p) => (p.features || []).slice(0, 8)))
-                )
-                  .slice(0, 10)
-                  .map((feature) => (
-                    <tr key={feature}>
-                      <td>{feature}</td>
-                      {comparePlans.map((p) => (
-                        <td key={p.planId}>
-                          {(p.features || []).includes(feature) ? (
-                            <Check className="h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <span className="text-[var(--portal-muted)]">—</span>
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+      {step === "mode" ? (
+        <div className="grid gap-4 md:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => goNextFromMode("upgrade")}
+            className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-5 text-left hover:border-[var(--portal-primary)]"
+          >
+            <Sparkles className="h-5 w-5 text-[var(--portal-primary)]" />
+            <p className="mt-3 text-sm font-semibold">Upgrade current plan</p>
+            <p className="mt-1 text-xs text-[var(--portal-muted)]">
+              Keep this business and move to a higher plan. Payment opens on billing
+              checkout.
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => goNextFromMode("new_place")}
+            className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-5 text-left hover:border-[var(--portal-primary)]"
+          >
+            <Building2 className="h-5 w-5 text-[var(--portal-primary)]" />
+            <p className="mt-3 text-sm font-semibold">Add new place</p>
+            <p className="mt-1 text-xs text-[var(--portal-muted)]">
+              Add another business on the same account. After payment, it syncs to
+              License and appears in app.waamto.com multi-business.
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => goNextFromMode("renew")}
+            className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-5 text-left hover:border-[var(--portal-primary)]"
+          >
+            <RefreshCw className="h-5 w-5 text-[var(--portal-primary)]" />
+            <p className="mt-3 text-sm font-semibold">Renew subscription</p>
+            <p className="mt-1 text-xs text-[var(--portal-muted)]">
+              Renew the current plan period, or switch plan while renewing.
+            </p>
+          </button>
+        </div>
+      ) : null}
+
+      {step === "industry" ? (
+        <PortalPanel
+          title="Choose industry"
+          description="Fetched live from License Engine catalog."
+        >
+          {industriesQuery.loading ? (
+            <PortalSkeleton rows={1} />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {industries.map((industry) => (
+                <button
+                  key={industry.id}
+                  type="button"
+                  onClick={() => {
+                    setIndustryId(industry.id);
+                    setCategoryId("");
+                    setProfileId("");
+                    setStep("category");
+                  }}
+                  className={cn(
+                    "rounded-xl border px-4 py-3 text-left text-sm",
+                    industryId === industry.id
+                      ? "border-[var(--portal-primary)] bg-[var(--portal-primary-soft)]"
+                      : "border-[var(--portal-border)] bg-[var(--portal-soft)] hover:border-[var(--portal-primary)]/50"
+                  )}
+                >
+                  <p className="font-semibold text-[var(--portal-fg)]">{industry.name}</p>
+                  {industry.description ? (
+                    <p className="mt-1 line-clamp-2 text-xs text-[var(--portal-muted)]">
+                      {industry.description}
+                    </p>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="mt-4">
+            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep("mode")}>
+              Back
+            </Button>
           </div>
         </PortalPanel>
       ) : null}
 
-      {!displayPlans.length ? (
+      {step === "category" ? (
         <PortalPanel
-          title="No plans available"
-          description={
-            intent === "upgrade"
-              ? "There is no higher plan available for upgrade right now."
-              : "Plans could not be loaded. Please try again shortly."
-          }
+          title="Choose category"
+          description="Categories for the selected industry."
         >
-          <Button asChild variant="outline" className="rounded-xl">
-            <Link href="/portal/notifications">View notifications</Link>
-          </Button>
-        </PortalPanel>
-      ) : (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {displayPlans.map((plan) => {
-            const cycle = resolveCyclePrice(plan, yearly);
-            const isCurrent = plan.planId === activeSub.plan_id;
-            const busy = busyPlanId === plan.planId && pending;
-            const ctaLabel =
-              intent === "renew" && isCurrent
-                ? "Renew this plan"
-                : intent === "upgrade"
-                  ? "Upgrade to this plan"
-                  : isCurrent
-                    ? "Renew this plan"
-                    : "Upgrade to this plan";
-
-            return (
-              <article
-                key={plan.planId || plan.id}
-                className={`flex flex-col rounded-2xl border bg-[var(--portal-panel)] p-5 shadow-sm ${
-                  isCurrent
-                    ? "border-[var(--portal-primary)] ring-1 ring-[var(--portal-primary)]/20"
-                    : "border-[var(--portal-border)]"
-                }`}
-              >
-                <div className="mb-4 flex items-start justify-between gap-2">
-                  <div>
-                    <h2 className="text-lg font-semibold text-[var(--portal-fg)]">
-                      {plan.name}
-                    </h2>
-                    {plan.subtitle ? (
-                      <p className="mt-1 text-sm text-[var(--portal-muted)]">
-                        {plan.subtitle}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    {isCurrent ? (
-                      <span className="rounded-full bg-[var(--portal-primary-soft)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-primary)]">
-                        Current
-                      </span>
-                    ) : null}
-                    {plan.planId ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleCompare(plan.planId!)}
-                        className="text-xs font-medium text-[var(--portal-primary)] hover:underline"
-                      >
-                        {compareIds.includes(plan.planId) ? "Remove compare" : "Compare"}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  {cycle.price != null ? (
-                    <p className="text-3xl font-semibold tabular-nums text-[var(--portal-fg)]">
-                      {formatPrice(cycle.price)}
-                      <span className="ml-1 text-sm font-normal text-[var(--portal-muted)]">
-                        {cycle.billingCycle === "lifetime"
-                          ? "one-time"
-                          : "/user/mo"}
-                      </span>
-                    </p>
-                  ) : (
-                    <p className="text-2xl font-semibold">Custom</p>
-                  )}
-                  <p className="mt-1 text-xs capitalize text-[var(--portal-muted)]">
-                    Billing: {cycle.billingCycle as BillingCycle}
-                  </p>
-                </div>
-
-                <ul className="mb-6 flex-1 space-y-2">
-                  {(plan.features || []).slice(0, 6).map((f) => (
-                    <li
-                      key={f}
-                      className="flex gap-2 text-sm text-[var(--portal-muted)]"
-                    >
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
+          {categoriesQuery.loading ? (
+            <PortalSkeleton rows={1} />
+          ) : categories.length ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
                   type="button"
-                  className="w-full rounded-xl"
-                  disabled={pending || cycle.contactSales}
-                  onClick={() => void startFlow(plan)}
-                >
-                  {busy ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Starting…
-                    </>
-                  ) : cycle.contactSales ? (
-                    "Contact sales"
-                  ) : (
-                    ctaLabel
+                  onClick={() => {
+                    setCategoryId(category.id);
+                    setProfileId("");
+                    setStep("plan");
+                  }}
+                  className={cn(
+                    "rounded-xl border px-4 py-3 text-left text-sm",
+                    categoryId === category.id
+                      ? "border-[var(--portal-primary)] bg-[var(--portal-primary-soft)]"
+                      : "border-[var(--portal-border)] bg-[var(--portal-soft)] hover:border-[var(--portal-primary)]/50"
                   )}
-                </Button>
-              </article>
-            );
-          })}
+                >
+                  <p className="font-semibold text-[var(--portal-fg)]">{category.name}</p>
+                  {category.description ? (
+                    <p className="mt-1 line-clamp-2 text-xs text-[var(--portal-muted)]">
+                      {category.description}
+                    </p>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--portal-muted)]">
+              No categories found for this industry.
+            </p>
+          )}
+          {profiles.length > 1 ? (
+            <div className="mt-5 space-y-2">
+              <Label htmlFor="bp-profile">Business profile (optional)</Label>
+              <select
+                id="bp-profile"
+                value={profileId}
+                onChange={(e) => setProfileId(e.target.value)}
+                className="h-11 w-full rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 text-sm"
+              >
+                <option value="">Auto from category</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep("industry")}>
+              Back
+            </Button>
+          </div>
+        </PortalPanel>
+      ) : null}
+
+      {step === "plan" ? (
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--portal-fg)]">
+                Plans from License catalog
+              </h2>
+              <p className="text-xs text-[var(--portal-muted)]">
+                Pick a plan, then choose monthly / yearly / lifetime pricing.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-panel)] px-3 py-2">
+              {(["monthly", "yearly", "lifetime"] as const).map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setBillingCycle(period)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-sm capitalize",
+                    billingCycle === period
+                      ? "bg-[var(--portal-primary)] text-white"
+                      : "text-[var(--portal-muted)] hover:bg-[var(--portal-soft)]"
+                  )}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {!displayPlans.length ? (
+            <PortalPanel
+              title="No plans available"
+              description="Plans could not be loaded from License Engine."
+            >
+              <Button asChild variant="outline" className="rounded-xl">
+                <Link href="/portal/notifications">View notifications</Link>
+              </Button>
+            </PortalPanel>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {displayPlans.map((plan) => {
+                const cycle = priceForCycle(plan, billingCycle);
+                const isCurrent = plan.planId === activeSub?.plan_id;
+                const selected = plan.planId === selectedPlanId;
+                return (
+                  <article
+                    key={plan.planId || plan.id}
+                    className={cn(
+                      "flex flex-col rounded-2xl border bg-[var(--portal-panel)] p-5 shadow-sm",
+                      selected
+                        ? "border-[var(--portal-primary)] ring-1 ring-[var(--portal-primary)]/20"
+                        : "border-[var(--portal-border)]"
+                    )}
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <h3 className="text-lg font-semibold">{plan.name}</h3>
+                      {isCurrent ? (
+                        <span className="rounded-full bg-[var(--portal-primary-soft)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-primary)]">
+                          Current
+                        </span>
+                      ) : null}
+                    </div>
+                    {cycle.price != null ? (
+                      <p className="text-3xl font-semibold tabular-nums">
+                        {formatPrice(cycle.price)}
+                        <span className="ml-1 text-sm font-normal text-[var(--portal-muted)]">
+                          {cycle.unitLabel}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="text-2xl font-semibold">Custom</p>
+                    )}
+                    <p className="mt-1 text-xs capitalize text-[var(--portal-muted)]">
+                      Billing: {cycle.billingCycle}
+                    </p>
+                    <ul className="my-4 flex-1 space-y-2">
+                      {(plan.features || []).slice(0, 5).map((f) => (
+                        <li key={f} className="flex gap-2 text-sm text-[var(--portal-muted)]">
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      type="button"
+                      className="w-full rounded-xl"
+                      variant={selected ? "default" : "outline"}
+                      disabled={cycle.contactSales}
+                      onClick={() => {
+                        if (!plan.planId) return;
+                        setSelectedPlanId(plan.planId);
+                        setStep("confirm");
+                      }}
+                    >
+                      {cycle.contactSales
+                        ? "Contact sales"
+                        : selected
+                          ? "Selected"
+                          : "Select this plan"}
+                    </Button>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() =>
+                setStep(mode === "renew" ? "mode" : "category")
+              }
+            >
+              Back
+            </Button>
+          </div>
         </div>
-      )}
+      ) : null}
+
+      {step === "confirm" && selectedPlan ? (
+        <PortalPanel
+          title="Confirm & go to billing"
+          description="Review your selection, choose a payment method, then continue to checkout."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm">
+              <p className="text-[11px] uppercase tracking-wide text-[var(--portal-muted)]">
+                Action
+              </p>
+              <p className="mt-1 font-medium capitalize">
+                {mode === "new_place" ? "Add new place" : mode}
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm">
+              <p className="text-[11px] uppercase tracking-wide text-[var(--portal-muted)]">
+                Plan
+              </p>
+              <p className="mt-1 font-medium">{selectedPlan.name}</p>
+            </div>
+            <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm">
+              <p className="text-[11px] uppercase tracking-wide text-[var(--portal-muted)]">
+                Industry / category
+              </p>
+              <p className="mt-1 font-medium">
+                {(industries.find((i) => i.id === industryId)?.name || "—") +
+                  " · " +
+                  (categories.find((c) => c.id === categoryId)?.name || "—")}
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm">
+              <p className="text-[11px] uppercase tracking-wide text-[var(--portal-muted)]">
+                Price
+              </p>
+              <p className="mt-1 font-medium tabular-nums">
+                {selectedPrice?.price != null
+                  ? `${formatPrice(selectedPrice.price)} (${billingCycle})`
+                  : "Custom"}
+              </p>
+            </div>
+          </div>
+
+          {mode === "new_place" ? (
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="place-name">New place / business name (optional)</Label>
+              <Input
+                id="place-name"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="h-11 bg-[var(--portal-soft)]"
+                placeholder="e.g. Downtown branch"
+              />
+            </div>
+          ) : null}
+
+          {gateways.length ? (
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="pay-gateway">Payment method</Label>
+              <select
+                id="pay-gateway"
+                value={gatewayId}
+                onChange={(e) => setGatewayId(e.target.value)}
+                className="h-11 w-full rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 text-sm"
+              >
+                {gateways.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.label || g.id}
+                    {g.online ? " · Online" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <p className="mt-4 text-xs text-[var(--portal-muted)]">
+              Payment gateway will be selected automatically at checkout.
+            </p>
+          )}
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              className="rounded-xl"
+              disabled={pending}
+              onClick={() => void subscribe()}
+            >
+              {pending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Starting checkout…
+                </>
+              ) : (
+                "Subscribe & pay"
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setStep("plan")}
+            >
+              Change plan
+            </Button>
+          </div>
+        </PortalPanel>
+      ) : null}
     </div>
   );
 }

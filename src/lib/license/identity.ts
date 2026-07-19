@@ -609,20 +609,27 @@ export function isLoginChallenge(
   data: unknown
 ): data is IdentityLoginChallenge {
   if (!data || typeof data !== "object") return false;
-  // Tokens always win — verified users must not be forced into OTP.
-  if (hasLoginTokens(data)) return false;
   const d = data as Record<string, unknown>;
   const challenge =
     typeof d.challenge_token === "string" ? d.challenge_token.trim() : "";
   if (!challenge) return false;
-  return (
+
+  const requiresSecondFactor =
     d.requires_email_verification === true ||
     d.requiresOtp === true ||
     d.requires_otp === true ||
     d.requires_email_otp === true ||
     d.requires_2fa === true ||
-    d.requires2fa === true
-  );
+    d.requires2fa === true ||
+    d.active_second_factor === "email_otp" ||
+    d.active_second_factor === "totp";
+
+  // MFA / email OTP challenges must never be skipped — even if tokens are also present.
+  if (requiresSecondFactor) return true;
+
+  // Tokens win only for non-challenge verified sessions.
+  if (hasLoginTokens(data)) return false;
+  return false;
 }
 
 export function isCustomerMfaChallenge(data: unknown): data is IdentityLoginChallenge {

@@ -5,18 +5,25 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { PortalPanel, PortalSkeleton } from "@/components/portal/portal-ui";
+import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import { useLocale } from "@/components/providers/locale-provider";
+import { cn } from "@/lib/utils";
 
 function PortalCheckoutInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const session = String(searchParams.get("session") || "").trim();
+  const mode = String(searchParams.get("mode") || "").trim();
+  const planName = String(searchParams.get("plan") || "").trim();
   const { formatPrice } = useLocale();
+  const { data: portal } = usePortalContext();
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
+  const [selectedGateway, setSelectedGateway] = useState("");
   const [checkout, setCheckout] = useState<{
     session_token?: string;
     status?: string;
@@ -24,7 +31,10 @@ function PortalCheckoutInner() {
     amount?: number | null;
     currency?: string | null;
     gateway?: string | null;
+    plan_name?: string | null;
   } | null>(null);
+
+  const gateways = (portal?.gateways || []).filter((g) => g.configured || g.online);
 
   useEffect(() => {
     if (!session) {
@@ -46,7 +56,9 @@ function PortalCheckoutInner() {
           setError(apiMessageFromJson(json, "Unable to load checkout."));
           setCheckout(null);
         } else {
-          setCheckout(json.data || null);
+          const data = json.data || null;
+          setCheckout(data);
+          if (data?.gateway) setSelectedGateway(String(data.gateway));
         }
       } catch (err) {
         if (!cancelled) {
@@ -62,6 +74,12 @@ function PortalCheckoutInner() {
     };
   }, [session]);
 
+  useEffect(() => {
+    if (!selectedGateway && gateways[0]?.id) {
+      setSelectedGateway(gateways[0].id);
+    }
+  }, [gateways, selectedGateway]);
+
   async function confirmPayment() {
     if (!session || confirming) return;
     setConfirming(true);
@@ -74,7 +92,10 @@ function PortalCheckoutInner() {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           cache: "no-store",
-          body: JSON.stringify({}),
+          body: JSON.stringify({
+            reference: selectedGateway || undefined,
+            gateway: selectedGateway || undefined,
+          }),
         }
       );
       const json = await res.json();
@@ -83,9 +104,10 @@ function PortalCheckoutInner() {
         setConfirming(false);
         return;
       }
-      router.replace(
-        `/portal/checkout/success?session=${encodeURIComponent(session)}`
-      );
+      const qs = new URLSearchParams({ session });
+      if (mode) qs.set("mode", mode);
+      if (planName) qs.set("plan", planName);
+      router.replace(`/portal/checkout/success?${qs.toString()}`);
     } catch (err) {
       setError(friendlyNetworkError(err, "Payment could not be confirmed."));
       setConfirming(false);
@@ -96,8 +118,8 @@ function PortalCheckoutInner() {
 
   return (
     <PortalPanel
-      title="Complete checkout"
-      description="Confirm payment to finish your renewal or upgrade. You stay inside the portal."
+      title="Complete payment"
+      description="Pay for the plan you selected. Available payment methods come from License Engine billing gateways."
     >
       {error ? (
         <div
@@ -112,15 +134,15 @@ function PortalCheckoutInner() {
         <div className="mb-6 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
-              Purpose
+              Plan
             </p>
-            <p className="mt-1 text-sm font-medium capitalize">
-              {checkout.purpose || "—"}
+            <p className="mt-1 text-sm font-medium">
+              {planName || checkout.plan_name || checkout.purpose || "—"}
             </p>
           </div>
           <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
-              Amount
+              Amount due
             </p>
             <p className="mt-1 text-sm font-medium tabular-nums">
               {checkout.amount != null
@@ -131,21 +153,51 @@ function PortalCheckoutInner() {
           </div>
           <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
+              Purpose
+            </p>
+            <p className="mt-1 text-sm font-medium capitalize">
+              {mode || checkout.purpose || "—"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
               Status
             </p>
             <p className="mt-1 text-sm font-medium capitalize">
               {checkout.status || "—"}
             </p>
           </div>
-          <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
-              Gateway
-            </p>
-            <p className="mt-1 text-sm font-medium capitalize">
-              {checkout.gateway || "—"}
-            </p>
+        </div>
+      ) : null}
+
+      {gateways.length ? (
+        <div className="mb-6 space-y-3">
+          <Label>Payment method</Label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {gateways.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => setSelectedGateway(g.id)}
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-left text-sm",
+                  selectedGateway === g.id
+                    ? "border-[var(--portal-primary)] bg-[var(--portal-primary-soft)]"
+                    : "border-[var(--portal-border)] bg-[var(--portal-soft)]"
+                )}
+              >
+                <p className="font-medium capitalize">{g.label || g.id}</p>
+                <p className="mt-0.5 text-xs text-[var(--portal-muted)]">
+                  {g.online ? "Online" : "Configured"}
+                </p>
+              </button>
+            ))}
           </div>
         </div>
+      ) : checkout?.gateway ? (
+        <p className="mb-6 text-sm text-[var(--portal-muted)]">
+          Gateway: <span className="capitalize">{checkout.gateway}</span>
+        </p>
       ) : null}
 
       <div className="flex flex-wrap gap-2">
@@ -161,14 +213,14 @@ function PortalCheckoutInner() {
               Confirming…
             </>
           ) : (
-            "Confirm payment"
+            "Pay now"
           )}
         </Button>
         <Button asChild variant="outline" className="rounded-xl">
           <Link href="/portal/plans">Back to plans</Link>
         </Button>
         <Button asChild variant="ghost" className="rounded-xl">
-          <Link href="/portal/subscriptions">Cancel</Link>
+          <Link href="/portal/billing">Billing</Link>
         </Button>
       </div>
     </PortalPanel>

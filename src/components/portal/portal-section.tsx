@@ -44,7 +44,7 @@ export type PortalSectionKey =
   | "settings";
 
 function plansHref(
-  intent: "renew" | "upgrade",
+  intent: "renew" | "upgrade" | "new_place",
   subscriptionId?: string | null
 ) {
   const q = new URLSearchParams({ intent });
@@ -71,11 +71,12 @@ const META: Record<
     eyebrow: "Plan",
   },
   billing: {
-    title: "Billing",
-    description: "Outstanding balance and next invoice when available.",
+    title: "Billing & payments",
+    description:
+      "Payment gateways, payment history, renewals, and outstanding balance from License Engine.",
     emptyTitle: "Billing not available yet",
     emptyDescription:
-      "Billing details appear when License Engine or workspace stats expose them to your session.",
+      "Payment methods and history appear when License Engine billing APIs respond for your session.",
     eyebrow: "Finance",
   },
   invoices: {
@@ -122,7 +123,8 @@ const META: Record<
   },
   settings: {
     title: "Settings",
-    description: "Profile, password, two-factor authentication, trusted devices, and sessions.",
+    description:
+      "Profile, password strength, Email OTP, authenticator 2FA, recovery codes, and sessions.",
     emptyTitle: "Settings unavailable",
     emptyDescription: "Account settings load from your License Engine identity.",
     eyebrow: "Account",
@@ -193,6 +195,9 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               <Button asChild size="sm" variant="outline" className="rounded-xl">
                 <Link href={plansHref("upgrade", linkedSubId)}>Upgrade</Link>
               </Button>
+              <Button asChild size="sm" variant="outline" className="rounded-xl">
+                <Link href={plansHref("new_place")}>Add place</Link>
+              </Button>
               <Button size="sm" variant="outline" className="rounded-xl" disabled title="Available when License Engine exposes downloadable license files">
                 <Download className="h-4 w-4" />
                 Download license
@@ -246,6 +251,9 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                       </Button>
                       <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
                         <Link href={plansHref("upgrade", sub.id)}>Upgrade</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
+                        <Link href={plansHref("new_place")}>Add place</Link>
                       </Button>
                     </div>
                   </td>
@@ -312,6 +320,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   if (section === "billing") {
     const payments = data.payments || [];
     const renewals = data.renewals || [];
+    const gateways = data.gateways || [];
+    const availableGateways = gateways.filter((g) => g.configured || g.online);
     const rows = [
       { label: "Next invoice / renewal", value: data.billing?.nextInvoice },
       { label: "Outstanding balance", value: data.billing?.outstandingBalance },
@@ -335,16 +345,45 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 : "Disabled"
               : null,
       },
+      {
+        label: "Payment gateways",
+        value: availableGateways.length
+          ? availableGateways.map((g) => g.label || g.id).join(", ")
+          : null,
+      },
       { label: "Payments on file", value: payments.length ? String(payments.length) : null },
       { label: "Renewals", value: renewals.length ? String(renewals.length) : null },
     ].filter((r) => r.value);
-    body = rows.length || payments.length || renewals.length ? (
+    body = rows.length || payments.length || renewals.length || availableGateways.length ? (
       <div className="space-y-6">
         {rows.length ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((r) => (
               <PortalDataRow key={r.label} label={r.label} value={r.value} />
             ))}
+          </div>
+        ) : null}
+        {availableGateways.length ? (
+          <div>
+            <p className="mb-2 text-sm font-semibold text-[var(--portal-ink)]">
+              Available payment methods
+            </p>
+            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {availableGateways.map((g) => (
+                <li
+                  key={g.id}
+                  className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm"
+                >
+                  <p className="font-medium capitalize text-[var(--portal-fg)]">
+                    {g.label || g.id}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--portal-muted)]">
+                    {g.online ? "Online" : "Configured"}
+                    {g.configured ? " · Ready for checkout" : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
           </div>
         ) : null}
         {payments.length ? (
@@ -356,12 +395,13 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   <tr>
                     <th scope="col">Transaction</th>
                     <th scope="col">Amount</th>
+                    <th scope="col">Gateway</th>
                     <th scope="col">Status</th>
                     <th scope="col">Date</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {payments.slice(0, 10).map((p) => (
+                  {payments.slice(0, 15).map((p) => (
                     <tr key={p.id}>
                       <td className="font-medium">
                         {p.transaction_id || p.reference_number || p.id}
@@ -369,6 +409,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                       <td className="tabular-nums">
                         {p.currency} {Number(p.amount).toFixed(2)}
                       </td>
+                      <td className="capitalize">{p.gateway || "—"}</td>
                       <td>
                         <PortalStatusBadge status={p.status} />
                       </td>
@@ -379,7 +420,11 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               </table>
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="rounded-xl border border-dashed border-[var(--portal-border)] px-4 py-6 text-sm text-[var(--portal-muted)]">
+            No payments yet. Renew or upgrade a plan to start a checkout payment.
+          </div>
+        )}
         {renewals.length ? (
           <div>
             <p className="mb-2 text-sm font-semibold text-[var(--portal-ink)]">Renewals</p>
@@ -411,6 +456,9 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
         ) : null}
         <div className="flex flex-wrap gap-2">
           <Button asChild size="sm" className="rounded-xl">
+            <Link href="/portal/plans?intent=renew">Pay / renew</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline" className="rounded-xl">
             <Link href="/portal/invoices">View invoices</Link>
           </Button>
           <Button asChild size="sm" variant="outline" className="rounded-xl">
@@ -418,7 +466,14 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           </Button>
         </div>
       </div>
-    ) : null;
+    ) : (
+      <PortalEmptyState
+        title="No billing activity yet"
+        description="Payment gateways, invoices, and payment history from License Engine will appear here after your first renewal or upgrade."
+        actionLabel="Go to plans"
+        actionHref="/portal/plans?intent=renew"
+      />
+    );
   }
 
   if (section === "users") {

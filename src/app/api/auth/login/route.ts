@@ -273,6 +273,27 @@ export async function POST(req: Request) {
         );
       }
 
+      // Never issue cookies while a second-factor challenge is still pending.
+      if (isLoginChallenge(result.data) || isCustomerMfaChallenge(result.data)) {
+        const d = result.data as IdentityLoginChallenge;
+        return NextResponse.json({
+          success: true,
+          accountKind: "customer",
+          requires2fa: true,
+          requires_2fa: true,
+          requiresOtp: d.active_second_factor === "email_otp" || d.requires_email_otp === true,
+          requires_email_otp: d.requires_email_otp === true || d.active_second_factor === "email_otp",
+          message: d.message || "Enter your second-factor code.",
+          data: {
+            challenge_token: d.challenge_token || challengeToken,
+            email: d.email,
+            account_kind: "customer",
+            active_second_factor: d.active_second_factor || "totp",
+            otpExpiresInMinutes: d.otpExpiresInMinutes || 10,
+          },
+        });
+      }
+
       const tokens = normalizeIdentityLoginData(result.data);
       if (!tokens || !hasLoginTokens(tokens)) {
         return NextResponse.json(
@@ -333,6 +354,41 @@ export async function POST(req: Request) {
     }
 
     const data = normalizeIdentityLoginData(result.data) ?? result.data;
+
+    // Second factor must be completed before any session cookies are issued.
+    // Never allow MFA/email OTP to be bypassed when Engine also returns tokens.
+    if (isLoginChallenge(data)) {
+      const mfa = isCustomerMfaChallenge(data);
+      const active =
+        data.active_second_factor ||
+        (data.requires_email_otp ? "email_otp" : mfa ? "totp" : undefined);
+      const isEmailStep =
+        data.requires_email_verification === true ||
+        active === "email_otp" ||
+        data.requires_email_otp === true;
+
+      return NextResponse.json({
+        success: true,
+        accountKind: "customer",
+        requiresOtp: isEmailStep,
+        requires_email_verification: data.requires_email_verification === true,
+        requires_email_otp: active === "email_otp" || data.requires_email_otp === true,
+        requires2fa: mfa || active === "totp" || active === "email_otp",
+        requires_2fa: mfa || active === "totp" || active === "email_otp",
+        message:
+          data.message ||
+          (active === "totp"
+            ? "Enter the code from your authenticator app."
+            : "Enter the verification code sent to your registered email."),
+        data: {
+          challenge_token: data.challenge_token,
+          email: data.email,
+          account_kind: "customer",
+          active_second_factor: active || (isEmailStep ? "email_otp" : "totp"),
+          otpExpiresInMinutes: data.otpExpiresInMinutes || 10,
+        },
+      });
+    }
 
     // Platform Super Admin resolved by Engine identity tryLogin.
     if (isPlatformSuperAdminPayload(data)) {
@@ -434,7 +490,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // Verified customers: tokens always win — create session, never force OTP.
+    // Verified customers with tokens and no pending second factor.
     if (hasLoginTokens(data)) {
       const res = NextResponse.json({
         success: true,
@@ -449,40 +505,6 @@ export async function POST(req: Request) {
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
         remember,
-      });
-    }
-
-    // MFA or unverified-email challenge.
-    if (isLoginChallenge(data)) {
-      const mfa = isCustomerMfaChallenge(data);
-      const active =
-        data.active_second_factor ||
-        (data.requires_email_otp ? "email_otp" : mfa ? "totp" : undefined);
-      const isEmailStep =
-        data.requires_email_verification === true ||
-        active === "email_otp" ||
-        data.requires_email_otp === true;
-
-      return NextResponse.json({
-        success: true,
-        accountKind: "customer",
-        requiresOtp: isEmailStep,
-        requires_email_verification: data.requires_email_verification === true,
-        requires_email_otp: active === "email_otp" || data.requires_email_otp === true,
-        requires2fa: mfa,
-        requires_2fa: mfa,
-        message:
-          data.message ||
-          (active === "totp"
-            ? "Enter the code from your authenticator app."
-            : "Enter the verification code sent to your registered email."),
-        data: {
-          challenge_token: data.challenge_token,
-          email: data.email,
-          account_kind: "customer",
-          active_second_factor: active || (isEmailStep ? "email_otp" : "totp"),
-          otpExpiresInMinutes: data.otpExpiresInMinutes || 10,
-        },
       });
     }
 

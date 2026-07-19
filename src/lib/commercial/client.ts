@@ -525,6 +525,14 @@ export async function requestPlanChange(
     to_plan_id: string;
     timing?: "immediate" | "end_of_period" | "scheduled";
     gateway?: string;
+    success_url?: string;
+    cancel_url?: string;
+    billing_cycle?: string;
+    industry_id?: string;
+    category_id?: string;
+    business_category_id?: string;
+    business_profile_id?: string;
+    notes?: string;
   }
 ) {
   return postPublic<{
@@ -536,7 +544,92 @@ export async function requestPlanChange(
     to_plan_id: body.to_plan_id,
     timing: body.timing || "immediate",
     gateway: body.gateway || "bank",
+    success_url: body.success_url,
+    cancel_url: body.cancel_url,
+    billing_cycle: body.billing_cycle,
+    industry_id: body.industry_id,
+    category_id: body.category_id || body.business_category_id,
+    business_category_id: body.business_category_id || body.category_id,
+    business_profile_id: body.business_profile_id,
+    notes: body.notes,
   }, accessToken);
+}
+
+/**
+ * Add a new place / subscription under the same customer identity.
+ * Tries known Engine paths; returns first successful response.
+ */
+export async function requestAdditionalSubscription(
+  accessToken: string,
+  body: {
+    plan_id: string;
+    product_id?: string;
+    industry_id: string;
+    category_id: string;
+    business_category_id?: string;
+    business_profile_id?: string;
+    billing_cycle: string;
+    gateway?: string;
+    success_url?: string;
+    cancel_url?: string;
+    company_name?: string;
+    notes?: string;
+  }
+) {
+  const payload = {
+    plan_id: body.plan_id,
+    product_id: body.product_id,
+    industry_id: body.industry_id,
+    category_id: body.category_id,
+    business_category_id: body.business_category_id || body.category_id,
+    business_profile_id: body.business_profile_id,
+    billing_cycle: body.billing_cycle,
+    gateway: body.gateway || "bank",
+    success_url: body.success_url,
+    cancel_url: body.cancel_url,
+    company_name: body.company_name,
+    notes: body.notes,
+    purpose: "new_place",
+    mode: "additional_subscription",
+  };
+
+  const paths = [
+    "/v1/public/billing/additional-subscriptions",
+    "/v1/public/billing/subscriptions/additional",
+    "/v1/identity/subscriptions/additional",
+    "/v1/public/billing/subscriptions",
+  ];
+
+  let last: Awaited<ReturnType<typeof postPublic<{
+    subscription?: unknown;
+    license?: unknown;
+    checkout?: BillingCheckoutSession;
+    applied?: boolean;
+  }>>> | null = null;
+
+  for (const path of paths) {
+    const result = await postPublic<{
+      subscription?: unknown;
+      license?: unknown;
+      checkout?: BillingCheckoutSession;
+      applied?: boolean;
+    }>(path, payload, accessToken);
+    last = result;
+    if (result.ok && result.data) return result;
+    // 404/405 = path not mounted yet — try next. Other errors (validation) stop early.
+    if (result.status && result.status !== 404 && result.status !== 405) {
+      return result;
+    }
+  }
+
+  return (
+    last ||
+    emptyResult(
+      null,
+      "Additional place checkout is not available on License Engine yet.",
+      501
+    )
+  );
 }
 
 export async function fetchCheckoutSession(

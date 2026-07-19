@@ -17,8 +17,8 @@ export const PORTAL_COOKIES = {
   remember: "wt_portal_remember",
 } as const;
 
-const ACCESS_MAX_AGE = 60 * 60 * 8; // 8h — aligns with Engine JWT_EXPIRES_IN default
-const REFRESH_MAX_AGE = 60 * 60 * 24 * 7; // 7d
+/** Only used when the user explicitly opts into “Keep me signed in”. */
+const ACCESS_MAX_AGE = 60 * 60 * 8; // 8h
 const REMEMBER_REFRESH_MAX_AGE = 60 * 60 * 24 * 30; // 30d
 
 function cookieSecure() {
@@ -31,6 +31,11 @@ export type PortalSessionTokens = {
   remember?: boolean;
 };
 
+/**
+ * Portal auth cookies.
+ * - Default (no remember): browser session cookies — cleared when the browser closes.
+ * - Remember: persistent cookies so the user can stay signed in across browser restarts.
+ */
 export function applySessionCookies(
   res: NextResponse,
   tokens: PortalSessionTokens
@@ -44,38 +49,34 @@ export function applySessionCookies(
 
   const secure = cookieSecure();
   const remember = Boolean(tokens.remember);
-  const refreshMaxAge = remember ? REMEMBER_REFRESH_MAX_AGE : REFRESH_MAX_AGE;
 
-  res.cookies.set(PORTAL_COOKIES.access, tokens.accessToken, {
+  const base = {
     httpOnly: true,
     secure,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     path: "/",
-    maxAge: ACCESS_MAX_AGE,
+  };
+
+  // Omit maxAge/expires → session cookie (dies when the browser closes).
+  res.cookies.set(PORTAL_COOKIES.access, tokens.accessToken, {
+    ...base,
+    ...(remember ? { maxAge: ACCESS_MAX_AGE } : {}),
   });
 
   res.cookies.set(PORTAL_COOKIES.refresh, tokens.refreshToken, {
-    httpOnly: true,
-    secure,
-    sameSite: "lax",
-    path: "/",
-    maxAge: refreshMaxAge,
+    ...base,
+    ...(remember ? { maxAge: REMEMBER_REFRESH_MAX_AGE } : {}),
   });
 
   if (remember) {
     res.cookies.set(PORTAL_COOKIES.remember, "1", {
-      httpOnly: true,
-      secure,
-      sameSite: "lax",
-      path: "/",
-      maxAge: refreshMaxAge,
+      ...base,
+      maxAge: REMEMBER_REFRESH_MAX_AGE,
     });
   } else {
+    // Clear any previous persistent “remember” flag and force session-only auth.
     res.cookies.set(PORTAL_COOKIES.remember, "", {
-      httpOnly: true,
-      secure,
-      sameSite: "lax",
-      path: "/",
+      ...base,
       maxAge: 0,
     });
   }

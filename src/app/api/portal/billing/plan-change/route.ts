@@ -27,11 +27,15 @@ export const POST = withApiHandler(
       gateway?: string;
       billing_cycle?: string;
       mode?: string;
+      industry_id?: string;
+      category_id?: string;
+      business_category_id?: string;
+      business_profile_id?: string;
     };
     const subscriptionId = String(body.subscription_id || "").trim();
     const toPlanId = String(body.to_plan_id || "").trim();
     const isTrialConvert =
-      body.mode === "trial-convert" || Boolean(body.billing_cycle);
+      body.mode === "trial-convert" || Boolean(body.billing_cycle && body.mode === "trial-convert");
 
     if (!subscriptionId) {
       return apiFail("Subscription is required.", {
@@ -50,7 +54,10 @@ export const POST = withApiHandler(
     if (!resolved.ok) {
       const res = apiFail(resolved.message, {
         status: resolved.status,
-        code: ApiErrorCode.UNAUTHORIZED,
+        code:
+          resolved.status === 403
+            ? ApiErrorCode.FORBIDDEN
+            : ApiErrorCode.UNAUTHORIZED,
       });
       return clearPortalOnUnauthorized(res, resolved.status);
     }
@@ -75,6 +82,12 @@ export const POST = withApiHandler(
           to_plan_id: toPlanId,
           timing: "immediate",
           gateway,
+          success_url: `${origin}/portal/checkout/success`,
+          cancel_url: `${origin}/portal/checkout/cancel`,
+          billing_cycle: body.billing_cycle,
+          industry_id: body.industry_id,
+          category_id: body.category_id || body.business_category_id,
+          business_profile_id: body.business_profile_id,
         });
 
     if (!result.ok || !result.data) {

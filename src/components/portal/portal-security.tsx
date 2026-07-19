@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import {
   KeyRound,
   Loader2,
+  Mail,
   MonitorSmartphone,
   ShieldCheck,
   Smartphone,
@@ -11,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { formatPortalDate, formatPortalDateTime } from "@/components/portal/use-portal-data";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import { cn } from "@/lib/utils";
@@ -40,6 +42,11 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
   const [setupSecret, setSetupSecret] = useState("");
   const [setupUrl, setSetupUrl] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  const [showAuthenticatorSetup, setShowAuthenticatorSetup] = useState(false);
+
+  const twoFactorOn = Boolean(
+    status?.email_otp_enabled || status?.totp_enabled || status?.active_second_factor !== "none"
+  );
 
   const refresh = async () => {
     setLoadError("");
@@ -114,6 +121,14 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
     ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(setupUrl)}`
     : "";
 
+  const requirePassword = () => {
+    if (!password.trim()) {
+      setError("Enter your password to confirm this security change.");
+      return false;
+    }
+    return true;
+  };
+
   return (
     <div className="space-y-6">
       {(feedback || error || loadError) && (
@@ -160,17 +175,351 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
       ) : null}
 
       <section className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-5">
-        <div className="flex items-start gap-3">
-          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--portal-accent)]" />
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--portal-fg)]">Two-factor authentication</h3>
-            <p className="mt-1 text-xs text-[var(--portal-muted)]">
-              Choose one active second factor. Login will require that method only.
-            </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--portal-accent)]" />
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--portal-fg)]">
+                Two-factor authentication
+              </h3>
+              <p className="mt-1 text-xs text-[var(--portal-muted)]">
+                Turn on a second factor for portal login. Email OTP and authenticator work the same
+                way as License Engine security.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-[var(--portal-muted)]">
+              {twoFactorOn ? "On" : "Off"}
+            </span>
+            <Switch
+              checked={twoFactorOn}
+              disabled={pending}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setFeedback(
+                    "Choose Email OTP or Authenticator below, confirm with your password, then complete setup."
+                  );
+                  return;
+                }
+                if (!requirePassword()) return;
+                run(async () => {
+                  if (status?.email_otp_enabled) {
+                    await postAction({
+                      action: "email-otp-disable",
+                      password,
+                      totp_code: totpCode || undefined,
+                    });
+                  }
+                  if (status?.totp_enabled) {
+                    await postAction({
+                      action: "totp-disable",
+                      password,
+                      totp_code: totpCode || undefined,
+                    });
+                  }
+                  setShowAuthenticatorSetup(false);
+                  setSetupSecret("");
+                  setSetupUrl("");
+                  setPassword("");
+                  setTotpCode("");
+                  setFeedback("Two-factor authentication turned off.");
+                });
+              }}
+              aria-label="Toggle two-factor authentication"
+            />
           </div>
         </div>
 
-        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+        <div className="mt-5 space-y-2">
+          <Label htmlFor="sec-password">Confirm password</Label>
+          <Input
+            id="sec-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="h-11 max-w-md bg-[var(--portal-soft)]"
+            autoComplete="current-password"
+            placeholder="Required to enable or disable 2FA"
+          />
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          {/* Email OTP */}
+          <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <Mail className="mt-0.5 h-4 w-4 text-[var(--portal-accent)]" />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--portal-fg)]">Email OTP</p>
+                  <p className="mt-1 text-xs text-[var(--portal-muted)]">
+                    Login sends a one-time code to {sessions.length ? "your registered email" : "your email"}.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={Boolean(status?.email_otp_enabled)}
+                disabled={pending}
+                onCheckedChange={(checked) => {
+                  if (!requirePassword()) return;
+                  run(async () => {
+                    if (checked) {
+                      await postAction({ action: "email-otp-enable", password });
+                      await postAction({
+                        action: "active-method",
+                        active_second_factor: "email_otp",
+                      });
+                      setFeedback("Email OTP enabled and set as your login second factor.");
+                    } else {
+                      await postAction({
+                        action: "email-otp-disable",
+                        password,
+                        totp_code: totpCode || undefined,
+                      });
+                      setFeedback("Email OTP disabled.");
+                    }
+                    setPassword("");
+                    setTotpCode("");
+                  });
+                }}
+                aria-label="Toggle email OTP"
+              />
+            </div>
+            {status?.email_otp_enabled ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={status.active_second_factor === "email_otp" ? "default" : "outline"}
+                  className="rounded-lg"
+                  disabled={pending || status.active_second_factor === "email_otp"}
+                  onClick={() =>
+                    run(async () => {
+                      await postAction({
+                        action: "active-method",
+                        active_second_factor: "email_otp",
+                      });
+                      setFeedback("Email OTP is now required at login.");
+                    })
+                  }
+                >
+                  Use at login
+                </Button>
+                {status.active_second_factor === "email_otp" ? (
+                  <span className="self-center text-xs text-emerald-700">Active at login</span>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Authenticator */}
+          <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <Smartphone className="mt-0.5 h-4 w-4 text-[var(--portal-accent)]" />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--portal-fg)]">Authenticator app</p>
+                  <p className="mt-1 text-xs text-[var(--portal-muted)]">
+                    Scan a QR code, enter the 6-digit PIN, then save recovery keys.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={Boolean(status?.totp_enabled) || showAuthenticatorSetup}
+                disabled={pending}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    if (status?.totp_enabled) return;
+                    run(async () => {
+                      const json = await postAction({ action: "totp-setup" });
+                      setSetupSecret(String(json.data?.secret || ""));
+                      setSetupUrl(String(json.data?.otpauth_url || ""));
+                      setShowAuthenticatorSetup(true);
+                      setFeedback("Scan the QR code, then enter the code from your app.");
+                    });
+                    return;
+                  }
+                  if (!status?.totp_enabled) {
+                    setShowAuthenticatorSetup(false);
+                    setSetupSecret("");
+                    setSetupUrl("");
+                    return;
+                  }
+                  if (!requirePassword()) return;
+                  run(async () => {
+                    await postAction({
+                      action: "totp-disable",
+                      password,
+                      totp_code: totpCode || undefined,
+                    });
+                    setShowAuthenticatorSetup(false);
+                    setSetupSecret("");
+                    setSetupUrl("");
+                    setPassword("");
+                    setTotpCode("");
+                    setFeedback("Authenticator disabled.");
+                  });
+                }}
+                aria-label="Toggle authenticator app"
+              />
+            </div>
+
+            {(showAuthenticatorSetup || setupSecret || setupUrl) && !status?.totp_enabled ? (
+              <div className="mt-4 space-y-3 rounded-lg border border-[var(--portal-border)] bg-[var(--portal-panel)] p-3">
+                <p className="text-xs text-[var(--portal-muted)]">
+                  1. Scan with Google Authenticator, Microsoft Authenticator, or Authy.
+                </p>
+                {qrSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrSrc}
+                    alt="Authenticator QR code"
+                    className="h-[160px] w-[160px] rounded-lg bg-white p-2"
+                  />
+                ) : null}
+                {setupSecret ? (
+                  <p className="break-all font-mono text-[11px] text-[var(--portal-fg)]">
+                    Manual key: {setupSecret}
+                  </p>
+                ) : null}
+                <div className="space-y-2">
+                  <Label htmlFor="sec-totp-setup">2. Enter 6-digit code</Label>
+                  <Input
+                    id="sec-totp-setup"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    className="h-11 bg-[var(--portal-soft)] tracking-[0.2em]"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="000000"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="rounded-lg"
+                    disabled={pending || totpCode.length < 6}
+                    onClick={() =>
+                      run(async () => {
+                        const json = await postAction({
+                          action: "totp-enable",
+                          code: totpCode,
+                        });
+                        await postAction({
+                          action: "active-method",
+                          active_second_factor: "totp",
+                        });
+                        const codes = Array.isArray(json.data?.recovery_codes)
+                          ? (json.data.recovery_codes as string[])
+                          : null;
+                        setRecoveryCodes(codes);
+                        setSetupSecret("");
+                        setSetupUrl("");
+                        setShowAuthenticatorSetup(false);
+                        setTotpCode("");
+                        setFeedback(
+                          "Authenticator enabled and set as your login second factor. Save your recovery codes."
+                        );
+                      })
+                    }
+                  >
+                    {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Verify & enable
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg"
+                    onClick={() => {
+                      setShowAuthenticatorSetup(false);
+                      setSetupSecret("");
+                      setSetupUrl("");
+                      setTotpCode("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {status?.totp_enabled ? (
+              <div className="mt-4 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={status.active_second_factor === "totp" ? "default" : "outline"}
+                    className="rounded-lg"
+                    disabled={pending || status.active_second_factor === "totp"}
+                    onClick={() =>
+                      run(async () => {
+                        await postAction({
+                          action: "active-method",
+                          active_second_factor: "totp",
+                        });
+                        setFeedback("Authenticator is now required at login.");
+                      })
+                    }
+                  >
+                    Use at login
+                  </Button>
+                  {status.active_second_factor === "totp" ? (
+                    <span className="self-center text-xs text-emerald-700">Active at login</span>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sec-totp-manage">Authenticator code (for recovery / disable)</Label>
+                  <Input
+                    id="sec-totp-manage"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    className="h-11 bg-[var(--portal-panel)] tracking-[0.2em]"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg"
+                    disabled={pending || !password || totpCode.length < 6}
+                    onClick={() =>
+                      run(async () => {
+                        const json = await postAction({
+                          action: "recovery-codes",
+                          password,
+                          totp_code: totpCode,
+                        });
+                        const codes = Array.isArray(json.data?.recovery_codes)
+                          ? (json.data.recovery_codes as string[])
+                          : null;
+                        setRecoveryCodes(codes);
+                        setPassword("");
+                        setTotpCode("");
+                        setFeedback("New recovery codes generated.");
+                      })
+                    }
+                  >
+                    <KeyRound className="h-4 w-4" />
+                    Regenerate recovery codes
+                  </Button>
+                  {typeof status.recovery_codes_remaining === "number" ? (
+                    <p className="self-center text-xs text-[var(--portal-muted)]">
+                      {status.recovery_codes_remaining} recovery codes remaining
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
           <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-2">
             <dt className="text-xs text-[var(--portal-muted)]">Email OTP</dt>
             <dd className="mt-1 font-medium">
@@ -182,7 +531,7 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
             <dd className="mt-1 font-medium">{status?.totp_enabled ? "Enabled" : "Off"}</dd>
           </div>
           <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-2">
-            <dt className="text-xs text-[var(--portal-muted)]">Active method</dt>
+            <dt className="text-xs text-[var(--portal-muted)]">Active at login</dt>
             <dd className="mt-1 font-medium">
               {status?.active_second_factor === "email_otp"
                 ? "Email OTP"
@@ -192,236 +541,6 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
             </dd>
           </div>
         </dl>
-
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="sec-password">Confirm password</Label>
-            <Input
-              id="sec-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-11 bg-[var(--portal-soft)]"
-              autoComplete="current-password"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="sec-totp">Authenticator / OTP code</Label>
-            <Input
-              id="sec-totp"
-              value={totpCode}
-              onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
-              className="h-11 bg-[var(--portal-soft)] tracking-[0.2em]"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-xl"
-            disabled={pending || !password}
-            onClick={() =>
-              run(async () => {
-                await postAction({ action: "email-otp-enable", password });
-                setFeedback("Email OTP enabled. Set it as your active method to use at login.");
-                setPassword("");
-              })
-            }
-          >
-            Enable Email OTP
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-xl"
-            disabled={pending || !password || !status?.email_otp_enabled}
-            onClick={() =>
-              run(async () => {
-                await postAction({
-                  action: "email-otp-disable",
-                  password,
-                  totp_code: totpCode || undefined,
-                });
-                setFeedback("Email OTP disabled.");
-                setPassword("");
-                setTotpCode("");
-              })
-            }
-          >
-            Disable Email OTP
-          </Button>
-          <Button
-            type="button"
-            className="rounded-xl"
-            disabled={pending || status?.totp_enabled}
-            onClick={() =>
-              run(async () => {
-                const json = await postAction({ action: "totp-setup" });
-                setSetupSecret(String(json.data?.secret || ""));
-                setSetupUrl(String(json.data?.otpauth_url || ""));
-                setFeedback("Scan the QR code, then enter the first authenticator code.");
-              })
-            }
-          >
-            <Smartphone className="h-4 w-4" />
-            Set up authenticator
-          </Button>
-          {status?.email_otp_enabled ? (
-            <Button
-              type="button"
-              variant={status.active_second_factor === "email_otp" ? "default" : "outline"}
-              className="rounded-xl"
-              disabled={pending || status.active_second_factor === "email_otp"}
-              onClick={() =>
-                run(async () => {
-                  await postAction({
-                    action: "active-method",
-                    active_second_factor: "email_otp",
-                  });
-                  setFeedback("Email OTP is now your active second factor.");
-                })
-              }
-            >
-              Use Email OTP at login
-            </Button>
-          ) : null}
-          {status?.totp_enabled ? (
-            <Button
-              type="button"
-              variant={status.active_second_factor === "totp" ? "default" : "outline"}
-              className="rounded-xl"
-              disabled={pending || status.active_second_factor === "totp"}
-              onClick={() =>
-                run(async () => {
-                  await postAction({
-                    action: "active-method",
-                    active_second_factor: "totp",
-                  });
-                  setFeedback("Authenticator is now your active second factor.");
-                })
-              }
-            >
-              Use Authenticator at login
-            </Button>
-          ) : null}
-        </div>
-
-        {(setupSecret || setupUrl) && !status?.totp_enabled ? (
-          <div className="mt-5 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-4">
-            <p className="text-sm text-[var(--portal-muted)]">
-              Scan with Google Authenticator, Microsoft Authenticator, Authy, or any RFC 6238 app.
-            </p>
-            {qrSrc ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={qrSrc}
-                alt="Authenticator QR code"
-                className="mt-3 h-[180px] w-[180px] rounded-lg bg-white p-2"
-              />
-            ) : null}
-            {setupSecret ? (
-              <p className="mt-3 break-all font-mono text-xs text-[var(--portal-fg)]">
-                Manual key: {setupSecret}
-              </p>
-            ) : null}
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                className="rounded-xl"
-                disabled={pending || totpCode.length < 6}
-                onClick={() =>
-                  run(async () => {
-                    const json = await postAction({
-                      action: "totp-enable",
-                      code: totpCode,
-                    });
-                    const codes = Array.isArray(json.data?.recovery_codes)
-                      ? (json.data.recovery_codes as string[])
-                      : null;
-                    setRecoveryCodes(codes);
-                    setSetupSecret("");
-                    setSetupUrl("");
-                    setTotpCode("");
-                    setFeedback("Authenticator enabled.");
-                  })
-                }
-              >
-                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Verify & enable
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl"
-                onClick={() => {
-                  setSetupSecret("");
-                  setSetupUrl("");
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
-        {status?.totp_enabled ? (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-xl"
-              disabled={pending || !password || totpCode.length < 6}
-              onClick={() =>
-                run(async () => {
-                  const json = await postAction({
-                    action: "recovery-codes",
-                    password,
-                    totp_code: totpCode,
-                  });
-                  const codes = Array.isArray(json.data?.recovery_codes)
-                    ? (json.data.recovery_codes as string[])
-                    : null;
-                  setRecoveryCodes(codes);
-                  setPassword("");
-                  setTotpCode("");
-                  setFeedback("New recovery codes generated.");
-                })
-              }
-            >
-              <KeyRound className="h-4 w-4" />
-              Regenerate recovery codes
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-xl"
-              disabled={pending || !password}
-              onClick={() =>
-                run(async () => {
-                  await postAction({
-                    action: "totp-disable",
-                    password,
-                    totp_code: totpCode || undefined,
-                  });
-                  setPassword("");
-                  setTotpCode("");
-                  setFeedback("Authenticator disabled.");
-                })
-              }
-            >
-              Disable authenticator
-            </Button>
-            {typeof status.recovery_codes_remaining === "number" ? (
-              <p className="self-center text-xs text-[var(--portal-muted)]">
-                {status.recovery_codes_remaining} recovery codes remaining
-              </p>
-            ) : null}
-          </div>
-        ) : null}
       </section>
 
       <section className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-5">

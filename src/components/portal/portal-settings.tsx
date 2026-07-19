@@ -5,11 +5,17 @@ import { Loader2, User } from "lucide-react";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { PortalDataRow } from "@/components/portal/portal-ui";
 import { PortalSecurityPanel } from "@/components/portal/portal-security";
+import {
+  isPasswordStrong,
+  PasswordStrengthIndicator,
+} from "@/components/auth/password-strength";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
+import { resolveDisplayCustomerId } from "@/lib/portal/license-access";
 import { cn } from "@/lib/utils";
+
 function resolvePhotoUrl(photoUrl?: string | null) {
   if (!photoUrl) return null;
   if (/^https?:\/\//i.test(photoUrl) || photoUrl.startsWith("data:")) return photoUrl;
@@ -23,7 +29,10 @@ function resolvePhotoUrl(photoUrl?: string | null) {
 export function PortalSettingsView() {
   const { data, reload } = usePortalContext();
   const identity = data!.identity;
-  const customerId = identity.customer_id || data!.customer?.id || "—";
+  const customerId = resolveDisplayCustomerId({
+    identity,
+    customer: data!.customer,
+  });
 
   const [fullName, setFullName] = useState(identity.full_name || "");
   const [phone, setPhone] = useState(identity.phone || "");
@@ -40,6 +49,7 @@ export function PortalSettingsView() {
   }, [identity.full_name, identity.phone]);
 
   const photoPreview = resolvePhotoUrl(identity.photo_url);
+  const passwordStrong = isPasswordStrong(newPassword);
 
   const patchSettings = async (payload: Record<string, unknown>) => {
     const res = await fetch("/api/portal/settings", {
@@ -77,6 +87,10 @@ export function PortalSettingsView() {
   const savePassword = () => {
     setError("");
     setFeedback("");
+    if (!passwordStrong) {
+      setError("Please meet all password requirements.");
+      return;
+    }
     startTransition(async () => {
       try {
         await patchSettings({
@@ -203,15 +217,22 @@ export function PortalSettingsView() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="h-11 bg-[var(--portal-soft)]"
+                className={cn(
+                  "h-11 bg-[var(--portal-soft)]",
+                  newPassword.length > 0 &&
+                    (passwordStrong
+                      ? "border-emerald-500/50 focus-visible:ring-emerald-500/30"
+                      : "border-amber-500/40 focus-visible:ring-amber-500/30")
+                )}
                 autoComplete="new-password"
               />
             </div>
+            <PasswordStrengthIndicator password={newPassword} variant="portal" />
             <Button
               type="button"
               variant="outline"
               className="rounded-xl"
-              disabled={pending || !currentPassword || !newPassword}
+              disabled={pending || !currentPassword || !newPassword || !passwordStrong}
               onClick={savePassword}
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -226,8 +247,8 @@ export function PortalSettingsView() {
           Security
         </h3>
         <p className="text-xs text-[var(--portal-muted)]">
-          Password authentication, Email OTP, authenticator app, recovery codes, trusted devices,
-          and active sessions — managed through License Engine identity.
+          Turn on Email OTP or authenticator app protection. When enabled, login requires that
+          second factor — it cannot be bypassed.
         </p>
         <PortalSecurityPanel sessions={data!.sessions} onSessionsChanged={reload} />
       </section>

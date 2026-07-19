@@ -135,6 +135,10 @@ export type BlogPost = {
   author: string;
   date: string;
   readTime: string;
+  /** WebP cover — Unsplash or local, sized for cards/detail. */
+  image: string;
+  /** Detail body paragraphs shown on `/blog/[slug]`. */
+  content: string[];
   featured?: boolean;
 };
 

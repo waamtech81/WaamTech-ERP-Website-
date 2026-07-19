@@ -39,7 +39,10 @@ function IndustryCard({
 }) {
   const categories = useCatalogBusinessCategories(expanded ? industry.id : null);
   const Icon = getIcon(industryDisplayIcon(industry));
-  const media = getIndustryMedia(industry.slug || industry.id, large ? 900 : 640);
+  const media = getIndustryMedia(
+    industry.code || industry.slug || industry.id,
+    large ? 900 : 640
+  );
 
   return (
     <article

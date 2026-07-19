@@ -171,7 +171,9 @@ function IndustryHomeCard({ industry, index }: { industry: CatalogIndustry; inde
   const Icon = getIcon(
     industryDisplayIcon(industry) || getIndustryLucideIcon({ icon: industry.icon || "store" })
   );
-  const media = getIndustryMedia(industry.slug || industry.id);
+  const media = getIndustryMedia(
+    industry.code || industry.slug || industry.id
+  );
 
   return (
     <AnimateIn delay={(index % 4) * 0.04}>

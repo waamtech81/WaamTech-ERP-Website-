@@ -123,12 +123,13 @@ export function PortalInvoicesView() {
             aria-hidden
           />
           <Input
-            type="search"
+            type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by invoice number or status…"
-            className="h-11 bg-[var(--portal-panel)] pl-10"
+            className="h-11 bg-[var(--portal-panel)] pl-10 focus-visible:border-[var(--portal-border)] focus-visible:ring-0"
             aria-label="Search invoices"
+            autoComplete="off"
           />
         </div>
         <div

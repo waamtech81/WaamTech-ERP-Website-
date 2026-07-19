@@ -111,14 +111,13 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <Input
             ref={inputRef}
+            type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search products, industries, categories..."
-            className="border-0 shadow-none focus-visible:ring-0 h-14 px-0 text-base"
+            autoComplete="off"
+            className="h-14 border-0 px-0 text-base shadow-none outline-none ring-0 focus-visible:border-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
           />
-          <kbd className="hidden sm:inline-flex items-center rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-            Esc
-          </kbd>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close search">
             <X className="h-4 w-4" />
           </Button>

@@ -61,18 +61,11 @@ export function HomeCatalogSearch({
       </p>
 
       <div ref={wrapRef} className="relative mx-auto max-w-2xl">
-          <div
-            className={cn(
-              "flex items-center gap-3 rounded-2xl border bg-white px-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition-all",
-              open || query
-                ? "border-primary/30 ring-4 ring-primary/8"
-                : "border-border hover:border-primary/20"
-            )}
-          >
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-white px-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition-colors hover:border-border">
             <Search className="h-5 w-5 shrink-0 text-primary" />
             <input
               ref={inputRef}
-              type="search"
+              type="text"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -89,7 +82,8 @@ export function HomeCatalogSearch({
               aria-autocomplete="list"
               aria-controls={listId}
               aria-expanded={showPanel}
-              className="h-14 w-full bg-transparent text-base text-[#0b1f3a] placeholder:text-muted-foreground outline-none"
+              autoComplete="off"
+              className="h-14 w-full bg-transparent text-base text-[#0b1f3a] placeholder:text-muted-foreground outline-none ring-0 border-0 focus:outline-none focus:ring-0"
             />
             {query ? (
               <button

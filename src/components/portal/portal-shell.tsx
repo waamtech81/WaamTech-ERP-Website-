@@ -451,13 +451,13 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[var(--portal-fg)]">
+                    <p className="text-sm font-semibold text-black">
                       {data.accessNotice.title}
                       <span className="ml-2 inline-flex align-middle">
                         <PortalStatusBadge status={data.accessNotice.status} />
                       </span>
                     </p>
-                    <p className="mt-1 text-xs text-[var(--portal-muted)]">
+                    <p className="mt-1 text-xs text-black">
                       {data.accessNotice.message}
                     </p>
                   </div>

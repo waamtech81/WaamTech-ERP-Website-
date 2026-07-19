@@ -36,7 +36,7 @@ function categoryTone(category: string) {
 }
 
 export function PortalNotificationsView() {
-  const { data, reload } = usePortalContext();
+  const { data } = usePortalContext();
   const [items, setItems] = useState<PortalNotification[]>(data?.notifications ?? []);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
@@ -77,7 +77,7 @@ export function PortalNotificationsView() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       void fetchNotifications();
-    }, 30_000);
+    }, 90_000);
     return () => window.clearInterval(timer);
   }, [fetchNotifications]);
 
@@ -101,7 +101,7 @@ export function PortalNotificationsView() {
       try {
         await postAction({ action: "read", id });
         setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-        await reload();
+        // Avoid full dashboard reload (fans out many Engine calls → rate limits).
       } catch (err) {
         setError(friendlyNetworkError(err, "Unable to mark notification as read."));
       }
@@ -114,7 +114,6 @@ export function PortalNotificationsView() {
       try {
         await postAction({ action: "read-all" });
         setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-        await reload();
       } catch (err) {
         setError(friendlyNetworkError(err, "Unable to mark all notifications as read."));
       }

@@ -102,7 +102,9 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.startsWith("/api/auth/")) {
-    const limited = await rateLimit(`mw-auth:${clientIp(req)}`, 60, 60_000);
+    // Auth flows (login + OTP + refresh) need headroom; portal sessions refresh often.
+    const authLimit = pathname.includes("/refresh") ? 120 : 180;
+    const limited = await rateLimit(`mw-auth:${clientIp(req)}`, authLimit, 60_000);
     if (!limited.ok) {
       return applyHeaders(
         NextResponse.json(
@@ -118,8 +120,14 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  if (pathname.startsWith("/api/") && req.method === "POST") {
-    const limited = await rateLimit(`mw-api:${clientIp(req)}`, 120, 60_000);
+  // Portal APIs are session-authenticated and already fan out to License Engine —
+  // do not double-throttle them here (was causing false "Too many requests").
+  if (
+    pathname.startsWith("/api/") &&
+    req.method === "POST" &&
+    !pathname.startsWith("/api/portal/")
+  ) {
+    const limited = await rateLimit(`mw-api:${clientIp(req)}`, 240, 60_000);
     if (!limited.ok) {
       return applyHeaders(
         NextResponse.json(

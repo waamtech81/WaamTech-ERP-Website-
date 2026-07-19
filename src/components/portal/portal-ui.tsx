@@ -205,7 +205,7 @@ export function PortalEmptyState({
   );
 }
 
-/** High-contrast flash for portal success / error (readable on light + dark shells). */
+/** High-contrast flash — always black text on a light panel so alerts stay readable. */
 export function PortalFlash({
   tone,
   children,
@@ -219,13 +219,13 @@ export function PortalFlash({
     <div
       role={tone === "error" ? "alert" : "status"}
       className={cn(
-        "rounded-xl border px-4 py-3 text-sm font-medium leading-relaxed text-[var(--portal-fg)]",
+        "rounded-xl border px-4 py-3 text-sm font-medium leading-relaxed text-black",
         tone === "error" &&
-          "border-rose-500/40 bg-rose-500/15 shadow-[inset_3px_0_0_0_rgb(244_63_94)]",
+          "border-rose-300 bg-rose-50 shadow-[inset_3px_0_0_0_#e11d48]",
         tone === "success" &&
-          "border-emerald-500/40 bg-emerald-500/15 shadow-[inset_3px_0_0_0_rgb(16_185_129)]",
+          "border-emerald-300 bg-emerald-50 shadow-[inset_3px_0_0_0_#059669]",
         tone === "info" &&
-          "border-sky-500/40 bg-sky-500/15 shadow-[inset_3px_0_0_0_rgb(14_165_233)]",
+          "border-sky-300 bg-sky-50 shadow-[inset_3px_0_0_0_#0284c7]",
         className
       )}
     >
@@ -252,7 +252,7 @@ export function PortalErrorState({
         </span>
         <div>
           <p className="font-semibold text-[var(--portal-fg)]">Unable to load this view</p>
-          <p className="mt-1 text-sm text-[var(--portal-muted)]">{message}</p>
+          <p className="mt-1 text-sm text-black">{message}</p>
         </div>
       </div>
       {onRetry ? (

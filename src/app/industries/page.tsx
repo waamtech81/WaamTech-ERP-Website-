@@ -17,8 +17,8 @@ export const metadata: Metadata = {
 };
 
 const HERO_IMAGE = heroImageUrl(
-  "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fm=webp&fit=crop&w=1600&q=70",
-  1600
+  "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fm=webp&fit=crop&w=1400&q=70",
+  1400
 );
 
 const FLOW = [
@@ -65,7 +65,7 @@ export default function IndustriesPage() {
             <p className="mb-3 font-heading text-sm font-semibold tracking-[0.2em] text-sky-300 uppercase sm:text-base">
               {siteConfig.name}
             </p>
-            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-white text-balance sm:text-5xl md:text-6xl leading-[1.08]">
+            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight !text-white text-balance sm:text-5xl md:text-6xl leading-[1.08]">
               Built for how your industry actually runs
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">

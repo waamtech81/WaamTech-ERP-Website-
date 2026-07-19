@@ -1,127 +1,34 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
 import { blogPosts } from "@/lib/data/site";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
-import { AnimateIn } from "@/components/shared/animate-in";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BlogIndex } from "@/components/blog/blog-index";
 
 export const metadata: Metadata = {
-  title: "Blog",
-  description: "Insights on ERP, inventory, product design, and operational excellence from WaamTech.",
+  title: "Blog — ERP, industries & operations insights",
+  description:
+    "Practical guides on ERP, inventory, POS, finance, AI, and industry-specific operations from WaamTech. Written for operators who run real businesses.",
 };
 
 export default function BlogPage() {
-  const featured = blogPosts.find((p) => p.featured) ?? blogPosts[0];
-  const rest = blogPosts.filter((p) => p.id !== featured.id);
-  const categories = Array.from(new Set(blogPosts.map((p) => p.category)));
-
   return (
     <>
-      <Section className="!pb-10 !pt-12 md:!pt-16">
+      <Section className="!pb-6 !pt-12 md:!pt-16">
         <Container>
           <Breadcrumbs items={[{ label: "Blog" }]} />
           <SectionHeader
             align="left"
             eyebrow="Blog"
             title="Insights for modern operators"
-            description="Practical writing on ERP strategy, inventory systems, and premium product experiences."
-            className="mb-8 max-w-3xl"
+            description="Industry guides and practical writing on ERP, inventory, POS, finance, and AI — written for people who close the day on the floor."
+            className="mb-6 max-w-3xl"
           />
-          <div className="flex flex-wrap gap-2">
-            <Badge>All</Badge>
-            {categories.map((c) => (
-              <Badge key={c} variant="outline">
-                {c}
-              </Badge>
-            ))}
-          </div>
         </Container>
       </Section>
 
-      <Section muted className="!pt-10">
+      <Section muted className="!pt-6">
         <Container>
-          <AnimateIn>
-            <Link href={`/blog/${featured.slug}`} className="group block mb-10">
-              <Card className="overflow-hidden hover:shadow-[0_16px_48px_rgba(15,23,42,0.08)] transition-shadow">
-                <div className="grid lg:grid-cols-2">
-                  <div className="relative min-h-[220px] bg-muted">
-                    <Image
-                      src={featured.image}
-                      alt={featured.title}
-                      fill
-                      sizes="(max-width: 1024px) 100vw, 50vw"
-                      quality={70}
-                      className="object-cover"
-                      priority
-                    />
-                  </div>
-                  <div className="p-8 md:p-10">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="muted">{featured.category}</Badge>
-                      <span>{featured.readTime}</span>
-                      <span>·</span>
-                      <span>{featured.date}</span>
-                    </div>
-                    <h2 className="mt-4 text-2xl md:text-3xl font-semibold tracking-tight group-hover:text-primary transition-colors text-balance">
-                      {featured.title}
-                    </h2>
-                    <p className="mt-3 text-muted-foreground leading-relaxed">{featured.excerpt}</p>
-                    <p className="mt-6 text-sm font-medium text-primary">Read article →</p>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          </AnimateIn>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {rest.map((post, i) => (
-              <AnimateIn key={post.id} delay={i * 0.05}>
-                <Link href={`/blog/${post.slug}`} className="group block h-full">
-                  <Card className="h-full overflow-hidden hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
-                    <div className="relative aspect-[16/10] bg-muted">
-                      <Image
-                        src={post.image}
-                        alt={post.title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        quality={70}
-                        className="object-cover"
-                      />
-                    </div>
-                    <CardHeader>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="muted">{post.category}</Badge>
-                        <span>{post.readTime}</span>
-                      </div>
-                      <CardTitle className="mt-2 group-hover:text-primary transition-colors leading-snug">
-                        {post.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{post.excerpt}</p>
-                      <p className="mt-4 text-xs text-muted-foreground">
-                        {post.author} · {post.date}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </AnimateIn>
-            ))}
-          </div>
-
-          <div className="mt-12 flex justify-center gap-2">
-            <Button variant="outline" size="sm" disabled>
-              Previous
-            </Button>
-            <Button size="sm">1</Button>
-            <Button variant="outline" size="sm" disabled>
-              Next
-            </Button>
-          </div>
+          <BlogIndex posts={blogPosts} />
         </Container>
       </Section>
     </>

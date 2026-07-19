@@ -136,41 +136,46 @@ body {
   overscroll-behavior-y: contain;
 }
 
-/* ——— Global heading hierarchy (Poppins) ——— */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--font-display);
-  font-weight: var(--font-weight-heading);
-  letter-spacing: var(--tracking-heading);
-  line-height: var(--leading-heading);
-  color: inherit;
-  text-wrap: balance;
-}
+/*
+ * Heading hierarchy in @layer base so Tailwind color utilities
+ * (text-white, text-primary, etc.) can override — unlayered
+ * `color: inherit` was winning over utilities and made hero titles dark.
+ */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    font-weight: var(--font-weight-heading);
+    letter-spacing: var(--tracking-heading);
+    line-height: var(--leading-heading);
+    text-wrap: balance;
+  }
 
-h1 {
-  font-size: var(--type-h1);
-  font-weight: var(--font-weight-heading-bold);
-}
+  h1 {
+    font-size: var(--type-h1);
+    font-weight: var(--font-weight-heading-bold);
+  }
 
-h2 {
-  font-size: var(--type-h2);
-}
+  h2 {
+    font-size: var(--type-h2);
+  }
 
-h3 {
-  font-size: var(--type-h3);
-}
+  h3 {
+    font-size: var(--type-h3);
+  }
 
-h4 {
-  font-size: var(--type-h4);
-}
+  h4 {
+    font-size: var(--type-h4);
+  }
 
-h5,
-h6 {
-  font-size: var(--type-feature-title);
+  h5,
+  h6 {
+    font-size: var(--type-feature-title);
+  }
 }
 
 /* Semantic helpers — use with or without Tailwind */

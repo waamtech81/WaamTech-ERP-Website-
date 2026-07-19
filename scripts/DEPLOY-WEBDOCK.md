@@ -32,10 +32,14 @@ From the Website repo root on the local machine:
 
 This:
 
-1. Runs `npm run build` locally  
-2. Packs `.next` + `public` + package files + `next.config.ts`  
+1. Runs `npm run build` locally (reuses local `.next/cache` when present)  
+2. Packs `.next` + `public` + package files + `next.config.ts` (**excludes** `.next/cache` — not needed for `next start`)  
 3. Uploads the bundle  
-4. Extracts on Webdock, strips any leftover source, installs prod deps, restarts **waamto-website** only  
+4. Extracts on Webdock **without wiping** `node_modules`  
+5. Runs `npm ci --omit=dev` **only when** `package.json` / `package-lock.json` hash changed  
+6. Reloads **waamto-website** only (`pm2 reload`, fallback `restart`)  
+
+Optional: `-SkipBuild` to reuse an existing local `.next` (same commit / already built).
 
 ## Manual fallback
 

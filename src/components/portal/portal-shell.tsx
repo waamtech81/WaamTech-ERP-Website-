@@ -103,10 +103,10 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     return accessibleNav.filter((item) => item.label.toLowerCase().includes(q)).slice(0, 6);
   }, [accessibleNav, headerQuery]);
 
-  const customerName = data?.overview.customerName || "Customer";
-  const company = data?.overview.company || "Workspace";
+  const customerName = data?.overview?.customerName || "Customer";
+  const company = data?.overview?.company || "Workspace";
   const workspace =
-    data?.customer?.workspace_name || data?.overview.company || "Workspace";
+    data?.customer?.workspace_name || data?.overview?.company || "Workspace";
   const plan = data?.subscription?.currentPlan || null;
   const notifications = data?.notifications || [];
   const unread =
@@ -394,7 +394,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
                     <div className="border-b border-[var(--portal-border)] px-4 py-3">
                       <p className="truncate text-sm font-medium">{customerName}</p>
                       <p className="truncate text-xs text-[var(--portal-muted)]">
-                        {data?.overview.primaryEmail}
+                        {data?.overview?.primaryEmail}
                       </p>
                     </div>
                     <div className="p-1.5">

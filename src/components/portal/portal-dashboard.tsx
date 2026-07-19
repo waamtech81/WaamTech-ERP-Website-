@@ -173,7 +173,7 @@ export function PortalDashboardView() {
   ].filter((item) => item.value !== null && item.value !== undefined && item.value !== "");
 
   const primary = licenses[0];
-  const firstName = overview.customerName.split(" ")[0] || "there";
+  const firstName = String(overview.customerName || "there").split(" ")[0] || "there";
   const expiredOrExpiring = licenses.filter((l) => {
     const status = String(l.effective_status || l.status || "").toLowerCase();
     if (["expired", "suspended"].includes(status)) return true;

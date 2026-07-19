@@ -75,6 +75,7 @@ export function PortalNotificationsView() {
   }, []);
 
   useEffect(() => {
+    void fetchNotifications();
     const timer = window.setInterval(() => {
       void fetchNotifications();
     }, 90_000);

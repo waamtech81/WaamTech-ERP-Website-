@@ -1,0 +1,26 @@
+---
+description: Webdock production deploys must publish build artifacts only — never full source
+alwaysApply: true
+---
+
+# Webdock deploy — BUILD ONLY (mandatory)
+
+Before any Website production deploy to Webdock, **read** `scripts/DEPLOY-WEBDOCK.md` and follow it.
+
+## Hard rules
+
+- Source code stays on the **local machine** and **Git only**.
+- Do **NOT** upload, sync, or leave `src/`, `middleware.ts`, or the full project tree on Webdock.
+- Deploy **compiled production output only**: `.next`, `public`, `package.json`, `package-lock.json`, `next.config.ts` (+ keep existing `.env*` on server).
+- Touch **only** `/home/admin/waamto-website` and PM2 process `waamto-website`. Never restart/redeploy ERP, WMS, wle, or other apps unless the user explicitly asks.
+
+## How to deploy
+
+Use: `scripts/deploy-website-build-only.ps1`  
+(or local `npm run build` → upload `/tmp/waamto-website-build.tgz` → `scripts/deploy-build-only-remote.sh`)
+
+Do **not** use the old source-rebuild path (`deploy-website-only-remote.sh` is disabled).
+
+## After deploy
+
+Confirm remote has **no** `src/` and site responds (home/login OK).

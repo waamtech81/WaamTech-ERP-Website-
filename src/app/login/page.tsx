@@ -114,7 +114,7 @@ function LoginForm() {
   const [recoveryCode, setRecoveryCode] = useState("");
   const [challengeToken, setChallengeToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(false);
   const [trustDevice, setTrustDevice] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -304,14 +304,15 @@ function LoginForm() {
         return;
       }
 
-      if (json.data?.accountKind === "platform" && json.data?.accessToken) {
-        finishLogin(json);
-        return;
-      }
-
+      // Second factor always wins — never create a portal session until completed.
       if (challengeTokenValue && (requires2fa || requiresEmailVerification || requiresOtpFlag)) {
         openSecondFactor(json);
         setLoading(false);
+        return;
+      }
+
+      if (json.data?.accountKind === "platform" && json.data?.accessToken) {
+        finishLogin(json);
         return;
       }
 
@@ -593,14 +594,18 @@ function LoginForm() {
                         </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-start gap-2">
                       <Checkbox
                         id="remember"
                         checked={remember}
                         onCheckedChange={(v) => setRemember(v === true)}
+                        className="mt-0.5"
                       />
                       <Label htmlFor="remember" className="text-sm font-normal text-muted-foreground">
-                        Remember me
+                        Keep me signed in on this device
+                        <span className="mt-0.5 block text-xs text-muted-foreground/80">
+                          Off by default — closing the browser ends your portal session.
+                        </span>
                       </Label>
                     </div>
 

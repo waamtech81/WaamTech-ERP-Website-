@@ -200,6 +200,90 @@ export function PortalDashboardView() {
         }
       />
 
+      {/* Always-visible account actions after login */}
+      <section
+        aria-label="Portal actions"
+        className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-4 sm:p-5"
+      >
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--portal-muted)]">
+              Account actions
+            </p>
+            <p className="mt-1 text-sm text-[var(--portal-muted)]">
+              Upgrade, add a place, billing payments, and security — available after login.
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            {
+              href: renewSubId
+                ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
+                : "/portal/plans?intent=upgrade",
+              label: "Upgrade plan",
+              hint: "Industry · category · plan · price",
+            },
+            {
+              href: "/portal/plans?intent=new_place",
+              label: "Add new place",
+              hint: "New business on same account",
+            },
+            {
+              href: "/portal/billing",
+              label: "Billing & payments",
+              hint: "Gateways · payment history",
+            },
+            {
+              href: "/portal/settings",
+              label: "Security & password",
+              hint: "2FA · Email OTP · strength",
+            },
+          ].map((item) => (
+            <Link
+              key={item.href + item.label}
+              href={item.href}
+              className="portal-focus-ring rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 transition hover:border-[var(--portal-primary)]/40 hover:bg-[var(--portal-primary-soft)]"
+            >
+              <p className="text-sm font-semibold text-[var(--portal-fg)]">{item.label}</p>
+              <p className="mt-1 text-xs text-[var(--portal-muted)]">{item.hint}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {data.accessNotice ? (
+        <div
+          role="status"
+          className={
+            data.accessNotice.level === "danger"
+              ? "rounded-2xl border border-rose-500/25 bg-rose-500/10 px-5 py-4"
+              : data.accessNotice.level === "warning"
+                ? "rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4"
+                : "rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-5 py-4"
+          }
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-semibold text-[var(--portal-fg)]">
+                  {data.accessNotice.title}
+                </p>
+                <PortalStatusBadge status={data.accessNotice.status} />
+              </div>
+              <p className="text-sm text-[var(--portal-muted)]">{data.accessNotice.message}</p>
+            </div>
+            {data.accessNotice.actionHref ? (
+              <Button asChild size="sm" className="rounded-xl">
+                <Link href={data.accessNotice.actionHref}>
+                  {data.accessNotice.actionLabel || "Continue"}
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {expiredOrExpiring.length ? (
         <div
           role="alert"
@@ -331,8 +415,11 @@ export function PortalDashboardView() {
                       Upgrade
                     </Link>
                   </Button>
+                  <Button asChild size="sm" variant="outline" className="rounded-xl">
+                    <Link href="/portal/plans?intent=new_place">Add place</Link>
+                  </Button>
                   <Button asChild size="sm" variant="ghost" className="rounded-xl">
-                    <Link href="/portal/licenses">Download license</Link>
+                    <Link href="/portal/billing">Payments</Link>
                   </Button>
                 </div>
               </div>

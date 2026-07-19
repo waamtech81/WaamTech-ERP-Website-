@@ -126,18 +126,24 @@ export function PortalStatusBadge({
     s.includes("paid") ||
     s.includes("ok") ||
     s.includes("enabled") ||
-    s.includes("read")
+    s.includes("read") ||
+    s.includes("completed") ||
+    s.includes("success")
       ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400"
       : s.includes("trial") ||
           s.includes("pending") ||
           s.includes("grace") ||
-          s.includes("unread")
+          s.includes("unread") ||
+          s.includes("suspend")
         ? "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-400"
         : s.includes("expir") ||
             s.includes("lock") ||
             s.includes("fail") ||
             s.includes("cancel") ||
-            s.includes("overdue")
+            s.includes("overdue") ||
+            s.includes("delet") ||
+            s.includes("disabled") ||
+            s.includes("terminat")
           ? "bg-rose-500/10 text-rose-700 border-rose-500/20 dark:text-rose-400"
           : "bg-[var(--portal-muted-soft)] text-[var(--portal-muted)] border-[var(--portal-border)]";
 

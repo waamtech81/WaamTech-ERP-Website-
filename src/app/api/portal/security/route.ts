@@ -29,7 +29,13 @@ async function resolveAccess() {
   if (!resolved.ok) {
     const res = apiFail(resolved.message, {
       status: resolved.status,
-      code: ApiErrorCode.UNAUTHORIZED,
+      code:
+        resolved.status === 403
+          ? ApiErrorCode.FORBIDDEN
+          : ApiErrorCode.UNAUTHORIZED,
+      ...(resolved.code
+        ? { extra: { reason: resolved.code } }
+        : {}),
     });
     return {
       ok: false as const,

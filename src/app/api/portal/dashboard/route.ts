@@ -33,6 +33,11 @@ export const GET = withApiHandler(
         result.message,
         result.status || 401
       );
+      const isAccountBlocked =
+        result.status === 403 &&
+        (result.code === "ACCOUNT_DELETED" ||
+          result.code === "ACCOUNT_DISABLED" ||
+          /deleted|disabled|no longer available/i.test(result.message || ""));
       const res = apiFail(
         result.status === 401
           ? "Authentication required."
@@ -42,10 +47,17 @@ export const GET = withApiHandler(
           code:
             result.status === 401
               ? ApiErrorCode.UNAUTHORIZED
-              : publicError.code,
+              : ApiErrorCode.FORBIDDEN,
+          ...(isAccountBlocked
+            ? {
+                extra: {
+                  reason: result.code || "ACCOUNT_DELETED",
+                },
+              }
+            : {}),
         }
       );
-      if (result.status === 401) clearSessionCookies(res);
+      if (result.status === 401 || isAccountBlocked) clearSessionCookies(res);
       return res;
     }
 

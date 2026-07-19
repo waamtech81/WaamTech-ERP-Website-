@@ -27,6 +27,10 @@ import {
   fetchMyNotifications,
   type PortalCustomerNotification,
 } from "@/lib/portal/support";
+import {
+  evaluatePortalLicenseAccess,
+  type PortalAccessNotice,
+} from "@/lib/portal/license-access";
 import type {
   CommercialInvoice,
   CommercialPayment,
@@ -173,6 +177,8 @@ export type PortalDashboard = {
   company: Record<string, unknown> | null;
   engineDashboard: Record<string, unknown> | null;
   unreadNotifications: number;
+  /** Suspended / non-active license notice — still allows portal with clear status. */
+  accessNotice?: PortalAccessNotice | null;
 };
 
 export type PortalInvoice = {
@@ -570,6 +576,7 @@ export async function loadPortalDashboard(
   ok: boolean;
   status: number;
   message: string;
+  code?: string;
   data?: PortalDashboard;
   refreshed?: { accessToken: string; refreshToken: string };
 }> {
@@ -590,10 +597,24 @@ export async function loadPortalDashboard(
   }
 
   if (!me.ok || !me.data?.identity) {
+    const status = me.status || 401;
+    // Engine may return 403/404 when the identity was deleted after login.
+    if (status === 403 || status === 404 || status === 410) {
+      return {
+        ok: false,
+        status: 403,
+        code: "ACCOUNT_DELETED",
+        message:
+          me.message ||
+          "This account is no longer available in the license system.",
+        refreshed,
+      };
+    }
     return {
       ok: false,
-      status: me.status || 401,
+      status: status === 401 ? 401 : status,
       message: me.message || "Session expired. Please sign in again.",
+      refreshed,
     };
   }
 
@@ -616,6 +637,22 @@ export async function loadPortalDashboard(
   const identity = me.data.identity;
   const customer = me.data.customer;
   const rawLicenses = Array.isArray(licensesRes.data) ? licensesRes.data : [];
+
+  const licenseAccess = evaluatePortalLicenseAccess({
+    identity,
+    customer,
+    licenses: rawLicenses,
+  });
+  if (!licenseAccess.ok) {
+    return {
+      ok: false,
+      status: licenseAccess.status,
+      code: licenseAccess.code,
+      message: licenseAccess.message,
+      refreshed,
+    };
+  }
+
   const licenses = rawLicenses.map(toPortalLicense);
   const sessions = Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
   const primary = primaryLicense(rawLicenses);
@@ -854,6 +891,11 @@ export async function loadPortalDashboard(
       href: "/portal/plans?intent=upgrade",
     },
     {
+      id: "new_place",
+      label: "Add New Place",
+      href: "/portal/plans?intent=new_place",
+    },
+    {
       id: "users",
       label: "Manage Users",
       href: "/portal/users",
@@ -951,6 +993,7 @@ export async function loadPortalDashboard(
     company,
     engineDashboard,
     unreadNotifications,
+    accessNotice: licenseAccess.notice,
   };
 
   return { ok: true, status: 200, message: "OK", data, refreshed };

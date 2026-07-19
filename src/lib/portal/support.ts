@@ -4,6 +4,11 @@
 
 import { toPublicError } from "@/lib/api/errors";
 import { logApiError } from "@/lib/api/logger";
+import {
+  fetchCustomerNotifications,
+  markAllCustomerNotificationsRead,
+  markCustomerNotificationRead,
+} from "@/lib/commercial/client";
 import { licenseConfig, normalizeLicenseBase } from "@/lib/license/config";
 import { friendlyNetworkError } from "@/lib/network/errors";
 
@@ -266,17 +271,61 @@ export async function uploadMySupportAttachment(
   );
 }
 
+function normalizeCustomerNotification(row: Record<string, unknown>): PortalCustomerNotification {
+  return {
+    id: String(row.id || ""),
+    category: String(row.type || row.category || "system"),
+    title: String(row.title || ""),
+    body:
+      row.message != null
+        ? String(row.message)
+        : row.body != null
+          ? String(row.body)
+          : null,
+    link: row.link != null ? String(row.link) : null,
+    is_read: Boolean(row.is_read ?? row.read),
+    created_at: row.created_at != null ? String(row.created_at) : undefined,
+    entity_type: row.entity_type != null ? String(row.entity_type) : null,
+    entity_id: row.entity_id != null ? String(row.entity_id) : null,
+  };
+}
+
 export async function fetchMyNotifications(
   accessToken: string,
   query?: { category?: string; unread?: boolean; page?: number; limit?: number }
 ) {
+  // Prefer billing customer_notifications (payments, licenses, renewals).
+  const billing = await fetchCustomerNotifications(accessToken, {
+    filter: query?.unread ? "unread" : "all",
+    type: query?.category,
+    page: query?.page,
+    limit: query?.limit ?? 100,
+  });
+
+  if (billing.ok) {
+    const rows = Array.isArray(billing.data?.data) ? billing.data.data : [];
+    const mapped = rows.map((row) =>
+      normalizeCustomerNotification(row as unknown as Record<string, unknown>)
+    );
+    const unread_count = mapped.filter((n) => !n.is_read).length;
+    return {
+      ok: true as const,
+      status: billing.status || 200,
+      message: billing.message || "OK",
+      data: mapped,
+      total: billing.data?.total ?? mapped.length,
+      unread_count,
+    };
+  }
+
+  // Legacy identity/support path (older Engine builds).
   const params = new URLSearchParams();
   if (query?.category) params.set("category", query.category);
   if (query?.unread) params.set("unread", "1");
   if (query?.page != null) params.set("page", String(query.page));
   if (query?.limit != null) params.set("limit", String(query.limit));
   const qs = params.toString();
-  return requestPortal<PortalCustomerNotification[]>(
+  const legacy = await requestPortal<PortalCustomerNotification[]>(
     "GET",
     [
       `/v1/identity/support/notifications${qs ? `?${qs}` : ""}`,
@@ -284,9 +333,30 @@ export async function fetchMyNotifications(
     ],
     accessToken
   );
+  if (legacy.ok && Array.isArray(legacy.data)) {
+    const mapped = legacy.data.map((row) =>
+      normalizeCustomerNotification(row as unknown as Record<string, unknown>)
+    );
+    return {
+      ...legacy,
+      data: mapped,
+      unread_count:
+        legacy.unread_count ?? mapped.filter((n) => !n.is_read).length,
+    };
+  }
+  return legacy;
 }
 
 export async function markMyNotificationRead(accessToken: string, notificationId: string) {
+  const billing = await markCustomerNotificationRead(accessToken, notificationId);
+  if (billing.ok) {
+    return {
+      ok: true as const,
+      status: billing.status || 200,
+      message: billing.message || "OK",
+      data: billing.data,
+    };
+  }
   const id = encodeURIComponent(notificationId);
   return requestPortal(
     "PATCH",
@@ -299,6 +369,15 @@ export async function markMyNotificationRead(accessToken: string, notificationId
 }
 
 export async function markAllMyNotificationsRead(accessToken: string) {
+  const billing = await markAllCustomerNotificationsRead(accessToken);
+  if (billing.ok) {
+    return {
+      ok: true as const,
+      status: billing.status || 200,
+      message: billing.message || "OK",
+      data: billing.data,
+    };
+  }
   return requestPortal(
     "PATCH",
     [

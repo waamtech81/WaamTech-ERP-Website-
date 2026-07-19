@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Loader2, User } from "lucide-react";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
-import { PortalDataRow } from "@/components/portal/portal-ui";
+import { PortalDataRow, PortalFlash } from "@/components/portal/portal-ui";
 import { PortalSecurityPanel } from "@/components/portal/portal-security";
 import {
   isPasswordStrong,
@@ -110,17 +110,7 @@ export function PortalSettingsView() {
   return (
     <div className="space-y-8">
       {(feedback || error) && (
-        <div
-          role="status"
-          className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
-            error
-              ? "border-rose-500/25 bg-rose-500/10 text-rose-900 dark:text-rose-200"
-              : "border-emerald-500/25 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200"
-          )}
-        >
-          {error || feedback}
-        </div>
+        <PortalFlash tone={error ? "error" : "success"}>{error || feedback}</PortalFlash>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -132,7 +122,7 @@ export function PortalSettingsView() {
             Profile
           </h3>
           <p className="mt-1 text-xs text-[var(--portal-muted)]">
-            Shared with License Engine and WAAMTO SaaS. Profile photo is managed in SaaS only.
+            Shared with License Engine and WAAMTO ERP Cloud. Profile photo is managed in ERP Cloud only.
           </p>
 
           <div className="mt-5 flex items-center gap-4">
@@ -148,7 +138,7 @@ export function PortalSettingsView() {
             </div>
             <div className="min-w-0 text-sm text-[var(--portal-muted)]">
               <p className="font-medium text-[var(--portal-fg)]">Photo preview</p>
-              <p className="mt-0.5">Update photo from WAAMTO SaaS — it syncs here automatically.</p>
+              <p className="mt-0.5">Update photo from WAAMTO ERP Cloud — it syncs here automatically.</p>
             </div>
           </div>
 

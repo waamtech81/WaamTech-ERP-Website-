@@ -27,7 +27,7 @@ function SuccessInner() {
       title={isNewPlace ? "New place activated" : "Payment complete"}
       description={
         isNewPlace
-          ? "Your new place subscription is recorded. License Engine updates the account; WAAMTO SaaS shows it under multi-business after sync."
+          ? "Your new place subscription is recorded. License Engine updates the account; WAAMTO ERP Cloud shows it under multi-business after sync."
           : "Your renewal or upgrade completed successfully."
       }
     >

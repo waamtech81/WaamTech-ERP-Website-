@@ -70,7 +70,7 @@ export const PATCH = withApiHandler(
         new_password: next,
       });
     } else if (action === "photo") {
-      return apiFail("Profile photo can only be updated from WAAMTO SaaS.", {
+      return apiFail("Profile photo can only be updated from WAAMTO ERP Cloud.", {
         status: 400,
         code: ApiErrorCode.VALIDATION_ERROR,
       });

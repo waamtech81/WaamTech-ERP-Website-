@@ -88,7 +88,7 @@ const META: Record<
   },
   users: {
     title: "Users",
-    description: "Workspace users provisioned via License Engine and WAAMTO SaaS.",
+    description: "Workspace users provisioned via License Engine and WAAMTO ERP Cloud.",
     emptyTitle: "No users yet",
     emptyDescription: "Users set up from SaaS through your license will appear here.",
     eyebrow: "Workspace",

@@ -69,7 +69,12 @@ export const POST = withApiHandler(
       });
     }
 
-    const body = (await req.json().catch(() => ({}))) as { reference?: string };
+    const body = (await req.json().catch(() => ({}))) as {
+      reference?: string;
+      gateway?: string;
+      payment_method?: string;
+      transaction_id?: string;
+    };
 
     const resolved = await resolvePortalAccess();
     if (!resolved.ok) {
@@ -80,10 +85,18 @@ export const POST = withApiHandler(
       return clearPortalOnUnauthorized(res, resolved.status);
     }
 
+    const method = String(body.payment_method || "").trim();
+    const txn = String(body.transaction_id || "").trim();
+    const reference =
+      String(body.reference || "").trim() ||
+      (txn
+        ? `method=${method || "manual"}|txn=${txn}`.slice(0, 240)
+        : undefined);
+
     const result = await confirmCheckoutSession(
       resolved.access.accessToken,
       sessionToken,
-      { reference: body.reference }
+      { reference, gateway: body.gateway }
     );
     if (!result.ok) {
       return apiFail(result.message || "Unable to confirm checkout.", {

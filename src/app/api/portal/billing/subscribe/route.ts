@@ -2,6 +2,7 @@ import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess } from "@/lib/api/response";
 import {
+  fetchMySubscriptions,
   requestAdditionalSubscription,
   requestPlanChange,
   requestSubscriptionRenewal,
@@ -16,6 +17,22 @@ import {
 import { resolvePreferredGateway } from "@/lib/portal/gateway";
 import { isSameOrigin, sanitizeText } from "@/lib/security/guards";
 import { getSiteOrigin } from "@/lib/urls";
+
+async function resolveSubscriptionId(
+  accessToken: string,
+  requested: string
+): Promise<string> {
+  if (requested) return requested;
+  const subs = await fetchMySubscriptions(accessToken, { limit: 50 });
+  const rows = Array.isArray(subs.data?.data) ? subs.data.data : [];
+  const preferred =
+    rows.find((s) =>
+      ["trial", "trialing", "active", "grace", "pending", "suspended"].includes(
+        String(s.status || "").toLowerCase()
+      )
+    ) || rows[0];
+  return preferred?.id ? String(preferred.id) : "";
+}
 
 /**
  * Unified portal subscribe entry:
@@ -34,8 +51,8 @@ export const POST = withApiHandler(
     }
 
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const mode = sanitizeText(body.mode || body.intent || "upgrade", 40);
-    const subscriptionId = sanitizeText(body.subscription_id, 80);
+    let mode = sanitizeText(body.mode || body.intent || "upgrade", 40);
+    let subscriptionId = sanitizeText(body.subscription_id, 80);
     const toPlanId = sanitizeText(body.to_plan_id || body.plan_id, 80);
     const industryId = sanitizeText(body.industry_id, 80);
     const categoryId = sanitizeText(
@@ -62,20 +79,50 @@ export const POST = withApiHandler(
 
     const gateway = await resolvePreferredGateway(
       resolved.access.accessToken,
-      sanitizeText(body.gateway, 40) || null
+      sanitizeText(body.gateway || body.payment_method, 40) || null
     );
     const origin = getSiteOrigin();
     const successUrl = `${origin}/portal/checkout/success`;
     const cancelUrl = `${origin}/portal/checkout/cancel`;
 
+    if (
+      !subscriptionId &&
+      (mode === "renew" ||
+        mode === "upgrade" ||
+        mode === "trial-convert" ||
+        mode === "trial_convert")
+    ) {
+      subscriptionId = await resolveSubscriptionId(
+        resolved.access.accessToken,
+        ""
+      );
+    }
+
+    // Trial pay with no commercial subscription → create checkout via additional subscription.
+    if (
+      !subscriptionId &&
+      (mode === "renew" ||
+        mode === "upgrade" ||
+        mode === "trial-convert" ||
+        mode === "trial_convert") &&
+      toPlanId &&
+      industryId &&
+      categoryId
+    ) {
+      mode = "new_place";
+    }
+
     let result;
 
     if (mode === "renew") {
       if (!subscriptionId) {
-        return apiFail("Subscription is required.", {
-          status: 400,
-          code: ApiErrorCode.VALIDATION_ERROR,
-        });
+        return apiFail(
+          "No subscription found to renew. If you are on trial, choose industry, category, and a plan to activate.",
+          {
+            status: 400,
+            code: ApiErrorCode.VALIDATION_ERROR,
+          }
+        );
       }
       result = await requestSubscriptionRenewal(
         resolved.access.accessToken,
@@ -84,10 +131,13 @@ export const POST = withApiHandler(
       );
     } else if (mode === "trial-convert" || mode === "trial_convert") {
       if (!subscriptionId) {
-        return apiFail("Subscription is required.", {
-          status: 400,
-          code: ApiErrorCode.VALIDATION_ERROR,
-        });
+        return apiFail(
+          "No trial subscription found. Choose industry, category, and a plan to activate your trial.",
+          {
+            status: 400,
+            code: ApiErrorCode.VALIDATION_ERROR,
+          }
+        );
       }
       result = await requestTrialConvert(resolved.access.accessToken, {
         subscription_id: subscriptionId,

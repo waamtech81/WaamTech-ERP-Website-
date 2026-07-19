@@ -13,9 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { PortalFlash } from "@/components/portal/portal-ui";
 import { formatPortalDate, formatPortalDateTime } from "@/components/portal/use-portal-data";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
-import { cn } from "@/lib/utils";
 import type {
   IdentityMfaStatus,
   IdentitySecurityEvent,
@@ -43,10 +43,6 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
   const [setupUrl, setSetupUrl] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [showAuthenticatorSetup, setShowAuthenticatorSetup] = useState(false);
-
-  const twoFactorOn = Boolean(
-    status?.email_otp_enabled || status?.totp_enabled || status?.active_second_factor !== "none"
-  );
 
   const refresh = async () => {
     setLoadError("");
@@ -103,14 +99,20 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
     return json;
   };
 
-  const run = (fn: () => Promise<void>) => {
+  const run = (
+    fn: () => Promise<void>,
+    options?: { refreshSessions?: boolean }
+  ) => {
     setError("");
     setFeedback("");
     startTransition(async () => {
       try {
         await fn();
         await refresh();
-        await onSessionsChanged?.();
+        // Do not reload the whole portal on MFA toggles — that remounts Settings and looks like a refresh.
+        if (options?.refreshSessions) {
+          await onSessionsChanged?.();
+        }
       } catch (err) {
         setError(friendlyNetworkError(err, "Security update failed."));
       }
@@ -132,22 +134,14 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
   return (
     <div className="space-y-6">
       {(feedback || error || loadError) && (
-        <div
-          role="status"
-          className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
-            error || loadError
-              ? "border-rose-500/25 bg-rose-500/10 text-rose-900 dark:text-rose-200"
-              : "border-emerald-500/25 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200"
-          )}
-        >
+        <PortalFlash tone={error || loadError ? "error" : "success"}>
           {error || loadError || feedback}
-        </div>
+        </PortalFlash>
       )}
 
       {recoveryCodes?.length ? (
-        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
-          <h3 className="text-sm font-semibold text-[var(--portal-fg)]">
+        <section className="rounded-2xl border border-amber-500/40 bg-amber-500/15 p-5 text-[var(--portal-fg)] shadow-[inset_3px_0_0_0_rgb(245_158_11)]">
+          <h3 className="text-sm font-semibold">
             Save your recovery codes
           </h3>
           <p className="mt-1 text-xs text-[var(--portal-muted)]">
@@ -175,59 +169,16 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
       ) : null}
 
       <section className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--portal-accent)]" />
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--portal-fg)]">
-                Two-factor authentication
-              </h3>
-              <p className="mt-1 text-xs text-[var(--portal-muted)]">
-                Turn on a second factor for portal login. Email OTP and authenticator work the same
-                way as License Engine security.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-[var(--portal-muted)]">
-              {twoFactorOn ? "On" : "Off"}
-            </span>
-            <Switch
-              checked={twoFactorOn}
-              disabled={pending}
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  setFeedback(
-                    "Choose Email OTP or Authenticator below, confirm with your password, then complete setup."
-                  );
-                  return;
-                }
-                if (!requirePassword()) return;
-                run(async () => {
-                  if (status?.email_otp_enabled) {
-                    await postAction({
-                      action: "email-otp-disable",
-                      password,
-                      totp_code: totpCode || undefined,
-                    });
-                  }
-                  if (status?.totp_enabled) {
-                    await postAction({
-                      action: "totp-disable",
-                      password,
-                      totp_code: totpCode || undefined,
-                    });
-                  }
-                  setShowAuthenticatorSetup(false);
-                  setSetupSecret("");
-                  setSetupUrl("");
-                  setPassword("");
-                  setTotpCode("");
-                  setFeedback("Two-factor authentication turned off.");
-                });
-              }}
-              aria-label="Toggle two-factor authentication"
-            />
+        <div className="flex items-start gap-3">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--portal-accent)]" />
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--portal-fg)]">
+              Login security
+            </h3>
+            <p className="mt-1 text-xs text-[var(--portal-muted)]">
+              Email OTP and Authenticator are separate. Enable either or both; use “Use at login”
+              to choose which one is required when you sign in.
+            </p>
           </div>
         </div>
 
@@ -240,12 +191,12 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
             onChange={(e) => setPassword(e.target.value)}
             className="h-11 max-w-md bg-[var(--portal-soft)]"
             autoComplete="current-password"
-            placeholder="Required to enable or disable 2FA"
+            placeholder="Required to enable or disable Email OTP / Authenticator"
           />
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          {/* Email OTP */}
+          {/* Email OTP — independent of Authenticator */}
           <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
@@ -253,7 +204,7 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
                 <div>
                   <p className="text-sm font-semibold text-[var(--portal-fg)]">Email OTP</p>
                   <p className="mt-1 text-xs text-[var(--portal-muted)]">
-                    Login sends a one-time code to {sessions.length ? "your registered email" : "your email"}.
+                    Separate from Authenticator. Login can send a one-time code to your email.
                   </p>
                 </div>
               </div>
@@ -306,21 +257,23 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
                   Use at login
                 </Button>
                 {status.active_second_factor === "email_otp" ? (
-                  <span className="self-center text-xs text-emerald-700">Active at login</span>
+                  <span className="self-center text-xs font-medium text-[var(--portal-fg)]">
+                    Active at login
+                  </span>
                 ) : null}
               </div>
             ) : null}
           </div>
 
-          {/* Authenticator */}
+          {/* Authenticator — independent of Email OTP */}
           <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <Smartphone className="mt-0.5 h-4 w-4 text-[var(--portal-accent)]" />
                 <div>
-                  <p className="text-sm font-semibold text-[var(--portal-fg)]">Authenticator app</p>
+                  <p className="text-sm font-semibold text-[var(--portal-fg)]">Authenticator (2FA)</p>
                   <p className="mt-1 text-xs text-[var(--portal-muted)]">
-                    Scan a QR code, enter the 6-digit PIN, then save recovery keys.
+                    Separate from Email OTP. Scan a QR code, enter the 6-digit PIN, then save recovery keys.
                   </p>
                 </div>
               </div>
@@ -467,7 +420,9 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
                     Use at login
                   </Button>
                   {status.active_second_factor === "totp" ? (
-                    <span className="self-center text-xs text-emerald-700">Active at login</span>
+                    <span className="self-center text-xs font-medium text-[var(--portal-fg)]">
+                      Active at login
+                    </span>
                   ) : null}
                 </div>
                 <div className="space-y-2">
@@ -577,10 +532,13 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
                   className="rounded-lg"
                   disabled={pending}
                   onClick={() =>
-                    run(async () => {
-                      await postAction({ action: "revoke-device", device_id: d.id });
-                      setFeedback("Trusted device revoked.");
-                    })
+                    run(
+                      async () => {
+                        await postAction({ action: "revoke-device", device_id: d.id });
+                        setFeedback("Trusted device revoked.");
+                      },
+                      { refreshSessions: true }
+                    )
                   }
                 >
                   Revoke
@@ -652,10 +610,13 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
                     className="rounded-lg"
                     disabled={pending}
                     onClick={() =>
-                      run(async () => {
-                        await postAction({ action: "revoke-session", session_id: s.id });
-                        setFeedback("Session revoked.");
-                      })
+                      run(
+                        async () => {
+                          await postAction({ action: "revoke-session", session_id: s.id });
+                          setFeedback("Session revoked.");
+                        },
+                        { refreshSessions: true }
+                      )
                     }
                   >
                     Logout

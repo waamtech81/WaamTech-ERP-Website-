@@ -205,6 +205,35 @@ export function PortalEmptyState({
   );
 }
 
+/** High-contrast flash for portal success / error (readable on light + dark shells). */
+export function PortalFlash({
+  tone,
+  children,
+  className,
+}: {
+  tone: "error" | "success" | "info";
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      role={tone === "error" ? "alert" : "status"}
+      className={cn(
+        "rounded-xl border px-4 py-3 text-sm font-medium leading-relaxed text-[var(--portal-fg)]",
+        tone === "error" &&
+          "border-rose-500/40 bg-rose-500/15 shadow-[inset_3px_0_0_0_rgb(244_63_94)]",
+        tone === "success" &&
+          "border-emerald-500/40 bg-emerald-500/15 shadow-[inset_3px_0_0_0_rgb(16_185_129)]",
+        tone === "info" &&
+          "border-sky-500/40 bg-sky-500/15 shadow-[inset_3px_0_0_0_rgb(14_165_233)]",
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function PortalErrorState({
   message,
   onRetry,

@@ -16,7 +16,13 @@ import {
   resolveCyclePrice,
 } from "@/lib/commercial/mappers";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
-import { PortalPanel, PortalSkeleton, PortalStatusBadge } from "@/components/portal/portal-ui";
+import { PortalPaymentMethodPicker } from "@/components/portal/portal-payment-methods";
+import {
+  PortalFlash,
+  PortalPanel,
+  PortalSkeleton,
+  PortalStatusBadge,
+} from "@/components/portal/portal-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,6 +102,7 @@ export function PortalPlansView() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("yearly");
   const [companyName, setCompanyName] = useState("");
   const [gatewayId, setGatewayId] = useState("");
+  const [transactionId, setTransactionId] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
 
@@ -109,24 +116,39 @@ export function PortalPlansView() {
       ? subscriptions.find((s) => s.id === requestedSubId)
       : null) ||
     subscriptions.find((s) =>
-      ["active", "trial", "trialing", "grace", "suspended"].includes(
+      ["active", "trial", "trialing", "grace", "suspended", "pending"].includes(
         String(s.status || "").toLowerCase()
       )
     ) ||
     subscriptions[0] ||
     null;
 
-  const isTrial = String(activeSub?.status || "").toLowerCase() === "trial";
-  const gateways = (portal?.gateways || []).filter((g) => g.configured || g.online);
+  const trialFromLicense =
+    String(portal?.subscription?.trialStatus || "").toLowerCase() === "trial" ||
+    (portal?.licenses || []).some((l) => {
+      const status = String(l.effective_status || l.status || "").toLowerCase();
+      const planType = String(l.plan_type || "").toLowerCase();
+      const planName = String(l.plan_name || "").toLowerCase();
+      return status === "trial" || planType === "trial" || planName.includes("trial");
+    });
+
+  const subStatus = String(activeSub?.status || "").toLowerCase();
+  const isTrial =
+    subStatus === "trial" ||
+    subStatus === "trialing" ||
+    (!activeSub && trialFromLicense);
+
+  /** Trial accounts can pay/activate even when commercial subscriptions list is empty. */
+  const canPayOrRenew = Boolean(activeSub) || trialFromLicense;
 
   useEffect(() => {
     setMode(initialMode);
-    setStep(initialMode === "renew" ? "plan" : "mode");
-  }, [initialMode]);
-
-  useEffect(() => {
-    if (!gatewayId && gateways[0]?.id) setGatewayId(gateways[0].id);
-  }, [gateways, gatewayId]);
+    if (initialMode === "renew") {
+      setStep(activeSub?.id ? "plan" : "industry");
+    } else {
+      setStep("mode");
+    }
+  }, [initialMode, activeSub?.id]);
 
   useEffect(() => {
     // Prefill industry/category from current business when upgrading.
@@ -187,7 +209,8 @@ export function PortalPlansView() {
   function goNextFromMode(next: FlowMode) {
     setMode(next);
     setError("");
-    if (next === "renew") {
+    // Renew with an existing commercial sub can jump to plans; trial-only accounts need industry first.
+    if (next === "renew" && activeSub?.id) {
       setStep("plan");
       return;
     }
@@ -204,31 +227,50 @@ export function PortalPlansView() {
       return;
     }
 
-    if (mode === "upgrade" && !activeSub?.id) {
+    if (mode === "upgrade" && !activeSub?.id && !trialFromLicense) {
       setError("No active subscription found to upgrade.");
       return;
     }
 
-    if (mode === "renew" && !activeSub?.id) {
+    if (mode === "renew" && !activeSub?.id && !trialFromLicense) {
       setError("No active subscription found to renew.");
+      return;
+    }
+
+    // Trial without commercial subscription still needs industry/category for activation checkout.
+    if (
+      isTrial &&
+      !activeSub?.id &&
+      (mode === "renew" || mode === "upgrade") &&
+      (!industryId || !categoryId)
+    ) {
+      setError("Choose industry and category to activate your trial with a paid plan.");
+      setStep(!industryId ? "industry" : "category");
       return;
     }
 
     startTransition(async () => {
       try {
         const isRenewCurrent =
-          mode === "renew" && selectedPlan.planId === activeSub?.plan_id;
+          mode === "renew" &&
+          Boolean(activeSub?.id) &&
+          selectedPlan.planId === activeSub?.plan_id;
         const useTrialConvert =
-          isTrial && (mode === "renew" || mode === "upgrade");
+          isTrial && Boolean(activeSub?.id) && (mode === "renew" || mode === "upgrade");
+        // No commercial subscription yet (common on trial) → activate via additional subscription checkout.
+        const activateTrialWithoutSub =
+          isTrial && !activeSub?.id && (mode === "renew" || mode === "upgrade");
 
         const payload: Record<string, unknown> = {
-          mode: useTrialConvert
-            ? "trial-convert"
-            : isRenewCurrent
-              ? "renew"
-              : mode === "new_place"
-                ? "new_place"
-                : "upgrade",
+          mode: activateTrialWithoutSub
+            ? "new_place"
+            : useTrialConvert
+              ? "trial-convert"
+              : isRenewCurrent
+                ? "renew"
+                : mode === "new_place"
+                  ? "new_place"
+                  : "upgrade",
           plan_id: selectedPlan.planId,
           to_plan_id: selectedPlan.planId,
           product_id: selectedPlan.productId,
@@ -239,6 +281,8 @@ export function PortalPlansView() {
           gateway: gatewayId || undefined,
           company_name: companyName.trim() || undefined,
           subscription_id: activeSub?.id,
+          payment_method: gatewayId || undefined,
+          transaction_id: transactionId.trim() || undefined,
         };
 
         const res = await fetch("/api/portal/billing/subscribe", {
@@ -283,7 +327,7 @@ export function PortalPlansView() {
     return <PortalSkeleton rows={3} />;
   }
 
-  if ((mode === "upgrade" || mode === "renew") && !activeSub) {
+  if ((mode === "upgrade" || mode === "renew") && !canPayOrRenew) {
     return (
       <PortalPanel
         title="No subscription found"
@@ -329,13 +373,18 @@ export function PortalPlansView() {
           <p className="mt-1 max-w-2xl text-sm text-[var(--portal-muted)]">
             Choose industry, category, plan, and price. Then continue to billing
             checkout with your preferred payment method. License Engine stays the
-            source of truth — SaaS picks up the update after payment.
+            source of truth — WAAMTO ERP Cloud picks up the update after payment.
           </p>
-          {activeSub && mode !== "new_place" ? (
+          {isTrial ? (
+            <p className="mt-2 text-sm text-[var(--portal-fg)]">
+              You are on a trial. Select a plan and pay to activate and continue.
+            </p>
+          ) : null}
+          {(activeSub || trialFromLicense) && mode !== "new_place" ? (
             <p className="mt-2 text-sm text-[var(--portal-fg)]">
               Current plan:{" "}
               <span className="font-semibold">
-                {activeSub.plan_name || portal?.subscription?.currentPlan || "—"}
+                {activeSub?.plan_name || portal?.subscription?.currentPlan || "Trial"}
               </span>
               <PortalStatusBadge status={activeSub.status} className="ml-2" />
             </p>
@@ -368,14 +417,7 @@ export function PortalPlansView() {
         ))}
       </ol>
 
-      {error ? (
-        <div
-          role="alert"
-          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-        >
-          {error}
-        </div>
-      ) : null}
+      {error ? <PortalFlash tone="error">{error}</PortalFlash> : null}
 
       {step === "mode" ? (
         <div className="grid gap-4 md:grid-cols-3">
@@ -703,28 +745,21 @@ export function PortalPlansView() {
             </div>
           ) : null}
 
-          {gateways.length ? (
-            <div className="mt-4 space-y-2">
-              <Label htmlFor="pay-gateway">Payment method</Label>
-              <select
-                id="pay-gateway"
-                value={gatewayId}
-                onChange={(e) => setGatewayId(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 text-sm"
-              >
-                {gateways.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.label || g.id}
-                    {g.online ? " · Online" : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <p className="mt-4 text-xs text-[var(--portal-muted)]">
-              Payment gateway will be selected automatically at checkout.
+          <div className="mt-4">
+            <PortalPaymentMethodPicker
+              value={gatewayId}
+              onChange={setGatewayId}
+              transactionId={transactionId}
+              onTransactionIdChange={setTransactionId}
+              country={portal?.overview?.country}
+              amount={selectedPrice?.price}
+              currency={undefined}
+            />
+            <p className="mt-2 text-xs text-[var(--portal-muted)]">
+              After you continue, complete the transfer on the checkout page and submit the
+              transaction ID so License Engine can activate your plan and send a notification.
             </p>
-          )}
+          </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
             <Button
@@ -738,6 +773,8 @@ export function PortalPlansView() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Starting checkout…
                 </>
+              ) : isTrial ? (
+                "Pay & activate"
               ) : (
                 "Subscribe & pay"
               )}

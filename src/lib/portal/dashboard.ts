@@ -418,8 +418,8 @@ function mapEngineNotifications(
   return items.map((row) => ({
     id: row.id,
     title: row.title,
-    body: row.body,
-    category: row.category,
+    body: row.body ?? null,
+    category: row.category || "system",
     read: Boolean(row.is_read),
     created_at: row.created_at,
   }));

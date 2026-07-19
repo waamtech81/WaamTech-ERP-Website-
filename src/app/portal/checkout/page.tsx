@@ -5,12 +5,16 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { PortalPanel, PortalSkeleton } from "@/components/portal/portal-ui";
+import { PortalPaymentMethodPicker } from "@/components/portal/portal-payment-methods";
+import { PortalFlash, PortalPanel, PortalSkeleton } from "@/components/portal/portal-ui";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import { useLocale } from "@/components/providers/locale-provider";
-import { cn } from "@/lib/utils";
+import {
+  buildPaymentReference,
+  engineGatewayForMethod,
+  PORTAL_PAYMENT_METHODS,
+} from "@/lib/portal/payment-methods";
 
 function PortalCheckoutInner() {
   const router = useRouter();
@@ -23,7 +27,8 @@ function PortalCheckoutInner() {
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
-  const [selectedGateway, setSelectedGateway] = useState("");
+  const [selectedMethod, setSelectedMethod] = useState("");
+  const [transactionId, setTransactionId] = useState("");
   const [checkout, setCheckout] = useState<{
     session_token?: string;
     status?: string;
@@ -33,8 +38,6 @@ function PortalCheckoutInner() {
     gateway?: string | null;
     plan_name?: string | null;
   } | null>(null);
-
-  const gateways = (portal?.gateways || []).filter((g) => g.configured || g.online);
 
   useEffect(() => {
     if (!session) {
@@ -58,7 +61,10 @@ function PortalCheckoutInner() {
         } else {
           const data = json.data || null;
           setCheckout(data);
-          if (data?.gateway) setSelectedGateway(String(data.gateway));
+          const gw = String(data?.gateway || "").toLowerCase();
+          if (gw === "paypal") setSelectedMethod("paypal");
+          else if (gw === "stripe") setSelectedMethod("stripe");
+          else if (gw === "bank") setSelectedMethod("bank");
         }
       } catch (err) {
         if (!cancelled) {
@@ -74,17 +80,27 @@ function PortalCheckoutInner() {
     };
   }, [session]);
 
-  useEffect(() => {
-    if (!selectedGateway && gateways[0]?.id) {
-      setSelectedGateway(gateways[0].id);
-    }
-  }, [gateways, selectedGateway]);
+  const selectedMeta = PORTAL_PAYMENT_METHODS.find((m) => m.id === selectedMethod);
+  const needsTxn = Boolean(selectedMeta?.requiresTransactionId);
 
   async function confirmPayment() {
     if (!session || confirming) return;
+    if (needsTxn && !transactionId.trim()) {
+      setError("Enter the transaction ID after you complete the transfer.");
+      return;
+    }
     setConfirming(true);
     setError("");
     try {
+      const reference = needsTxn
+        ? buildPaymentReference({
+            methodId: selectedMethod,
+            transactionId: transactionId.trim(),
+            amount: checkout?.amount,
+            currency: checkout?.currency,
+          })
+        : selectedMethod || undefined;
+
       const res = await fetch(
         `/api/portal/billing/checkout/${encodeURIComponent(session)}`,
         {
@@ -93,8 +109,10 @@ function PortalCheckoutInner() {
           credentials: "include",
           cache: "no-store",
           body: JSON.stringify({
-            reference: selectedGateway || undefined,
-            gateway: selectedGateway || undefined,
+            reference,
+            gateway: engineGatewayForMethod(selectedMethod),
+            payment_method: selectedMethod || undefined,
+            transaction_id: transactionId.trim() || undefined,
           }),
         }
       );
@@ -119,14 +137,11 @@ function PortalCheckoutInner() {
   return (
     <PortalPanel
       title="Complete payment"
-      description="Pay for the plan you selected. Available payment methods come from License Engine billing gateways."
+      description="Choose how you want to pay. Pakistan wallets appear for PK visitors; PayPal, Stripe/card, Standard Chartered, and Wise are available internationally and in Pakistan."
     >
       {error ? (
-        <div
-          role="alert"
-          className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-        >
-          {error}
+        <div className="mb-4">
+          <PortalFlash tone="error">{error}</PortalFlash>
         </div>
       ) : null}
 
@@ -136,7 +151,7 @@ function PortalCheckoutInner() {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
               Plan
             </p>
-            <p className="mt-1 text-sm font-medium">
+            <p className="mt-1 text-sm font-medium text-[var(--portal-fg)]">
               {planName || checkout.plan_name || checkout.purpose || "—"}
             </p>
           </div>
@@ -144,7 +159,7 @@ function PortalCheckoutInner() {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
               Amount due
             </p>
-            <p className="mt-1 text-sm font-medium tabular-nums">
+            <p className="mt-1 text-sm font-medium tabular-nums text-[var(--portal-fg)]">
               {checkout.amount != null
                 ? formatPrice(Number(checkout.amount))
                 : "—"}
@@ -155,7 +170,7 @@ function PortalCheckoutInner() {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
               Purpose
             </p>
-            <p className="mt-1 text-sm font-medium capitalize">
+            <p className="mt-1 text-sm font-medium capitalize text-[var(--portal-fg)]">
               {mode || checkout.purpose || "—"}
             </p>
           </div>
@@ -163,42 +178,24 @@ function PortalCheckoutInner() {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
               Status
             </p>
-            <p className="mt-1 text-sm font-medium capitalize">
+            <p className="mt-1 text-sm font-medium capitalize text-[var(--portal-fg)]">
               {checkout.status || "—"}
             </p>
           </div>
         </div>
       ) : null}
 
-      {gateways.length ? (
-        <div className="mb-6 space-y-3">
-          <Label>Payment method</Label>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {gateways.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => setSelectedGateway(g.id)}
-                className={cn(
-                  "rounded-xl border px-4 py-3 text-left text-sm",
-                  selectedGateway === g.id
-                    ? "border-[var(--portal-primary)] bg-[var(--portal-primary-soft)]"
-                    : "border-[var(--portal-border)] bg-[var(--portal-soft)]"
-                )}
-              >
-                <p className="font-medium capitalize">{g.label || g.id}</p>
-                <p className="mt-0.5 text-xs text-[var(--portal-muted)]">
-                  {g.online ? "Online" : "Configured"}
-                </p>
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : checkout?.gateway ? (
-        <p className="mb-6 text-sm text-[var(--portal-muted)]">
-          Gateway: <span className="capitalize">{checkout.gateway}</span>
-        </p>
-      ) : null}
+      <div className="mb-6">
+        <PortalPaymentMethodPicker
+          value={selectedMethod}
+          onChange={setSelectedMethod}
+          transactionId={transactionId}
+          onTransactionIdChange={setTransactionId}
+          country={portal?.overview?.country}
+          amount={checkout?.amount}
+          currency={checkout?.currency}
+        />
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <Button
@@ -210,8 +207,10 @@ function PortalCheckoutInner() {
           {confirming ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Confirming…
+              Submitting…
             </>
+          ) : needsTxn ? (
+            "Submit transaction ID"
           ) : (
             "Pay now"
           )}

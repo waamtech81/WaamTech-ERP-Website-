@@ -646,13 +646,131 @@ export async function fetchCheckoutSession(
 export async function confirmCheckoutSession(
   accessToken: string,
   sessionToken: string,
-  body?: { reference?: string }
+  body?: { reference?: string; gateway?: string }
 ) {
   return postPublic(
     `/v1/public/billing/checkout/${encodeURIComponent(sessionToken)}/confirm`,
-    { reference: body?.reference },
+    {
+      reference: body?.reference,
+      gateway: body?.gateway,
+    },
     accessToken
   );
+}
+
+export type CustomerBillingNotification = {
+  id: string;
+  type?: string | null;
+  category?: string | null;
+  title: string;
+  message?: string | null;
+  body?: string | null;
+  link?: string | null;
+  is_read?: boolean | number;
+  read?: boolean;
+  created_at?: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+};
+
+async function patchPublic<T>(
+  path: string,
+  accessToken: string,
+  body?: Record<string, unknown>
+): Promise<CatalogFetchResult<T | null>> {
+  const base = commercialApiBase();
+  const url = `${base}${path}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+
+  try {
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        ...commercialHeaders(accessToken),
+        "Content-Type": "application/json",
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    let json: LicenseEnvelope<T> = {};
+    try {
+      json = (await res.json()) as LicenseEnvelope<T>;
+    } catch {
+      json = { success: false, message: "Invalid response from License Engine." };
+    }
+
+    if (!res.ok || json.success === false) {
+      return {
+        ok: false,
+        status: res.status,
+        message: publicUpstreamMessage(
+          json.message || json.error?.message,
+          res.status,
+          `License Engine request failed (${res.status}).`,
+          json.code || json.error?.code
+        ),
+        data: (json.data as T) ?? null,
+      };
+    }
+
+    return {
+      ok: true,
+      status: res.status,
+      message: json.message || "OK",
+      data: (json.data as T) ?? null,
+    };
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
+    return emptyResult(
+      null,
+      toPublicError(
+        friendlyNetworkError(
+          error,
+          aborted
+            ? "The request timed out. Please retry."
+            : "Something went wrong. Please try again later."
+        ),
+        aborted ? 504 : 502
+      ).message,
+      aborted ? 504 : 502
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Customer portal notifications (billing/license/payment) — public billing API. */
+export async function fetchCustomerNotifications(
+  accessToken: string,
+  query?: { filter?: string; type?: string; page?: number; limit?: number }
+) {
+  const result = await getPublicPaginated<CustomerBillingNotification>(
+    "/v1/public/billing/notifications",
+    {
+      filter: query?.filter,
+      type: query?.type,
+      page: query?.page != null ? String(query.page) : undefined,
+      limit: query?.limit != null ? String(query.limit) : undefined,
+    },
+    accessToken
+  );
+  return result;
+}
+
+export async function markCustomerNotificationRead(
+  accessToken: string,
+  notificationId: string
+) {
+  return patchPublic(
+    `/v1/public/billing/notifications/${encodeURIComponent(notificationId)}/read`,
+    accessToken
+  );
+}
+
+export async function markAllCustomerNotificationsRead(accessToken: string) {
+  return patchPublic("/v1/public/billing/notifications/read-all", accessToken);
 }
 
 export async function fetchMyInvoice(accessToken: string, invoiceId: string) {

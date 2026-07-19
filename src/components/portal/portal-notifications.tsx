@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { formatPortalDateTime } from "@/components/portal/use-portal-data";
-import { PortalEmptyState, PortalStatusBadge } from "@/components/portal/portal-ui";
+import {
+  PortalEmptyState,
+  PortalFlash,
+  PortalStatusBadge,
+} from "@/components/portal/portal-ui";
 import { Button } from "@/components/ui/button";
 import type { PortalNotification } from "@/lib/portal/dashboard";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
@@ -13,11 +17,13 @@ import { cn } from "@/lib/utils";
 const CATEGORY_LABELS: Record<string, string> = {
   license: "License",
   payment: "Payment",
+  billing: "Payment",
   invoice: "Invoice",
   subscription: "Subscription",
   support: "Support",
   system: "System",
   announcement: "Announcement",
+  announcements: "Announcement",
 };
 
 function categoryTone(category: string) {
@@ -52,8 +58,13 @@ export function PortalNotificationsView() {
         rows.map((row: Record<string, unknown>) => ({
           id: String(row.id),
           title: String(row.title || ""),
-          body: row.body != null ? String(row.body) : null,
-          category: row.category != null ? String(row.category) : "system",
+          body:
+            row.message != null
+              ? String(row.message)
+              : row.body != null
+                ? String(row.body)
+                : null,
+          category: String(row.type || row.category || "system"),
           read: Boolean(row.is_read ?? row.read),
           created_at: row.created_at != null ? String(row.created_at) : undefined,
         }))
@@ -147,14 +158,7 @@ export function PortalNotificationsView() {
         ) : null}
       </div>
 
-      {error ? (
-        <div
-          role="alert"
-          className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-900 dark:text-rose-200"
-        >
-          {error}
-        </div>
-      ) : null}
+      {error ? <PortalFlash tone="error">{error}</PortalFlash> : null}
 
       <ul className="space-y-2" aria-label="Notifications">
         {items.map((n) => {

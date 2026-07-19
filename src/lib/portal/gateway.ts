@@ -1,11 +1,12 @@
 import { fetchBillingGateways } from "@/lib/commercial/client";
+import { engineGatewayForMethod } from "@/lib/portal/payment-methods";
 
 /** Prefer a live online gateway; fall back to bank/manual; never force simulated in production. */
 export async function resolvePreferredGateway(
   accessToken: string,
   requested?: string | null
 ): Promise<string> {
-  const requestedId = String(requested || "").trim().toLowerCase();
+  const requestedId = engineGatewayForMethod(requested);
   const gateways = await fetchBillingGateways(accessToken);
   const list = gateways.ok ? gateways.data : [];
 
@@ -13,6 +14,10 @@ export async function resolvePreferredGateway(
     const match = list.find((g) => g.id === requestedId);
     if (match && (match.configured || match.online || match.id === "bank" || match.id === "manual")) {
       return match.id;
+    }
+    // Portal wallets / Wise always settle via manual or bank even if not listed.
+    if (["bank", "manual"].includes(requestedId)) {
+      return requestedId;
     }
     if (requestedId === "simulated" && process.env.NODE_ENV !== "production") {
       return "simulated";

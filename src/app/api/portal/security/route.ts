@@ -9,6 +9,7 @@ import {
   identityListSecurityEvents,
   identityListTrustedDevices,
   identityMfaStatus,
+  identityMe,
   identityRegenerateRecoveryCodes,
   identityRevokeSession,
   identityRevokeTrustedDevice,
@@ -22,6 +23,7 @@ import {
   clearPortalOnUnauthorized,
   resolvePortalAccess,
 } from "@/lib/portal/access";
+import { normalizeTotpSetupPayload } from "@/lib/portal/totp-setup";
 import { isSameOrigin, sanitizeText } from "@/lib/security/guards";
 
 async function resolveAccess() {
@@ -155,9 +157,29 @@ export const POST = withApiHandler(
           recovery_code: recoveryCode || undefined,
         });
         break;
-      case "totp-setup":
+      case "totp-setup": {
         result = await identityTotpSetup(token);
+        if (result.ok && result.data) {
+          let accountLabel: string | null = null;
+          try {
+            const me = await identityMe(token);
+            accountLabel =
+              me.data?.identity?.email || me.data?.identity?.username || null;
+          } catch {
+            /* optional label for otpauth issuer */
+          }
+          const normalized = normalizeTotpSetupPayload(result.data, accountLabel);
+          result = {
+            ...result,
+            data: {
+              ...((result.data as object) || {}),
+              secret: normalized.secret,
+              otpauth_url: normalized.otpauthUrl,
+            },
+          };
+        }
         break;
+      }
       case "totp-enable":
         if (!totpCode) {
           return apiFail("Authenticator code is required.", {

@@ -13,6 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  AuthenticatorQr,
+  normalizeTotpSetupPayload,
+} from "@/components/portal/authenticator-qr";
+import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { PortalFlash } from "@/components/portal/portal-ui";
 import { formatPortalDate, formatPortalDateTime } from "@/components/portal/use-portal-data";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
@@ -29,6 +34,9 @@ type Props = {
 };
 
 export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
+  const { data: portal } = usePortalContext();
+  const accountLabel =
+    portal?.overview?.primaryEmail || portal?.identity?.email || portal?.identity?.username || null;
   const [status, setStatus] = useState<IdentityMfaStatus | null>(null);
   const [devices, setDevices] = useState<IdentityTrustedDevice[]>([]);
   const [events, setEvents] = useState<IdentitySecurityEvent[]>([]);
@@ -118,10 +126,6 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
       }
     });
   };
-
-  const qrSrc = setupUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(setupUrl)}`
-    : "";
 
   const requirePassword = () => {
     if (!password.trim()) {
@@ -285,8 +289,14 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
                     if (status?.totp_enabled) return;
                     run(async () => {
                       const json = await postAction({ action: "totp-setup" });
-                      setSetupSecret(String(json.data?.secret || ""));
-                      setSetupUrl(String(json.data?.otpauth_url || ""));
+                      const normalized = normalizeTotpSetupPayload(json.data, accountLabel);
+                      if (!normalized.secret && !normalized.otpauthUrl) {
+                        throw new Error(
+                          "Authenticator setup did not return a secret. Please try again."
+                        );
+                      }
+                      setSetupSecret(normalized.secret);
+                      setSetupUrl(normalized.otpauthUrl);
                       setShowAuthenticatorSetup(true);
                       setFeedback("Scan the QR code, then enter the code from your app.");
                     });
@@ -322,18 +332,27 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
                 <p className="text-xs text-[var(--portal-muted)]">
                   1. Scan with Google Authenticator, Microsoft Authenticator, or Authy.
                 </p>
-                {qrSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={qrSrc}
-                    alt="Authenticator QR code"
-                    className="h-[160px] w-[160px] rounded-lg bg-white p-2"
-                  />
-                ) : null}
-                {setupSecret ? (
-                  <p className="break-all font-mono text-[11px] text-[var(--portal-fg)]">
-                    Manual key: {setupSecret}
+                {setupUrl ? (
+                  <div className="flex flex-col items-start gap-2">
+                    <AuthenticatorQr value={setupUrl} size={180} />
+                    <p className="text-[11px] text-[var(--portal-muted)]">
+                      Point your authenticator app at this QR code.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs font-medium text-amber-800">
+                    QR code unavailable — enter the manual key in your authenticator app.
                   </p>
+                )}
+                {setupSecret ? (
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-medium text-[var(--portal-muted)]">
+                      Manual key (if you cannot scan)
+                    </p>
+                    <p className="break-all rounded-lg border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-2 font-mono text-[12px] tracking-wide text-[var(--portal-fg)]">
+                      {setupSecret}
+                    </p>
+                  </div>
                 ) : null}
                 <div className="space-y-2">
                   <Label htmlFor="sec-totp-setup">2. Enter 6-digit code</Label>

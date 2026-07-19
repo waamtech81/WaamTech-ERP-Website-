@@ -12,7 +12,25 @@ const INTERNAL_PATH_ALLOWLIST: RegExp[] = [
   /^\/signup(?:\/[\w.-]+)*\/?$/,
   /^\/forgot-password\/?$/,
   /^\/reset-password\/?$/,
+  /^\/billing\/?$/,
+  /^\/create-business\/?$/,
+  /^\/new-business\/?$/,
 ];
+
+/**
+ * Map legacy public aliases to the real portal destination before auth bounce.
+ */
+export function resolvePortalAliasPath(pathname: string): string {
+  const path = String(pathname || "").split("?")[0].replace(/\/+$/, "") || "/";
+  if (path === "/billing") return "/portal/billing";
+  if (path === "/create-business" || path === "/new-business") {
+    return "/portal/plans?intent=new_place";
+  }
+  if (path === "/portal/create-business" || path === "/portal/new-business") {
+    return "/portal/plans?intent=new_place";
+  }
+  return pathname;
+}
 
 function isDangerousScheme(value: string): boolean {
   const lower = value.toLowerCase();
@@ -77,7 +95,17 @@ export function safeInternalPath(
     return fallback;
   }
 
-  return pathname;
+  // Keep query string from the original candidate when present (e.g. intent=).
+  let search = "";
+  try {
+    const url = new URL(raw, "https://wt.internal");
+    search = url.search || "";
+  } catch {
+    search = "";
+  }
+
+  const resolved = resolvePortalAliasPath(`${pathname}${search}`);
+  return resolved || fallback;
 }
 
 /** Query keys that must never be used as external redirects. */

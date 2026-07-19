@@ -80,7 +80,12 @@ export function PortalPlansView() {
   const searchParams = useSearchParams();
   const intentParam = searchParams.get("intent");
   const initialMode: FlowMode =
-    intentParam === "new_place" || intentParam === "add"
+    intentParam === "new_place" ||
+    intentParam === "add" ||
+    intentParam === "create_business" ||
+    intentParam === "create-business" ||
+    intentParam === "business" ||
+    intentParam === "add_business"
       ? "new_place"
       : intentParam === "upgrade"
         ? "upgrade"
@@ -339,7 +344,7 @@ export function PortalPlansView() {
             className="rounded-xl"
             onClick={() => goNextFromMode("new_place")}
           >
-            Add new place
+            Create New Business
           </Button>
           <Button asChild variant="outline" className="rounded-xl">
             <Link href="/portal/subscriptions">Back to subscriptions</Link>
@@ -351,7 +356,7 @@ export function PortalPlansView() {
 
   const title =
     mode === "new_place"
-      ? "Add a new place"
+      ? "Create New Business"
       : mode === "upgrade"
         ? "Upgrade your plan"
         : "Renew your plan";
@@ -443,7 +448,7 @@ export function PortalPlansView() {
             className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-5 text-left hover:border-[var(--portal-primary)]"
           >
             <Building2 className="h-5 w-5 text-[var(--portal-primary)]" />
-            <p className="mt-3 text-sm font-semibold">Add new place</p>
+            <p className="mt-3 text-sm font-semibold">Create New Business</p>
             <p className="mt-1 text-xs text-[var(--portal-muted)]">
               Add another business on the same account. After payment, it syncs to
               License and appears in app.waamto.com multi-business.
@@ -705,7 +710,7 @@ export function PortalPlansView() {
                 Action
               </p>
               <p className="mt-1 font-medium capitalize">
-                {mode === "new_place" ? "Add new place" : mode}
+                {mode === "new_place" ? "Create New Business" : mode}
               </p>
             </div>
             <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm">

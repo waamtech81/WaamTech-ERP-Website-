@@ -1,7 +1,7 @@
 import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess, upstreamFail } from "@/lib/api/response";
-import { authConfig } from "@/lib/auth/config";
+import { authConfig, getPortalLoginPath } from "@/lib/auth/config";
 import {
   resendRegistrationOtp,
   verifyRegistrationOtp,
@@ -104,18 +104,24 @@ export const POST = withApiHandler(
 
     const appUrl = result.data.appUrl || result.data.loginUrl || authConfig.appUrl;
     const trialDays = result.data.trialDays || authConfig.trialDays;
+    const portalLogin = getPortalLoginPath({
+      email: result.data.email || email,
+      next: "/portal",
+    });
 
     return apiSuccess(
       result.message || `Email verified. Your ${trialDays}-day trial is ready.`,
       {
         data: {
           appUrl,
-          loginUrl: result.data.loginUrl || appUrl,
+          loginUrl: portalLogin,
           trialDays,
           trialEndsAt: result.data.trialEndsAt || undefined,
           username: result.data.username || undefined,
           email: result.data.email || undefined,
-          redirectUrl: appUrl,
+          /** Customer Portal on this website — not ERP app login. */
+          redirectUrl: portalLogin,
+          erpLoginUrl: appUrl,
         },
       }
     );

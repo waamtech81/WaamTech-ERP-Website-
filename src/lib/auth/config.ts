@@ -51,6 +51,23 @@ export function getAppLoginUrl(opts?: {
 }
 
 /**
+ * Customer Portal login on this website (waamto.com), not ERP app login.
+ * Use after signup OTP / password reset so users land in the portal flow.
+ */
+export function getPortalLoginPath(opts?: {
+  email?: string;
+  next?: string;
+}): string {
+  const params = new URLSearchParams();
+  params.set("next", opts?.next?.startsWith("/") ? opts.next : "/portal");
+  if (opts?.email?.trim()) {
+    params.set("email", opts.email.trim());
+    params.set("username", opts.email.trim());
+  }
+  return `/login?${params.toString()}`;
+}
+
+/**
  * @deprecated Unused — do not wire into login. Putting tokens in a URL hash
  * is unsafe (referrer leakage, browser history). Quarantined intentionally.
  */

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isBlockedPath, rateLimit, safeInternalPath } from "@/lib/security/guards";
+import { resolvePortalAliasPath } from "@/lib/security/safe-redirect";
 import { isValidSessionToken } from "@/lib/security/session-token";
 import { detectCurrency, detectLanguage, countryFromHeaders, currencyForCountry } from "@/lib/geo";
 import { currencyFromCountryCode, countryFromIp } from "@/lib/geo-ip";
@@ -83,6 +84,20 @@ export async function middleware(req: NextRequest) {
 
   if (isBlockedPath(pathname)) {
     return applyHeaders(new NextResponse(null, { status: 404 }), pathname);
+  }
+
+  // Legacy public aliases → Customer Portal destinations (before auth gate).
+  const aliasTarget = resolvePortalAliasPath(pathname);
+  if (aliasTarget !== pathname && aliasTarget.startsWith("/")) {
+    const dest = req.nextUrl.clone();
+    if (aliasTarget.includes("?")) {
+      const [p, q] = aliasTarget.split("?");
+      dest.pathname = p;
+      dest.search = q ? `?${q}` : "";
+    } else {
+      dest.pathname = aliasTarget;
+    }
+    return applyHeaders(NextResponse.redirect(dest), pathname);
   }
 
   // Site-wide maintenance mode (env flag — does not touch License Engine / ERP)

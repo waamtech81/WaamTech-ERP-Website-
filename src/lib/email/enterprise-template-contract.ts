@@ -8,6 +8,9 @@
  *
  * Manual Engine configuration:
  * - Point password-reset links to: {WEBSITE_URL}/reset-password?token=...
+ * - After reset success, send users to Customer Portal login:
+ *   {WEBSITE_URL}/login?next=/portal
+ * - After signup OTP, welcome CTA should prefer portal login (not ERP app login only)
  * - After reset success, send password_changed confirmation (time, date, IP, UA)
  * - Use one global HTML shell with brand colors, logo, header, CTA, footer
  */

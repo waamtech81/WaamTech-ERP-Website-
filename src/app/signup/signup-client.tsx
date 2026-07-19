@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { authConfig, getAppLoginUrl } from "@/lib/auth/config";
+import { authConfig, getAppLoginUrl, getPortalLoginPath } from "@/lib/auth/config";
 import { useLocale } from "@/components/providers/locale-provider";
 import {
   COUNTRIES,
@@ -776,7 +776,7 @@ function SignUpForm({
       const redirectTo =
         json.data?.redirectUrl ||
         json.data?.loginUrl ||
-        getAppLoginUrl({ email, verified: true, registered: true });
+        getPortalLoginPath({ email, next: "/portal" });
       window.setTimeout(() => {
         window.location.assign(redirectTo);
       }, 3500);
@@ -846,12 +846,19 @@ function SignUpForm({
               </div>
               <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
                 <Button asChild size="lg" className="rounded-full px-8">
+                  <a href={getPortalLoginPath({ email, next: "/portal" })}>
+                    Continue to Customer Portal
+                  </a>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="rounded-full px-8">
                   <a href={getAppLoginUrl({ email, verified: true, registered: true })}>
-                    Continue to WAAMTO ERP
+                    Open WAAMTO ERP
                   </a>
                 </Button>
               </div>
-              <p className="mt-4 text-xs text-muted-foreground">Redirecting automatically…</p>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Redirecting to Customer Portal…
+              </p>
             </CardContent>
           </Card>
         </div>

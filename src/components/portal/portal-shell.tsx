@@ -437,7 +437,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main id="portal-main" className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
-          <div className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
             {data?.accessNotice ? (
               <div
                 role="status"

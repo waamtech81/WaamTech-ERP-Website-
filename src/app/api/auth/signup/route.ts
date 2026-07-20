@@ -89,7 +89,7 @@ export const POST = withApiHandler(
     const marketing_opt_in = Boolean(body?.marketing_opt_in);
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
-      4000
+      8192
     );
 
     if (
@@ -136,10 +136,14 @@ export const POST = withApiHandler(
       });
     }
 
+    // Soft verify: block only invalid/missing tokens. Low scores must not kill signup —
+    // email OTP is the real gate. Do NOT forward captcha_token to License Engine after
+    // siteverify (tokens are single-use; a second verify returns timeout-or-duplicate).
     const captchaResult = await verifyGoogleRecaptchaV3(
       captchaToken,
       "portal_signup",
-      ip
+      ip,
+      { soft: true }
     );
     if (!captchaResult.ok) {
       return apiFail(captchaResult.reason, {
@@ -182,7 +186,7 @@ export const POST = withApiHandler(
       product_id: commercial.data.product.id,
       plan_id: commercial.data.plan.id,
       marketing_opt_in,
-      captcha_token: captchaToken || undefined,
+      // Captcha already verified above — omit token so Engine does not re-verify.
     });
 
     if (!license.ok || !license.data?.registrationId) {

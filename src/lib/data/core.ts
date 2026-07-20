@@ -221,7 +221,9 @@ export const coreModules = [
 
 export const coreBusinesses = [
   { id: "retail_store", name: "Retail Store", description: "General retail with POS, stock, loyalty, and promotions.", icon: "Store", modules: ["Inventory", "POS", "CRM", "Finance", "Sales"] },
+  { id: "chain_store", name: "Chain Store", description: "Multi-store retail with centralized pricing, assortment, and inter-store transfers.", icon: "Store", modules: ["Inventory", "POS", "CRM", "Finance", "HR"] },
   { id: "pharmacy", name: "Pharmacy", description: "Batch, expiry, prescription gates, and controlled medicines.", icon: "Pill", modules: ["Inventory", "POS", "CRM", "Finance"] },
+  { id: "chain_pharmacy", name: "Chain Pharmacy", description: "Multi-branch pharmacy with shared Rx, expiry, and inter-branch replenishment.", icon: "Pill", modules: ["Inventory", "POS", "CRM", "Finance", "HR"] },
   { id: "grocery", name: "Grocery", description: "PLU, weight scales, perishables, and spoilage control.", icon: "ShoppingCart", modules: ["Inventory", "POS", "WMS", "Finance"] },
   { id: "supermarket", name: "Supermarket", description: "Multi-till, departments, loyalty, and multi-warehouse.", icon: "Store", modules: ["Inventory", "POS", "HR", "CRM"] },
   { id: "restaurant", name: "Restaurant", description: "Tables, kitchen tickets, recipes, and food cost.", icon: "UtensilsCrossed", modules: ["POS", "Inventory", "HR", "Finance"] },

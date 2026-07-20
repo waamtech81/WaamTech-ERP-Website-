@@ -134,7 +134,7 @@ export async function POST(req: Request) {
     const recoveryCode = sanitizeText(body?.recovery_code, 64);
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
-      4000
+      8192
     );
     const remember = body?.remember === true || body?.rememberMe === true;
     const trustDevice = body?.trust_device === true || body?.remember_device === true;
@@ -150,7 +150,8 @@ export async function POST(req: Request) {
       const otpCaptcha = await verifyGoogleRecaptchaV3(
         captchaToken,
         "portal_login_otp",
-        ip
+        ip,
+        { soft: true }
       );
       if (!otpCaptcha.ok) {
         return NextResponse.json(
@@ -236,7 +237,8 @@ export async function POST(req: Request) {
       const otpCaptcha = await verifyGoogleRecaptchaV3(
         captchaToken,
         "portal_login_otp",
-        ip
+        ip,
+        { soft: true }
       );
       if (!otpCaptcha.ok) {
         return NextResponse.json(

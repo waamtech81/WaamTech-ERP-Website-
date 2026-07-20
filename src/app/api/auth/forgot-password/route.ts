@@ -36,13 +36,14 @@ export const POST = withApiHandler(
     const email = sanitizeText(body?.email, 254).toLowerCase();
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
-      4000
+      8192
     );
 
     const captchaResult = await verifyGoogleRecaptchaV3(
       captchaToken,
       "portal_forgot_password",
-      ip
+      ip,
+      { soft: true }
     );
     if (!captchaResult.ok) {
       return apiFail(captchaResult.reason, {

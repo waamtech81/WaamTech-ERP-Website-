@@ -46,7 +46,7 @@ export const POST = withApiHandler(
     const otp = sanitizeText(body?.otp || body?.code, 10);
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
-      4000
+      8192
     );
 
     const captchaAction =
@@ -54,7 +54,8 @@ export const POST = withApiHandler(
     const captchaResult = await verifyGoogleRecaptchaV3(
       captchaToken,
       captchaAction,
-      ip
+      ip,
+      { soft: true }
     );
     if (!captchaResult.ok) {
       return apiFail(captchaResult.reason, {

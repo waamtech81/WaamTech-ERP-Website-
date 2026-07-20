@@ -36,13 +36,14 @@ export async function POST(req: Request) {
     const accountKind = sanitizeText(body?.account_kind, 32);
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
-      4000
+      8192
     );
 
     const captchaResult = await verifyGoogleRecaptchaV3(
       captchaToken,
       "portal_login_resend_otp",
-      ip
+      ip,
+      { soft: true }
     );
     if (!captchaResult.ok) {
       return NextResponse.json(

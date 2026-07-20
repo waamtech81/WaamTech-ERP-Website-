@@ -680,11 +680,6 @@ function SignUpForm({
       let captchaToken: string | null = null;
       if (hasRecaptchaV3SiteKey()) {
         captchaToken = await executeRecaptcha("portal_signup");
-        if (!captchaToken) {
-          setError("Captcha failed to load. Please refresh and try again.");
-          setLoading(false);
-          return;
-        }
       }
 
       const res = await fetch("/api/auth/signup", {

@@ -304,7 +304,6 @@ export function Header() {
                   }}
                   onMouseLeave={scheduleClose}
                 >
-                  <div className="h-3 w-full" aria-hidden />
                   <MegaPanel className="mx-auto w-full max-w-[1400px]">
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px]">
                       <div className="p-5 lg:p-6">
@@ -409,7 +408,6 @@ export function Header() {
                   }}
                   onMouseLeave={scheduleClose}
                 >
-                  <div className="h-3 w-full" aria-hidden />
                   <MegaPanel className="mx-auto w-full max-w-[1400px]">
                     <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr]">
                       <div className="border-b lg:border-b-0 lg:border-r border-border bg-slate-50/80 p-2.5 flex flex-col min-h-0 min-w-0 overflow-x-hidden">

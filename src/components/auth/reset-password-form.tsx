@@ -8,6 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  executeRecaptcha,
+  hasRecaptchaV3SiteKey,
+  RecaptchaV3,
+} from "@/components/security/recaptcha-v3";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import { getPortalLoginPath } from "@/lib/auth/config";
 
@@ -67,6 +72,16 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
     setLoading(true);
     try {
+      let captchaToken: string | null = null;
+      if (hasRecaptchaV3SiteKey()) {
+        captchaToken = await executeRecaptcha("portal_reset_password");
+        if (!captchaToken) {
+          setError("Captcha failed to load. Please refresh and try again.");
+          setLoading(false);
+          return;
+        }
+      }
+
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,6 +89,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           token,
           password,
           confirm_password: confirm,
+          ...(captchaToken ? { captcha_token: captchaToken } : {}),
         }),
       });
       const json = await res.json();
@@ -99,6 +115,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
+      <RecaptchaV3 />
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <div className="container-site relative flex justify-center py-14 sm:py-20 lg:py-24">
         <div className="w-full max-w-md">

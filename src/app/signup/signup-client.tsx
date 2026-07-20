@@ -735,6 +735,18 @@ function SignUpForm({
     }
   }
 
+  async function withSignupCaptcha(
+    action: string
+  ): Promise<{ ok: true; token: string | null } | { ok: false }> {
+    if (!hasRecaptchaV3SiteKey()) return { ok: true, token: null };
+    const token = await executeRecaptcha(action);
+    if (!token) {
+      setError("Captcha failed to load. Please refresh and try again.");
+      return { ok: false };
+    }
+    return { ok: true, token };
+  }
+
   async function onVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -750,6 +762,12 @@ function SignUpForm({
 
     setLoading(true);
     try {
+      const captcha = await withSignupCaptcha("portal_signup_otp");
+      if (!captcha.ok) {
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -757,6 +775,7 @@ function SignUpForm({
           registration_id: registrationId,
           otp: otpCode.trim(),
           email,
+          ...(captcha.token ? { captcha_token: captcha.token } : {}),
         }),
       });
       const json = await res.json();
@@ -791,6 +810,12 @@ function SignUpForm({
     setError("");
     setLoading(true);
     try {
+      const captcha = await withSignupCaptcha("portal_signup_resend_otp");
+      if (!captcha.ok) {
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -798,6 +823,7 @@ function SignUpForm({
           action: "resend",
           registration_id: registrationId,
           email,
+          ...(captcha.token ? { captcha_token: captcha.token } : {}),
         }),
       });
       const json = await res.json();
@@ -869,6 +895,7 @@ function SignUpForm({
   if (otpStep) {
     return (
       <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
+        <RecaptchaV3 />
         <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
         <div className="container-site relative flex justify-center py-16 lg:py-24">
           <Card className="w-full max-w-lg shadow-[0_16px_48px_rgba(15,23,42,0.06)]">

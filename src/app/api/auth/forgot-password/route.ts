@@ -9,6 +9,7 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
+import { verifyGoogleRecaptchaV3 } from "@/lib/security/google-recaptcha";
 
 const GENERIC_RESET_MESSAGE =
   "If an account exists for that email, a reset link has been sent.";
@@ -33,6 +34,23 @@ export const POST = withApiHandler(
 
     const body = await req.json();
     const email = sanitizeText(body?.email, 254).toLowerCase();
+    const captchaToken = sanitizeText(
+      body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
+      4000
+    );
+
+    const captchaResult = await verifyGoogleRecaptchaV3(
+      captchaToken,
+      "portal_forgot_password",
+      ip
+    );
+    if (!captchaResult.ok) {
+      return apiFail(captchaResult.reason, {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
+    }
+
     if (!email || !isValidEmail(email)) {
       return apiFail("Enter a valid email address.", {
         status: 400,

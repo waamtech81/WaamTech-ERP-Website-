@@ -12,6 +12,7 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
+import { verifyGoogleRecaptchaV3 } from "@/lib/security/google-recaptcha";
 
 export const POST = withApiHandler(
   async (req) => {
@@ -43,6 +44,24 @@ export const POST = withApiHandler(
     );
     const email = sanitizeText(body?.email, 254).toLowerCase() || undefined;
     const otp = sanitizeText(body?.otp || body?.code, 10);
+    const captchaToken = sanitizeText(
+      body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
+      4000
+    );
+
+    const captchaAction =
+      action === "resend" ? "portal_signup_resend_otp" : "portal_signup_otp";
+    const captchaResult = await verifyGoogleRecaptchaV3(
+      captchaToken,
+      captchaAction,
+      ip
+    );
+    if (!captchaResult.ok) {
+      return apiFail(captchaResult.reason, {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
+    }
 
     if (!registrationId) {
       return apiFail("Registration session is required.", {

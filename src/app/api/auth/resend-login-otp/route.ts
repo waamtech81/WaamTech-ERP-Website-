@@ -8,6 +8,7 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
+import { verifyGoogleRecaptchaV3 } from "@/lib/security/google-recaptcha";
 
 export async function POST(req: Request) {
   try {
@@ -33,6 +34,23 @@ export async function POST(req: Request) {
     const body = await req.json();
     const challengeToken = sanitizeText(body?.challenge_token, 128);
     const accountKind = sanitizeText(body?.account_kind, 32);
+    const captchaToken = sanitizeText(
+      body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
+      4000
+    );
+
+    const captchaResult = await verifyGoogleRecaptchaV3(
+      captchaToken,
+      "portal_login_resend_otp",
+      ip
+    );
+    if (!captchaResult.ok) {
+      return NextResponse.json(
+        { success: false, message: captchaResult.reason },
+        { status: 400 }
+      );
+    }
+
     if (!challengeToken) {
       return NextResponse.json(
         { success: false, message: "Verification session is required." },

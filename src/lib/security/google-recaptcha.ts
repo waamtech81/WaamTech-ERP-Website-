@@ -69,7 +69,7 @@ export async function verifyGoogleRecaptcha(
 }
 
 /**
- * reCAPTCHA v3 — used for portal login / signup.
+ * reCAPTCHA v3 — used for portal login, signup, OTP, forgot/reset password.
  * When RECAPTCHA_SECRET_KEY is unset, verification is skipped (local/dev).
  * When set, token is required and must pass score (+ optional action).
  */

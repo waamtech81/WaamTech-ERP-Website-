@@ -28,6 +28,7 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
+import { verifyGoogleRecaptchaV3 } from "@/lib/security/google-recaptcha";
 
 function platformSuccessPayload(data: {
   accessToken: string;
@@ -146,6 +147,18 @@ export async function POST(req: Request) {
 
     // Platform staff challenge completion (email OTP / TOTP) — explicit step only.
     if (challengeToken && (emailCode || totpCode || recoveryCode) && isPlatformChallenge) {
+      const otpCaptcha = await verifyGoogleRecaptchaV3(
+        captchaToken,
+        "portal_login_otp",
+        ip
+      );
+      if (!otpCaptcha.ok) {
+        return NextResponse.json(
+          { success: false, message: otpCaptcha.reason },
+          { status: 400 }
+        );
+      }
+
       const otpLimited = await rateLimit(`portal-login-otp:${ip}`, 20, 15 * 60_000);
       if (!otpLimited.ok) {
         return NextResponse.json(
@@ -220,6 +233,18 @@ export async function POST(req: Request) {
 
     // Customer identity OTP / MFA verification.
     if (challengeToken && (emailCode || totpCode || recoveryCode) && !isPlatformChallenge) {
+      const otpCaptcha = await verifyGoogleRecaptchaV3(
+        captchaToken,
+        "portal_login_otp",
+        ip
+      );
+      if (!otpCaptcha.ok) {
+        return NextResponse.json(
+          { success: false, message: otpCaptcha.reason },
+          { status: 400 }
+        );
+      }
+
       const otpLimited = await rateLimit(`portal-login-otp:${ip}`, 20, 15 * 60_000);
       if (!otpLimited.ok) {
         return NextResponse.json(

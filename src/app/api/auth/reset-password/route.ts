@@ -9,6 +9,7 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
+import { verifyGoogleRecaptchaV3 } from "@/lib/security/google-recaptcha";
 
 /**
  * Password reset completion — forwards new password to License Engine.
@@ -40,6 +41,22 @@ export const POST = withApiHandler(
     const token = sanitizeText(body?.token, 256);
     const password = String(body?.password || body?.new_password || "");
     const confirm = String(body?.confirm_password || body?.confirmPassword || "");
+    const captchaToken = sanitizeText(
+      body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
+      4000
+    );
+
+    const captchaResult = await verifyGoogleRecaptchaV3(
+      captchaToken,
+      "portal_reset_password",
+      ip
+    );
+    if (!captchaResult.ok) {
+      return apiFail(captchaResult.reason, {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
+    }
 
     if (!token || token.length < 20) {
       return apiFail("This reset link is invalid or incomplete.", {

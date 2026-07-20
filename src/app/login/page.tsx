@@ -330,12 +330,30 @@ function LoginForm() {
     }
   }
 
+  async function withLoginCaptcha(
+    action: string
+  ): Promise<{ ok: true; token: string | null } | { ok: false }> {
+    if (!hasRecaptchaV3SiteKey()) return { ok: true, token: null };
+    const token = await executeRecaptcha(action);
+    if (!token) {
+      setError("Captcha failed to load. Please refresh and try again.");
+      return { ok: false };
+    }
+    return { ok: true, token };
+  }
+
   async function submitOtp(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
+      const captcha = await withLoginCaptcha("portal_login_otp");
+      if (!captcha.ok) {
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -348,6 +366,7 @@ function LoginForm() {
           remember,
           trust_device: trustDevice,
           account_kind: accountKind,
+          ...(captcha.token ? { captcha_token: captcha.token } : {}),
         }),
         credentials: "include",
         cache: "no-store",
@@ -379,6 +398,12 @@ function LoginForm() {
     setLoading(true);
 
     try {
+      const captcha = await withLoginCaptcha("portal_login_otp");
+      if (!captcha.ok) {
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -391,6 +416,7 @@ function LoginForm() {
           remember,
           trust_device: accountKind === "customer" ? trustDevice : false,
           account_kind: accountKind,
+          ...(captcha.token ? { captcha_token: captcha.token } : {}),
         }),
         credentials: "include",
         cache: "no-store",
@@ -415,12 +441,16 @@ function LoginForm() {
     setResending(true);
     setError("");
     try {
+      const captcha = await withLoginCaptcha("portal_login_resend_otp");
+      if (!captcha.ok) return;
+
       const res = await fetch("/api/auth/resend-login-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           challenge_token: challengeToken,
           account_kind: accountKind,
+          ...(captcha.token ? { captcha_token: captcha.token } : {}),
         }),
       });
       const json = await res.json();

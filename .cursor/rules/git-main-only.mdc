@@ -1,0 +1,22 @@
+---
+description: Git workflow — main only (dev retired)
+alwaysApply: true
+---
+
+# Git workflow — `main` only
+
+**Status:** `dev` branch retired. Do **not** recreate it.
+
+## Rules
+
+- **`main`** is the only active development and production branch.
+- Commit, push, and open PRs against **`main`** only.
+- Deploy to Webdock from **`main`** (`scripts/deploy-website-build-only.ps1`).
+- Do **not** create, checkout, or push a `dev` branch unless the user explicitly asks to restore dual-branch flow.
+- Prefer short-lived feature branches only when the user requests them; merge into `main` with a normal merge (no force-push to `main`).
+
+## Deploy order
+
+1. Commit on `main` (or feature branch → merge into `main`)
+2. Push `origin/main`
+3. Build-only Webdock deploy from local `main`

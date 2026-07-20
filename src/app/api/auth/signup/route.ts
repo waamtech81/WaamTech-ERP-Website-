@@ -16,9 +16,6 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
-import {
-  verifyGoogleRecaptchaV3,
-} from "@/lib/security/google-recaptcha";
 import { validateSignupCommercialSelection } from "@/lib/signup/validate-commercial";
 
 function maskEmail(email: string): string {
@@ -136,22 +133,6 @@ export const POST = withApiHandler(
       });
     }
 
-    // Soft verify: block only invalid/missing tokens. Low scores must not kill signup —
-    // email OTP is the real gate. Do NOT forward captcha_token to License Engine after
-    // siteverify (tokens are single-use; a second verify returns timeout-or-duplicate).
-    const captchaResult = await verifyGoogleRecaptchaV3(
-      captchaToken,
-      "portal_signup",
-      ip,
-      { soft: true }
-    );
-    if (!captchaResult.ok) {
-      return apiFail(captchaResult.reason, {
-        status: 400,
-        code: ApiErrorCode.VALIDATION_ERROR,
-      });
-    }
-
     const commercial = await validateSignupCommercialSelection({
       plan_id,
       industry_id,
@@ -186,7 +167,8 @@ export const POST = withApiHandler(
       product_id: commercial.data.product.id,
       plan_id: commercial.data.plan.id,
       marketing_opt_in,
-      // Captcha already verified above — omit token so Engine does not re-verify.
+      // License Engine is the sole verifier; reCAPTCHA tokens are single-use.
+      captcha_token: captchaToken || undefined,
     });
 
     if (!license.ok || !license.data?.registrationId) {

@@ -107,17 +107,19 @@ export function PortalInvoicesView() {
 
   if (!invoices.length) {
     return (
-      <PortalEmptyState
-        title="No invoices yet"
-        description="Invoice history will appear when available for your identity session."
-      />
+      <div className="p-5 sm:p-6">
+        <PortalEmptyState
+          title="No invoices yet"
+          description="Invoice history will appear when available for your identity session."
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative max-w-md flex-1">
+      <div className="flex flex-col gap-3 px-5 pt-4 sm:px-6 sm:flex-row sm:items-center sm:gap-4">
+        <div className="relative w-full min-w-0 sm:max-w-sm sm:flex-1">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--portal-muted)]"
             aria-hidden
@@ -133,7 +135,7 @@ export function PortalInvoicesView() {
           />
         </div>
         <div
-          className="flex flex-wrap gap-1 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-1"
+          className="flex w-full flex-wrap gap-1 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-1 sm:w-auto sm:shrink-0"
           role="tablist"
           aria-label="Filter invoices by status"
         >
@@ -158,7 +160,7 @@ export function PortalInvoicesView() {
       </div>
 
       {filtered.length ? (
-        <div className="portal-table-wrap -mx-5 sm:-mx-6">
+        <div className="portal-table-wrap">
           <table className="portal-table">
             <thead>
               <tr>
@@ -181,29 +183,35 @@ export function PortalInvoicesView() {
                   key={invoice.id}
                   className={cn(selected?.id === invoice.id && "bg-[var(--portal-primary-soft)]/40")}
                 >
-                  <td className="font-medium">{invoice.number}</td>
+                  <td className="whitespace-nowrap font-medium">{invoice.number}</td>
                   <td>
                     <PortalStatusBadge status={invoice.status} />
                   </td>
-                  <td>{formatPortalDate(invoice.date) || "—"}</td>
-                  <td>{formatPortalDate(invoice.dueDate) || "—"}</td>
-                  <td className="tabular-nums font-medium">{invoice.amount || "—"}</td>
+                  <td className="whitespace-nowrap">{formatPortalDate(invoice.date) || "—"}</td>
+                  <td className="whitespace-nowrap">{formatPortalDate(invoice.dueDate) || "—"}</td>
+                  <td className="whitespace-nowrap tabular-nums font-medium">
+                    {invoice.amount ||
+                      formatMoney(
+                        invoice.total ?? invoice.amountPaid ?? invoice.amountDue,
+                        invoice.currency
+                      )}
+                  </td>
                   <td>
                     <PortalStatusBadge status={invoice.paymentStatus} />
                   </td>
-                  <td className="tabular-nums">
+                  <td className="whitespace-nowrap tabular-nums">
                     {formatMoney(invoice.amountDue, invoice.currency)}
                   </td>
-                  <td className="tabular-nums">
+                  <td className="whitespace-nowrap tabular-nums">
                     {formatMoney(invoice.amountPaid, invoice.currency)}
                   </td>
                   <td>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-nowrap items-center justify-end gap-1">
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="h-8 rounded-lg px-2"
+                        className="h-8 shrink-0 rounded-lg px-2"
                         onClick={() => setSelected(invoice)}
                       >
                         Preview
@@ -213,7 +221,7 @@ export function PortalInvoicesView() {
                           href={invoice.documentUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--portal-primary)] hover:underline"
+                          className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--portal-primary)] hover:underline"
                         >
                           Open
                         </a>
@@ -223,7 +231,7 @@ export function PortalInvoicesView() {
                           href={invoice.pdfUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--portal-primary)] hover:underline"
+                          className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--portal-primary)] hover:underline"
                         >
                           <Download className="h-3.5 w-3.5" />
                           PDF
@@ -237,24 +245,26 @@ export function PortalInvoicesView() {
           </table>
         </div>
       ) : (
-        <PortalEmptyState
-          title="No matching invoices"
-          description="Adjust your search or status filter to see more results."
-          action={
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="rounded-xl"
-              onClick={() => {
-                setQuery("");
-                setStatusFilter("all");
-              }}
-            >
-              Clear filters
-            </Button>
-          }
-        />
+        <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+          <PortalEmptyState
+            title="No matching invoices"
+            description="Adjust your search or status filter to see more results."
+            action={
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-xl"
+                onClick={() => {
+                  setQuery("");
+                  setStatusFilter("all");
+                }}
+              >
+                Clear filters
+              </Button>
+            }
+          />
+        </div>
       )}
 
       {selected ? (

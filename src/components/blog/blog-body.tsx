@@ -56,13 +56,14 @@ export function BlogBody({ blocks }: { blocks: BlogBlock[] }) {
           case "image":
             return (
               <figure key={i} className="my-8 overflow-hidden rounded-xl border border-border bg-muted">
-                <div className="relative aspect-[16/9] w-full max-h-[320px]">
+                <div className="relative aspect-[16/10] w-full max-h-[280px]">
                   <Image
-                    src={optimizeImageUrl(block.src, { width: 1000 })}
+                    src={optimizeImageUrl(block.src, { width: 800, quality: 70 })}
                     alt={block.alt}
                     fill
-                    sizes="(max-width: 768px) 100vw, 720px"
+                    sizes="(max-width: 768px) 100vw, 800px"
                     quality={70}
+                    loading="lazy"
                     className="object-cover"
                   />
                 </div>

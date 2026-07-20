@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { blogPosts, kbArticles, faqs } from "@/lib/data/site";
 import { searchSiteCatalog } from "@/lib/search";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getIcon } from "@/lib/icons";
@@ -108,15 +107,15 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
         aria-label="Site search"
       >
         <div className="flex items-center gap-3 border-b border-border px-4">
-          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <Input
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          <input
             ref={inputRef}
-            type="text"
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products, industries, categories..."
+            placeholder="Search products, industries, categories, blogs…"
             autoComplete="off"
-            className="h-14 border-0 px-0 text-base shadow-none outline-none ring-0 focus-visible:border-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="h-14 w-full min-w-0 flex-1 border-0 bg-transparent px-0 text-base text-foreground shadow-none outline-none ring-0 placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
           />
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close search">
             <X className="h-4 w-4" />
@@ -126,12 +125,12 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
         <div className="max-h-[min(22rem,50vh)] overflow-y-auto overflow-x-hidden scrollbar-thin p-2">
           {query.trim().length < 2 ? (
             <div className="px-3 py-8 text-center">
-              <p className="text-sm font-medium text-[#0b1f3a]">Search WAAMTO</p>
+              <p className="text-sm font-medium text-primary">Search WAAMTO</p>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                Type at least 2 characters to find modules, industries, and categories.
+                Type at least 2 characters to find modules, industries, categories, and blogs.
               </p>
               <div className="mt-5 flex flex-wrap justify-center gap-2">
-                {["Inventory", "POS", "Pharmacy", "Retail"].map((hint) => (
+                {["Inventory", "POS", "Pharmacy", "Retail", "Warehouse"].map((hint) => (
                   <button
                     key={hint}
                     type="button"
@@ -192,7 +191,7 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
         </div>
 
         <div className="flex items-center justify-between border-t border-border bg-slate-50/80 px-4 py-2.5 text-[11px] text-muted-foreground">
-          <span>Products · Industries · Categories</span>
+          <span>Products · Industries · Categories · Blog</span>
           <span className="hidden sm:inline">Ctrl / ⌘ + K</span>
         </div>
       </div>

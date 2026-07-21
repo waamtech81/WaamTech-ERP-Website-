@@ -2,10 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isBlockedPath, rateLimit, safeInternalPath } from "@/lib/security/guards";
 import { resolvePortalAliasPath } from "@/lib/security/safe-redirect";
 import { isValidSessionToken } from "@/lib/security/session-token";
-import { detectCurrency, detectLanguage, countryFromHeaders, currencyForCountry } from "@/lib/geo";
-import { currencyFromCountryCode, countryFromIp } from "@/lib/geo-ip";
+import { detectLanguage, countryFromHeaders } from "@/lib/geo";
+import { clientIpFromHeaders } from "@/lib/client-ip";
+import { countryFromIp, currencyForDetectedCountry } from "@/lib/geo-ip";
 import { normalizeLanguage, LOCALE_STORAGE } from "@/i18n";
-import { normalizeCurrency } from "@/lib/currency/config";
+import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency/config";
 
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
@@ -56,11 +57,7 @@ function applyHeaders(res: NextResponse, pathname?: string) {
 }
 
 function clientIp(req: NextRequest) {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  return clientIpFromHeaders(req.headers) || "unknown";
 }
 
 function hasPortalSession(req: NextRequest) {
@@ -194,20 +191,27 @@ export async function middleware(req: NextRequest) {
   const manualLocale = req.cookies.get("wt_locale_manual")?.value === "1";
   const ip = clientIp(req);
 
-  // CDN header first; if missing (Webdock/cPanel), resolve country from client IP.
+  // Fresh geo only — never reuse a stale country cookie (blocks UAE/US after a PK visit).
   let country =
     countryFromHeaders(req.headers) ||
     (await countryFromIp(ip)) ||
-    cookieCountry ||
     "";
   country = String(country || "")
     .trim()
     .toUpperCase();
   if (country.length !== 2) country = "";
 
-  const geoCurrency = currencyFromCountryCode(country) || currencyForCountry(country);
+  const cookieCountryNorm = String(cookieCountry || "")
+    .trim()
+    .toUpperCase();
+  const countryChanged =
+    country.length === 2 &&
+    cookieCountryNorm.length === 2 &&
+    country !== cookieCountryNorm;
 
-  // Priority: ?currency= → manual cookie → GeoIP currency → saved cookie → USD
+  const geoCurrency = country ? currencyForDetectedCountry(country) : null;
+
+  // Priority: ?currency= → manual choice → live geo → USD default
   const language = queryLang
     ? normalizeLanguage(queryLang)
     : cookieLang
@@ -220,9 +224,7 @@ export async function middleware(req: NextRequest) {
       ? normalizeCurrency(cookieCurrency)
       : geoCurrency
         ? normalizeCurrency(geoCurrency)
-        : cookieCurrency
-          ? normalizeCurrency(cookieCurrency)
-          : detectCurrency(req.headers);
+        : DEFAULT_CURRENCY;
 
   // Forward detection to the server layout so first paint is correct (no flicker).
   const requestHeaders = new Headers(req.headers);
@@ -246,7 +248,8 @@ export async function middleware(req: NextRequest) {
   const shouldPersistCurrency =
     Boolean(queryCurrency) ||
     manualLocale ||
-    Boolean(geoCurrency) ||
+    Boolean(country) ||
+    countryChanged ||
     (Boolean(cookieCurrency) && cookieCurrency !== currency);
   if (shouldPersistCurrency && (cookieCurrency !== currency || queryCurrency)) {
     res.cookies.set(LOCALE_STORAGE.currencyCookie, currency, {

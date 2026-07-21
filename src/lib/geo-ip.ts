@@ -2,25 +2,15 @@
  * IP → country lookup for hosts without CDN geo headers (e.g. Webdock/cPanel).
  * Edge/middleware safe — uses fetch only, short timeout, in-memory cache.
  */
+import { isPrivateOrLocalIp } from "@/lib/client-ip";
 import { currencyForCountry, countryFromHeaders } from "@/lib/geo";
-import { normalizeCurrency, type CurrencyCode } from "@/lib/currency/config";
+import { DEFAULT_CURRENCY, normalizeCurrency, type CurrencyCode } from "@/lib/currency/config";
 
 type CacheEntry = { country: string | null; at: number };
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h
-const LOOKUP_TIMEOUT_MS = 900;
+const LOOKUP_TIMEOUT_MS = 1500;
 const ipCache = new Map<string, CacheEntry>();
-
-function isPrivateOrLocalIp(ip: string): boolean {
-  const v = ip.trim().toLowerCase();
-  if (!v || v === "unknown" || v === "::1" || v === "localhost") return true;
-  if (v.startsWith("127.") || v.startsWith("10.") || v.startsWith("192.168.")) {
-    return true;
-  }
-  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(v)) return true;
-  if (v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe80:")) return true;
-  return false;
-}
 
 function normalizeCountryCode(raw: unknown): string | null {
   const code = String(raw || "")
@@ -107,4 +97,9 @@ export async function resolveRequestCountry(
 export function currencyFromCountryCode(country?: string | null): CurrencyCode | null {
   const mapped = currencyForCountry(country);
   return mapped ? normalizeCurrency(mapped) : null;
+}
+
+/** Geo-mapped currency when known; otherwise USD (never a stale cookie). */
+export function currencyForDetectedCountry(country?: string | null): CurrencyCode {
+  return currencyFromCountryCode(country) ?? DEFAULT_CURRENCY;
 }

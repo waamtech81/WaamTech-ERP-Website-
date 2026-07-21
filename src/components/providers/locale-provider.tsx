@@ -24,6 +24,7 @@ import {
 import {
   CURRENCIES,
   CURRENCY_CODES,
+  DEFAULT_CURRENCY,
   normalizeCurrency,
   type CurrencyCode,
 } from "@/lib/currency/config";
@@ -112,7 +113,6 @@ export function LocaleProvider({
   }, []);
 
   // Auto currency from visitor geo (IP) when the user has not manually chosen.
-  // Fixes hosts without CDN country headers (e.g. Webdock) locking USD.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (document.cookie.includes(`${MANUAL_COOKIE}=1`)) {
@@ -125,15 +125,32 @@ export function LocaleProvider({
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!alive || manualRef.current || !data) return;
+
         const nextCountry = data.country
           ? String(data.country).trim().toUpperCase()
           : "";
+        const savedCountry = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith(`${LOCALE_STORAGE.countryCookie}=`))
+          ?.split("=")[1];
+        const savedCountryNorm = savedCountry
+          ? decodeURIComponent(savedCountry).trim().toUpperCase()
+          : "";
+        const countryChanged =
+          nextCountry.length === 2 &&
+          savedCountryNorm.length === 2 &&
+          nextCountry !== savedCountryNorm;
+
         if (nextCountry.length === 2) {
           setCountryState(nextCountry);
           writeCookie(LOCALE_STORAGE.countryCookie, nextCountry);
         }
-        if (data.currency) {
-          const cur = normalizeCurrency(String(data.currency));
+
+        const cur = data.currency
+          ? normalizeCurrency(String(data.currency))
+          : DEFAULT_CURRENCY;
+
+        if (data.currency || countryChanged || !savedCountryNorm) {
           setCurrencyState(cur);
           writeCookie(LOCALE_STORAGE.currencyCookie, cur);
         }

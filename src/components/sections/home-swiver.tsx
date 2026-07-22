@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { testimonials, siteConfig } from "@/lib/data/site";
+import { authConfig } from "@/lib/auth/config";
 import { PricingCards } from "@/components/sections/pricing-cards";
 import {
   useCatalogAllBusinessCategories,
@@ -344,7 +345,7 @@ export function PricingTeaser() {
           <Badge variant="accent" className="mb-3">
             Popular plans
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
+          <h2 className="font-heading text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
             {fromUsd != null ? (
               <>
                 Affordable ERP from <Price usd={fromUsd} />/mo
@@ -353,9 +354,12 @@ export function PricingTeaser() {
               "Plans & pricing from License Engine"
             )}
           </h2>
-          <p className="mt-3 text-muted-foreground leading-relaxed">
-            Pricing, trials, and billing cycles load live. Enterprise is always Contact Sales — never
-            a fixed price.
+          <p className="mt-2 font-heading text-sm md:text-base font-semibold tracking-tight text-primary">
+            No card required · Start your {authConfig.trialDays}-day free trial
+          </p>
+          <p className="mt-2 text-muted-foreground leading-relaxed">
+            Sign up directly — no payment upfront. Pricing and billing cycles load live. Enterprise is
+            always Contact Sales.
           </p>
         </div>
         {catalog.loading ? <CatalogSkeleton rows={3} /> : null}
@@ -413,12 +417,16 @@ export function SoftCTA() {
           <div className="relative overflow-hidden rounded-[2rem] border border-border bg-[#0b1f3a] px-8 py-14 md:px-16 md:py-16 text-center text-white">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_70%_20%,rgba(37,99,235,0.35),transparent_60%)]" />
             <div className="relative">
-              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-balance">
+              <h2 className="font-heading text-3xl md:text-4xl font-semibold tracking-tight text-balance">
                 Ready to run your business on {siteConfig.name}?
               </h2>
-              <p className="mt-4 text-white/70 text-lg max-w-xl mx-auto">
-                Start free, pick product, plan, industry, category, and profile — all from License
-                Engine.
+              <p className="mt-4 whitespace-nowrap font-heading text-base sm:text-lg md:text-xl lg:text-2xl font-bold tracking-tight">
+                No card. No payment.{" "}
+                <span className="text-sky-300">{authConfig.trialDays}-day free trial signup</span>
+                {" — "}start instantly
+              </p>
+              <p className="mt-2 text-white/70 text-base md:text-lg max-w-xl mx-auto">
+                Pick product, plan, industry, and profile in minutes.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
                 <Button
@@ -427,7 +435,7 @@ export function SoftCTA() {
                   className="rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
                 >
                   <Link href="/signup">
-                    Start free trial
+                    Start {authConfig.trialDays}-day free trial
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>

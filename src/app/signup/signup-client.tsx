@@ -983,18 +983,21 @@ function SignUpForm({
         <div className="max-w-xl lg:sticky lg:top-24">
           <Badge variant="accent" className="mb-4">
             <Sparkles className="h-3 w-3 mr-1" />
-            {authConfig.trialDays}-day free trial
+            {authConfig.trialDays}-day free trial · No card required
           </Badge>
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
+          <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
             Create your workspace in minutes
           </h1>
-          <p className="mt-3 sm:mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
+          <p className="mt-2 font-heading text-base sm:text-lg font-semibold tracking-tight text-primary">
+            No card. No payment. Direct signup.
+          </p>
+          <p className="mt-2 sm:mt-3 text-base sm:text-lg text-muted-foreground leading-relaxed">
             Choose your product, plan, industry, and business category — then verify your email to
             start your trial.
           </p>
           <ul className="mt-6 sm:mt-8 space-y-3 text-sm text-muted-foreground">
             {[
-              `${authConfig.trialDays}-day free trial after email verification`,
+              `No credit card or payment to start — ${authConfig.trialDays}-day free trial`,
               "Product, plan, industry & category stay linked from this site",
               "Responsive web on desktop, tablet & phone",
               "Enterprise plans use Contact Sales — never fixed pricing",

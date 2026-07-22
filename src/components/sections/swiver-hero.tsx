@@ -6,6 +6,7 @@ import { ArrowRight, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/shared/section";
 import { HomeCatalogSearch } from "@/components/sections/home-catalog-search";
+import { authConfig } from "@/lib/auth/config";
 import { siteConfig } from "@/lib/data/site";
 
 export function SwiverHero() {
@@ -69,7 +70,7 @@ export function SwiverHero() {
         >
           <Button asChild size="xl" className="rounded-full px-8 shadow-sm shadow-primary/20">
             <Link href="/signup">
-              Start free trial
+              Start {authConfig.trialDays}-day free trial
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
@@ -79,6 +80,21 @@ export function SwiverHero() {
               <Play className="h-3.5 w-3.5" />
             </Link>
           </Button>
+        </motion.div>
+
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.24 }}
+          className="mx-auto mt-6 max-w-full overflow-x-auto"
+        >
+          <p className="whitespace-nowrap font-heading text-base sm:text-lg md:text-xl lg:text-2xl font-bold tracking-tight leading-snug">
+            <span className="text-[#0b1f3a]">No card. No payment.</span>{" "}
+            <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+              {authConfig.trialDays}-day free trial signup
+            </span>
+            <span className="text-[#0b1f3a]"> — start instantly</span>
+          </p>
         </motion.div>
       </Container>
 

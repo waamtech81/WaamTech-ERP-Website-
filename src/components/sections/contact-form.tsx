@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { RecaptchaV2, resetRecaptcha } from "@/components/security/recaptcha-v2";
+import {
+  ContactPuzzleCaptcha,
+  type PuzzleCaptchaValue,
+} from "@/components/security/contact-puzzle-captcha";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 
 const empty = {
@@ -29,7 +32,7 @@ export function ContactForm({
     ...empty,
     subject: initialSubject,
   }));
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [captcha, setCaptcha] = useState<PuzzleCaptchaValue>(null);
   const [formStartedAt] = useState(() => Date.now());
   const [honeypot, setHoneypot] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,9 +47,9 @@ export function ContactForm({
       values.phone.trim() !== "" &&
       values.subject.trim() !== "" &&
       values.message.trim() !== "" &&
-      Boolean(recaptchaToken)
+      Boolean(captcha?.token)
     );
-  }, [values, recaptchaToken]);
+  }, [values, captcha]);
 
   function update(field: keyof typeof empty, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -56,7 +59,7 @@ export function ContactForm({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!allFilled || !recaptchaToken || loading) return;
+    if (!allFilled || !captcha?.token || loading) return;
 
     setLoading(true);
     setError("");
@@ -74,7 +77,8 @@ export function ContactForm({
           subject: values.subject.trim(),
           message: values.message.trim(),
           intent: intent || undefined,
-          recaptchaToken,
+          captchaToken: captcha.token,
+          captchaAnswer: captcha.offset,
           website: honeypot,
           _t: formStartedAt,
         }),
@@ -87,19 +91,16 @@ export function ContactForm({
 
       if (!res.ok || !data.success) {
         setError(apiMessageFromJson(data, "Could not send your message. Please try again."));
-        setRecaptchaToken(null);
-        resetRecaptcha();
+        setCaptcha(null);
         return;
       }
 
       setSuccess(apiMessageFromJson(data, "Thanks — your message has been sent."));
       setValues({ ...empty, subject: initialSubject });
-      setRecaptchaToken(null);
-      resetRecaptcha();
+      setCaptcha(null);
     } catch (err) {
       setError(friendlyNetworkError(err, "Could not send your message. Please try again."));
-      setRecaptchaToken(null);
-      resetRecaptcha();
+      setCaptcha(null);
     } finally {
       setLoading(false);
     }
@@ -215,10 +216,7 @@ export function ContactForm({
         <Label>
           Security check <span className="text-rose-500">*</span>
         </Label>
-        <RecaptchaV2 onChange={setRecaptchaToken} />
-        <p className="text-xs text-muted-foreground">
-          Complete the Google reCAPTCHA to confirm you&apos;re human.
-        </p>
+        <ContactPuzzleCaptcha onChange={setCaptcha} />
       </div>
 
       {error ? (

@@ -349,7 +349,7 @@ export function Header() {
                         </Badge>
                         <p className="text-lg font-semibold leading-snug">50% off all plans</p>
                         <p className="mt-2 text-sm text-white/70 leading-relaxed">
-                          Start your 14-day free trial. From{" "}
+                          No card required. Start your 14-day free trial. From{" "}
                           <span translate="no" suppressHydrationWarning>
                             {fromUsd != null ? formatPrice(fromUsd) : "…"}
                           </span>

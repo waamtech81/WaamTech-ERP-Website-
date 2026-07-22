@@ -251,6 +251,16 @@ export function PricingCards({
                         </span>
                       </div>
                       <p
+                        className={`font-heading text-[11px] md:text-xs font-semibold tracking-tight ${
+                          isPopular ? "text-emerald-200" : "text-primary"
+                        }`}
+                      >
+                        No card required ·{" "}
+                        {plan.hasFreeTrial && plan.trialDays
+                          ? `${plan.trialDays}-day free trial`
+                          : "Start free trial"}
+                      </p>
+                      <p
                         className={`text-xs capitalize ${
                           isPopular ? "text-white/60" : "text-muted-foreground"
                         }`}

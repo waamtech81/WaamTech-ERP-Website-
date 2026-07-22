@@ -3,7 +3,7 @@ import { withApiHandler } from "@/lib/api/handler";
 import { logApiError } from "@/lib/api/logger";
 import { apiFail, apiSuccess } from "@/lib/api/response";
 import { sendContactFormMessage } from "@/lib/auth/email";
-import { verifyGoogleRecaptcha } from "@/lib/security/google-recaptcha";
+import { verifyContactCaptcha } from "@/lib/security/contact-captcha";
 import {
   contactSubjectForIntent,
   parseContactIntent,
@@ -58,10 +58,11 @@ export const POST = withApiHandler(
     const company = sanitizeText(body.company, 160);
     const phone = sanitizeText(body.phone, 40);
     const message = sanitizeText(body.message, 4000);
-    const recaptchaToken = sanitizeText(
-      body.recaptchaToken ?? body.captchaToken,
+    const captchaToken = sanitizeText(
+      body.captchaToken ?? body.recaptchaToken,
       4000
     );
+    const captchaAnswer = body.captchaAnswer;
 
     const intent = parseContactIntent(
       typeof body.intent === "string" ? body.intent : null
@@ -83,7 +84,7 @@ export const POST = withApiHandler(
       });
     }
 
-    const captchaResult = await verifyGoogleRecaptcha(recaptchaToken, ip);
+    const captchaResult = verifyContactCaptcha(captchaToken, captchaAnswer);
     if (!captchaResult.ok) {
       return apiFail(captchaResult.reason, {
         status: 400,

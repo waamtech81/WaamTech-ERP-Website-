@@ -506,6 +506,13 @@ export const erpFeatureGroups = [
     features: ["Leads", "Opportunities", "Activities", "Follow-ups"],
   },
   {
+    id: "ai",
+    title: "AI Workspace",
+    description: "Built-in intelligence that helps your team use WAAMTO every day.",
+    icon: "Bot",
+    features: ["AI Assistant", "Document OCR", "Smart recommendations", "Private / local AI"],
+  },
+  {
     id: "analytics",
     title: "Analytics",
     description: "Turn operational data into leadership insight.",
@@ -529,11 +536,50 @@ export const erpFeatureGroups = [
   {
     id: "integrations",
     title: "Integrations",
-    description: "Connect WaamTech to the systems you already use.",
+    description: "Connect WAAMTO to the systems you already use.",
     icon: "Plug",
     features: ["REST API", "Webhooks", "Payment gateways", "Messaging"],
   },
 ];
+
+/** Hero stats for the ERP Features landing page */
+export const erpFeatureStats = [
+  { label: "ERP modules", value: "12+" },
+  { label: "Industries", value: "17+" },
+  { label: "Business profiles", value: "100+" },
+  { label: "AI built in", value: "Yes" },
+] as const;
+
+/** How business-profile preinstall works */
+export const erpPreinstallSteps = [
+  {
+    title: "Pick your industry & business",
+    description:
+      "Choose retail, pharmacy, restaurant, manufacturing, wholesale, or another profile at signup — WAAMTO knows what that business needs.",
+    icon: "Store",
+  },
+  {
+    title: "Common features come preinstalled",
+    description:
+      "Modules, workflows, KPIs, POS layouts, and feature packs for your business type are ready on day one — no blank workspace.",
+    icon: "Layers",
+  },
+  {
+    title: "Expand when you grow",
+    description:
+      "Add Finance, CRM, HR, Manufacturing, AI Workspace, mobile field app, and more without rebuilding your stack.",
+    icon: "Sparkles",
+  },
+] as const;
+
+/** Example business profiles with preinstalled modules */
+export const erpPreinstallExamples = [
+  { name: "Retail Store", modules: ["Inventory", "POS", "CRM", "Finance", "Sales"] },
+  { name: "Pharmacy", modules: ["Inventory", "POS", "CRM", "Finance", "Batch & expiry"] },
+  { name: "Restaurant", modules: ["POS", "Inventory", "HR", "Finance", "Kitchen flow"] },
+  { name: "Manufacturing", modules: ["Inventory", "Manufacturing", "WMS", "HR", "Finance"] },
+  { name: "Wholesale", modules: ["Inventory", "Sales", "CRM", "Finance", "Credit control"] },
+] as const;
 
 export const stats = [
   { label: "Businesses powered", value: 1200, suffix: "+" },

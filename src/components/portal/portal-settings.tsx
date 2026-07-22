@@ -20,7 +20,7 @@ function resolvePhotoUrl(photoUrl?: string | null) {
   if (!photoUrl) return null;
   if (/^https?:\/\//i.test(photoUrl) || photoUrl.startsWith("data:")) return photoUrl;
   const engine =
-    process.env.NEXT_PUBLIC_LICENSE_ENGINE_URL || "https://api.license.waamtech.com";
+    process.env.NEXT_PUBLIC_LICENSE_ENGINE_URL || "https://api.license.waamto.com";
   const base = engine.replace(/\/+$/, "").replace(/\/api$/i, "");
   if (photoUrl.startsWith("/")) return `${base}${photoUrl}`;
   return `${base}/${photoUrl.replace(/^\/+/, "")}`;

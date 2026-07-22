@@ -3,12 +3,12 @@ export const licenseConfig = {
   apiUrl:
     process.env.LICENSE_API_URL ||
     process.env.WAAMTECH_LICENSE_API_URL ||
-    "https://api.license.waamtech.com/api",
+    "https://api.license.waamto.com/api",
   /** Optional customer/license portal (external) */
   portalUrl:
     process.env.NEXT_PUBLIC_LICENSE_PORTAL_URL ||
     process.env.LICENSE_PORTAL_URL ||
-    "https://license.waamtech.com",
+    "https://license.waamto.com",
   apiKey: process.env.LICENSE_API_KEY || "",
 };
 

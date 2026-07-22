@@ -249,7 +249,7 @@ export function isPlatformStaffRole(role: string | null | undefined): boolean {
   return r === "super_admin" || r === "administrator" || r === "support_staff";
 }
 
-const DEFAULT_LICENSE_PORTAL_SSO = "https://license.waamtech.com/sso";
+const DEFAULT_LICENSE_PORTAL_SSO = "https://license.waamto.com/sso";
 
 /**
  * Where Platform staff land after Website login (License Engine Admin).
@@ -267,7 +267,7 @@ export function platformAdminPortalUrl(opts?: {
     process.env.NEXT_PUBLIC_LICENSE_PORTAL_URL ||
     process.env.LICENSE_PORTAL_URL ||
     licenseConfig.portalUrl ||
-    "https://license.waamtech.com";
+    "https://license.waamto.com";
 
   let configuredUrl = DEFAULT_LICENSE_PORTAL_SSO;
   try {

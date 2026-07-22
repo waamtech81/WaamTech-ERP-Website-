@@ -32,7 +32,7 @@ const securityHeaders = [
       // Allow Super Admin SSO form POST to License Engine Admin Portal only.
       // Never allow localhost/127.0.0.1 form-action from production pages —
       // that triggers Chrome Apps-on-device (loopback-network) permission prompts.
-      "form-action 'self' https://license.waamtech.com",
+      "form-action 'self' https://license.waamto.com",
       "object-src 'none'",
       "upgrade-insecure-requests",
     ].join("; "),
@@ -60,6 +60,20 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+    ];
+  },
+  async redirects() {
+    return [
+      {
+        source: "/docs",
+        destination: "https://doc.waamto.com",
+        permanent: true,
+      },
+      {
+        source: "/knowledge-base",
+        destination: "https://doc.waamto.com",
+        permanent: true,
       },
     ];
   },

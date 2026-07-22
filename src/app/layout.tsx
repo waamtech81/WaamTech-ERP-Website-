@@ -61,13 +61,10 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     icons: {
       icon: [
-        { url: "/favicon.ico", sizes: "32x32" },
-        { url: "/favicon.png", type: "image/png", sizes: "32x32" },
+        { url: "/favicon-32.webp", type: "image/webp", sizes: "32x32" },
         { url: "/favicon-48.webp", type: "image/webp", sizes: "48x48" },
-        { url: siteConfig.logo, type: "image/webp", sizes: "512x204" },
       ],
       apple: [{ url: "/apple-touch-icon.webp", type: "image/webp", sizes: "180x180" }],
-      shortcut: ["/favicon.ico"],
     },
     alternates: {
       canonical: origin,

@@ -248,8 +248,6 @@ export function Header() {
     isActive("/erp-features") ||
     isActive("/mobile-app") ||
     isActive("/servers") ||
-    isActive("/docs") ||
-    isActive("/knowledge-base") ||
     isActive("/support") ||
     isActive("/faqs") ||
     isActive("/about") ||

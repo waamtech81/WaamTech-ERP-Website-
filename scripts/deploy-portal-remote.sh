@@ -65,7 +65,7 @@ curl -s -o /dev/null -w "login:%{http_code}\n" https://waamto.com/login || true
 curl -s -o /dev/null -w "portal:%{http_code}\n" https://waamto.com/portal || true
 curl -s -o /dev/null -w "portal_support_redirect:%{http_code}\n" https://waamto.com/portal/support || true
 curl -s -o /tmp/wle-usage.json -w "engine_usage:%{http_code}\n" \
-  https://api.license.waamtech.com/api/v1/public/billing/usage || true
+  https://api.license.waamto.com/api/v1/public/billing/usage || true
 head -c 160 /tmp/wle-usage.json; echo
 pm2 list | grep -E "waamto-website|wle-api" || true
 echo DEPLOY_PORTAL_OK

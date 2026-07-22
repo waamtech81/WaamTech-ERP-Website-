@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  BookOpen,
   Boxes,
   CircleHelp,
   FileText,
@@ -13,7 +12,7 @@ import {
   Store,
   X,
 } from "lucide-react";
-import { blogPosts, kbArticles, faqs } from "@/lib/data/site";
+import { blogPosts, faqs } from "@/lib/data/site";
 import { searchSiteCatalog } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -33,7 +32,6 @@ const typeIcon: Record<string, typeof Search> = {
   Industry: Store,
   Category: Layers,
   Blog: FileText,
-  "Knowledge Base": BookOpen,
   FAQ: CircleHelp,
   Page: Search,
 };
@@ -73,10 +71,8 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
 
     const extras: Result[] = [
       ...blogPosts.map((b) => ({ title: b.title, href: `/blog/${b.slug}`, type: "Blog" })),
-      ...kbArticles.map((a) => ({ title: a.title, href: "/knowledge-base", type: "Knowledge Base" })),
       ...faqs.map((f) => ({ title: f.question, href: "/faqs", type: "FAQ" })),
       { title: "Pricing", href: "/pricing", type: "Page" },
-      { title: "Documentation", href: "/docs", type: "Page" },
       { title: "Support", href: "/support", type: "Page" },
       { title: "Contact", href: "/contact", type: "Page" },
       { title: "Mobile App", href: "/mobile-app", type: "Page" },

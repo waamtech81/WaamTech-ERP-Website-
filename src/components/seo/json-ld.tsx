@@ -43,14 +43,6 @@ export function SiteJsonLd() {
       "@type": "Organization",
       name: siteConfig.companyName,
     },
-    potentialAction: {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${origin}/knowledge-base?q={search_term_string}`,
-      },
-      "query-input": "required name=search_term_string",
-    },
   };
 
   const software = {

@@ -16,8 +16,6 @@ const routes = [
   "/signup",
   "/login",
   "/forgot-password",
-  "/docs",
-  "/knowledge-base",
   "/support",
   "/contact",
   "/about",

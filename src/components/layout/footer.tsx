@@ -36,8 +36,7 @@ const footerColumns = [
   {
     title: "Resources",
     links: [
-      { label: "Documentation", href: "/docs" },
-      { label: "Knowledge Base", href: "/knowledge-base" },
+      { label: "Knowledge Base", href: "https://doc.waamto.com" },
       { label: "FAQs", href: "/faqs" },
       { label: "Support", href: "/support" },
       { label: "Pricing", href: "/pricing" },

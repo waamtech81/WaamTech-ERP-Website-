@@ -1,10 +1,8 @@
 import type {
   CaseStudy,
   DeploymentOption,
-  DocCategory,
   FaqItem,
   Industry,
-  KbArticle,
   NavItem,
   PricingPlan,
   Product,
@@ -22,7 +20,7 @@ export const siteConfig = {
     "WAAMTO is a cloud Enterprise ERP by WaamTech — Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and AI Workspace. Run multi-branch operations across 17+ industries. Start a free trial.",
   url: "https://waamto.com",
   appUrl: "https://app.waamto.com",
-  licensePortalUrl: "https://license.waamtech.com",
+  licensePortalUrl: "https://license.waamto.com",
   email: "hello@waamto.com",
   supportEmail: "support@waamto.com",
   phone: "+971 563344886",
@@ -73,8 +71,7 @@ export const otherMegaMenu: {
   {
     category: "Resources",
     items: [
-      { title: "Documentation", href: "/docs", description: "Setup guides, APIs & developer docs.", icon: "FileText" },
-      { title: "Knowledge Base", href: "/knowledge-base", description: "How-to articles for every module.", icon: "Layers" },
+      { title: "Knowledge Base", href: "https://doc.waamto.com", description: "WAAMTO product documentation and guides.", icon: "Layers" },
       { title: "Support Center", href: "/support", description: "Email, live chat & portal tickets.", icon: "ShieldCheck" },
       { title: "FAQs", href: "/faqs", description: "Quick answers to common questions.", icon: "Sparkles" },
     ],
@@ -435,60 +432,6 @@ export const faqs: FaqItem[] = [
       "Yes. Guided onboarding is available on higher plans, and Enterprise includes tailored training for administrators and end users.",
     category: "Support",
   },
-];
-
-export const docCategories: DocCategory[] = [
-  {
-    id: "getting-started",
-    title: "Getting Started",
-    description: "Set up your workspace and invite your team.",
-    articles: [
-      { title: "Create your workspace", href: "/docs#create-workspace" },
-      { title: "Invite users & roles", href: "/docs#invite-users" },
-      { title: "Configure company settings", href: "/docs#company-settings" },
-    ],
-  },
-  {
-    id: "erp",
-    title: "ERP Core",
-    description: "Master the operational backbone of WaamTech.",
-    articles: [
-      { title: "Chart of accounts", href: "/docs#chart-of-accounts" },
-      { title: "Sales & purchase flow", href: "/docs#sales-purchase" },
-      { title: "Inventory basics", href: "/docs#inventory-basics" },
-    ],
-  },
-  {
-    id: "modules",
-    title: "Modules",
-    description: "Deep dives into POS, CRM, Warehouse, and more.",
-    articles: [
-      { title: "POS setup", href: "/docs#pos-setup" },
-      { title: "CRM pipeline", href: "/docs#crm-pipeline" },
-      { title: "Warehouse scanning", href: "/docs#warehouse-scanning" },
-    ],
-  },
-  {
-    id: "admin",
-    title: "Administration",
-    description: "Security, billing, and workspace governance.",
-    articles: [
-      { title: "Permissions matrix", href: "/docs#permissions" },
-      { title: "Billing & licenses", href: "/docs#billing" },
-      { title: "Audit logs", href: "/docs#audit-logs" },
-    ],
-  },
-];
-
-export const kbArticles: KbArticle[] = [
-  { id: "1", title: "How to create your first invoice", category: "Finance", excerpt: "Step-by-step guide to issuing invoices and tracking payment status.", popular: true },
-  { id: "2", title: "Setting up multi-warehouse stock", category: "Inventory", excerpt: "Configure locations, transfers, and safety stock thresholds.", popular: true },
-  { id: "3", title: "Connecting WhatsApp notifications", category: "Integrations", excerpt: "Enable order and payment alerts for customers and staff.", popular: true },
-  { id: "4", title: "Managing user roles and permissions", category: "Admin", excerpt: "Grant the right access without exposing sensitive modules." },
-  { id: "5", title: "POS offline mode troubleshooting", category: "POS", excerpt: "Resolve sync issues and keep checkout running during outages." },
-  { id: "6", title: "Month-end closing checklist", category: "Finance", excerpt: "A practical checklist for accurate books and reporting." },
-  { id: "7", title: "Importing products via CSV", category: "Inventory", excerpt: "Bulk upload SKUs, variants, prices, and opening stock." },
-  { id: "8", title: "Creating support tickets", category: "Support", excerpt: "How to escalate issues and track resolution in the portal." },
 ];
 
 export const erpFeatureGroups = [

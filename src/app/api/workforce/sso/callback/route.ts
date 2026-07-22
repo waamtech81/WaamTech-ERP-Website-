@@ -11,15 +11,19 @@ import {
   validateUpstreamSession,
   verifyAccessToken,
 } from "@/lib/workforce/auth";
+import { getSiteOrigin } from "@/lib/urls";
 
 export const runtime = "nodejs";
 
+// Redirect targets must resolve against the configured public Website origin
+// (NEXT_PUBLIC_SITE_URL), never the inbound request host — a reverse proxy /
+// process manager can present an internal loopback origin (e.g. localhost:3200)
+// as request.url, which would otherwise leak into browser-facing redirects.
 function workforceRedirect(
-  request: NextRequest,
   path: string,
   clearAll = false
 ): NextResponse {
-  const response = NextResponse.redirect(new URL(path, request.url), {
+  const response = NextResponse.redirect(new URL(path, getSiteOrigin()), {
     status: 303,
     headers: noStoreHeaders(),
   });
@@ -39,7 +43,7 @@ export async function GET(request: NextRequest) {
 
   if (providerError === "access_denied") {
     console.warn("[workforce-sso-callback] provider_access_denied");
-    return workforceRedirect(request, "/workforce/access-denied", true);
+    return workforceRedirect("/workforce/access-denied", true);
   }
   if (
     !context ||
@@ -48,16 +52,16 @@ export async function GET(request: NextRequest) {
     !constantEqual(state, context.state)
   ) {
     console.warn("[workforce-sso-callback] invalid_transaction");
-    return workforceRedirect(request, "/workforce/unauthorized", true);
+    return workforceRedirect("/workforce/unauthorized", true);
   }
 
   const expectedCallback = new URL(
     "/api/workforce/sso/callback",
-    request.url
+    getSiteOrigin()
   ).toString();
   if (context.redirectUri !== expectedCallback) {
     console.warn("[workforce-sso-callback] callback_uri_mismatch");
-    return workforceRedirect(request, "/workforce/unauthorized", true);
+    return workforceRedirect("/workforce/unauthorized", true);
   }
 
   try {
@@ -65,7 +69,6 @@ export async function GET(request: NextRequest) {
     if (!exchanged.ok) {
       console.warn("[workforce-sso-callback] token_exchange_rejected");
       return workforceRedirect(
-        request,
         exchanged.status === 401
           ? "/workforce/session-expired"
           : "/workforce/unauthorized",
@@ -84,11 +87,11 @@ export async function GET(request: NextRequest) {
     );
     if (!active.ok) {
       console.warn("[workforce-sso-callback] session_inactive");
-      return workforceRedirect(request, "/workforce/unauthorized", true);
+      return workforceRedirect("/workforce/unauthorized", true);
     }
 
     const response = NextResponse.redirect(
-      new URL("/control-center", request.url),
+      new URL("/control-center", getSiteOrigin()),
       { status: 303, headers: noStoreHeaders() }
     );
     clearPkceCookies(response);
@@ -99,6 +102,6 @@ export async function GET(request: NextRequest) {
       "[workforce-sso-callback]",
       error instanceof Error ? error.message : "validation_failed"
     );
-    return workforceRedirect(request, "/workforce/unauthorized", true);
+    return workforceRedirect("/workforce/unauthorized", true);
   }
 }

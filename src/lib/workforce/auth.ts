@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 import { NextResponse, type NextRequest } from "next/server";
 import { getClientIp, isSameOrigin, rateLimit } from "@/lib/security/guards";
+import { getSiteOrigin } from "@/lib/urls";
 
 const DEFAULT_API_URL = "https://api.license.waamto.com/api/v1/workforce";
 const DEFAULT_ISSUER = "https://license.waamto.com/workforce";
@@ -328,16 +329,14 @@ function sha256Base64Url(value: string): string {
   return createHash("sha256").update(value).digest("base64url");
 }
 
-function safeRequestOrigin(request: Request): string {
-  const url = new URL(request.url);
-  const loopback =
-    url.hostname === "localhost" ||
-    url.hostname === "127.0.0.1" ||
-    url.hostname === "[::1]";
-  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
-    throw new Error("Untrusted Website origin.");
-  }
-  return url.origin;
+/**
+ * The Website origin used for SSO redirect construction must never be derived
+ * from the inbound request (proxies/PM2 can present an internal loopback host
+ * such as localhost:3200). Always resolve it from configured environment
+ * origin (NEXT_PUBLIC_SITE_URL / SITE_URL), matching src/lib/urls.ts.
+ */
+function safeRequestOrigin(): string {
+  return getSiteOrigin();
 }
 
 function parseAuthorizationCode(
@@ -384,7 +383,7 @@ export async function createSsoBootstrap(
   const state = randomBase64Url(24);
   const nonce = randomBase64Url(24);
   const challenge = sha256Base64Url(verifier);
-  const redirectUri = `${safeRequestOrigin(request)}/api/workforce/sso/callback`;
+  const redirectUri = `${safeRequestOrigin()}/api/workforce/sso/callback`;
   const config = workforceConfig();
 
   try {

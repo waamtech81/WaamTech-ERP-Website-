@@ -61,10 +61,10 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     icons: {
       icon: [
-        { url: "/favicon-32.webp", type: "image/webp", sizes: "32x32" },
-        { url: "/favicon-48.webp", type: "image/webp", sizes: "48x48" },
+        { url: "/favicon-waamto-v2-32.webp", type: "image/webp", sizes: "32x32" },
+        { url: "/favicon-waamto-v2-48.webp", type: "image/webp", sizes: "48x48" },
       ],
-      apple: [{ url: "/apple-touch-icon.webp", type: "image/webp", sizes: "180x180" }],
+      apple: [{ url: "/apple-touch-icon-waamto-v2.webp", type: "image/webp", sizes: "180x180" }],
     },
     alternates: {
       canonical: origin,

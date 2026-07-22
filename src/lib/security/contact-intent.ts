@@ -58,7 +58,7 @@ export function parseContactIntent(
 ): ContactIntentId | null {
   if (raw == null) return null;
 
-  let value = String(raw).trim().toLowerCase();
+  const value = String(raw).trim().toLowerCase();
   if (!value) return null;
 
   // Reject encoded / injected payloads early

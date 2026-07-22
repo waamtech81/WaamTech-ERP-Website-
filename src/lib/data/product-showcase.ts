@@ -184,7 +184,7 @@ const moduleById = Object.fromEntries(coreModules.map((m) => [m.id, m]));
 
 export const productShowcases: ProductShowcase[] = products.map((p) => {
   const d = details[p.id];
-  const module = moduleById[p.id];
+  const moduleData = moduleById[p.id];
   return {
     id: p.id,
     slug: p.slug,
@@ -200,7 +200,7 @@ export const productShowcases: ProductShowcase[] = products.map((p) => {
     image: heroImageUrl(d?.image ?? "https://images.unsplash.com/photo-1460925895917-afdab827c52f", 1400),
     imageAlt: d?.imageAlt ?? `${p.name} module`,
     accent: d?.accent ?? "#2563eb",
-    preview: module?.preview,
+    preview: moduleData?.preview,
   };
 });
 

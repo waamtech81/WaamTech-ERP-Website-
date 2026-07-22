@@ -24,6 +24,7 @@ const SECURITY_HEADERS: Record<string, string> = {
 
 const PORTAL_ACCESS_COOKIE = "wt_portal_at";
 const PORTAL_REFRESH_COOKIE = "wt_portal_rt";
+const WORKFORCE_ACCESS_COOKIE = "wt_workforce_access";
 
 const PROTECTED_PORTAL_PREFIXES = [
   "/portal",
@@ -38,6 +39,9 @@ const NO_STORE_PREFIXES = [
   "/portal",
   "/api/auth",
   "/api/portal",
+  "/workforce",
+  "/control-center",
+  "/api/workforce",
 ];
 
 function applyHeaders(res: NextResponse, pathname?: string) {
@@ -72,6 +76,10 @@ function isProtectedPath(pathname: string) {
   return PROTECTED_PORTAL_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
+}
+
+function hasWorkforceSession(req: NextRequest) {
+  return isValidSessionToken(req.cookies.get(WORKFORCE_ACCESS_COOKIE)?.value);
 }
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year — remember preference
@@ -175,6 +183,16 @@ export async function middleware(req: NextRequest) {
     loginUrl.search = "";
     // Only ever bounce back to a safe internal portal path
     loginUrl.searchParams.set("next", safeInternalPath(pathname));
+    return applyHeaders(NextResponse.redirect(loginUrl), pathname);
+  }
+
+  // This is an optimistic edge gate only. The /control-center route performs
+  // signature, issuer, audience, expiry, and upstream revocation validation.
+  if (pathname === "/control-center" && !hasWorkforceSession(req)) {
+    const loginUrl = req.nextUrl.clone();
+    loginUrl.pathname = "/workforce/login";
+    loginUrl.search = "";
+    loginUrl.searchParams.set("next", "/control-center");
     return applyHeaders(NextResponse.redirect(loginUrl), pathname);
   }
 

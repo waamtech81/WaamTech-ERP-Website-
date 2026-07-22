@@ -31,7 +31,6 @@ function recaptchaSecret(): string {
   return (
     process.env.RECAPTCHA_SECRET_KEY?.trim() ||
     process.env.GOOGLE_CAPTCHA_SECRET_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_GOOGLE_CAPTCHA_SECRET_KEY?.trim() ||
     ""
   );
 }

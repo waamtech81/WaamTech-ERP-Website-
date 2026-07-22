@@ -16,8 +16,8 @@ export function ModuleShowcase() {
   const [productIndex, setProductIndex] = useState(0);
   const reduce = useReducedMotion();
 
-  const module = coreModules[productIndex] ?? coreModules[0];
-  const ProductIcon = getIcon(module.icon);
+  const activeModule = coreModules[productIndex] ?? coreModules[0];
+  const ProductIcon = getIcon(activeModule.icon);
 
   return (
     <Section className="!pt-10 md:!pt-14 bg-white">
@@ -73,7 +73,7 @@ export function ModuleShowcase() {
           <div className="absolute -inset-3 rounded-[2rem] bg-gradient-to-b from-sky-50 via-blue-50/40 to-transparent" />
           <AnimatePresence mode="wait">
             <motion.div
-              key={module.id}
+              key={activeModule.id}
               initial={reduce ? false : { opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduce ? undefined : { opacity: 0, y: -10 }}
@@ -86,19 +86,19 @@ export function ModuleShowcase() {
                     <ProductIcon className="h-5 w-5" />
                   </div>
                   <h3 className="text-2xl font-semibold tracking-tight text-[#0b1f3a]">
-                    {module.name}
+                    {activeModule.name}
                   </h3>
-                  <p className="mt-2 text-sm font-medium text-primary">{module.tagline}</p>
-                  <p className="mt-4 text-muted-foreground leading-relaxed">{module.description}</p>
+                  <p className="mt-2 text-sm font-medium text-primary">{activeModule.tagline}</p>
+                  <p className="mt-4 text-muted-foreground leading-relaxed">{activeModule.description}</p>
                   <div className="mt-6 flex flex-wrap gap-2">
-                    {module.highlights.map((h) => (
+                    {activeModule.highlights.map((h) => (
                       <Badge key={h} variant="muted">
                         {h}
                       </Badge>
                     ))}
                   </div>
                   <Button asChild variant="link" className="mt-4 px-0">
-                    <Link href={`/products#${module.id}`}>
+                    <Link href={`/products#${activeModule.id}`}>
                       Explore module <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
@@ -106,11 +106,11 @@ export function ModuleShowcase() {
 
                 <div className="bg-[#f4f7fb] p-5 md:p-7">
                   <div className="mb-4 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-[#0b1f3a]">{module.preview.title}</p>
+                    <p className="text-sm font-semibold text-[#0b1f3a]">{activeModule.preview.title}</p>
                     <Badge variant="accent">Live preview</Badge>
                   </div>
                   <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                    {module.preview.kpis.map((kpi) => (
+                    {activeModule.preview.kpis.map((kpi) => (
                       <div key={kpi.label} className="rounded-xl border border-border bg-white p-3 shadow-sm">
                         <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{kpi.label}</p>
                         <p
@@ -128,7 +128,7 @@ export function ModuleShowcase() {
                     ))}
                   </div>
                   <div className="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
-                    {module.preview.rows.map((row) => (
+                    {activeModule.preview.rows.map((row) => (
                       <div
                         key={row.ref}
                         className="flex items-center justify-between gap-3 border-b border-border last:border-0 px-4 py-3 text-sm"

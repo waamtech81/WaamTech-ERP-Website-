@@ -16,8 +16,12 @@ export function NewsletterForm({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const formStartedAt = useRef(Date.now());
+  const formStartedAt = useRef(0);
   const dark = variant === "dark";
+
+  function markFormStarted() {
+    if (!formStartedAt.current) formStartedAt.current = Date.now();
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,7 +60,7 @@ export function NewsletterForm({
       <p className={cn("mb-2 text-sm font-medium", dark ? "text-white" : undefined)}>
         Subscribe to product updates
       </p>
-      <form className="flex gap-2" onSubmit={onSubmit}>
+      <form className="flex gap-2" onFocusCapture={markFormStarted} onSubmit={onSubmit}>
         <input
           type="text"
           name="website"
@@ -71,7 +75,10 @@ export function NewsletterForm({
           type="email"
           name="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            markFormStarted();
+            setEmail(e.target.value);
+          }}
           placeholder="Work email"
           aria-label="Email for newsletter"
           className={cn(

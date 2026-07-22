@@ -1,7 +1,12 @@
+import nodemailer from "nodemailer";
 import { siteConfig } from "@/lib/data/site";
 import { buildAbsoluteSiteUrl } from "@/lib/urls";
 
-type SendResult = { sent: boolean; mode: "resend" | "console" | "none"; error?: string };
+type SendResult = {
+  sent: boolean;
+  mode: "resend" | "smtp" | "console" | "none";
+  error?: string;
+};
 
 type SendEmailInput = {
   to: string | string[];
@@ -10,6 +15,69 @@ type SendEmailInput = {
   text: string;
   replyTo?: string;
 };
+
+function smtpConfigured(): boolean {
+  return Boolean(
+    process.env.SMTP_HOST?.trim() &&
+      process.env.SMTP_USER?.trim() &&
+      process.env.SMTP_PASSWORD?.trim()
+  );
+}
+
+function smtpFromAddress(): string {
+  const fromEmail =
+    process.env.SMTP_FROM_EMAIL?.trim() ||
+    process.env.SMTP_USER?.trim() ||
+    "noreply@waamto.com";
+  const fromName =
+    process.env.SMTP_FROM_NAME?.trim() ||
+    process.env.EMAIL_FROM?.match(/^"?([^"<]+)"?\s*</)?.[1]?.trim() ||
+    siteConfig.name;
+  return `${fromName} <${fromEmail}>`;
+}
+
+async function sendViaSmtp(input: SendEmailInput): Promise<SendResult> {
+  try {
+    const host = process.env.SMTP_HOST!.trim();
+    const port = Number(process.env.SMTP_PORT || "465");
+    const secure =
+      process.env.SMTP_SECURE === "true" ||
+      process.env.SMTP_SECURE === "1" ||
+      port === 465;
+    const user = process.env.SMTP_USER!.trim();
+    const pass = process.env.SMTP_PASSWORD!.trim();
+    // Shared hosts require From to match the authenticated SMTP mailbox.
+    const from =
+      process.env.EMAIL_FROM?.trim() ||
+      process.env.RESEND_FROM?.trim() ||
+      smtpFromAddress();
+    const to = Array.isArray(input.to) ? input.to : [input.to];
+
+    const transporter = nodemailer.createTransport({
+      host,
+      port: Number.isFinite(port) ? port : 465,
+      secure,
+      auth: { user, pass },
+    });
+
+    await transporter.sendMail({
+      from,
+      to,
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+      ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+    });
+
+    return { sent: true, mode: "smtp" };
+  } catch (error) {
+    return {
+      sent: false,
+      mode: "smtp",
+      error: error instanceof Error ? error.message : "SMTP send failed",
+    };
+  }
+}
 
 export function buildVerifyUrl(token: string) {
   return buildAbsoluteSiteUrl("/verify-email", { token });
@@ -127,6 +195,11 @@ async function sendEmail(input: SendEmailInput): Promise<SendResult> {
     }
   }
 
+  // Production fallback: same SMTP mailbox used by License Engine (mail.waamto.com).
+  if (smtpConfigured()) {
+    return sendViaSmtp(input);
+  }
+
   if (process.env.NODE_ENV !== "production" || process.env.ALLOW_CONSOLE_EMAIL === "1") {
     console.info(`[${siteConfig.name}] Email → ${to.join(", ")} | ${input.subject}`);
     console.info(input.text);
@@ -136,7 +209,8 @@ async function sendEmail(input: SendEmailInput): Promise<SendResult> {
   return {
     sent: false,
     mode: "none",
-    error: "Email provider not configured. Set RESEND_API_KEY and EMAIL_FROM.",
+    error:
+      "Email provider not configured. Set RESEND_API_KEY or SMTP_HOST/SMTP_USER/SMTP_PASSWORD.",
   };
 }
 

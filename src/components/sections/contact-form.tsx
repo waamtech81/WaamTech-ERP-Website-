@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  ContactPuzzleCaptcha,
-  type PuzzleCaptchaValue,
-} from "@/components/security/contact-puzzle-captcha";
+  executeRecaptcha,
+  hasRecaptchaV3SiteKey,
+  RecaptchaV3,
+} from "@/components/security/recaptcha-v3";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 
 const empty = {
@@ -32,7 +33,6 @@ export function ContactForm({
     ...empty,
     subject: initialSubject,
   }));
-  const [captcha, setCaptcha] = useState<PuzzleCaptchaValue>(null);
   const [formStartedAt] = useState(() => Date.now());
   const [honeypot, setHoneypot] = useState("");
   const [loading, setLoading] = useState(false);
@@ -46,10 +46,9 @@ export function ContactForm({
       values.company.trim() !== "" &&
       values.phone.trim() !== "" &&
       values.subject.trim() !== "" &&
-      values.message.trim() !== "" &&
-      Boolean(captcha?.token)
+      values.message.trim() !== ""
     );
-  }, [values, captcha]);
+  }, [values]);
 
   function update(field: keyof typeof empty, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -59,13 +58,22 @@ export function ContactForm({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!allFilled || !captcha?.token || loading) return;
+    if (!allFilled || loading) return;
 
     setLoading(true);
     setError("");
     setSuccess("");
 
     try {
+      let captchaToken: string | null = null;
+      if (hasRecaptchaV3SiteKey()) {
+        captchaToken = await executeRecaptcha("contact_form");
+        if (!captchaToken) {
+          setError("Captcha failed to load. Please refresh and try again.");
+          return;
+        }
+      }
+
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,8 +85,7 @@ export function ContactForm({
           subject: values.subject.trim(),
           message: values.message.trim(),
           intent: intent || undefined,
-          captchaToken: captcha.token,
-          captchaAnswer: captcha.offset,
+          ...(captchaToken ? { captchaToken } : {}),
           website: honeypot,
           _t: formStartedAt,
         }),
@@ -91,16 +98,13 @@ export function ContactForm({
 
       if (!res.ok || !data.success) {
         setError(apiMessageFromJson(data, "Could not send your message. Please try again."));
-        setCaptcha(null);
         return;
       }
 
       setSuccess(apiMessageFromJson(data, "Thanks — your message has been sent."));
       setValues({ ...empty, subject: initialSubject });
-      setCaptcha(null);
     } catch (err) {
       setError(friendlyNetworkError(err, "Could not send your message. Please try again."));
-      setCaptcha(null);
     } finally {
       setLoading(false);
     }
@@ -108,6 +112,7 @@ export function ContactForm({
 
   return (
     <form className="relative space-y-4" onSubmit={onSubmit} noValidate>
+      <RecaptchaV3 />
       <div className="absolute -left-[9999px] top-auto h-0 w-0 overflow-hidden" aria-hidden>
         <Label htmlFor="website">Website</Label>
         <Input
@@ -210,13 +215,6 @@ export function ContactForm({
           value={values.message}
           onChange={(e) => update("message", e.target.value)}
         />
-      </div>
-
-      <div className="space-y-3 rounded-2xl border border-border bg-muted/40 p-4">
-        <Label>
-          Security check <span className="text-rose-500">*</span>
-        </Label>
-        <ContactPuzzleCaptcha onChange={setCaptcha} />
       </div>
 
       {error ? (

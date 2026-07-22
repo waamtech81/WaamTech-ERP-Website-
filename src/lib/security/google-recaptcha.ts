@@ -28,11 +28,7 @@ export type RecaptchaV3Options = {
 };
 
 function recaptchaSecret(): string {
-  return (
-    process.env.RECAPTCHA_SECRET_KEY?.trim() ||
-    process.env.GOOGLE_CAPTCHA_SECRET_KEY?.trim() ||
-    ""
-  );
+  return process.env.GOOGLE_CAPTCHA_SECRET_KEY?.trim() || "";
 }
 
 async function siteVerify(
@@ -109,7 +105,7 @@ export async function verifyGoogleRecaptcha(
 
 /**
  * reCAPTCHA v3 — portal auth flows.
- * When secret is unset, verification is skipped (local/dev).
+ * When the configured secret is unset, verification is skipped (local/dev).
  */
 export async function verifyGoogleRecaptchaV3(
   token: string | undefined | null,
@@ -124,12 +120,6 @@ export async function verifyGoogleRecaptchaV3(
   const soft = options?.soft !== false;
   const response = token?.trim() || "";
   if (!response || response.length > 8192) {
-    if (soft) {
-      console.warn("[recaptcha:v3] token missing (allowed in soft mode)", {
-        action: expectedAction,
-      });
-      return { ok: true };
-    }
     return {
       ok: false,
       reason: "Captcha verification required. Please refresh and try again.",

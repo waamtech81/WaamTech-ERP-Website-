@@ -122,7 +122,9 @@ async function requestPlatformAuth<T>(
       lastStatus = res.status;
       const json = await parseJson<T>(res);
 
-      if (json.success || res.ok) {
+      // Do not convert an explicit Engine success:false HTTP 200 response into
+      // a successful login or OTP resend.
+      if (json.success === true || (res.ok && json.success === undefined)) {
         return {
           ok: true,
           status: res.status,

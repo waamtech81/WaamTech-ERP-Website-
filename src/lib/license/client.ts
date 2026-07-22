@@ -132,7 +132,10 @@ async function postLicense<T>(
         json = { success: false, message: "Invalid response from license server." };
       }
 
-      if (json.success || res.ok) {
+      // Engine APIs sometimes return HTTP 200 for a handled failure. Respect its
+      // explicit success flag so the UI never advances to OTP when email delivery
+      // or registration creation was rejected.
+      if (json.success === true || (res.ok && json.success === undefined)) {
         return {
           ok: true,
           status: res.status,
@@ -211,7 +214,34 @@ export async function startRegistrationOnLicenseServer(
     }
   );
 
-  return result;
+  if (!result.data) return result;
+
+  // Support both Engine response conventions while the public registration
+  // contract is being rolled out. The Website must retain the pending
+  // registration ID or it cannot verify/resend the OTP.
+  const raw = result.data as RegistrationStartResult & Record<string, unknown>;
+  const registrationId =
+    raw.registrationId ||
+    (typeof raw.registration_id === "string" ? raw.registration_id : "");
+
+  return {
+    ...result,
+    data: {
+      ...raw,
+      registrationId,
+      email: raw.email || input.email,
+      otpExpiresInMinutes:
+        raw.otpExpiresInMinutes ||
+        (typeof raw.otp_expires_in_minutes === "number"
+          ? raw.otp_expires_in_minutes
+          : 10),
+      trialDays:
+        raw.trialDays ||
+        (typeof raw.trial_days === "number" ? raw.trial_days : authConfig.trialDays),
+      requiresOtp: raw.requiresOtp ?? true,
+      message: raw.message || result.message,
+    },
+  };
 }
 
 /** Verify email OTP — License Engine creates customer, trial, license, provisions ERP. */

@@ -39,17 +39,6 @@ export async function POST(req: Request) {
       8192
     );
 
-    // License Engine is the sole reCAPTCHA verifier (tokens are single-use).
-    if (!captchaToken) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Captcha verification required. Please refresh and try again.",
-        },
-        { status: 400 }
-      );
-    }
-
     if (!challengeToken) {
       return NextResponse.json(
         { success: false, message: "Verification session is required." },
@@ -60,7 +49,7 @@ export async function POST(req: Request) {
     if (accountKind === "platform") {
       const result = await platformResendOtp({
         challenge_token: challengeToken,
-        captcha_token: captchaToken,
+        captcha_token: captchaToken || undefined,
       });
       if (!result.ok) {
         return NextResponse.json(
@@ -77,7 +66,7 @@ export async function POST(req: Request) {
 
     const result = await identityResendLoginOtp({
       challenge_token: challengeToken,
-      captcha_token: captchaToken,
+      captcha_token: captchaToken || undefined,
     });
     if (!result.ok) {
       return NextResponse.json(

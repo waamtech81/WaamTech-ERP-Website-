@@ -45,14 +45,6 @@ export const POST = withApiHandler(
       8192
     );
 
-    // License Engine is the sole reCAPTCHA verifier (tokens are single-use).
-    if (!captchaToken) {
-      return apiFail("Captcha verification required. Please refresh and try again.", {
-        status: 400,
-        code: ApiErrorCode.VALIDATION_ERROR,
-      });
-    }
-
     if (!token || token.length < 20) {
       return apiFail("This reset link is invalid or incomplete.", {
         status: 400,
@@ -89,7 +81,7 @@ export const POST = withApiHandler(
     const result = await identityResetPassword({
       token,
       new_password: password,
-      captcha_token: captchaToken,
+      captcha_token: captchaToken || undefined,
     });
 
     if (!result.ok) {

@@ -222,7 +222,9 @@ async function requestLicense<T>(
       lastStatus = res.status;
       const json = await parseJson<T>(res);
 
-      if (json.success || res.ok) {
+      // Engine APIs can use HTTP 200 for a handled failure. An explicit
+      // success:false must not be converted into a successful email/OTP flow.
+      if (json.success === true || (res.ok && json.success === undefined)) {
         return {
           ok: true,
           status: res.status,

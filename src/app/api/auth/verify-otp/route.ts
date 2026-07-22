@@ -48,15 +48,6 @@ export const POST = withApiHandler(
       8192
     );
 
-    // License Engine is the sole reCAPTCHA verifier — do not siteverify here
-    // (tokens are single-use and Engine requires captcha_token).
-    if (!captchaToken) {
-      return apiFail("Captcha verification required. Please refresh and try again.", {
-        status: 400,
-        code: ApiErrorCode.VALIDATION_ERROR,
-      });
-    }
-
     if (!registrationId) {
       return apiFail("Registration session is required.", {
         status: 400,

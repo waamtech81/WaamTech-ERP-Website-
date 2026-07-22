@@ -718,8 +718,14 @@ function SignUpForm({
       }
 
       if (json.requiresOtp || json.requiresVerification) {
+        const nextRegistrationId = String(json.data?.registrationId || "").trim();
+        if (!nextRegistrationId) {
+          setError("Could not start the email verification session. Please try signing up again.");
+          setLoading(false);
+          return;
+        }
         setMaskedEmail(json.data?.email || email);
-        setRegistrationId(json.data?.registrationId || "");
+        setRegistrationId(nextRegistrationId);
         setOtpStep(true);
         setSuccess(json.message || "Enter the verification code sent to your email.");
         setLoading(false);
@@ -806,7 +812,10 @@ function SignUpForm({
   }
 
   async function onResendOtp() {
-    if (!registrationId) return;
+    if (!registrationId) {
+      setError("Registration session expired. Please start again.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -952,7 +961,7 @@ function SignUpForm({
                   variant="outline"
                   size="lg"
                   className="rounded-full px-8"
-                  disabled={loading}
+                  disabled={loading || !registrationId}
                   onClick={onResendOtp}
                 >
                   Resend code

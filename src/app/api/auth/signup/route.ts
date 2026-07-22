@@ -50,11 +50,12 @@ export const POST = withApiHandler(
     const body = await req.json();
 
     if (looksLikeBotPayload(body || {})) {
-      return apiSuccess("Check your email for a verification code.", {
-        extra: {
-          requiresOtp: true,
-          data: { email: "hidden" },
-        },
+      // Never show an OTP screen unless the Engine has created a registration
+      // session. A decoy OTP success leaves real users with no code and no
+      // registration ID for resend/verification.
+      return apiFail("Please review the form and try again.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
       });
     }
 

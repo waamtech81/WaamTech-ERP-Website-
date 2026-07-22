@@ -38,14 +38,6 @@ export const POST = withApiHandler(
       8192
     );
 
-    // License Engine is the sole reCAPTCHA verifier (tokens are single-use).
-    if (!captchaToken) {
-      return apiFail("Captcha verification required. Please refresh and try again.", {
-        status: 400,
-        code: ApiErrorCode.VALIDATION_ERROR,
-      });
-    }
-
     if (!email || !isValidEmail(email)) {
       return apiFail("Enter a valid email address.", {
         status: 400,
@@ -53,9 +45,10 @@ export const POST = withApiHandler(
       });
     }
 
-    // Forward captcha to Engine (sole verifier). Preserve anti-enumeration for
-    // non-captcha outcomes, but surface CAPTCHA failures so bots cannot skip it.
-    const result = await identityForgotPassword(email, captchaToken).catch(() => null);
+    // Forward captcha to Engine when the public site has one. The Engine remains
+    // the sole verifier; requiring a token here would block deployments where
+    // captcha is disabled or unavailable before the Engine can apply its policy.
+    const result = await identityForgotPassword(email, captchaToken || undefined).catch(() => null);
     if (
       result &&
       result.ok === false &&

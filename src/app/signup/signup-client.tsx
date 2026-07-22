@@ -85,6 +85,34 @@ const passwordRules: StrengthRule[] = [
   { id: "special", label: "One special character (!@#$…)", test: (v) => /[^A-Za-z0-9]/.test(v) },
 ];
 
+const SIGNUP_DRAFT_KEY = "waamto-signup-draft:v1";
+
+type SignupDraft = {
+  name?: string;
+  email?: string;
+  companyName?: string;
+  phone?: string;
+  phoneDialCode?: string;
+  countryCode?: string;
+  productId?: string;
+  productSlug?: string;
+  planId?: string;
+  planSlug?: string;
+  billingCycle?: BillingCycle | "";
+  industryId?: string;
+  categoryId?: string;
+  agree?: boolean;
+  marketingOptIn?: boolean;
+};
+
+function clearSignupDraft() {
+  try {
+    window.sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
+  } catch {
+    // Storage may be unavailable in a privacy-restricted browser.
+  }
+}
+
 function FancySelect({
   label,
   placeholder,
@@ -253,6 +281,7 @@ function SignUpForm({
   const [trialEndsAt, setTrialEndsAt] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [formStartedAt] = useState(() => Date.now());
+  const [draftHydrated, setDraftHydrated] = useState(false);
   const [openSelect, setOpenSelect] = useState<
     | "country"
     | "phoneDial"
@@ -269,6 +298,93 @@ function SignUpForm({
   const plansQuery = useCatalogPlans(productSlug || null);
   const industriesQuery = useCatalogIndustries();
   const categoriesQuery = useCatalogBusinessCategories(industryId || null);
+
+  // Keep an unfinished signup in this browser tab across refresh/back navigation.
+  // Passwords are deliberately never persisted in browser storage.
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(SIGNUP_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as SignupDraft;
+      if (!draft || typeof draft !== "object") return;
+
+      if (typeof draft.name === "string") setName(draft.name);
+      if (typeof draft.email === "string") setEmail(draft.email);
+      if (typeof draft.companyName === "string") setCompanyName(draft.companyName);
+      if (typeof draft.phone === "string") setPhone(draft.phone);
+      if (typeof draft.phoneDialCode === "string") {
+        setPhoneDialCode(draft.phoneDialCode);
+        phoneDialTouchedRef.current = true;
+      }
+      if (typeof draft.countryCode === "string") {
+        setCountryCode(draft.countryCode);
+        countryTouchedRef.current = true;
+      }
+      if (typeof draft.productId === "string") setProductId(draft.productId);
+      if (typeof draft.productSlug === "string") setProductSlug(draft.productSlug);
+      if (typeof draft.planId === "string") setPlanId(draft.planId);
+      if (typeof draft.planSlug === "string") setPlanSlug(draft.planSlug);
+      if (
+        draft.billingCycle === "" ||
+        draft.billingCycle === "monthly" ||
+        draft.billingCycle === "yearly" ||
+        draft.billingCycle === "lifetime"
+      ) {
+        setBillingCycle(draft.billingCycle);
+      }
+      if (typeof draft.industryId === "string") setIndustryId(draft.industryId);
+      if (typeof draft.categoryId === "string") setCategoryId(draft.categoryId);
+      if (typeof draft.agree === "boolean") setAgree(draft.agree);
+      if (typeof draft.marketingOptIn === "boolean") setMarketingOptIn(draft.marketingOptIn);
+    } catch {
+      window.sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
+    } finally {
+      setDraftHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
+    const draft: SignupDraft = {
+      name,
+      email,
+      companyName,
+      phone,
+      phoneDialCode,
+      countryCode,
+      productId,
+      productSlug,
+      planId,
+      planSlug,
+      billingCycle,
+      industryId,
+      categoryId,
+      agree,
+      marketingOptIn,
+    };
+    try {
+      window.sessionStorage.setItem(SIGNUP_DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      // Storage may be unavailable in a privacy-restricted browser.
+    }
+  }, [
+    agree,
+    billingCycle,
+    categoryId,
+    companyName,
+    countryCode,
+    draftHydrated,
+    email,
+    industryId,
+    marketingOptIn,
+    name,
+    phone,
+    phoneDialCode,
+    planId,
+    planSlug,
+    productId,
+    productSlug,
+  ]);
 
   const sortedProducts = useMemo(
     () =>
@@ -732,6 +848,7 @@ function SignUpForm({
         return;
       }
 
+      clearSignupDraft();
       setSuccess(json.message || "Account created.");
       setLoading(false);
     } catch (err) {
@@ -797,6 +914,7 @@ function SignUpForm({
       setOtpStep(false);
       setSuccess(json.message || "Trial activated.");
       setLoading(false);
+      clearSignupDraft();
 
       const redirectTo =
         json.data?.redirectUrl ||

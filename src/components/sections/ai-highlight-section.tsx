@@ -19,8 +19,9 @@ export function AiHighlightSection() {
             AI that works with your ERP — privately
           </h2>
           <p className="mt-4 text-base md:text-lg text-white/70 leading-relaxed">
-            Ask questions, scan documents, and get smart recommendations across Inventory, Sales,
-            Finance, CRM, and more. Inference stays on your stack — no public AI API keys required.
+            Your built-in AI Assistant helps your team understand how to use WAAMTO, find the right
+            workflow, scan documents, and get smart recommendations across Inventory, Sales, Finance,
+            CRM, and more. Inference stays on your stack — no public AI API keys required.
           </p>
         </div>
 
@@ -64,6 +65,25 @@ export function AiHighlightSection() {
             <Link href="/pricing">See which plans include AI</Link>
           </Button>
         </div>
+        <p className="mt-5 text-center text-sm text-white/65">
+          Need step-by-step help?{" "}
+          <a
+            href="https://doc.waamto.com"
+            className="font-medium text-sky-200 underline underline-offset-4 hover:text-white"
+          >
+            Browse the complete WAAMTO ERP documentation
+          </a>
+          {" "}or{" "}
+          <a
+            href={siteConfig.social.youtube}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-sky-200 underline underline-offset-4 hover:text-white"
+          >
+            watch WAAMTO training on YouTube
+          </a>
+          .
+        </p>
       </Container>
     </Section>
   );

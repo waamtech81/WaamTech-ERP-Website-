@@ -112,14 +112,16 @@ export default function SupportPage() {
           <div className="mt-12 rounded-3xl border border-border bg-white p-8 md:p-10 text-center">
             <h2 className="text-2xl font-semibold tracking-tight">Prefer self-serve?</h2>
             <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
-              Browse documentation and knowledge base articles before opening a ticket.
+              Use the complete WAAMTO ERP documentation or watch training videos before opening a ticket.
             </p>
             <div className="mt-6 flex flex-col sm:flex-row justify-center gap-3">
               <Button asChild className="rounded-full">
-                <Link href="/docs">Documentation</Link>
+                <a href="https://doc.waamto.com">Open documentation</a>
               </Button>
               <Button asChild variant="outline" className="rounded-full">
-                <Link href="/knowledge-base">Knowledge base</Link>
+                <a href="https://youtube.com/@waamto" target="_blank" rel="noopener noreferrer">
+                  Watch training videos
+                </a>
               </Button>
             </div>
           </div>

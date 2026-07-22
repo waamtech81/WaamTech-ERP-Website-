@@ -432,6 +432,27 @@ export const faqs: FaqItem[] = [
       "Yes. Guided onboarding is available on higher plans, and Enterprise includes tailored training for administrators and end users.",
     category: "Support",
   },
+  {
+    id: "11",
+    question: "How can the AI Assistant help my team use WAAMTO?",
+    answer:
+      "The built-in AI Assistant helps users ask how-to questions in plain language, understand module workflows, and find the right next screen across areas such as Inventory, Sales, Finance, and CRM.",
+    category: "Product",
+  },
+  {
+    id: "12",
+    question: "Where can I find complete WAAMTO ERP documentation?",
+    answer:
+      "Complete WAAMTO ERP documentation is available at https://doc.waamto.com, with guides to help users learn modules, workflows, configuration, and day-to-day operations.",
+    category: "Support",
+  },
+  {
+    id: "13",
+    question: "Is WAAMTO video training available?",
+    answer:
+      "Yes. Visit the WAAMTO YouTube channel at https://youtube.com/@waamto for product walkthroughs and training videos.",
+    category: "Support",
+  },
 ];
 
 export const erpFeatureGroups = [

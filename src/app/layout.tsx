@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers, cookies } from "next/headers";
 import { SiteShell } from "@/components/layout/site-shell";
 import { LocaleProvider } from "@/components/providers/locale-provider";
@@ -10,6 +10,8 @@ import { getSiteOrigin } from "@/lib/urls";
 import {
   seoDescription,
   seoKeywords,
+  seoSiteName,
+  seoThemeColor,
   seoTitleDefault,
 } from "@/lib/seo";
 import {
@@ -35,6 +37,14 @@ async function resolveLocale() {
   return { language, currency, country, direction: directionForLanguage(language) };
 }
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: seoThemeColor },
+    { media: "(prefers-color-scheme: dark)", color: "#09215b" },
+  ],
+  colorScheme: "light",
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const { language } = await resolveLocale();
   const ogLocale = (LOCALE_CODE_BY_LANG[language] || "en-US").replace("-", "_");
@@ -43,10 +53,10 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(origin),
     title: {
       default: seoTitleDefault,
-      template: `%s | ${siteConfig.name}`,
+      template: `%s | ${seoSiteName}`,
     },
     description: seoDescription,
-    applicationName: siteConfig.name,
+    applicationName: seoSiteName,
     keywords: [...seoKeywords],
     authors: [{ name: siteConfig.companyName, url: siteConfig.companyUrl }],
     creator: siteConfig.companyName,
@@ -63,8 +73,10 @@ export async function generateMetadata(): Promise<Metadata> {
       icon: [
         { url: "/favicon-waamto-v2-32.webp", type: "image/webp", sizes: "32x32" },
         { url: "/favicon-waamto-v2-48.webp", type: "image/webp", sizes: "48x48" },
+        { url: "/icon-512.webp", type: "image/webp", sizes: "512x512" },
       ],
       apple: [{ url: "/apple-touch-icon-waamto-v2.webp", type: "image/webp", sizes: "180x180" }],
+      shortcut: ["/favicon-waamto-v2-32.webp"],
     },
     alternates: {
       canonical: origin,
@@ -79,15 +91,16 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       locale: ogLocale,
       url: origin,
-      siteName: siteConfig.name,
+      siteName: seoSiteName,
       title: seoTitleDefault,
       description: seoDescription,
       images: [
         {
-          url: siteConfig.logo,
-          width: 512,
-          height: 204,
-          alt: `${siteConfig.name} — ${siteConfig.productLine}`,
+          url: "/og/waamto-share.png",
+          width: 1200,
+          height: 630,
+          alt: seoTitleDefault,
+          type: "image/png",
         },
       ],
     },
@@ -95,8 +108,16 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: seoTitleDefault,
       description: seoDescription,
-      images: [siteConfig.logo],
       creator: "@waamto",
+      site: "@waamto",
+      images: [
+        {
+          url: "/og/waamto-share.png",
+          width: 1200,
+          height: 630,
+          alt: seoTitleDefault,
+        },
+      ],
     },
     robots: {
       index: true,

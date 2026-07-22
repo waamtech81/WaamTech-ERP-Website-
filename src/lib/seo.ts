@@ -6,8 +6,10 @@
 export const seoKeywords = [
   // Brand
   "WAAMTO",
+  "Waamto",
   "WaamTech",
   "WAAMTO ERP",
+  "Waamto ERP",
   "WaamTech ERP",
   // Core product intent
   "ERP software",
@@ -17,6 +19,7 @@ export const seoKeywords = [
   "modular ERP",
   "SaaS ERP",
   "business ERP software",
+  "modern cloud ERP",
   // Module keywords
   "inventory management software",
   "POS system",
@@ -28,12 +31,15 @@ export const seoKeywords = [
   "HR and payroll software",
   "manufacturing ERP",
   "warehouse management",
+  "project management ERP",
+  "payroll software",
   // Industry / use-case
   "retail ERP",
   "wholesale ERP",
   "distribution ERP",
   "multi branch ERP",
   "multi warehouse inventory",
+  "ERP for growing businesses",
   // AI / modern
   "AI ERP",
   "ERP with AI assistant",
@@ -45,10 +51,19 @@ export const seoKeywords = [
   "ERP for growing companies",
 ] as const;
 
-export const seoTitleDefault = "WAAMTO | Enterprise ERP Platform by WaamTech";
+/** Browser tab + search default title */
+export const seoTitleDefault =
+  "Waamto ERP — Modern Cloud ERP for Growing Businesses";
 
+/** Primary meta / Open Graph / Twitter description */
 export const seoDescription =
-  "WAAMTO is a cloud Enterprise ERP by WaamTech — Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and AI Workspace. Run multi-branch operations across 17+ industries. Start a free trial.";
+  "Run your entire business from one secure cloud platform. Finance, CRM, HR, Inventory, POS, Manufacturing, Payroll, Procurement, Projects and much more—all in one modern ERP solution.";
 
 export const seoShortDescription =
-  "Cloud ERP with Inventory, POS, CRM, Finance, HR & AI — built for retail, wholesale, distribution, and growing businesses. Free trial available.";
+  "Modern cloud ERP for growing businesses — Finance, CRM, HR, Inventory, POS, Manufacturing & Payroll in one secure platform.";
+
+/** Open Graph / social site name */
+export const seoSiteName = "Waamto";
+
+/** Brand theme for browser chrome / PWA */
+export const seoThemeColor = "#0549a4";

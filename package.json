@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "og:generate": "node scripts/generate-og-share.mjs",
     "clean": "node -e \"const fs=require('fs'); for (const p of ['.next','node_modules/.cache']) { try { fs.rmSync(p,{recursive:true,force:true}); console.log('cleared',p);} catch {} }\"",
     "rebuild": "npm run clean && npm run build"
   },

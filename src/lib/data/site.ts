@@ -17,7 +17,7 @@ export const siteConfig = {
   productLine: "Enterprise ERP Platform",
   tagline: "Enterprise ERP Platform by WaamTech",
   description:
-    "WAAMTO is a cloud Enterprise ERP by WaamTech — Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and AI Workspace. Run multi-branch operations across 17+ industries. Start a free trial.",
+    "Run your entire business from one secure cloud platform. Finance, CRM, HR, Inventory, POS, Manufacturing, Payroll, Procurement, Projects and much more—all in one modern ERP solution.",
   url: "https://waamto.com",
   appUrl: "https://app.waamto.com",
   licensePortalUrl: "https://license.waamto.com",

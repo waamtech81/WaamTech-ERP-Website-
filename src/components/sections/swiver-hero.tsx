@@ -20,7 +20,7 @@ export function SwiverHero() {
           initial={reduce ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-3 font-heading text-hero font-bold tracking-tight text-[#0b1f3a]"
+          className="mb-0 font-heading text-hero font-bold tracking-tight text-[#0b1f3a] leading-none"
         >
           {siteConfig.name}
         </motion.p>
@@ -29,7 +29,7 @@ export function SwiverHero() {
           initial={reduce ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.04 }}
-          className="mb-6 font-sans text-sm md:text-base font-medium tracking-wide text-primary"
+          className="mt-1.5 mb-6 font-sans text-sm md:text-base font-medium tracking-wide text-primary"
         >
           {siteConfig.productLine} by {siteConfig.companyName}
         </motion.p>

@@ -10,8 +10,26 @@ import {
   sanitizeText,
 } from "@/lib/security/guards";
 
-const GENERIC_RESET_MESSAGE =
-  "If an account exists for that email, a reset link has been sent.";
+function isUnregisteredEmail(result: {
+  status: number;
+  code?: string;
+  message?: string;
+}): boolean {
+  if (result.status === 404) return true;
+
+  const code = String(result.code || "").toUpperCase();
+  if (
+    code === "EMAIL_NOT_FOUND" ||
+    code === "USER_NOT_FOUND" ||
+    code === "ACCOUNT_NOT_FOUND"
+  ) {
+    return true;
+  }
+
+  return /\b(not found|not registered|does not exist|no account)\b/i.test(
+    String(result.message || "")
+  );
+}
 
 export const POST = withApiHandler(
   async (req) => {
@@ -49,17 +67,30 @@ export const POST = withApiHandler(
     // the sole verifier; requiring a token here would block deployments where
     // captcha is disabled or unavailable before the Engine can apply its policy.
     const result = await identityForgotPassword(email, captchaToken || undefined).catch(() => null);
-    if (
-      result &&
-      result.ok === false &&
-      /captcha/i.test(String(result.message || ""))
-    ) {
-      return apiFail(result.message || "Captcha verification failed. Please try again.", {
-        status: result.status >= 400 && result.status < 600 ? result.status : 400,
-        code: ApiErrorCode.VALIDATION_ERROR,
+    if (!result) {
+      return apiFail("Password reset service is temporarily unavailable. Please try again.", {
+        status: 503,
+        code: ApiErrorCode.SERVICE_UNAVAILABLE,
       });
     }
-    return apiSuccess(GENERIC_RESET_MESSAGE);
+
+    if (!result.ok) {
+      if (isUnregisteredEmail(result)) {
+        return apiFail(
+          "This email is not registered. Please check the address or create an account.",
+          { status: 404, code: ApiErrorCode.NOT_FOUND }
+        );
+      }
+
+      return apiFail(result.message || "Could not send a reset link. Please try again.", {
+        status: result.status >= 400 && result.status < 600 ? result.status : 502,
+        code: /captcha/i.test(String(result.message || ""))
+          ? ApiErrorCode.VALIDATION_ERROR
+          : ApiErrorCode.SERVICE_UNAVAILABLE,
+      });
+    }
+
+    return apiSuccess("A reset link has been sent to your registered email.");
   },
   { endpoint: "/api/auth/forgot-password" }
 );

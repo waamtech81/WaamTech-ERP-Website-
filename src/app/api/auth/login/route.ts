@@ -28,7 +28,6 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
-import { verifyGoogleRecaptchaV3 } from "@/lib/security/google-recaptcha";
 
 function platformSuccessPayload(data: {
   accessToken: string;
@@ -147,15 +146,12 @@ export async function POST(req: Request) {
 
     // Platform staff challenge completion (email OTP / TOTP) — explicit step only.
     if (challengeToken && (emailCode || totpCode || recoveryCode) && isPlatformChallenge) {
-      const otpCaptcha = await verifyGoogleRecaptchaV3(
-        captchaToken,
-        "portal_login_otp",
-        ip,
-        { soft: true }
-      );
-      if (!otpCaptcha.ok) {
+      if (!captchaToken) {
         return NextResponse.json(
-          { success: false, message: otpCaptcha.reason },
+          {
+            success: false,
+            message: "Captcha verification required. Please refresh and try again.",
+          },
           { status: 400 }
         );
       }
@@ -178,6 +174,7 @@ export async function POST(req: Request) {
         email_code: emailCode || undefined,
         totp_code: totpCode || undefined,
         recovery_code: recoveryCode || undefined,
+        captcha_token: captchaToken,
       });
 
       if (platformResult.ok && isPlatformTotpChallenge(platformResult.data)) {
@@ -234,15 +231,12 @@ export async function POST(req: Request) {
 
     // Customer identity OTP / MFA verification.
     if (challengeToken && (emailCode || totpCode || recoveryCode) && !isPlatformChallenge) {
-      const otpCaptcha = await verifyGoogleRecaptchaV3(
-        captchaToken,
-        "portal_login_otp",
-        ip,
-        { soft: true }
-      );
-      if (!otpCaptcha.ok) {
+      if (!captchaToken) {
         return NextResponse.json(
-          { success: false, message: otpCaptcha.reason },
+          {
+            success: false,
+            message: "Captcha verification required. Please refresh and try again.",
+          },
           { status: 400 }
         );
       }
@@ -268,6 +262,7 @@ export async function POST(req: Request) {
         recovery_code: recoveryCode || undefined,
         trust_device: trustDevice,
         device_token: deviceToken || undefined,
+        captcha_token: captchaToken,
       });
 
       if (result.ok && isCustomerMfaChallenge(result.data)) {

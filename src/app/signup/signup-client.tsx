@@ -761,7 +761,8 @@ function SignUpForm({
 
     setLoading(true);
     try {
-      const captcha = await withSignupCaptcha("portal_signup_otp");
+      // Must match License Engine expected action: portal_signup_verify_otp
+      const captcha = await withSignupCaptcha("portal_signup_verify_otp");
       if (!captcha.ok) {
         setLoading(false);
         return;

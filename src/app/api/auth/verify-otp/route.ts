@@ -12,7 +12,6 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
-import { verifyGoogleRecaptchaV3 } from "@/lib/security/google-recaptcha";
 
 export const POST = withApiHandler(
   async (req) => {
@@ -49,16 +48,10 @@ export const POST = withApiHandler(
       8192
     );
 
-    const captchaAction =
-      action === "resend" ? "portal_signup_resend_otp" : "portal_signup_otp";
-    const captchaResult = await verifyGoogleRecaptchaV3(
-      captchaToken,
-      captchaAction,
-      ip,
-      { soft: true }
-    );
-    if (!captchaResult.ok) {
-      return apiFail(captchaResult.reason, {
+    // License Engine is the sole reCAPTCHA verifier — do not siteverify here
+    // (tokens are single-use and Engine requires captcha_token).
+    if (!captchaToken) {
+      return apiFail("Captcha verification required. Please refresh and try again.", {
         status: 400,
         code: ApiErrorCode.VALIDATION_ERROR,
       });
@@ -75,6 +68,7 @@ export const POST = withApiHandler(
       const result = await resendRegistrationOtp({
         registration_id: registrationId,
         email,
+        captcha_token: captchaToken,
       });
       if (!result.ok) {
         return upstreamFail(
@@ -108,6 +102,7 @@ export const POST = withApiHandler(
       registration_id: registrationId,
       otp,
       email,
+      captcha_token: captchaToken,
     });
 
     if (!result.ok || !result.data) {

@@ -9,7 +9,6 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
-import { verifyGoogleRecaptchaV3 } from "@/lib/security/google-recaptcha";
 
 const GENERIC_RESET_MESSAGE =
   "If an account exists for that email, a reset link has been sent.";
@@ -39,14 +38,9 @@ export const POST = withApiHandler(
       8192
     );
 
-    const captchaResult = await verifyGoogleRecaptchaV3(
-      captchaToken,
-      "portal_forgot_password",
-      ip,
-      { soft: true }
-    );
-    if (!captchaResult.ok) {
-      return apiFail(captchaResult.reason, {
+    // License Engine is the sole reCAPTCHA verifier (tokens are single-use).
+    if (!captchaToken) {
+      return apiFail("Captcha verification required. Please refresh and try again.", {
         status: 400,
         code: ApiErrorCode.VALIDATION_ERROR,
       });
@@ -59,8 +53,19 @@ export const POST = withApiHandler(
       });
     }
 
-    // Always return a generic success-style message (anti-enumeration)
-    await identityForgotPassword(email).catch(() => null);
+    // Forward captcha to Engine (sole verifier). Preserve anti-enumeration for
+    // non-captcha outcomes, but surface CAPTCHA failures so bots cannot skip it.
+    const result = await identityForgotPassword(email, captchaToken).catch(() => null);
+    if (
+      result &&
+      result.ok === false &&
+      /captcha/i.test(String(result.message || ""))
+    ) {
+      return apiFail(result.message || "Captcha verification failed. Please try again.", {
+        status: result.status >= 400 && result.status < 600 ? result.status : 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
+    }
     return apiSuccess(GENERIC_RESET_MESSAGE);
   },
   { endpoint: "/api/auth/forgot-password" }

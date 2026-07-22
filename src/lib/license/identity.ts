@@ -316,7 +316,10 @@ export async function identityLogin(input: {
   return result;
 }
 
-export async function identityResendLoginOtp(input: { challenge_token: string }) {
+export async function identityResendLoginOtp(input: {
+  challenge_token: string;
+  captcha_token?: string;
+}) {
   return requestLicense<IdentityLoginChallenge>(
     "POST",
     [
@@ -326,7 +329,12 @@ export async function identityResendLoginOtp(input: { challenge_token: string })
       "/identity/login/resend-otp",
       "/v1/auth/resend-otp",
     ],
-    { body: input }
+    {
+      body: {
+        challenge_token: input.challenge_token,
+        ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
+      },
+    }
   );
 }
 
@@ -352,20 +360,28 @@ export async function identityLogoutAll(accessToken: string) {
   });
 }
 
-export async function identityForgotPassword(email: string) {
+export async function identityForgotPassword(
+  email: string,
+  captcha_token?: string
+) {
   return requestLicense("POST", ["/v1/identity/forgot-password", "/identity/forgot-password"], {
-    body: { email },
+    body: {
+      email,
+      ...(captcha_token ? { captcha_token } : {}),
+    },
   });
 }
 
 export async function identityResetPassword(input: {
   token: string;
   new_password: string;
+  captcha_token?: string;
 }) {
   return requestLicense("POST", ["/v1/identity/reset-password", "/identity/reset-password"], {
     body: {
       token: input.token,
       new_password: input.new_password,
+      ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
     },
   });
 }

@@ -348,7 +348,10 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const captcha = await withLoginCaptcha("portal_login_otp");
+      // Engine identity.login expects action portal_login; staff auth expects admin_login.
+      const captcha = await withLoginCaptcha(
+        accountKind === "platform" ? "admin_login" : "portal_login"
+      );
       if (!captcha.ok) {
         setLoading(false);
         return;
@@ -398,7 +401,9 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const captcha = await withLoginCaptcha("portal_login_otp");
+      const captcha = await withLoginCaptcha(
+        accountKind === "platform" ? "admin_login" : "portal_login"
+      );
       if (!captcha.ok) {
         setLoading(false);
         return;
@@ -441,7 +446,9 @@ function LoginForm() {
     setResending(true);
     setError("");
     try {
-      const captcha = await withLoginCaptcha("portal_login_resend_otp");
+      const captcha = await withLoginCaptcha(
+        accountKind === "platform" ? "admin_resend_otp" : "portal_login_resend_otp"
+      );
       if (!captcha.ok) return;
 
       const res = await fetch("/api/auth/resend-login-otp", {

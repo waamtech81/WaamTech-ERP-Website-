@@ -9,7 +9,6 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
-import { verifyGoogleRecaptchaV3 } from "@/lib/security/google-recaptcha";
 
 /**
  * Password reset completion — forwards new password to License Engine.
@@ -46,14 +45,9 @@ export const POST = withApiHandler(
       8192
     );
 
-    const captchaResult = await verifyGoogleRecaptchaV3(
-      captchaToken,
-      "portal_reset_password",
-      ip,
-      { soft: true }
-    );
-    if (!captchaResult.ok) {
-      return apiFail(captchaResult.reason, {
+    // License Engine is the sole reCAPTCHA verifier (tokens are single-use).
+    if (!captchaToken) {
+      return apiFail("Captcha verification required. Please refresh and try again.", {
         status: 400,
         code: ApiErrorCode.VALIDATION_ERROR,
       });
@@ -95,6 +89,7 @@ export const POST = withApiHandler(
     const result = await identityResetPassword({
       token,
       new_password: password,
+      captcha_token: captchaToken,
     });
 
     if (!result.ok) {

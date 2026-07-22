@@ -8,7 +8,6 @@ import {
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
-import { verifyGoogleRecaptchaV3 } from "@/lib/security/google-recaptcha";
 
 export async function POST(req: Request) {
   try {
@@ -32,22 +31,21 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const challengeToken = sanitizeText(body?.challenge_token, 128);
+    // JWT challenge tokens exceed 128 chars — keep room for Engine tokens.
+    const challengeToken = sanitizeText(body?.challenge_token, 4096);
     const accountKind = sanitizeText(body?.account_kind, 32);
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
       8192
     );
 
-    const captchaResult = await verifyGoogleRecaptchaV3(
-      captchaToken,
-      "portal_login_resend_otp",
-      ip,
-      { soft: true }
-    );
-    if (!captchaResult.ok) {
+    // License Engine is the sole reCAPTCHA verifier (tokens are single-use).
+    if (!captchaToken) {
       return NextResponse.json(
-        { success: false, message: captchaResult.reason },
+        {
+          success: false,
+          message: "Captcha verification required. Please refresh and try again.",
+        },
         { status: 400 }
       );
     }
@@ -60,7 +58,10 @@ export async function POST(req: Request) {
     }
 
     if (accountKind === "platform") {
-      const result = await platformResendOtp({ challenge_token: challengeToken });
+      const result = await platformResendOtp({
+        challenge_token: challengeToken,
+        captcha_token: captchaToken,
+      });
       if (!result.ok) {
         return NextResponse.json(
           { success: false, message: friendlyAuthMessage(result.message) },
@@ -74,7 +75,10 @@ export async function POST(req: Request) {
       });
     }
 
-    const result = await identityResendLoginOtp({ challenge_token: challengeToken });
+    const result = await identityResendLoginOtp({
+      challenge_token: challengeToken,
+      captcha_token: captchaToken,
+    });
     if (!result.ok) {
       return NextResponse.json(
         { success: false, message: friendlyAuthMessage(result.message) },

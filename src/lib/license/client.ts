@@ -219,6 +219,7 @@ export async function verifyRegistrationOtp(input: {
   registration_id: string;
   otp: string;
   email?: string;
+  captcha_token?: string;
 }): Promise<{
   ok: boolean;
   message: string;
@@ -232,13 +233,20 @@ export async function verifyRegistrationOtp(input: {
       "/v1/registrations/verify-otp",
       "/registrations/otp/verify",
     ],
-    input
+    {
+      registration_id: input.registration_id,
+      otp: input.otp,
+      email: input.email,
+      // Engine is the sole reCAPTCHA verifier (tokens are single-use).
+      ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
+    }
   );
 }
 
 export async function resendRegistrationOtp(input: {
   registration_id: string;
   email?: string;
+  captcha_token?: string;
 }): Promise<{
   ok: boolean;
   message: string;
@@ -248,7 +256,11 @@ export async function resendRegistrationOtp(input: {
 }> {
   return postLicense<RegistrationStartResult>(
     ["/v1/registrations/otp/resend", "/registrations/otp/resend"],
-    input
+    {
+      registration_id: input.registration_id,
+      email: input.email,
+      ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
+    }
   );
 }
 

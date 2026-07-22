@@ -180,6 +180,7 @@ export async function platformLogin(input: {
   email_code?: string;
   totp_code?: string;
   recovery_code?: string;
+  captcha_token?: string;
 }) {
   return requestPlatformAuth<PlatformLoginResult>(
     "POST",
@@ -191,14 +192,21 @@ export async function platformLogin(input: {
     email_code: input.email_code,
     totp_code: input.totp_code,
     recovery_code: input.recovery_code,
+    ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
   });
 }
 
-export async function platformResendOtp(input: { challenge_token: string }) {
+export async function platformResendOtp(input: {
+  challenge_token: string;
+  captcha_token?: string;
+}) {
   return requestPlatformAuth<PlatformEmailChallenge>(
     "POST",
     ["/v1/auth/resend-otp", "/auth/resend-otp"],
-    input
+    {
+      challenge_token: input.challenge_token,
+      ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
+    }
   );
 }
 

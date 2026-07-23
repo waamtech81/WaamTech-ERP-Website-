@@ -65,7 +65,8 @@ export function HomeCatalogSearch({
             <Search className="h-5 w-5 shrink-0 text-primary" aria-hidden />
             <input
               ref={inputRef}
-              type="search"
+              type="text"
+              role="searchbox"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -83,7 +84,7 @@ export function HomeCatalogSearch({
               aria-controls={listId}
               aria-expanded={showPanel}
               autoComplete="off"
-              className="h-14 w-full min-w-0 flex-1 border-0 bg-transparent text-base text-foreground shadow-none outline-none ring-0 placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 focus:shadow-none focus-visible:border-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-none"
+              className="wt-search-field h-14 w-full min-w-0 flex-1 border-0 bg-transparent text-base text-foreground shadow-none outline-none ring-0 placeholder:text-slate-400"
             />
             {query ? (
               <button

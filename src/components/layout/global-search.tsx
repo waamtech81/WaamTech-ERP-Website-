@@ -102,18 +102,25 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
         aria-modal="true"
         aria-label="Site search"
       >
-        <div className="flex items-center gap-3 border-b border-border px-4">
-          <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="flex items-center gap-3 border-b border-border px-5 pt-4 pb-3">
+          <Search className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
           <input
             ref={inputRef}
-            type="search"
+            type="text"
+            role="searchbox"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search products, industries, categories, blogs…"
             autoComplete="off"
-            className="h-14 w-full min-w-0 flex-1 border-0 bg-transparent px-0 text-base text-foreground shadow-none outline-none ring-0 placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+            className="wt-search-field h-10 w-full min-w-0 flex-1 border-0 bg-transparent px-0 text-base text-foreground shadow-none outline-none ring-0 placeholder:text-muted-foreground"
           />
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close search">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label="Close search"
+            className="h-9 w-9 shrink-0 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-[#0b1f3a] focus-visible:ring-0 focus-visible:ring-offset-0"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>

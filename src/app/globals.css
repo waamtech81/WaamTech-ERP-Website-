@@ -276,6 +276,29 @@ select {
   outline-offset: 2px;
 }
 
+/*
+ * Catalog + modal search fields only.
+ * Global :focus-visible is unlayered and beats Tailwind utilities; these inputs
+ * must stay visually idle/focused identical (no blue rectangle). Also hide the
+ * native type=search clear control so we never show a duplicate X.
+ */
+.wt-search-field,
+.wt-search-field:focus,
+.wt-search-field:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+
+.wt-search-field::-webkit-search-decoration,
+.wt-search-field::-webkit-search-cancel-button,
+.wt-search-field::-webkit-search-results-button,
+.wt-search-field::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
 .container-site {
   width: 100%;
   max-width: 1200px;

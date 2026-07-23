@@ -3,13 +3,15 @@
  *
  * Chrome strings (nav, header, cookie banner, pricing labels) come from local
  * locale JSON catalogs. Full marketing page copy stays English in source and is
- * localized in the browser via Google Website Translator (EN / AR / FR).
+ * localized in the browser via Google Website Translator (EN / AR / FR / DE / ES).
  */
 import en from "./locales/en.json";
 import ar from "./locales/ar.json";
 import fr from "./locales/fr.json";
+import de from "./locales/de.json";
+import es from "./locales/es.json";
 
-export type UiLanguage = "en" | "ar" | "fr";
+export type UiLanguage = "en" | "ar" | "fr" | "de" | "es";
 export type TextDirection = "ltr" | "rtl";
 
 export const SUPPORTED_LANGUAGES: {
@@ -23,6 +25,8 @@ export const SUPPORTED_LANGUAGES: {
   { code: "en", short: "EN", label: "English", nativeLabel: "English", direction: "ltr" },
   { code: "ar", short: "AR", label: "Arabic", nativeLabel: "العربية", direction: "rtl" },
   { code: "fr", short: "FR", label: "French", nativeLabel: "Français", direction: "ltr" },
+  { code: "de", short: "DE", label: "German", nativeLabel: "Deutsch", direction: "ltr" },
+  { code: "es", short: "ES", label: "Spanish", nativeLabel: "Español", direction: "ltr" },
 ];
 
 export const RTL_LANGS = new Set<UiLanguage>(["ar"]);
@@ -33,6 +37,8 @@ const CORE_CATALOGS: Record<UiLanguage, Record<string, string>> = {
   en: en as Record<string, string>,
   ar: ar as Record<string, string>,
   fr: fr as Record<string, string>,
+  de: de as Record<string, string>,
+  es: es as Record<string, string>,
 };
 
 export function isUiLanguage(code: string): code is UiLanguage {
@@ -42,8 +48,8 @@ export function isUiLanguage(code: string): code is UiLanguage {
 /** Same normalization as SaaS Core: 2-letter, fall back to English. */
 export function normalizeLanguage(code?: string | null): UiLanguage {
   const lang = String(code || "en").toLowerCase().slice(0, 2);
-  // Legacy / removed languages map to English.
-  if (lang === "ur" || lang === "es" || lang === "de") return "en";
+  // Legacy removed language → English.
+  if (lang === "ur") return "en";
   return isUiLanguage(lang) ? lang : "en";
 }
 
@@ -117,6 +123,8 @@ export const LOCALE_CODE_BY_LANG: Record<UiLanguage, string> = {
   en: "en-US",
   ar: "ar-SA",
   fr: "fr-FR",
+  de: "de-DE",
+  es: "es-ES",
 };
 
 /** Shared persistence keys. */

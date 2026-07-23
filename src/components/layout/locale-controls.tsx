@@ -214,7 +214,7 @@ function SimpleDropdown({
   );
 }
 
-/** Header language control — EN / AR / FR only (default English). */
+/** Header language control — EN / AR / FR / DE / ES (default English). */
 export function LanguageSwitcher({ align = "end" }: { align?: "start" | "end" }) {
   const { language, supportedLanguages, setLanguage, t } = useLocale();
   const current = supportedLanguages.find((l) => l.code === language);

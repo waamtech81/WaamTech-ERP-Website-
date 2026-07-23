@@ -34,7 +34,10 @@ import {
   type FormatMoneyOptions,
   type RateMap,
 } from "@/lib/currency/format";
-import { applyGoogleTranslate, syncGoogleTranslate } from "@/lib/google-translate";
+import {
+  applyGoogleTranslate,
+  persistGoogTransPreference,
+} from "@/lib/google-translate";
 
 /** Client refresh cadence for live USD rates (daily). */
 const RATES_REFRESH_MS = 60 * 60 * 24 * 1000;
@@ -105,10 +108,11 @@ export function LocaleProvider({
     applyDocumentLocale(language, direction);
   }, [language, direction]);
 
-  // Soft sync on mount. Forceful translate for non-English is owned by
-  // GoogleTranslateBoot + applyGoogleTranslate on user language changes.
+  // Persist GT cookie/hash only — do NOT apply the widget here.
+  // Early combo apply races React hydration and leaves the body in English.
+  // GoogleTranslateBoot waits for a stable DOM, then translates once.
   useEffect(() => {
-    syncGoogleTranslate(language, { reloadOnMiss: false });
+    persistGoogTransPreference(language);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only on mount
   }, []);
 
@@ -236,7 +240,8 @@ export function LocaleProvider({
           setLanguageState(lang);
           applyDocumentLocale(lang);
           writeCookie(LOCALE_STORAGE.langCookie, lang);
-          syncGoogleTranslate(lang, { reloadOnMiss: false });
+          // Preference only — GoogleTranslateBoot applies after the page is stable.
+          persistGoogTransPreference(lang);
         }
         if (loc.currency) {
           const cur = String(loc.currency).toUpperCase();

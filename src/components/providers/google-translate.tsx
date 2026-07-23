@@ -3,12 +3,13 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import {
-  ensureGoogleTranslateLoaded,
+  activateGoogleTranslate,
+  bootGoogleTranslate,
   forceRetranslate,
-  mountTranslateElement,
+  isGoogleTranslateBooted,
+  isRetranslateLocked,
   noteGoogleTranslateDomTouch,
   readGoogTransLang,
-  syncGoogleTranslate,
   GOOGLE_TRANSLATE_ELEMENT_ID,
   ensureSourceLangForTranslate,
 } from "@/lib/google-translate";
@@ -91,8 +92,6 @@ function mutationLooksLikeAppContent(mutations: MutationRecord[]): boolean {
       for (const node of m.addedNodes) {
         if (nodeHasTranslatableText(node)) return true;
       }
-      // React often replaces nodes (remove + add). Removals alone don't need
-      // retranslate, but paired adds are covered above.
     }
   }
   return false;
@@ -114,36 +113,31 @@ function mutationLooksLikeGoogleTranslate(mutations: MutationRecord[]): boolean 
 
 /**
  * Host node + keep-alive for Google Translate across the whole site:
- * - boots GT for non-English
- * - re-translates after Next.js client navigations
- * - re-translates when dynamic content is injected (API / Suspense / streaming)
- *
- * Observes document.body (covers marketing <main>, portal shell, and streaming).
- * Uses rAF coalescing + dirty-flag replay — no arbitrary timeouts.
+ * - boots GT only after the page is stable (hydration + async mounts)
+ * - re-translates after Next.js client navigations (after settle)
+ * - re-translates when dynamic content is injected (debounced quiet window)
  */
 export function GoogleTranslateBoot({ language }: { language: UiLanguage }) {
   const { language: liveLanguage } = useLocale();
   const pathname = usePathname();
   const lang = liveLanguage || language;
-  const bootRef = useRef(false);
+  const pathBootGen = useRef(0);
+  const skipFirstPathEffect = useRef(true);
 
   // Keep html[lang]=en so GT always treats the page as English source.
   useEffect(() => {
     ensureSourceLangForTranslate();
   }, [lang, pathname]);
 
-  // Boot / sync Google Translate whenever we need a non-English page.
+  // Boot GT once the page is fully rendered for the active non-English language.
   useEffect(() => {
     const needsNow = lang !== "en" || !!readGoogTransLang();
     if (!needsNow) return;
 
     let cancelled = false;
-    void ensureGoogleTranslateLoaded().then(() => {
+
+    void bootGoogleTranslate(lang).then(() => {
       if (cancelled) return;
-      ensureSourceLangForTranslate();
-      mountTranslateElement(false);
-      syncGoogleTranslate(lang, { reloadOnMiss: true });
-      bootRef.current = true;
     });
 
     return () => {
@@ -151,27 +145,24 @@ export function GoogleTranslateBoot({ language }: { language: UiLanguage }) {
     };
   }, [lang]);
 
-  // After every client-side route change, force a full DOM re-scan (frame-synced).
+  // After client-side route changes, wait for the new tree to settle, then re-scan.
   useEffect(() => {
     if (lang === "en" && !readGoogTransLang()) return;
 
     const target = (readGoogTransLang() as UiLanguage | null) || lang;
     if (target === "en") return;
 
+    // First paint is owned by the lang boot effect — skip mount.
+    if (skipFirstPathEffect.current) {
+      skipFirstPathEffect.current = false;
+      return;
+    }
+
+    const gen = ++pathBootGen.current;
     let cancelled = false;
 
-    void ensureGoogleTranslateLoaded().then(() => {
-      if (cancelled) return;
-      ensureSourceLangForTranslate();
-      mountTranslateElement(false);
-      // Wait one paint so the new route's React tree is committed, then resync.
-      window.requestAnimationFrame(() => {
-        if (cancelled) return;
-        window.requestAnimationFrame(() => {
-          if (cancelled) return;
-          forceRetranslate(target);
-        });
-      });
+    void activateGoogleTranslate(target).then(() => {
+      if (cancelled || gen !== pathBootGen.current) return;
     });
 
     return () => {
@@ -179,9 +170,7 @@ export function GoogleTranslateBoot({ language }: { language: UiLanguage }) {
     };
   }, [pathname, lang]);
 
-  // Dynamic content (pricing catalog, signup selects, Suspense, portal data)
-  // → schedule a GT resync. Dirty-flag inside forceRetranslate replays if more
-  // content arrives while a resync is already running.
+  // Dynamic content → schedule a GT resync after the DOM goes quiet.
   useEffect(() => {
     if (lang === "en" && !readGoogTransLang()) return;
     if (typeof MutationObserver === "undefined") return;
@@ -192,38 +181,39 @@ export function GoogleTranslateBoot({ language }: { language: UiLanguage }) {
     const targetLang = () =>
       ((readGoogTransLang() as UiLanguage | null) || lang) as UiLanguage;
 
-    let coalesceRaf = 0;
+    let coalesceTimer = 0;
 
     const obs = new MutationObserver((mutations) => {
-      // GT's own font wraps during resync — note for settle detection, don't re-enter.
       if (mutationLooksLikeGoogleTranslate(mutations)) {
         noteGoogleTranslateDomTouch();
       }
 
+      // Hold until the stable first boot finished — otherwise we translate too early.
+      if (!isGoogleTranslateBooted()) return;
+      // While GT is flipping, ignore app-looking noise to avoid loops.
+      if (isRetranslateLocked()) return;
       if (!mutationLooksLikeAppContent(mutations)) return;
 
-      // Coalesce all mutations in this frame into a single resync schedule.
-      if (coalesceRaf) return;
-      coalesceRaf = window.requestAnimationFrame(() => {
-        coalesceRaf = 0;
+      if (coalesceTimer) window.clearTimeout(coalesceTimer);
+      coalesceTimer = window.setTimeout(() => {
+        coalesceTimer = 0;
+        if (!isGoogleTranslateBooted() || isRetranslateLocked()) return;
         const next = targetLang();
         if (next === "en") return;
-        // forceRetranslate handles lock + dirty replay; safe even mid-resync.
         forceRetranslate(next);
-      });
+      }, 450);
     });
 
     obs.observe(root, {
       childList: true,
       subtree: true,
-      // React / streaming sometimes updates text without replacing the element.
       characterData: true,
       characterDataOldValue: false,
     });
 
     return () => {
       obs.disconnect();
-      if (coalesceRaf) window.cancelAnimationFrame(coalesceRaf);
+      if (coalesceTimer) window.clearTimeout(coalesceTimer);
     };
   }, [lang]);
 

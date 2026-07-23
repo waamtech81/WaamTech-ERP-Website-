@@ -434,6 +434,13 @@ select {
   z-index: -1 !important;
 }
 
+/* Google may set display:none on the gadget; that blocks .goog-te-combo init.
+   Keep it laid out (off-screen via parent) so the select can mount + fire. */
+.wt-google-translate .goog-te-gadget,
+.wt-google-translate .skiptranslate {
+  display: block !important;
+}
+
 .goog-te-banner-frame,
 .goog-te-balloon-frame,
 #goog-gt-tt,

@@ -61,7 +61,7 @@ export function HomeCatalogSearch({
       </p>
 
       <div ref={wrapRef} className="relative mx-auto max-w-2xl">
-          <div className="flex items-center gap-3 rounded-full border border-border bg-white px-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition-colors focus-within:border-primary/35 focus-within:shadow-[0_12px_40px_rgba(5,73,164,0.1)]">
+          <div className="flex items-center gap-3 rounded-full border border-border bg-white px-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <Search className="h-5 w-5 shrink-0 text-primary" aria-hidden />
             <input
               ref={inputRef}
@@ -83,7 +83,7 @@ export function HomeCatalogSearch({
               aria-controls={listId}
               aria-expanded={showPanel}
               autoComplete="off"
-              className="h-14 w-full min-w-0 flex-1 border-0 bg-transparent text-base text-foreground shadow-none outline-none ring-0 placeholder:text-slate-400 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+              className="h-14 w-full min-w-0 flex-1 border-0 bg-transparent text-base text-foreground shadow-none outline-none ring-0 placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 focus:shadow-none focus-visible:border-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-none"
             />
             {query ? (
               <button

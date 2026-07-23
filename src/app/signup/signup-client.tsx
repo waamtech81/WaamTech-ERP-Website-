@@ -971,8 +971,8 @@ function SignUpForm({
       <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
         <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
         <div className="container-site relative flex justify-center py-16 lg:py-24">
-          <Card className="w-full max-w-lg shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
-            <CardContent className="px-6 py-10 sm:px-10 text-center">
+          <Card className="w-full max-w-lg min-w-0 shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
+            <CardContent className="min-w-0 px-6 py-10 text-center sm:px-10">
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                 <Check className="h-7 w-7" />
               </div>
@@ -997,13 +997,22 @@ function SignUpForm({
                   <li>Welcome email with your username and login link</li>
                 </ul>
               </div>
-              <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-                <Button asChild size="lg" className="rounded-full px-8">
+              <div className="mt-8 flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-stretch">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-auto min-h-12 w-full min-w-0 whitespace-normal rounded-full px-5 text-center sm:flex-1"
+                >
                   <a href={getPortalLoginPath({ email, next: "/portal" })}>
                     Continue to Customer Portal
                   </a>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-full px-8">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="h-auto min-h-12 w-full min-w-0 whitespace-normal rounded-full px-5 text-center sm:flex-1"
+                >
                   <a href={getAppLoginUrl({ email, verified: true, registered: true })}>
                     Open WAAMTO ERP
                   </a>

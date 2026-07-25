@@ -1,5 +1,5 @@
 /**
- * Generates a static 1200×630 Open Graph PNG for social crawlers.
+ * Generates a compressed 1200×630 Open Graph WebP for social crawlers.
  * Run: node scripts/generate-og-share.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -10,17 +10,17 @@ import sharp from "sharp";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const outDir = join(root, "public", "og");
-const outFile = join(outDir, "waamto-share.png");
-const logoFile = join(outDir, "waamto-logo-og.png");
+const outFile = join(outDir, "waamto-share.webp");
+const logoFile = join(root, "public", "waamto-logo.webp");
 
 mkdirSync(outDir, { recursive: true });
 
 let logoDataUri = "";
 try {
   const logo = readFileSync(logoFile);
-  logoDataUri = `data:image/png;base64,${logo.toString("base64")}`;
+  logoDataUri = `data:image/webp;base64,${logo.toString("base64")}`;
 } catch {
-  console.warn("Logo PNG missing — using text mark only");
+  console.warn("Logo WebP missing — using text mark only");
 }
 
 const svg = `<?xml version="1.0" encoding="UTF-8"?>
@@ -130,10 +130,10 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
   <text x="1144" y="592" text-anchor="end" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">www.waamto.com</text>
 </svg>`;
 
-const png = await sharp(Buffer.from(svg))
+const webp = await sharp(Buffer.from(svg))
   .resize(1200, 630, { fit: "fill" })
-  .png({ quality: 90, compressionLevel: 8 })
+  .webp({ quality: 70, smartSubsample: true })
   .toBuffer();
 
-writeFileSync(outFile, png);
-console.log(`Wrote ${outFile} (${png.length} bytes)`);
+writeFileSync(outFile, webp);
+console.log(`Wrote ${outFile} (${webp.length} bytes)`);

@@ -100,11 +100,11 @@ export async function generateMetadata(): Promise<Metadata> {
       description: seoDescription,
       images: [
         {
-          url: "/og/waamto-share.png",
+          url: "/og/waamto-share.webp",
           width: 1200,
           height: 630,
           alt: seoTitleDefault,
-          type: "image/png",
+          type: "image/webp",
         },
       ],
     },
@@ -116,7 +116,7 @@ export async function generateMetadata(): Promise<Metadata> {
       site: "@waamto",
       images: [
         {
-          url: "/og/waamto-share.png",
+          url: "/og/waamto-share.webp",
           width: 1200,
           height: 630,
           alt: seoTitleDefault,

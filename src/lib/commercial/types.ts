@@ -128,6 +128,26 @@ export type CatalogPlan = {
   sort_order: number;
   is_active: boolean;
   is_public: boolean;
+  price_model?: "per_user" | "flat_rate" | "one_time" | "custom" | string | null;
+  price_unit?: string | null;
+  card_summary?: CatalogCardSummary | null;
+};
+
+export type CatalogCardSummary = {
+  target_customer?: string | null;
+  included_users_label?: string | null;
+  billing_model?: string | null;
+  price_unit?: string | null;
+  support_level?: string | null;
+  plus_from?: string | null;
+  upgrade_reason?: string | null;
+  bullets?: string[];
+  main_limits?: {
+    included_users?: number | null;
+    unlimited_users?: boolean;
+    storage_gb?: number | null;
+    unlimited_storage?: boolean;
+  } | null;
 };
 
 export type CatalogPricing = {
@@ -177,6 +197,43 @@ export type CatalogPricing = {
   green_tick_features?: CatalogFeatureItem[];
   support_level?: string | null;
   sort_order?: number;
+  price_model?: "per_user" | "flat_rate" | "one_time" | "custom" | string | null;
+  price_unit?: string | null;
+  card_summary?: CatalogCardSummary | null;
+};
+
+export type CatalogComparisonDimension = {
+  key: string;
+  label: string;
+};
+
+export type CatalogFeatureMatrixCell = {
+  included: boolean;
+  inherited?: boolean;
+  source_tier?: string | null;
+};
+
+export type CatalogFeatureMatrixRow = {
+  feature_id?: string;
+  code?: string | null;
+  name: string;
+  description?: string | null;
+  display_order?: number;
+  plans: Record<string, CatalogFeatureMatrixCell>;
+};
+
+export type CatalogFeatureMatrixGroup = {
+  code?: string;
+  name: string;
+  display_order?: number;
+  rows: CatalogFeatureMatrixRow[];
+};
+
+export type CatalogFeatureMatrix = {
+  plan_slugs?: string[];
+  hierarchy?: string[];
+  groups?: CatalogFeatureMatrixGroup[];
+  feature_count?: number;
 };
 
 export type CatalogComparisonRow = {
@@ -197,12 +254,25 @@ export type CatalogComparisonRow = {
   display_price?: number | null;
   is_popular?: boolean;
   is_recommended?: boolean;
+  price_model?: string | null;
+  price_unit?: string | null;
+  comparison_values?: Record<string, string | number | boolean | null>;
+  summary?: Record<string, unknown> | null;
 };
 
 export type CatalogComparisonBundle = {
   plans: CatalogPlan[];
   comparison: CatalogComparisonRow[];
   limit_keys: string[];
+  dimensions?: CatalogComparisonDimension[];
+  feature_matrix?: CatalogFeatureMatrix | null;
+  hierarchy?:
+    | string[]
+    | {
+        chain?: string[];
+        rule?: string;
+      }
+    | null;
 };
 
 export type CatalogIndustry = {

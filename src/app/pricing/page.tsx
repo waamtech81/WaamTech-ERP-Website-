@@ -34,6 +34,7 @@ import {
 import {
   buildDynamicComparison,
   cardPlans,
+  comparisonHierarchyNote,
   enterprisePlan,
   launchPromoFromPlans,
   publicMarketingPlans,
@@ -61,6 +62,10 @@ export default function PricingPage() {
   const comparisonRows = useMemo(
     () => buildDynamicComparison(pricingPlans, catalog.data.comparison),
     [pricingPlans, catalog.data.comparison]
+  );
+  const hierarchyNote = useMemo(
+    () => comparisonHierarchyNote(catalog.data.comparison),
+    [catalog.data.comparison]
   );
   const planColumns = pricingPlans;
   const promo = useMemo(() => launchPromoFromPlans(pricingPlans), [pricingPlans]);
@@ -183,14 +188,6 @@ export default function PricingPage() {
                       {enterprise.cta || "Contact Sales"}
                     </Link>
                   </Button>
-                  <Button
-                    asChild
-                    size="lg"
-                    variant="outline"
-                    className="rounded-full border-white/30 bg-transparent text-white hover:bg-white/10"
-                  >
-                    <Link href="/contact?intent=quote">Request a Quote</Link>
-                  </Button>
                 </div>
               </div>
             </div>
@@ -256,6 +253,7 @@ export default function PricingPage() {
           <PricingComparisonTable
             plans={planColumns}
             rows={comparisonRows}
+            hierarchyNote={hierarchyNote}
             loading={catalog.loading && comparisonRows.length === 0}
           />
           {!catalog.loading && planColumns.length === 0 ? (

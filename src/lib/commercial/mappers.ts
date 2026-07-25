@@ -1,10 +1,11 @@
 import type { PricingFeatureGroup, PricingPlan, Product } from "@/types";
 import type {
   BillingCycle,
+  CatalogCardSummary,
   CatalogComparisonBundle,
-  CatalogComparisonRow,
   CatalogFeatureGroup,
   CatalogFeatureItem,
+  CatalogFeatureMatrix,
   CatalogIndustry,
   CatalogPlan,
   CatalogPlanLimits,
@@ -14,6 +15,47 @@ import type {
 import { buildAppPath, buildSignupPath } from "@/lib/urls";
 
 const TIER_ORDER = ["starter", "business", "lifetime", "enterprise"] as const;
+
+function hierarchyChain(
+  comparison?: CatalogComparisonBundle | null,
+  featureMatrix?: CatalogFeatureMatrix | null
+): string[] {
+  const fromBundle = comparison?.hierarchy;
+  if (Array.isArray(fromBundle) && fromBundle.length) {
+    return fromBundle.map((s) => String(s).toLowerCase());
+  }
+  if (
+    fromBundle &&
+    typeof fromBundle === "object" &&
+    !Array.isArray(fromBundle) &&
+    Array.isArray(fromBundle.chain)
+  ) {
+    return fromBundle.chain.map((s: string) => String(s).toLowerCase());
+  }
+  if (featureMatrix?.hierarchy?.length) {
+    return featureMatrix.hierarchy.map((s) => String(s).toLowerCase());
+  }
+  return [...TIER_ORDER];
+}
+
+function engineUnitLabel(
+  plan: Pick<PricingPlan, "priceUnit" | "priceModel" | "contactSales" | "lifetimePrice" | "id" | "name">,
+  billingCycle: BillingCycle
+): string {
+  const fromEngine = String(plan.priceUnit || "").trim();
+  if (billingCycle === "lifetime" || plan.priceModel === "one_time") {
+    return fromEngine || "One-Time";
+  }
+  if (plan.contactSales || plan.priceModel === "custom") {
+    return fromEngine || "Contact Sales";
+  }
+  if (fromEngine) return fromEngine;
+  // Last-resort presentation only when Engine omits price_unit.
+  const key = String(plan.id || plan.name || "").toLowerCase();
+  if (key.includes("starter")) return "/user/mo";
+  if (key.includes("business")) return "/mo";
+  return "/mo";
+}
 
 /**
  * Dedicated Trial commercial plans (plan_type/tier/slug/name).
@@ -251,9 +293,11 @@ function buildSignupHref(plan: {
     });
   }
   if (plan.lifetime_price != null || String(slug).toLowerCase() === "lifetime") {
-    return buildAppPath("/contact", {
-      intent: "lifetime",
-      plan: slug,
+    return buildSignupPath({
+      product: plan.product_slug,
+      planId: plan.id,
+      planSlug: slug,
+      billingCycle: "lifetime",
     });
   }
   return buildSignupPath({
@@ -381,7 +425,7 @@ export function resolveCyclePrice(
           plan.originalLifetimePrice != null && plan.lifetimePrice != null
             ? Number((plan.originalLifetimePrice - plan.lifetimePrice).toFixed(2))
             : null,
-        unitLabel: "one-time",
+        unitLabel: engineUnitLabel(plan, "lifetime"),
         contactSales: false,
       };
     }
@@ -391,7 +435,7 @@ export function resolveCyclePrice(
       originalPrice: null,
       discountPercent: null,
       savings: null,
-      unitLabel: "custom",
+      unitLabel: engineUnitLabel(plan, "monthly"),
       contactSales: true,
     };
   }
@@ -406,7 +450,7 @@ export function resolveCyclePrice(
         plan.originalLifetimePrice != null
           ? Number((plan.originalLifetimePrice - plan.lifetimePrice).toFixed(2))
           : null,
-      unitLabel: "one-time",
+      unitLabel: engineUnitLabel(plan, "lifetime"),
       contactSales: false,
     };
   }
@@ -418,7 +462,7 @@ export function resolveCyclePrice(
       originalPrice: plan.originalYearlyPrice ?? null,
       discountPercent: plan.launchDiscount ?? null,
       savings: plan.yearlySavingsAmount ?? null,
-      unitLabel: "/user/mo",
+      unitLabel: engineUnitLabel(plan, "yearly"),
       contactSales: false,
     };
   }
@@ -429,7 +473,7 @@ export function resolveCyclePrice(
     originalPrice: plan.originalMonthlyPrice ?? null,
     discountPercent: plan.launchDiscount ?? null,
     savings: plan.savingsAmount ?? null,
-    unitLabel: "/user/mo",
+    unitLabel: engineUnitLabel(plan, "monthly"),
     contactSales: false,
   };
 }
@@ -454,6 +498,9 @@ export function mapCatalogPlanToPricingPlan(
     limits?: CatalogPlanLimits | null;
     featureGroups?: CatalogFeatureGroup[];
     modules?: string[];
+    cardSummary?: CatalogCardSummary | null;
+    priceUnit?: string | null;
+    priceModel?: string | null;
   }
 ): PricingPlan {
   const isEnterprise =
@@ -462,22 +509,37 @@ export function mapCatalogPlanToPricingPlan(
     String(plan.tier || plan.slug).toLowerCase() === "enterprise";
 
   const launch = resolveLaunchFields(plan);
+  const cardSummary = extras?.cardSummary || plan.card_summary || null;
+  const priceUnit =
+    firstText(extras?.priceUnit, plan.price_unit, cardSummary?.price_unit) || null;
+  const priceModel =
+    firstText(extras?.priceModel, plan.price_model) || null;
   const fromLimits = usersFromLimits(extras?.limits);
-  const fromHighlights = usersFromHighlights(plan.highlights);
+  const fromHighlights = usersFromHighlights(
+    cardSummary?.bullets?.length ? cardSummary.bullets : plan.highlights
+  );
   const featureGroups = mapFeatureGroups(
     extras?.featureGroups || (plan as CatalogPlan & { feature_groups?: CatalogFeatureGroup[] }).feature_groups
   );
 
+  // Pricing cards: Engine card_summary.bullets / highlights are SSOT (not local catalogs).
+  const cardBullets = (cardSummary?.bullets || [])
+    .map((h) => String(h || "").trim())
+    .filter(Boolean);
+  const engineHighlights = (plan.highlights || [])
+    .map((h) => String(h || "").trim())
+    .filter(Boolean);
   const groupedFeatureNames = featureGroups
     .flatMap((g) => g.features.map((f) => f.name).filter(Boolean))
     .slice(0, 12);
   const featureNames =
-    groupedFeatureNames.length > 0
-      ? groupedFeatureNames
-      : (plan.highlights || []).filter((h) => String(h || "").trim())
-          .length > 0
-        ? (plan.highlights || []).filter((h) => String(h || "").trim())
-        : featureLinesFromDescription(plan.description);
+    cardBullets.length > 0
+      ? cardBullets
+      : engineHighlights.length > 0
+        ? engineHighlights
+        : groupedFeatureNames.length > 0
+          ? groupedFeatureNames
+          : featureLinesFromDescription(plan.description);
 
   const description = firstText(
     plan.short_description,
@@ -507,11 +569,22 @@ export function mapCatalogPlanToPricingPlan(
       return true;
     });
 
-  const usersIncluded = fromLimits.usersIncluded ?? fromHighlights;
+  const usersIncluded =
+    cardSummary?.main_limits?.unlimited_users
+      ? ("unlimited" as const)
+      : cardSummary?.main_limits?.included_users != null
+        ? Number(cardSummary.main_limits.included_users)
+        : fromLimits.usersIncluded ?? fromHighlights;
+  const usersNote =
+    firstText(cardSummary?.included_users_label, fromLimits.usersNote) ||
+    undefined;
   const badge = firstText(
     plan.badge_label,
     plan.ribbon,
     plan.badge ? String(plan.badge).replace(/_/g, " ") : undefined
+  );
+  const highlights = (cardBullets.length ? cardBullets : engineHighlights).filter(
+    (h) => String(h || "").trim()
   );
 
   if (isEnterprise) {
@@ -537,13 +610,16 @@ export function mapCatalogPlanToPricingPlan(
       ctaStyle: plan.cta?.style || plan.cta_button_style,
       href: buildSignupHref(plan),
       usersIncluded: usersIncluded,
-      usersNote: firstText(fromLimits.usersNote) || undefined,
+      usersNote,
+      priceUnit,
+      priceModel,
       storageIncludedGb: fromLimits.storageIncludedGb ?? null,
       extraUserPrice: fromLimits.extraUserPrice,
       extraStoragePricePerGb: fromLimits.extraStoragePricePerGb,
-      supportLevel: firstText(plan.support_level) || null,
+      supportLevel:
+        firstText(cardSummary?.support_level, plan.support_level) || null,
       modules: (extras?.modules || []).filter(Boolean),
-      highlights: (plan.highlights || []).filter((h) => String(h || "").trim()),
+      highlights,
       featureGroups,
       features: features.filter((f) => !/custom pricing/i.test(f)),
       hasFreeTrial: plan.has_free_trial,
@@ -592,13 +668,16 @@ export function mapCatalogPlanToPricingPlan(
     ctaStyle: plan.cta?.style || plan.cta_button_style,
     href: buildSignupHref(plan),
     usersIncluded,
-    usersNote: firstText(fromLimits.usersNote) || undefined,
+    usersNote,
+    priceUnit,
+    priceModel,
     storageIncludedGb: fromLimits.storageIncludedGb ?? null,
     extraUserPrice: fromLimits.extraUserPrice,
     extraStoragePricePerGb: fromLimits.extraStoragePricePerGb,
-    supportLevel: firstText(plan.support_level) || null,
+    supportLevel:
+      firstText(cardSummary?.support_level, plan.support_level) || null,
     modules: (extras?.modules || []).filter(Boolean),
-    highlights: (plan.highlights || []).filter((h) => String(h || "").trim()),
+    highlights,
     featureGroups,
     features,
     hasFreeTrial: plan.has_free_trial,
@@ -707,49 +786,24 @@ export function mapPricingRowsToPlans(
       monthly_price: row.monthly_price ?? asPlan.monthly_price,
       yearly_price: row.yearly_price ?? asPlan.yearly_price,
       lifetime_price: row.lifetime_price ?? asPlan.lifetime_price,
+      price_unit: row.price_unit ?? asPlan.price_unit,
+      price_model: row.price_model ?? asPlan.price_model,
+      card_summary: row.card_summary ?? asPlan.card_summary,
     };
 
     return mapCatalogPlanToPricingPlan(enriched, {
       limits,
       featureGroups: row.feature_groups,
       modules,
+      cardSummary: enriched.card_summary,
+      priceUnit: enriched.price_unit,
+      priceModel: enriched.price_model,
     });
   });
 
   return sortPlansByTier(
     merged.map((p, i) => ({ ...p, sort_order: i, tier: p.id }))
   ).map(({ sort_order: _s, tier: _t, ...plan }) => plan as PricingPlan);
-}
-
-function formatLimitValue(
-  key: string,
-  limits: CatalogPlanLimits | undefined
-): string | boolean {
-  if (!limits) return "—";
-  const unlimitedKey = key.replace(/^max_/, "unlimited_") as keyof CatalogPlanLimits;
-  if (limits[unlimitedKey] === true) return "Unlimited";
-
-  const value = limits[key];
-  if (value == null) return "—";
-  if (typeof value === "boolean") return value;
-  if (typeof value === "number") {
-    if (key === "max_storage_gb") return `${value} GB`;
-    if (key === "max_users") return value === 1 ? "1 User" : `${value} Users`;
-    return String(value);
-  }
-  return String(value);
-}
-
-function featureIncluded(
-  row: CatalogComparisonRow,
-  needle: RegExp
-): boolean {
-  const names = [
-    ...(row.features || []),
-    ...(row.commercial_features || []).map((f) => f.name),
-    ...(row.highlights || []),
-  ];
-  return names.some((n) => needle.test(String(n)));
 }
 
 /** Build comparison matrix from License Engine comparison payload when available. */
@@ -768,7 +822,8 @@ function planHasFeature(plan: PricingPlan, featureName: string): boolean {
 
 /** Detailed feature matrix from Engine-mapped plan feature groups. */
 function featureGroupComparisonRows(
-  plans: PricingPlan[]
+  plans: PricingPlan[],
+  chain: string[] = [...TIER_ORDER]
 ): Array<Record<string, string | boolean>> {
   const groupOrder: string[] = [];
   const featuresByGroup = new Map<string, string[]>();
@@ -817,7 +872,7 @@ function featureGroupComparisonRows(
       for (const plan of plans) {
         row[plan.id] = planHasFeature(plan, featureName);
       }
-      rows.push(row);
+      rows.push(applyBooleanHierarchy(plans, row, chain));
     }
   }
   return rows;
@@ -875,112 +930,210 @@ function baseLimitComparisonRows(
   ];
 }
 
+function cellIncluded(
+  cell: { included?: boolean; inherited?: boolean } | undefined
+): boolean {
+  return Boolean(cell?.included || cell?.inherited);
+}
+
+function featureMatrixIncluded(
+  cellBySlug: Record<string, { included?: boolean; inherited?: boolean } | undefined>,
+  planSlug: string,
+  chain: string[]
+): boolean {
+  const slug = planSlug.toLowerCase();
+  if (cellIncluded(cellBySlug[slug])) return true;
+  const idx = chain.indexOf(slug);
+  if (idx <= 0) return cellIncluded(cellBySlug[slug]);
+  // Engine hierarchy: each higher tier includes everything from lower tiers.
+  for (let i = 0; i < idx; i++) {
+    if (cellIncluded(cellBySlug[chain[i]])) return true;
+  }
+  return false;
+}
+
+/** Progressive inheritance for boolean compare cells (Starter → Enterprise). */
+function applyBooleanHierarchy(
+  plans: PricingPlan[],
+  row: Record<string, string | boolean>,
+  chain: string[]
+): Record<string, string | boolean> {
+  if (row.__section === true) return row;
+  const ids = plans.map((p) => p.id);
+  if (!ids.every((id) => typeof row[id] === "boolean")) return row;
+
+  let lowest = Number.POSITIVE_INFINITY;
+  for (const plan of plans) {
+    if (row[plan.id] !== true) continue;
+    const idx = chain.indexOf(String(plan.id).toLowerCase());
+    if (idx >= 0 && idx < lowest) lowest = idx;
+  }
+  if (!Number.isFinite(lowest)) return row;
+
+  for (const plan of plans) {
+    const idx = chain.indexOf(String(plan.id).toLowerCase());
+    if (idx >= lowest) row[plan.id] = true;
+  }
+  return row;
+}
+
+function dedupeComparisonRows(
+  rows: Array<Record<string, string | boolean>>
+): Array<Record<string, string | boolean>> {
+  const seen = new Set<string>();
+  const out: Array<Record<string, string | boolean>> = [];
+  let pendingSection: Record<string, string | boolean> | null = null;
+
+  for (const row of rows) {
+    if (row.__section === true) {
+      pendingSection = row;
+      continue;
+    }
+    const key = String(row.name || "")
+      .trim()
+      .toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    if (pendingSection) {
+      out.push(pendingSection);
+      pendingSection = null;
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+function engineFeatureMatrixRows(
+  plans: PricingPlan[],
+  comparison?: CatalogComparisonBundle | null
+): Array<Record<string, string | boolean>> {
+  const matrix = comparison?.feature_matrix;
+  const groups = matrix?.groups || [];
+  if (!groups.length) return [];
+
+  const chain = hierarchyChain(comparison, matrix);
+  const rows: Array<Record<string, string | boolean>> = [];
+
+  const orderedGroups = [...groups].sort(
+    (a, b) => (a.display_order ?? 999) - (b.display_order ?? 999)
+  );
+
+  for (const group of orderedGroups) {
+    const groupRows = [...(group.rows || [])].sort(
+      (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
+    );
+    if (!groupRows.length) continue;
+    rows.push({ name: group.name, __section: true });
+    for (const feature of groupRows) {
+      const row: Record<string, string | boolean> = { name: feature.name };
+      for (const plan of plans) {
+        row[plan.id] = featureMatrixIncluded(feature.plans || {}, plan.id, chain);
+      }
+      rows.push(applyBooleanHierarchy(plans, row, chain));
+    }
+  }
+  return rows;
+}
+
+function engineDimensionRows(
+  plans: PricingPlan[],
+  comparison?: CatalogComparisonBundle | null
+): Array<Record<string, string | boolean>> {
+  const dimensions = comparison?.dimensions || [];
+  if (!dimensions.length || !comparison?.comparison?.length) return [];
+
+  const chain = hierarchyChain(comparison, comparison.feature_matrix);
+  const rowsBySlug = new Map(
+    comparison.comparison.map((row) => [
+      String(row.plan.slug || row.plan.id).toLowerCase(),
+      row,
+    ])
+  );
+
+  return dimensions
+    .filter((dim) => !/\bstorage\b/i.test(String(dim.label || dim.key || "")))
+    .map((dim) => {
+      const row: Record<string, string | boolean> = { name: dim.label || dim.key };
+      for (const plan of plans) {
+        const engineRow = rowsBySlug.get(String(plan.id).toLowerCase());
+        const raw = engineRow?.comparison_values?.[dim.key];
+        if (typeof raw === "boolean") {
+          row[plan.id] = raw;
+        } else if (raw == null || raw === "") {
+          row[plan.id] = "—";
+        } else {
+          row[plan.id] = String(raw);
+        }
+      }
+      return applyBooleanHierarchy(plans, row, chain);
+    });
+}
+
+/** Hierarchy note from License Engine when present. */
+export function comparisonHierarchyNote(
+  comparison?: CatalogComparisonBundle | null
+): string {
+  const hierarchy = comparison?.hierarchy;
+  if (
+    hierarchy &&
+    typeof hierarchy === "object" &&
+    !Array.isArray(hierarchy) &&
+    typeof hierarchy.rule === "string" &&
+    hierarchy.rule.trim()
+  ) {
+    return hierarchy.rule.trim();
+  }
+  return "Each plan includes everything from the previous plan plus additional features.";
+}
+
 export function buildDynamicComparison(
   plans: PricingPlan[],
   comparison?: CatalogComparisonBundle | null
 ): Array<Record<string, string | boolean>> {
   const visible = publicMarketingPlans(plans);
   const keys = visible.map((p) => p.id);
+  const chain = hierarchyChain(comparison, comparison?.feature_matrix);
 
   if (comparison?.comparison?.length) {
-    const rowsByPlan = new Map(
-      comparison.comparison.map((row) => [row.plan.slug || row.plan.id, row])
-    );
-
-    const limitRows: Array<{ name: string; key: string }> = [
-      { name: "Users", key: "max_users" },
-      { name: "Branches", key: "max_branches" },
-      { name: "Warehouses", key: "max_warehouses" },
+    const matrix: Array<Record<string, string | boolean>> = [
+      ...engineDimensionRows(visible, comparison),
+      ...engineFeatureMatrixRows(visible, comparison),
     ];
 
-    const capabilityRows: Array<{ name: string; test: RegExp }> = [
-      { name: "Modules", test: /module|inventory|crm|sales|purchase|pos/i },
-      { name: "Support", test: /support|sla/i },
-      { name: "API", test: /\bapi\b/i },
-      { name: "Reports", test: /report|analytics|dashboard/i },
-      { name: "Security", test: /security|rbac|auth|ssl|encryption/i },
-      { name: "Integrations", test: /integrat|whatsapp|import|export/i },
-    ];
-
-    const matrix: Array<Record<string, string | boolean>> = [];
-
-    for (const lr of limitRows) {
-      const row: Record<string, string | boolean> = { name: lr.name };
-      for (const plan of visible) {
-        const engineRow = rowsByPlan.get(plan.id);
-        if (lr.key === "max_users" && plan.usersIncluded != null) {
-          row[plan.id] =
-            plan.usersIncluded === "unlimited"
-              ? "Unlimited Users"
-              : plan.usersIncluded === 1
-                ? "1 Included User"
-                : `${plan.usersIncluded} Included Users`;
-        } else {
-          row[plan.id] = formatLimitValue(lr.key, engineRow?.limits);
-        }
-      }
-      matrix.push(row);
+    // Soft fallback only when Engine dimensions/matrix are empty.
+    if (!matrix.length) {
+      matrix.push(...baseLimitComparisonRows(visible));
+      matrix.push(...featureGroupComparisonRows(visible, chain));
     }
-
-    for (const cr of capabilityRows) {
-      const row: Record<string, string | boolean> = { name: cr.name };
-      for (const plan of visible) {
-        const engineRow = rowsByPlan.get(plan.id);
-        if (cr.name === "Support") {
-          row[plan.id] =
-            engineRow?.support_level ||
-            plan.supportLevel ||
-            (engineRow ? featureIncluded(engineRow, cr.test) : false);
-        } else if (cr.name === "Modules") {
-          const mods = engineRow?.modules?.map((m) => m.name || m.code).filter(Boolean);
-          row[plan.id] = mods?.length
-            ? mods.slice(0, 4).join(", ") + (mods.length > 4 ? "…" : "")
-            : engineRow
-              ? featureIncluded(engineRow, cr.test)
-              : false;
-        } else {
-          row[plan.id] = engineRow ? featureIncluded(engineRow, cr.test) : false;
-        }
-      }
-      matrix.push(row);
-    }
-
-    matrix.push({
-      name: "Extra user price",
-      ...Object.fromEntries(
-        visible.map((p) => [
-          p.id,
-          p.extraUserPrice != null ? `$${p.extraUserPrice}` : p.usersIncluded === "unlimited" ? "Included" : "—",
-        ])
-      ),
-    });
-
-    matrix.push(...featureGroupComparisonRows(visible));
 
     for (const row of matrix) {
       if (row.__section === true) continue;
+      applyBooleanHierarchy(visible, row, chain);
       for (const key of keys) {
         if (row[key] === undefined) row[key] = "—";
       }
     }
-    return matrix.filter(
-      (row) => !/\bstorage\b/i.test(String(row.name || ""))
+    return dedupeComparisonRows(
+      matrix.filter((row) => !/\bstorage\b/i.test(String(row.name || "")))
     );
   }
 
   // Fallback when comparison API is unavailable — limits + full feature groups from plans.
   const rows: Array<Record<string, string | boolean>> = [
     ...baseLimitComparisonRows(visible),
-    ...featureGroupComparisonRows(visible),
+    ...featureGroupComparisonRows(visible, chain),
   ];
 
   for (const row of rows) {
     if (row.__section === true) continue;
+    applyBooleanHierarchy(visible, row, chain);
     for (const key of keys) {
       if (row[key] === undefined) row[key] = false;
     }
   }
-  return rows.filter((row) => !/\bstorage\b/i.test(String(row.name || "")));
+  return dedupeComparisonRows(
+    rows.filter((row) => !/\bstorage\b/i.test(String(row.name || "")))
+  );
 }
 
 /** Promo strip sourced from Engine launch campaign fields (never hardcoded). */

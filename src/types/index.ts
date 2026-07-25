@@ -87,6 +87,10 @@ export type PricingPlan = {
   usersIncluded?: number | "unlimited";
   /** e.g. "Extra users available on demand" */
   usersNote?: string;
+  /** License Engine price_unit — e.g. `/user/mo`, `/mo`, `One-Time` */
+  priceUnit?: string | null;
+  /** License Engine price_model — e.g. per_user, flat_rate, one_time, custom */
+  priceModel?: string | null;
   extraUserPrice?: number | null;
   storageIncludedGb?: number | "unlimited" | null;
   extraStoragePricePerGb?: number | null;

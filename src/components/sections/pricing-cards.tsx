@@ -245,9 +245,7 @@ export function PricingCards({
                             isPopular ? "text-white/70" : "text-muted-foreground"
                           }`}
                         >
-                          {isLifetime
-                            ? ` ${t("pricing.oneTime", "one-time")}`
-                            : ` ${t("pricing.perUserMo", "/user/mo")}`}
+                          {` ${cycle.unitLabel}`}
                         </span>
                       </div>
                       <p
@@ -278,11 +276,7 @@ export function PricingCards({
                           translate="no"
                         >
                           ≈ {formatMoney(cycle.price, "USD", { showCode: true })}
-                          {isLifetime
-                            ? ` ${t("pricing.oneTime", "one-time")}`
-                            : !yearly
-                              ? ` ${t("pricing.perMonth", "/month")}`
-                              : ` ${t("pricing.billedYearly", "/mo billed yearly")}`}
+                          {` ${cycle.unitLabel}`}
                         </p>
                       ) : null}
                       {showDiscountChip ? (
@@ -314,7 +308,7 @@ export function PricingCards({
                       }`}
                       translate="no"
                     >
-                      {t("pricing.custom", "Custom")}
+                      {cycle.unitLabel || t("pricing.custom", "Contact Sales")}
                     </span>
                   ) : null}
                 </div>

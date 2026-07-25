@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { siteConfig } from "@/lib/data/site";
 import { coreModules } from "@/lib/data/core";
@@ -14,7 +13,6 @@ import { Button } from "@/components/ui/button";
 
 export function ModuleShowcase() {
   const [productIndex, setProductIndex] = useState(0);
-  const reduce = useReducedMotion();
 
   const activeModule = coreModules[productIndex] ?? coreModules[0];
   const ProductIcon = getIcon(activeModule.icon);
@@ -32,7 +30,7 @@ export function ModuleShowcase() {
           </p>
         </div>
 
-        <div className="mb-6 md:mb-8 flex gap-2 overflow-x-auto pb-2 scrollbar-none justify-start md:justify-center">
+        <div className="mb-6 md:mb-8 flex gap-2 overflow-x-auto pb-2 scrollbar-none justify-start lg:justify-center">
           {coreModules.map((m, i) => {
             const TabIcon = getIcon(m.icon);
             const selected = i === productIndex;
@@ -71,15 +69,10 @@ export function ModuleShowcase() {
 
         <div className="relative">
           <div className="absolute -inset-3 rounded-[2rem] bg-gradient-to-b from-sky-50 via-blue-50/40 to-transparent" />
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeModule.id}
-              initial={reduce ? false : { opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? undefined : { opacity: 0, y: -10 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="relative overflow-hidden rounded-2xl md:rounded-3xl border border-slate-200/80 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.1)]"
-            >
+          <div
+            key={activeModule.id}
+            className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.1)] md:rounded-3xl"
+          >
               <div className="grid lg:grid-cols-[1fr_1.35fr]">
                 <div className="border-b lg:border-b-0 lg:border-r border-border p-6 md:p-8">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -116,8 +109,8 @@ export function ModuleShowcase() {
                         <p
                           className={cn(
                             "mt-1 text-base font-semibold tracking-tight",
-                            kpi.tone === "good" && "text-emerald-600",
-                            kpi.tone === "warn" && "text-amber-600",
+                            kpi.tone === "good" && "text-emerald-700",
+                            kpi.tone === "warn" && "text-amber-700",
                             kpi.tone === "bad" && "text-rose-600",
                             kpi.tone === "neutral" && "text-[#0b1f3a]"
                           )}
@@ -146,8 +139,7 @@ export function ModuleShowcase() {
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </AnimatePresence>
+          </div>
         </div>
       </Container>
     </Section>

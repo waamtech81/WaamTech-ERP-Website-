@@ -394,7 +394,7 @@ export function PricingCards({
                     isPopular
                       ? "border border-white/20 bg-white text-[var(--brand-dark)] hover:bg-white/95"
                       : isLifetime
-                        ? "bg-accent hover:bg-accent/90"
+                        ? "bg-accent text-[var(--brand-dark)] hover:bg-accent/90"
                         : ""
                   }`}
                   variant={isPopular ? "default" : isLifetime ? "default" : "outline"}

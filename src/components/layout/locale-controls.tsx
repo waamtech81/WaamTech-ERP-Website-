@@ -314,7 +314,7 @@ export function CurrencySwitcher({
           />
         </>
       }
-      ariaLabel={t("localization.selectCurrency", "Select currency")}
+      ariaLabel={`${t("localization.selectCurrency", "Select currency")}: ${label}`}
       options={options}
       value={active}
       onSelect={(v) => setCurrency(v as CurrencyCode)}

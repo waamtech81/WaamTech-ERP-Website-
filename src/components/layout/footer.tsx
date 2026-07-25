@@ -44,7 +44,7 @@ const footerColumns = [
   },
 ];
 
-const linkClass = "text-sm text-slate-400 hover:text-white transition-colors";
+const linkClass = "text-sm text-slate-300 hover:text-white transition-colors";
 
 function LinkedInIcon({ className }: { className?: string }) {
   return (
@@ -110,7 +110,7 @@ export function Footer() {
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <AppStoreBadges variant="dark" />
             <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
                 WAAMTO Trust
               </p>
               <TrustBadgeStrip
@@ -127,16 +127,16 @@ export function Footer() {
 
           <div className="wt-footer-divider mt-14 flex flex-col gap-5 border-t pt-8 md:flex-row md:items-center md:justify-between">
             <div className="space-y-1.5">
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-400">
                 © {new Date().getFullYear()} {siteConfig.name}. All rights reserved.
               </p>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-400">
                 Maintained by{" "}
                 <a
                   href={siteConfig.companyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-sky-300 hover:text-white"
+                  className="font-medium text-sky-200 hover:text-white"
                 >
                   {siteConfig.companyName}
                 </a>
@@ -144,7 +144,7 @@ export function Footer() {
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 text-sm text-slate-400">
               <div className="relative z-10 flex items-center gap-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
                   Currency
                 </span>
                 <CurrencySwitcher align="end" tone="dark" />

@@ -70,7 +70,7 @@ export function HomeCatalogSearch({
             <input
               ref={inputRef}
               type="text"
-              role="searchbox"
+              role="combobox"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -182,7 +182,7 @@ export function HomeCatalogSearch({
                       const meta = typeMeta[r.type];
                       const Icon = getIcon(r.icon) || meta.icon;
                       return (
-                        <li key={r.id} role="option">
+                        <li key={r.id} role="option" aria-selected="false">
                           <Link
                             href={r.href}
                             onClick={() => setOpen(false)}

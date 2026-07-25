@@ -277,7 +277,11 @@ export function SocialProofSection() {
             <AnimateIn key={t.id} delay={i * 0.08} className="h-full">
               <Card className="h-full border-border/80 shadow-sm">
                 <CardContent className="flex h-full flex-col pt-6">
-                  <div className="mb-3 flex items-center gap-0.5" aria-label={`${t.rating} out of 5 stars`}>
+                  <div
+                    className="mb-3 flex items-center gap-0.5"
+                    role="img"
+                    aria-label={`${t.rating} out of 5 stars`}
+                  >
                     {Array.from({ length: 5 }).map((_, starIndex) => {
                       const filled = t.rating >= starIndex + 1;
                       const half = !filled && t.rating >= starIndex + 0.5;

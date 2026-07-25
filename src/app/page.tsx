@@ -24,16 +24,18 @@ export default function HomePage() {
   return (
     <>
       <SwiverHero />
-      <ModuleShowcase />
-      <AiHighlightSection />
-      <StatsBand />
-      <CapabilitiesSection />
-      <MobileAccessSection />
-      <BusinessesSection />
-      <SocialProofSection />
-      <TrustBadgesBand />
-      <PricingTeaser />
-      <SoftCTA />
+      <div className="home-below-fold">
+        <ModuleShowcase />
+        <AiHighlightSection />
+        <StatsBand />
+        <CapabilitiesSection />
+        <MobileAccessSection />
+        <BusinessesSection />
+        <SocialProofSection />
+        <TrustBadgesBand />
+        <PricingTeaser />
+        <SoftCTA />
+      </div>
     </>
   );
 }

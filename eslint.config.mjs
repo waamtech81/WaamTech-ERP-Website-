@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import reactHooks from "eslint-plugin-react-hooks";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -8,6 +9,9 @@ const eslintConfig = defineConfig([
   {
     // React 19 compiler diagnostics are advisory for the frozen v1 UI.
     // Keep them visible without blocking production validation.
+    plugins: {
+      "react-hooks": reactHooks,
+    },
     rules: {
       "react-hooks/purity": "warn",
       "react-hooks/refs": "warn",
@@ -22,6 +26,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    ".data/**",
   ]),
 ]);
 

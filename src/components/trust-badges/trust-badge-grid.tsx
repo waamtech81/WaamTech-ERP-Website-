@@ -1,6 +1,3 @@
-"use client";
-
-import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
   trustBadgeSets,
@@ -28,7 +25,6 @@ export function TrustBadgeGrid({
   /** full = 2→4→8 cols for neat rows; compact = 2→3→6 */
   columns?: "full" | "compact";
 }) {
-  const reduce = useReducedMotion();
   const list = ids ?? trustBadgeSets[set];
 
   return (
@@ -43,15 +39,11 @@ export function TrustBadgeGrid({
       role="list"
       aria-label="WaamTech trust badges"
     >
-      {list.map((id, i) => (
-        <motion.div
+      {list.map((id) => (
+        <div
           key={id}
           role="listitem"
           className="flex w-full justify-center"
-          initial={reduce ? false : { opacity: 0, y: 16 }}
-          whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-24px" }}
-          transition={{ duration: 0.4, delay: i * 0.03, ease: [0.22, 1, 0.36, 1] }}
         >
           <TrustBadge
             id={id}
@@ -60,7 +52,7 @@ export function TrustBadgeGrid({
             showTooltip={showTooltip}
             href={href === false ? undefined : href}
           />
-        </motion.div>
+        </div>
       ))}
     </div>
   );

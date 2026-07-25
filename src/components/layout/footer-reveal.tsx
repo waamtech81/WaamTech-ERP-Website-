@@ -56,7 +56,7 @@ export function FooterReveal({
 
   return (
     <footer ref={outerRef} className={cn("wt-footer wt-footer-sticky-reveal", className)}>
-      <div ref={innerRef} className="wt-footer-sticky-reveal__inner">
+      <div ref={innerRef} className="wt-footer-sticky-reveal__inner bg-[#071526]">
         {children}
       </div>
     </footer>

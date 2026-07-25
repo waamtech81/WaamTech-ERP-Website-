@@ -40,7 +40,6 @@ const badgeClassDark =
 function StoreBadge({
   href,
   external,
-  label,
   title,
   subtitle,
   icon,
@@ -48,7 +47,6 @@ function StoreBadge({
 }: {
   href: string;
   external: boolean;
-  label: string;
   title: string;
   subtitle: string;
   icon: ReactNode;
@@ -76,7 +74,6 @@ function StoreBadge({
         target="_blank"
         rel="noopener noreferrer"
         className={badgeClass}
-        aria-label={label}
       >
         {content}
       </a>
@@ -84,7 +81,7 @@ function StoreBadge({
   }
 
   return (
-    <Link href={href} className={badgeClass} aria-label={label}>
+    <Link href={href} className={badgeClass}>
       {content}
     </Link>
   );
@@ -110,7 +107,6 @@ export function AppStoreBadges({
         <StoreBadge
           href={googlePlayUrl}
           external={isExternalStoreUrl(googlePlayUrl)}
-          label="Get WAAMTO on Google Play"
           subtitle="Get it on"
           title="Google Play"
           icon={<GooglePlayIcon className="h-5 w-5" />}
@@ -119,7 +115,6 @@ export function AppStoreBadges({
         <StoreBadge
           href={appStoreUrl}
           external={isExternalStoreUrl(appStoreUrl)}
-          label="Download WAAMTO on the App Store"
           subtitle="Download on the"
           title="App Store"
           icon={<AppleIcon className="h-5 w-5" />}

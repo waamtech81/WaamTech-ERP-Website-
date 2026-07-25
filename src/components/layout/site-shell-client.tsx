@@ -40,7 +40,7 @@ export function SiteShellClient({
       <GoogleTranslateBoot language={language} />
       <OfflineBanner />
       {header}
-      <main className="relative z-[1] flex-1 bg-background">{children}</main>
+      <main className="relative z-[1] flex-1 overflow-x-clip bg-background">{children}</main>
       {footer}
       {cookieBanner}
     </>

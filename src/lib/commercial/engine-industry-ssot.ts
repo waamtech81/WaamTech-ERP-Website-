@@ -93,10 +93,8 @@ function mapCategory(cat: CatalogBusinessCategory): PublicCategory {
     code,
     slug,
     name: String(cat.name || code),
-    industry_id: String(cat.industry_id || "")
-      .trim()
-      .replace(/-/g, "_")
-      .toLowerCase(),
+    // Preserve UUID punctuation until the industry relation is resolved.
+    industry_id: String(cat.industry_id || "").trim().toLowerCase(),
     pos_mode: asPosMode(cat.pos_requirement ?? cat.pos_mode),
     mobile_mode: asMobileMode(cat.mobile_requirement ?? cat.mobile_mode),
   };
@@ -124,11 +122,13 @@ export async function loadEngineCatalogBundle(): Promise<CatalogBundle> {
       const byUuid = new Map<string, string>();
       for (const raw of industriesResult.data || []) {
         const key = industryKey(raw);
-        if (raw.id) byUuid.set(String(raw.id), key);
+        if (raw.id) byUuid.set(String(raw.id).trim().toLowerCase(), key);
       }
       for (const cat of categories) {
         if (byUuid.has(cat.industry_id)) {
           cat.industry_id = byUuid.get(cat.industry_id) || cat.industry_id;
+        } else {
+          cat.industry_id = cat.industry_id.replace(/-/g, "_");
         }
       }
 

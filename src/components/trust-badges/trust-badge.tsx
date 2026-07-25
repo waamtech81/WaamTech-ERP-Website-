@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
   trustBadgeMap,
@@ -43,22 +40,18 @@ export function TrustBadge({
   href?: string;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
   const meta = trustBadgeMap[id];
   const Mark = trustBadgeComponents[id];
 
   const body = (
-    <motion.div
+    <div
       className={cn(
-        "wt-trust-badge group relative inline-flex flex-col items-center outline-none",
+        "wt-trust-badge group relative inline-flex flex-col items-center outline-none transition-transform duration-200 hover:-translate-y-0.5",
         showLabel ? "gap-2.5" : "gap-0",
         sizeClass[size],
         className
       )}
       data-tone={tone}
-      whileHover={reduce ? undefined : { y: -3, scale: 1.03 }}
-      whileTap={reduce ? undefined : { scale: 0.98 }}
-      transition={{ type: "spring", stiffness: 420, damping: 28 }}
     >
       <div
         className={cn(
@@ -100,12 +93,12 @@ export function TrustBadge({
           />
         </div>
       ) : null}
-    </motion.div>
+    </div>
   );
 
   if (href) {
     return (
-      <Link href={href} className="inline-flex focus:outline-none" aria-label={meta.label}>
+      <Link href={href} className="inline-flex focus:outline-none">
         {body}
       </Link>
     );

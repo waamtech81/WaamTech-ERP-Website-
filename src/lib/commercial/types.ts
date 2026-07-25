@@ -228,6 +228,13 @@ export type CatalogBusinessCategory = {
   status: string;
   display_order: number;
   is_public: boolean;
+  /** Engine public field */
+  pos_requirement?: "required" | "optional" | "disabled" | null;
+  /** Engine public field */
+  mobile_requirement?: "required" | "optional" | "disabled" | null;
+  /** Compatibility aliases used by some mappers */
+  pos_mode?: "required" | "optional" | "disabled" | null;
+  mobile_mode?: "required" | "disabled" | null;
 };
 
 export type CatalogBusinessProfile = {

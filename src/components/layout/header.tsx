@@ -21,11 +21,7 @@ import {
   otherMegaMenu,
   siteConfig,
 } from "@/lib/data/site";
-import {
-  getIndustryLucideIcon,
-  hierarchyStats,
-  isHotCategory,
-} from "@/lib/data/business-hierarchy";
+import { isHotCategory } from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -178,12 +174,8 @@ export function Header() {
         .slice(0, 12),
     [activeCategoriesQuery.data]
   );
-  const totalIndustries =
-    allIndustries.length > 0 ? allIndustries.length : hierarchyStats.industries;
-  const totalCategories =
-    allCategoriesQuery.data.length > 0
-      ? allCategoriesQuery.data.length
-      : hierarchyStats.categories;
+  const totalIndustries = allIndustries.length;
+  const totalCategories = allCategoriesQuery.data.length;
 
   function openMenu(key: DropdownKey) {
     if (closeTimer.current) {

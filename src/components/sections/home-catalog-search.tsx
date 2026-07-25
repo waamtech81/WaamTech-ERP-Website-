@@ -11,9 +11,12 @@ import {
   Store,
   X,
 } from "lucide-react";
-import { hierarchyStats } from "@/lib/data/business-hierarchy";
 import { products } from "@/lib/data/site";
-import { searchSiteCatalog, type SiteSearchResult } from "@/lib/search";
+import {
+  getSearchCatalogStats,
+  searchSiteCatalog,
+  type SiteSearchResult,
+} from "@/lib/search";
 import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Container, Section } from "@/components/shared/section";
@@ -39,6 +42,7 @@ export function HomeCatalogSearch({
   const [open, setOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const results = searchSiteCatalog(deferredQuery, 10);
+  const catalogStats = getSearchCatalogStats();
   const listId = useId();
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,8 +60,8 @@ export function HomeCatalogSearch({
   const inner = (
     <>
       <p className="mb-2 text-center text-xs text-muted-foreground">
-        Search {products.length} products · {hierarchyStats.industries} industries ·{" "}
-        {hierarchyStats.categories}+ categories
+        Search {catalogStats.products || products.length} products ·{" "}
+        {catalogStats.industries} industries · {catalogStats.categories}+ categories
       </p>
 
       <div ref={wrapRef} className="relative mx-auto max-w-2xl">

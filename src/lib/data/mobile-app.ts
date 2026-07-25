@@ -1,12 +1,13 @@
 /** Native mobile app vs responsive web — by industry / business category */
 
-import {
-  findBusinessCategoryByKey,
-  type MobileMode,
-  type PosMode,
-} from "@/lib/data/business-hierarchy";
+import type { MobileMode, PosMode } from "@/lib/data/business-hierarchy";
 
-export type MobileAppLevel = "required" | "recommended" | "available";
+export type MobileAppLevel =
+  | "required"
+  | "recommended"
+  | "optional"
+  | "available"
+  | "not_included";
 
 export type IndustryMobileApp = {
   level: MobileAppLevel;
@@ -17,6 +18,30 @@ export type IndustryMobileApp = {
   /** Field use cases shown in UI */
   useCases: string[];
 };
+
+/** Normalize License Engine mobile_requirement / mobile_mode. */
+export function normalizeMobileRequirement(
+  value: string | null | undefined
+): "required" | "optional" | "disabled" | null {
+  const v = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (v === "required") return "required";
+  if (v === "optional" || v === "recommended" || v === "included") {
+    return "optional";
+  }
+  if (
+    v === "disabled" ||
+    v === "none" ||
+    v === "not_required" ||
+    v === "not_included" ||
+    v === "false" ||
+    v === "0"
+  ) {
+    return "disabled";
+  }
+  return null;
+}
 
 /** Normalize Engine slug/code → static hierarchy key (hyphens → underscores). */
 export function normalizeMobileCatalogKey(value: string | null | undefined): string {
@@ -49,12 +74,38 @@ export const mobileAppLevelCopy: Record<
       "Your team will work smoother with the native mobile app for floor, delivery, or on-the-go checks. Included with this profile.",
     color: "#d97706",
   },
+  optional: {
+    title: "Mobile app optional",
+    description:
+      "Native mobile app is optional for this category. Full responsive web is always included; enable the app when your team needs field access.",
+    color: "#d97706",
+  },
   available: {
     title: "Mobile app available",
     description:
       "You get the full responsive web app on any device. The native mobile app can be enabled when your team needs field access.",
     color: "#2563eb",
   },
+  not_included: {
+    title: "Mobile app not required",
+    description:
+      "This business category does not include the native mobile app. You still get the full responsive web app on desktop, tablet, and phone.",
+    color: "#64748b",
+  },
+};
+
+const notIncludedMobileApp: IndustryMobileApp = {
+  level: "not_included",
+  badge: "Mobile app not included",
+  note: "Native mobile app is not required for this category. Run WAAMTO in the browser on any device.",
+  useCases: ["Responsive web", "Desktop & tablet", "Phone browser", "Same live data"],
+};
+
+const optionalMobileApp: IndustryMobileApp = {
+  level: "optional",
+  badge: "Mobile app optional",
+  note: "Native mobile app can help field or floor teams, but it is optional for this category. Full responsive web is always included.",
+  useCases: ["Optional field access", "Approvals", "Stock glance", "Alerts"],
 };
 
 /** Which SaaS Core profiles get / need the native mobile app */
@@ -247,39 +298,51 @@ export const industryMobileApp: Record<string, IndustryMobileApp> = {
 };
 
 /**
- * Resolve mobile-app messaging for a category/industry code or slug
- * (License Engine catalog or static hierarchy ids).
+ * Resolve mobile-app messaging for a category/industry code or slug.
+ * License Engine `mobile_requirement` is SSOT when provided.
  */
 export function getIndustryMobileApp(
-  idOrCodeOrSlug: string | null | undefined
+  idOrCodeOrSlug: string | null | undefined,
+  mobileRequirement?: string | null
 ): IndustryMobileApp {
-  const raw = String(idOrCodeOrSlug || "").trim();
-  if (!raw) return defaultMobileApp;
-
-  const key = normalizeMobileCatalogKey(raw);
-  if (industryMobileApp[raw]) return industryMobileApp[raw];
-  if (industryMobileApp[key]) return industryMobileApp[key];
-
-  const category = findBusinessCategoryByKey(raw) || findBusinessCategoryByKey(key);
-  if (category?.mobile_mode === "required") {
+  const engineReq = normalizeMobileRequirement(mobileRequirement);
+  // Engine wins — never let the static presentation map override catalog settings.
+  if (engineReq === "required") {
     return {
       level: "required",
-      badge: "Mobile app included",
+      badge: "Mobile app required",
       note: "This business category includes the native mobile app so your team can work on the road — not only at a desk.",
       useCases: ["Field updates", "Approvals", "Stock glance", "Alerts"],
     };
   }
+  if (engineReq === "optional") return optionalMobileApp;
+  if (engineReq === "disabled") return notIncludedMobileApp;
+
+  const raw = String(idOrCodeOrSlug || "").trim();
+  if (!raw) return defaultMobileApp;
+
+  const key = normalizeMobileCatalogKey(raw);
+  if (raw && industryMobileApp[raw]) return industryMobileApp[raw];
+  if (key && industryMobileApp[key]) return industryMobileApp[key];
 
   return defaultMobileApp;
 }
 
-/** Prefer category code/slug, then industry — for Engine catalog rows. */
+/** Prefer Engine mobile_requirement, then category/industry presentation map. */
 export function getMobileAppForSelection(opts: {
   categoryCode?: string | null;
   categorySlug?: string | null;
   industryCode?: string | null;
   industrySlug?: string | null;
+  mobileRequirement?: string | null;
 }): IndustryMobileApp {
+  const engineReq = normalizeMobileRequirement(opts.mobileRequirement);
+  if (engineReq) {
+    return getIndustryMobileApp(
+      opts.categoryCode || opts.categorySlug || opts.industryCode,
+      opts.mobileRequirement
+    );
+  }
   const candidates = [
     opts.categoryCode,
     opts.categorySlug,
@@ -289,13 +352,8 @@ export function getMobileAppForSelection(opts: {
   for (const candidate of candidates) {
     if (!String(candidate || "").trim()) continue;
     const info = getIndustryMobileApp(candidate);
-    // Prefer an explicit match over the generic "available" fallback
     const key = normalizeMobileCatalogKey(candidate);
-    if (
-      industryMobileApp[key] ||
-      findBusinessCategoryByKey(candidate) ||
-      info.level !== "available"
-    ) {
+    if (industryMobileApp[key] || info.level !== "available") {
       return info;
     }
   }
@@ -303,25 +361,150 @@ export function getMobileAppForSelection(opts: {
   return getIndustryMobileApp(first || "");
 }
 
+export type PosAccessLevel = "required" | "optional" | "not_included";
+
+export type PosAccessInfo = {
+  level: PosAccessLevel;
+  badge: string;
+  note: string;
+  useCases: string[];
+};
+
+export const posAccessLevelCopy: Record<
+  PosAccessLevel,
+  { title: string; description: string }
+> = {
+  required: {
+    title: "POS required",
+    description:
+      "This business category includes Point of Sale so you can sell at the counter with live stock and receipts.",
+  },
+  optional: {
+    title: "POS optional",
+    description:
+      "Point of Sale is optional for this category. You can enable it when you need counter selling.",
+  },
+  not_included: {
+    title: "POS not required",
+    description:
+      "Point of Sale is not included for this category. You still get full WAAMTO web access for inventory, sales, and operations.",
+  },
+};
+
+/** Normalize License Engine pos_requirement / pos_mode. */
+export function normalizePosRequirement(
+  value: string | null | undefined
+): PosMode | null {
+  const v = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (v === "required") return "required";
+  if (v === "optional" || v === "recommended") return "optional";
+  if (
+    v === "disabled" ||
+    v === "none" ||
+    v === "not_required" ||
+    v === "not_included" ||
+    v === "false" ||
+    v === "0"
+  ) {
+    return "disabled";
+  }
+  return null;
+}
+
+/** Resolve POS messaging from Engine category.pos_requirement (SSOT). */
+export function getPosForSelection(opts: {
+  posRequirement?: string | null;
+}): PosAccessInfo {
+  const pos = normalizePosRequirement(opts.posRequirement);
+  if (pos === "required") {
+    return {
+      level: "required",
+      badge: "POS required",
+      note: "This category includes Point of Sale for counter selling with live stock, billing, and receipts.",
+      useCases: ["Counter billing", "Live stock", "Receipts", "Returns"],
+    };
+  }
+  if (pos === "optional") {
+    return {
+      level: "optional",
+      badge: "POS optional",
+      note: "Point of Sale is optional for this category. Enable it when your team needs counter selling.",
+      useCases: ["Optional POS", "Counter ready", "Live stock", "Receipts"],
+    };
+  }
+  return {
+    level: "not_included",
+    badge: "POS not included",
+    note: "Point of Sale is not required for this category. Run inventory, sales, and operations from the responsive web app.",
+    useCases: ["No POS module", "Web operations", "Inventory & sales", "Same live data"],
+  };
+}
+
 export type CategoryAccessHints = {
   pos_mode: PosMode | null;
   mobile_mode: MobileMode | null;
   mobileLabel: string | null;
+  posLabel: string | null;
 };
 
-/** POS / mobile hints for category dropdown (static hierarchy by Engine code/slug). */
+type AccessHintInput =
+  | string
+  | null
+  | undefined
+  | {
+      code?: string | null;
+      slug?: string | null;
+      pos_requirement?: string | null;
+      mobile_requirement?: string | null;
+      pos_mode?: string | null;
+      mobile_mode?: string | null;
+    };
+
+/** POS / mobile hints from Engine category row (preferred) or code lookup. */
 export function getCategoryAccessHints(
-  codeOrSlug: string | null | undefined
+  input: AccessHintInput
 ): CategoryAccessHints {
-  const category = findBusinessCategoryByKey(codeOrSlug);
-  if (!category) {
-    return { pos_mode: null, mobile_mode: null, mobileLabel: null };
+  if (input && typeof input === "object") {
+    const pos = normalizePosRequirement(
+      input.pos_mode || input.pos_requirement || null
+    );
+    const mobileNorm = normalizeMobileRequirement(
+      input.mobile_mode || input.mobile_requirement || null
+    );
+    const mobile: MobileMode | null =
+      mobileNorm === "required"
+        ? "required"
+        : mobileNorm === "disabled"
+          ? "disabled"
+          : null;
+    return {
+      pos_mode: pos,
+      mobile_mode: mobile,
+      mobileLabel:
+        mobileNorm === "required"
+          ? "Mobile required"
+          : mobileNorm === "optional"
+            ? "Mobile optional"
+            : mobileNorm === "disabled"
+              ? "Mobile not included"
+              : null,
+      posLabel:
+        pos === "required"
+          ? "POS required"
+          : pos === "optional"
+            ? "POS optional"
+            : pos === "disabled"
+              ? "POS not included"
+              : null,
+    };
   }
   return {
-    pos_mode: category.pos_mode,
-    mobile_mode: category.mobile_mode,
-    mobileLabel:
-      category.mobile_mode === "required" ? "Mobile included" : null,
+    pos_mode: null,
+    mobile_mode: null,
+    mobileLabel: null,
+    posLabel: null,
   };
 }
 

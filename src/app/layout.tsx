@@ -2,11 +2,13 @@ import type { Metadata, Viewport } from "next";
 import { headers, cookies } from "next/headers";
 import { SiteShell } from "@/components/layout/site-shell";
 import { LocaleProvider } from "@/components/providers/locale-provider";
+import { SearchIndexProvider } from "@/components/providers/search-index-provider";
 import { SiteJsonLd } from "@/components/seo/json-ld";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { siteConfig } from "@/lib/data/site";
 import { fontVariablesClassName } from "@/lib/fonts";
 import { getSiteOrigin } from "@/lib/urls";
+import { buildSiteSearchIndexFromEngine } from "@/lib/search";
 import {
   seoDescription,
   seoKeywords,
@@ -147,6 +149,8 @@ export default async function RootLayout({
   const { language, currency, country, direction } = await resolveLocale();
   // Don't block HTML on live exchange rates — client refreshes via /api/exchange-rates.
   const table = fallbackTable();
+  // Prime License Engine catalog search index once for the whole site shell.
+  const searchIndex = await buildSiteSearchIndexFromEngine();
 
   return (
     <html
@@ -166,9 +170,11 @@ export default async function RootLayout({
           initialCountry={country}
           initialRates={table.rates}
         >
-          <SiteJsonLd />
-          <GoogleAnalytics />
-          <SiteShell language={language}>{children}</SiteShell>
+          <SearchIndexProvider index={searchIndex}>
+            <SiteJsonLd />
+            <GoogleAnalytics />
+            <SiteShell language={language}>{children}</SiteShell>
+          </SearchIndexProvider>
         </LocaleProvider>
       </body>
     </html>

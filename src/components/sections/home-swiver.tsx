@@ -7,7 +7,6 @@ import { coreCapabilities } from "@/lib/data/core";
 import {
   getIndustryLucideIcon,
   getIndustryMedia,
-  hierarchyStats,
 } from "@/lib/data/business-hierarchy";
 import { getIcon } from "@/lib/icons";
 import { Container, Section } from "@/components/shared/section";
@@ -215,12 +214,8 @@ export function BusinessesSection() {
   const catalog = useCatalogBundle();
   const allCategories = useCatalogAllBusinessCategories();
   const industries = (catalog.data.industries || []).slice(0, 8);
-  const industryCount =
-    (catalog.data.industries || []).length || hierarchyStats.industries;
-  const categoryCount =
-    allCategories.data.length > 0
-      ? allCategories.data.length
-      : hierarchyStats.categories;
+  const industryCount = (catalog.data.industries || []).length;
+  const categoryCount = allCategories.data.length;
 
   return (
     <Section muted>

@@ -14,13 +14,17 @@ import { cn } from "@/lib/utils";
 const levelStyles: Record<MobileAppLevel, string> = {
   required: "border-rose-200 bg-rose-50/80",
   recommended: "border-amber-200 bg-amber-50/70",
+  optional: "border-amber-200 bg-amber-50/70",
   available: "border-blue-200 bg-blue-50/60",
+  not_included: "border-slate-200 bg-slate-50/90",
 };
 
 const badgeStyles: Record<MobileAppLevel, string> = {
   required: "bg-rose-600 text-white hover:bg-rose-600",
   recommended: "bg-amber-600 text-white hover:bg-amber-600",
+  optional: "bg-amber-600 text-white hover:bg-amber-600",
   available: "bg-primary text-white hover:bg-primary",
+  not_included: "bg-slate-600 text-white hover:bg-slate-600",
 };
 
 type Props = {
@@ -31,6 +35,8 @@ type Props = {
   categorySlug?: string | null;
   industryCode?: string | null;
   industrySlug?: string | null;
+  /** License Engine business-category.mobile_requirement (SSOT). */
+  mobileRequirement?: string | null;
   className?: string;
   compact?: boolean;
 };
@@ -42,16 +48,18 @@ export function MobileAppProfileCallout({
   categorySlug,
   industryCode,
   industrySlug,
+  mobileRequirement,
   className,
   compact,
 }: Props) {
   const info =
-    categoryCode || categorySlug || industryCode || industrySlug
+    categoryCode || categorySlug || industryCode || industrySlug || mobileRequirement
       ? getMobileAppForSelection({
           categoryCode,
           categorySlug,
           industryCode,
           industrySlug,
+          mobileRequirement,
         })
       : getIndustryMobileApp(industryId);
   const copy = mobileAppLevelCopy[info.level];

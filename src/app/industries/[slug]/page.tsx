@@ -2,21 +2,27 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ArrowUpRight, Check, Layers, Monitor, ShoppingCart, Smartphone } from "lucide-react";
 import {
-  businessIndustries,
-  getBusinessCategory,
-  getBusinessIndustry,
-  getCategoriesForIndustry,
-  getFeaturedIndustries,
-  getIndustryForCategory,
+  ArrowRight,
+  ArrowUpRight,
+  Check,
+  Layers,
+  Monitor,
+  ShoppingCart,
+  Smartphone,
+} from "lucide-react";
+import {
   getIndustryLucideIcon,
   getIndustryMedia,
-  hierarchyStats,
+  getIndustryPresentation,
   isHotCategory,
-  resolveBusinessCategoryId,
 } from "@/lib/data/business-hierarchy";
-import { getIndustry as getLegacyIndustry, industriesServing } from "@/lib/data/industries";
+import {
+  getEnginePublicIndustries,
+  resolveEngineIndustrySlug,
+  type PublicCategory,
+  type PublicIndustry,
+} from "@/lib/commercial/engine-industry-ssot";
 import { getIcon } from "@/lib/icons";
 import { siteConfig } from "@/lib/data/site";
 import { buildAbsoluteSiteUrl } from "@/lib/urls";
@@ -31,50 +37,48 @@ import { authConfig } from "@/lib/auth/config";
 
 type Props = { params: Promise<{ slug: string }> };
 
-function resolveIndustrySlug(slug: string) {
-  const direct = getBusinessIndustry(slug);
-  if (direct) return { industry: direct, highlightCategoryId: null as string | null };
+type ResolvedIndustry = {
+  industry: PublicIndustry & { color?: string; suite?: string };
+  categories: PublicCategory[];
+  highlightCategoryId: string | null;
+};
 
-  const categoryId = resolveBusinessCategoryId(slug);
-  const category = getBusinessCategory(categoryId);
-  if (category) {
-    const industry = getIndustryForCategory(category.id);
-    if (industry) return { industry, highlightCategoryId: category.id };
-  }
-
-  // Legacy marketing profile → parent industry if possible
-  const legacy = getLegacyIndustry(slug);
-  if (legacy) {
-    const mapped = resolveBusinessCategoryId(slug);
-    const industry = getIndustryForCategory(mapped);
-    if (industry) return { industry, highlightCategoryId: mapped };
-  }
-
-  return null;
+async function resolveIndustrySlug(slug: string): Promise<ResolvedIndustry | null> {
+  const fromEngine = await resolveEngineIndustrySlug(slug);
+  if (!fromEngine) return null;
+  const presentation = getIndustryPresentation(fromEngine.industry.id);
+  return {
+    industry: {
+      ...fromEngine.industry,
+      color: presentation.color,
+      suite: `${fromEngine.industry.id}_suite`,
+    },
+    categories: fromEngine.categories,
+    highlightCategoryId: null,
+  };
 }
 
-export function generateStaticParams() {
-  const industryParams = businessIndustries.flatMap((i) => [
-    { slug: i.id },
-    { slug: i.id.replace(/_/g, "-") },
-  ]);
-  const legacyParams = industriesServing.map((i) => ({ slug: i.id }));
+export async function generateStaticParams() {
+  const industries = await getEnginePublicIndustries();
   const seen = new Set<string>();
-  return [...industryParams, ...legacyParams].filter((p) => {
-    if (seen.has(p.slug)) return false;
-    seen.add(p.slug);
-    return true;
-  });
+  const params: { slug: string }[] = [];
+  for (const i of industries) {
+    for (const slug of [i.id, i.slug, i.id.replace(/_/g, "-")]) {
+      if (!slug || seen.has(slug)) continue;
+      seen.add(slug);
+      params.push({ slug });
+    }
+  }
+  return params;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const resolved = resolveIndustrySlug(slug);
+  const resolved = await resolveIndustrySlug(slug);
   if (!resolved) return { title: "Industry" };
 
-  const { industry } = resolved;
+  const { industry, categories } = resolved;
   const media = getIndustryMedia(industry.id, 1400);
-  const categories = getCategoriesForIndustry(industry.id);
   const title = `${industry.name} ERP Software — ${categories.length} Business Categories`;
   const description = `${industry.description} Configure ${siteConfig.name} with ${categories.length} business categories under ${industry.name}.`;
   const url = buildAbsoluteSiteUrl(`/industries/${industry.id}`);
@@ -95,23 +99,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function IndustryDetailPage({ params }: Props) {
   const { slug } = await params;
-  const resolved = resolveIndustrySlug(slug);
+  const resolved = await resolveIndustrySlug(slug);
   if (!resolved) notFound();
 
-  const { industry, highlightCategoryId } = resolved;
-  const Icon = getIcon(getIndustryLucideIcon(industry));
+  const { industry, categories, highlightCategoryId } = resolved;
+  const allIndustries = await getEnginePublicIndustries();
+  const presentation = getIndustryPresentation(industry.id);
+  const Icon = getIcon(
+    getIndustryLucideIcon({ id: industry.id, icon: industry.icon || presentation.icon })
+  );
   const media = getIndustryMedia(industry.id, 1400);
-  const categories = getCategoriesForIndustry(industry.id);
-  const related = getFeaturedIndustries()
-    .all.filter((i) => i.id !== industry.id)
-    .slice(0, 4);
+  const related = allIndustries.filter((i) => i.id !== industry.id).slice(0, 4);
   const trialDays = authConfig.trialDays;
-
-  const posEnabledCount = categories.filter((c) => c.pos_mode !== "disabled").length;
-  const mobileCount = categories.filter((c) => c.mobile_mode === "required").length;
-  const suiteLabel = industry.suite
+  const suiteLabel = (industry.suite || `${industry.id}_suite`)
     .replace(/_/g, " ")
     .replace(/\b\w/g, (m) => m.toUpperCase());
+  const posEnabledCount = categories.filter((c) => c.pos_mode !== "disabled").length;
+  const mobileCount = categories.filter((c) => c.mobile_mode === "required").length;
 
   return (
     <>
@@ -264,7 +268,7 @@ export default async function IndustryDetailPage({ params }: Props) {
 
                   <p className="mt-3 flex items-center gap-2 font-semibold text-[#0b1f3a] leading-snug">
                     <span>{cat.name}</span>
-                    {isHotCategory(cat.id) ? (
+                    {isHotCategory(cat) ? (
                       <span className="shrink-0 rounded bg-orange-500/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white leading-none">
                         Hot
                       </span>
@@ -333,11 +337,17 @@ export default async function IndustryDetailPage({ params }: Props) {
 
           <div>
             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight mb-5">
-              More industries ({hierarchyStats.industries} total)
+              More industries ({allIndustries.length} total)
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {related.map((rel) => {
-                const RelIcon = getIcon(getIndustryLucideIcon(rel));
+                const relPresentation = getIndustryPresentation(rel.id);
+                const RelIcon = getIcon(
+                  getIndustryLucideIcon({
+                    id: rel.id,
+                    icon: rel.icon || relPresentation.icon,
+                  })
+                );
                 const relMedia = getIndustryMedia(rel.id, 480);
                 return (
                   <Link
@@ -357,7 +367,7 @@ export default async function IndustryDetailPage({ params }: Props) {
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/55 to-transparent" />
                       <span
                         className="absolute left-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-lg text-white shadow-sm"
-                        style={{ backgroundColor: rel.color }}
+                        style={{ backgroundColor: relPresentation.color }}
                       >
                         <RelIcon className="h-3.5 w-3.5" />
                       </span>
@@ -367,7 +377,7 @@ export default async function IndustryDetailPage({ params }: Props) {
                         {rel.name}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {getCategoriesForIndustry(rel.id).length} categories
+                        View categories
                       </span>
                     </span>
                   </Link>

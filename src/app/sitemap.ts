@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { blogPosts } from "@/lib/data/site";
-import { businessIndustries } from "@/lib/data/business-hierarchy";
+import { getEnginePublicIndustries } from "@/lib/commercial/engine-industry-ssot";
 import { LANGUAGE_CODES } from "@/i18n";
 import { buildAbsoluteSiteUrl, getSiteOrigin } from "@/lib/urls";
 
@@ -35,9 +35,11 @@ function languageAlternates(path: string): Record<string, string> {
   return languages;
 }
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const origin = getSiteOrigin();
+  // Industry URLs come from License Engine public catalog (SSOT), not a local registry.
+  const industries = await getEnginePublicIndustries();
   return [
     ...routes.map((route) => ({
       url: route ? buildAbsoluteSiteUrl(route) : origin,
@@ -53,7 +55,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.5,
       alternates: { languages: languageAlternates(`/blog/${post.slug}`) },
     })),
-    ...businessIndustries.map((industry) => ({
+    ...industries.map((industry) => ({
       url: buildAbsoluteSiteUrl(`/industries/${industry.id}`),
       lastModified: now,
       changeFrequency: "monthly" as const,

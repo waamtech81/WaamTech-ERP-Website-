@@ -46,6 +46,7 @@ import {
   CatalogSelectError,
 } from "@/components/commercial/catalog-states";
 import { MobileAppProfileCallout } from "@/components/shared/mobile-app-callout";
+import { PosProfileCallout } from "@/components/shared/pos-profile-callout";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import {
   executeRecaptcha,
@@ -1227,13 +1228,24 @@ function SignUpForm({
                   ) : null}
                 </div>
               )}
-              <MobileAppProfileCallout
-                categoryCode={selectedCategory.code}
-                categorySlug={selectedCategory.slug}
-                industryCode={selectedIndustry.code}
-                industrySlug={selectedIndustry.slug}
-                industryName={selectedCategory.name}
-              />
+              <div className="space-y-3">
+                <PosProfileCallout
+                  categoryName={selectedCategory.name}
+                  posRequirement={
+                    selectedCategory.pos_requirement ?? selectedCategory.pos_mode
+                  }
+                />
+                <MobileAppProfileCallout
+                  categoryCode={selectedCategory.code}
+                  categorySlug={selectedCategory.slug}
+                  industryCode={selectedIndustry.code}
+                  industrySlug={selectedIndustry.slug}
+                  industryName={selectedCategory.name}
+                  mobileRequirement={
+                    selectedCategory.mobile_requirement ?? selectedCategory.mobile_mode
+                  }
+                />
+              </div>
             </div>
           ) : null}
         </div>
@@ -1291,13 +1303,24 @@ function SignUpForm({
                     </p>
                   )}
                 </div>
-                <MobileAppProfileCallout
-                  categoryCode={selectedCategory.code}
-                  categorySlug={selectedCategory.slug}
-                  industryCode={selectedIndustry.code}
-                  industrySlug={selectedIndustry.slug}
-                  industryName={selectedCategory.name}
-                />
+                <div className="space-y-3">
+                  <PosProfileCallout
+                    categoryName={selectedCategory.name}
+                    posRequirement={
+                      selectedCategory.pos_requirement ?? selectedCategory.pos_mode
+                    }
+                  />
+                  <MobileAppProfileCallout
+                    categoryCode={selectedCategory.code}
+                    categorySlug={selectedCategory.slug}
+                    industryCode={selectedIndustry.code}
+                    industrySlug={selectedIndustry.slug}
+                    industryName={selectedCategory.name}
+                    mobileRequirement={
+                      selectedCategory.mobile_requirement ?? selectedCategory.mobile_mode
+                    }
+                  />
+                </div>
               </div>
             ) : null}
             <form className="relative space-y-5" onSubmit={onSubmit}>
@@ -1740,7 +1763,7 @@ function SignUpForm({
                     ) : null}
                     {sortedCategories.map((cat) => {
                       const selected = categoryId === cat.id;
-                      const access = getCategoryAccessHints(cat.code || cat.slug);
+                      const access = getCategoryAccessHints(cat);
                       return (
                         <li key={cat.id}>
                           <button
@@ -1764,10 +1787,11 @@ function SignUpForm({
                             <span className="min-w-0 flex-1">
                               <span className="block text-sm font-medium">{cat.name}</span>
                               <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                                {access.pos_mode
-                                  ? `POS ${access.pos_mode}`
-                                  : cat.description || cat.code}
-                                {access.mobileLabel ? ` · ${access.mobileLabel}` : ""}
+                                {[access.posLabel, access.mobileLabel]
+                                  .filter(Boolean)
+                                  .join(" · ") ||
+                                  cat.description ||
+                                  cat.code}
                               </span>
                             </span>
                           </button>
@@ -1779,13 +1803,23 @@ function SignUpForm({
               ) : null}
 
               {selectedCategory ? (
-                <div className="lg:hidden">
+                <div className="space-y-3 lg:hidden">
+                  <PosProfileCallout
+                    categoryName={selectedCategory.name}
+                    posRequirement={
+                      selectedCategory.pos_requirement ?? selectedCategory.pos_mode
+                    }
+                    compact
+                  />
                   <MobileAppProfileCallout
                     categoryCode={selectedCategory.code}
                     categorySlug={selectedCategory.slug}
                     industryCode={selectedIndustry?.code}
                     industrySlug={selectedIndustry?.slug}
                     industryName={selectedCategory.name}
+                    mobileRequirement={
+                      selectedCategory.mobile_requirement ?? selectedCategory.mobile_mode
+                    }
                     compact
                   />
                 </div>

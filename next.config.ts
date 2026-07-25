@@ -61,6 +61,18 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      {
+        // Static marketing assets (favicons, logos, OG images) — not content-hashed,
+        // so a long-but-not-immutable TTL avoids stale caches after a manual replace
+        // (e.g. og/waamto-share.webp) while still cutting repeat-visit origin hits.
+        source: "/:all*(webp|png|jpg|jpeg|ico|svg)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=604800, stale-while-revalidate=86400",
+          },
+        ],
+      },
     ];
   },
   async redirects() {

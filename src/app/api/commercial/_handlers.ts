@@ -6,6 +6,8 @@ import {
   fetchPublicBusinessProfiles,
   fetchPublicBusinessTypes,
   fetchPublicIndustries,
+  fetchPublicIndustryDetail,
+  fetchPublicBuilderRecommendations,
   fetchPublicModules,
   fetchPublicPlans,
   fetchPublicPricing,
@@ -46,21 +48,24 @@ function jsonOk(data: unknown, init?: { status?: number; cacheSeconds?: number }
 }
 
 function jsonFail(message: string, status = 502) {
-  return apiFail(
-    status >= 500
-      ? PUBLIC_MESSAGES[ApiErrorCode.INTERNAL_ERROR]
-      : message || PUBLIC_MESSAGES[ApiErrorCode.SERVICE_UNAVAILABLE],
-    {
-      status,
-      code:
-        status >= 500
-          ? ApiErrorCode.INTERNAL_ERROR
-          : status === 404
-            ? ApiErrorCode.NOT_FOUND
-            : ApiErrorCode.SERVICE_UNAVAILABLE,
-      data: [],
-    }
-  );
+  return apiFail(message || PUBLIC_MESSAGES[ApiErrorCode.SERVICE_UNAVAILABLE], {
+    status,
+    code:
+      status >= 500
+        ? ApiErrorCode.INTERNAL_ERROR
+        : status === 404
+          ? ApiErrorCode.NOT_FOUND
+          : status === 400 || status === 422
+            ? ApiErrorCode.VALIDATION_ERROR
+            : status === 401
+              ? ApiErrorCode.UNAUTHORIZED
+              : status === 403
+                ? ApiErrorCode.FORBIDDEN
+                : status === 409
+                  ? ApiErrorCode.CONFLICT
+                  : ApiErrorCode.SERVICE_UNAVAILABLE,
+    data: [],
+  });
 }
 
 /** Last successful catalog payload — soft-serve when License Engine is briefly down. */
@@ -153,6 +158,14 @@ export async function GET_industries() {
   return jsonOk(result.data);
 }
 
+export async function GET_industryDetail(_req: Request, idOrSlug: string) {
+  const result = await fetchPublicIndustryDetail(idOrSlug);
+  if (!result.ok || !result.data) {
+    return jsonFail(result.message || "Industry not found.", result.status || 404);
+  }
+  return jsonOk(result.data);
+}
+
 export async function GET_modules(req: Request) {
   const product = new URL(req.url).searchParams.get("product") || undefined;
   const result = await fetchPublicModules(product || undefined);
@@ -226,6 +239,21 @@ export async function GET_businessCategories(req: Request) {
   const result = await fetchPublicBusinessCategories(industryId);
   if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
   return jsonOk(result.data);
+}
+
+export async function GET_builderRecommendations(req: Request) {
+  const categoryId = new URL(req.url).searchParams.get("category_id") || "";
+  if (!categoryId.trim()) {
+    return jsonFail("category_id is required.", 400);
+  }
+  const result = await fetchPublicBuilderRecommendations(categoryId.trim());
+  if (!result.ok || !result.data) {
+    return jsonFail(
+      result.message || "Builder recommendations unavailable.",
+      result.status >= 400 ? result.status : 502
+    );
+  }
+  return jsonOk(result.data, { cacheSeconds: 30 });
 }
 
 export async function GET_businessProfiles(req: Request) {

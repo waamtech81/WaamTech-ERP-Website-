@@ -24,13 +24,16 @@ type Props = {
   totals?: { monthly: number; yearly: number; lifetime: number };
   money?: CustomErpPackageMoneyBreakdown | null;
   showEditLink?: boolean;
-  /** Builder: coupon input + apply */
+  /** Builder: coupon input + apply — omit when coupon is rendered externally. */
+  hideCoupon?: boolean;
   couponCode?: string;
   onCouponCodeChange?: (value: string) => void;
   onApplyCoupon?: () => void;
   onClearCoupon?: () => void;
   couponError?: string | null;
   couponBusy?: boolean;
+  /** Live quote module subtotal when available (Engine SSOT). */
+  modulesSubtotal?: number | null;
   className?: string;
 };
 
@@ -38,7 +41,8 @@ function usePackageTotals(
   pkg: CustomErpPackagePayload,
   cycleProp?: BillingCycle,
   totalsProp?: { monthly: number; yearly: number; lifetime: number },
-  moneyProp?: CustomErpPackageMoneyBreakdown | null
+  moneyProp?: CustomErpPackageMoneyBreakdown | null,
+  modulesSubtotalProp?: number | null
 ) {
   const cycle = cycleProp || pkg.billing_cycle;
   const totals = totalsProp || {
@@ -79,7 +83,8 @@ function usePackageTotals(
       Boolean(money) ||
       discountAmount > 0 ||
       taxAmount > 0 ||
-      (!money && tenantAddon + featurePackTotal > 0),
+      tenantAddon + featurePackTotal > 0 ||
+      modulesSubtotalProp != null,
   };
 }
 
@@ -199,12 +204,14 @@ export function CustomErpPackageSummary({
   totals: totalsProp,
   money: moneyProp,
   showEditLink = false,
+  hideCoupon = false,
   couponCode,
   onCouponCodeChange,
   onApplyCoupon,
   onClearCoupon,
   couponError,
   couponBusy,
+  modulesSubtotal,
   className,
 }: Props) {
   const { formatPrice } = useLocale();
@@ -222,11 +229,14 @@ export function CustomErpPackageSummary({
     showDiscount,
     showTax,
     showBreakdown,
-  } = usePackageTotals(pkg, cycleProp, totalsProp, moneyProp);
-  const canEditCoupon = !readOnly && onCouponCodeChange && onApplyCoupon;
+  } = usePackageTotals(pkg, cycleProp, totalsProp, moneyProp, modulesSubtotal);
+  const canEditCoupon =
+    !hideCoupon && !readOnly && onCouponCodeChange && onApplyCoupon;
   const couponApplied = Boolean(money?.discount_code) && !couponError;
   const packNames = (pkg.feature_packs || []).map((p) => p.name).filter(Boolean);
   const limits = pkg.tenant_limits;
+  const baseModulesTotal =
+    modulesSubtotal != null ? modulesSubtotal : (money?.subtotal ?? modulePayable);
 
   if (compact) {
     return (
@@ -357,11 +367,31 @@ export function CustomErpPackageSummary({
       {showBreakdown || showDiscount || showTax ? (
         <div className="mt-3 space-y-1.5 border-b border-border pb-3 text-sm">
           <div className="flex justify-between gap-3">
-            <span className="text-muted-foreground">Modules ({cycleName.toLowerCase()})</span>
+            <span className="text-muted-foreground">Base package · modules</span>
             <span className="font-semibold tabular-nums text-[#0b1f3a]">
-              {formatPrice(money?.subtotal ?? cycleSubtotal)}
+              {formatPrice(baseModulesTotal)}
             </span>
           </div>
+          {(featurePackTotal > 0 || packNames.length > 0) ? (
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">
+                Feature packs
+                {packNames.length ? ` (${packNames.length})` : ""}
+              </span>
+              <span className="font-semibold tabular-nums text-[#0b1f3a]">
+                {featurePackTotal > 0 ? "+" : ""}
+                {formatPrice(featurePackTotal)}
+              </span>
+            </div>
+          ) : null}
+          {tenantAddon > 0 ? (
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Tenant limits</span>
+              <span className="font-semibold tabular-nums text-[#0b1f3a]">
+                +{formatPrice(tenantAddon)}
+              </span>
+            </div>
+          ) : null}
           {showDiscount ? (
             <div className="flex justify-between gap-3 text-emerald-700">
               <span>
@@ -381,33 +411,12 @@ export function CustomErpPackageSummary({
               </span>
             </div>
           ) : null}
-          {tenantAddon > 0 ? (
-            <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Tenant add-ons</span>
-              <span className="font-semibold tabular-nums text-[#0b1f3a]">
-                {formatPrice(tenantAddon)}
-              </span>
-            </div>
-          ) : null}
-          {featurePackTotal > 0 ? (
-            <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Feature packs</span>
-              <span className="font-semibold tabular-nums text-[#0b1f3a]">
-                {formatPrice(featurePackTotal)}
-              </span>
-            </div>
-          ) : null}
           <div className="flex justify-between gap-3 border-t border-border pt-1.5">
-            <span className="font-medium text-[#0b1f3a]">Estimated total</span>
+            <span className="font-medium text-[#0b1f3a]">Live total</span>
             <span className="font-bold tabular-nums text-[#0b1f3a]">
               {formatPrice(displayTotal)}
             </span>
           </div>
-          {modulePayable !== displayTotal ? (
-            <p className="text-[11px] text-muted-foreground">
-              Module payable {formatPrice(modulePayable)} + catalog add-ons.
-            </p>
-          ) : null}
         </div>
       ) : null}
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
+  ArrowRight,
   Check,
   ChevronDown,
   Eye,
@@ -214,6 +215,70 @@ function FancySelect({
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** Shown on predefined / direct signup — link to Custom ERP Builder. */
+function CustomErpSignupPrompt({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary via-[#1a4a8a] to-[#0b1f3a] p-5 text-white shadow-[0_12px_40px_rgba(15,23,42,0.18)] transition-shadow hover:shadow-[0_16px_48px_rgba(15,23,42,0.24)] md:p-6",
+        className
+      )}
+    >
+      <div
+        className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-sky-400/20 blur-2xl"
+        aria-hidden
+      />
+
+      <div className="relative flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white shadow-inner ring-1 ring-white/20">
+          <Sparkles className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-200/90">
+            Custom ERP Builder
+          </p>
+          <p className="mt-1 text-lg font-bold leading-snug tracking-tight text-white">
+            Need your own custom ERP?
+          </p>
+        </div>
+      </div>
+
+      <p className="relative mt-3 text-sm leading-relaxed text-white/85">
+        Skip fixed plans — choose only the modules, feature packs, and limits your business
+        needs, then come back here to sign up.
+      </p>
+
+      <ul className="relative mt-3 space-y-1.5 text-xs text-white/80 sm:text-sm">
+        {[
+          "See live price as you configure",
+          "Industry + module recommendations",
+          "Pay only for what you select",
+        ].map((item) => (
+          <li key={item} className="flex items-center gap-2">
+            <Check className="h-3.5 w-3.5 shrink-0 text-sky-300" aria-hidden />
+            {item}
+          </li>
+        ))}
+      </ul>
+
+      <Button
+        asChild
+        size="lg"
+        className="relative mt-5 w-full cursor-pointer rounded-full border-0 bg-white px-5 py-6 text-sm font-bold text-[#0b1f3a] shadow-md transition-all hover:bg-sky-50 hover:shadow-lg group-hover:scale-[1.01] sm:text-base"
+      >
+        <Link href="/build-your-own-erp" className="inline-flex items-center justify-center gap-2">
+          Build your own ERP
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      </Button>
     </div>
   );
 }
@@ -1279,7 +1344,9 @@ function SignUpForm({
                 </div>
               )}
             </div>
-          ) : selectedIndustry && selectedCategory ? (
+          ) : (
+            <>
+              {selectedIndustry && selectedCategory ? (
             <div className="mt-6 sm:mt-8 space-y-4 hidden lg:block">
               {selectedProduct && selectedPlan ? (
                 <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
@@ -1354,7 +1421,10 @@ function SignUpForm({
                 />
               </div>
             </div>
-          ) : null}
+              ) : null}
+              <CustomErpSignupPrompt className="mt-6 sm:mt-8 hidden lg:block" />
+            </>
+          )}
         </div>
 
         <Card className="mx-auto w-full max-w-2xl shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
@@ -1388,7 +1458,9 @@ function SignUpForm({
                   </div>
                 )}
               </div>
-            ) : selectedIndustry && selectedCategory ? (
+            ) : (
+              <>
+                {selectedIndustry && selectedCategory ? (
               <div className="mb-5 space-y-4 lg:hidden">
                 <div className="rounded-2xl border border-border bg-slate-50 p-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1452,7 +1524,10 @@ function SignUpForm({
                   />
                 </div>
               </div>
-            ) : null}
+                ) : null}
+                <CustomErpSignupPrompt className="mb-5 lg:hidden" />
+              </>
+            )}
             <form className="relative space-y-5" onSubmit={onSubmit}>
               {/* Honeypot — hidden from humans, bots often fill it */}
               <div className="absolute -left-[9999px] top-auto h-0 w-0 overflow-hidden opacity-0" aria-hidden>

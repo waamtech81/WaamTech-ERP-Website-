@@ -13,10 +13,13 @@ import {
 } from "@/lib/commercial/module-builder";
 import type {
   BillingCycle,
+  CatalogBuilderRecommendationPack,
+  CatalogBuilderRecommendations,
   CatalogBusinessCategory,
   CatalogComparisonBundle,
   CatalogModule,
   CatalogPlanLimits,
+  PublicCommercialFeaturePack,
   PublicCommercialOverview,
 } from "@/lib/commercial/types";
 import type { PricingPlan } from "@/types";
@@ -51,6 +54,11 @@ export type BuilderFeaturePack = {
   monthly_price: number;
   yearly_price: number;
   lifetime_price: number;
+  required_module_codes?: string[];
+  price_pending?: boolean;
+  included?: boolean;
+  disabled?: boolean;
+  recommended?: boolean;
 };
 
 export type BuilderTenantLimits = {
@@ -68,7 +76,7 @@ export type BuilderTenantUnitPrices = {
 };
 
 export const DEFAULT_TENANT_LIMITS: BuilderTenantLimits = {
-  users: 1,
+  users: 5,
   companies: 1,
   branches: 1,
   warehouses: 1,
@@ -259,6 +267,306 @@ export function buildCategoryRecommendation(
   };
 }
 
+/** Offline fallback when License Engine builder-recommendations is temporarily unavailable. */
+export function builderRecommendationsFromLocalFallback(
+  category: CatalogBusinessCategory,
+  modules: CatalogModule[]
+): CatalogBuilderRecommendations {
+  const local = buildCategoryRecommendation(category, modules);
+  return {
+    industry_id: category.industry_id || "",
+    category_id: category.id,
+    category_code: category.code,
+    category_name: category.name,
+    required_modules: local.required_modules,
+    recommended_modules: local.recommended_modules,
+    recommended_feature_packs: local.feature_packs.map((pack) => ({
+      code: pack.code,
+      name: pack.name,
+      description: pack.description,
+      required_module_codes: [],
+      monthly_price: pack.monthly_price,
+      yearly_price: pack.yearly_price,
+      lifetime_price: pack.lifetime_price,
+    })),
+    strategy: "local_fallback",
+    provisioning_note:
+      "Showing offline recommendations — live License Engine data is temporarily unavailable.",
+  };
+}
+
+export function normPackKey(value: string): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+}
+
+function isLegacyProvisioningPack(code: string): boolean {
+  const c = String(code || "").trim();
+  if (!c) return false;
+  if (c === "CORE_ALL_MODULES") return true;
+  return c.startsWith("BP_");
+}
+
+function isBuilderRecommendationPack(code: string): boolean {
+  const c = String(code || "").trim();
+  return c === "CORE_OPS" || c.startsWith("BUILDER_");
+}
+
+function selectedModuleSet(codes: string[]): Set<string> {
+  return new Set(codes.map((c) => String(c || "").trim().toLowerCase()).filter(Boolean));
+}
+
+function featurePackMatchesSelectedModules(
+  pack: { code: string; required_module_codes?: string[] | null },
+  selected: Set<string>
+): boolean {
+  const code = String(pack.code || "").trim();
+  if (code === "CORE_OPS") return true;
+  const reqs = pack.required_module_codes || [];
+  if (!reqs.length) return false;
+  return reqs.some((r) => selected.has(String(r).toLowerCase()));
+}
+
+function isPackExcludedFromBuilder(code: string): boolean {
+  const c = String(code || "").trim();
+  if (!c) return true;
+  return isLegacyProvisioningPack(c);
+}
+
+export function resolveBuilderRecommendationPackRows(
+  rec: CatalogBuilderRecommendations | null | undefined
+): CatalogBuilderRecommendationPack[] {
+  if (!rec) return [];
+  if (rec.recommended_feature_pack_details?.length) {
+    return rec.recommended_feature_pack_details;
+  }
+  return (rec.recommended_feature_packs || []).map((item) => {
+    if (typeof item === "string") {
+      return { code: item, name: item };
+    }
+    return item;
+  });
+}
+
+export function mapBuilderRecommendations(
+  rec: CatalogBuilderRecommendations,
+  modules: CatalogModule[],
+  _overview?: PublicCommercialOverview | null
+): { required_modules: string[]; recommended_modules: string[] } {
+  const requiredRaw = resolveModuleCodesFromLabels(rec.required_modules || [], modules);
+  const recommendedRaw = resolveModuleCodesFromLabels(
+    rec.recommended_modules || [],
+    modules
+  );
+  const deps = resolveRequiredDependencies(requiredRaw, modules);
+  const required_modules = Array.from(new Set([...requiredRaw, ...deps]));
+  const recommended_modules = recommendedRaw.filter((c) => !required_modules.includes(c));
+  return { required_modules, recommended_modules };
+}
+
+export function resolveBuilderEligiblePackCodes(
+  rec: CatalogBuilderRecommendations,
+  _overview: PublicCommercialOverview | null | undefined,
+  _modules: CatalogModule[],
+  selectedModuleCodes: string[]
+): string[] {
+  const selected = selectedModuleSet(selectedModuleCodes);
+  return resolveBuilderRecommendationPackRows(rec)
+    .filter((row) => featurePackMatchesSelectedModules(row, selected))
+    .map((row) => row.code);
+}
+
+function packPriceFromRow(
+  row: CatalogBuilderRecommendationPack | PublicCommercialFeaturePack | null | undefined,
+  cycle: "monthly" | "yearly" | "lifetime",
+  fallback = 0
+): number {
+  if (!row) return fallback;
+  const direct =
+    cycle === "yearly"
+      ? row.yearly_price
+      : cycle === "lifetime"
+        ? row.lifetime_price
+        : row.monthly_price;
+  if (direct != null && Number.isFinite(Number(direct))) return num(direct, fallback);
+  const display = row.price_display?.[cycle];
+  if (display === "Included") return 0;
+  if (display != null && Number.isFinite(Number(display))) return num(display, fallback);
+  return fallback;
+}
+
+function packRowToBuilderFeaturePack(
+  recRow: CatalogBuilderRecommendationPack | null | undefined,
+  catalogRow: PublicCommercialFeaturePack | null | undefined,
+  recommended: boolean
+): BuilderFeaturePack {
+  const code = recRow?.code || catalogRow?.code || "";
+  const name = recRow?.name || catalogRow?.name || code;
+  const description =
+    recRow?.description ||
+    catalogRow?.description ||
+    `${name} capabilities for your configuration.`;
+  const required_module_codes =
+    recRow?.required_module_codes ||
+    catalogRow?.required_module_codes ||
+    null;
+  const monthly = packPriceFromRow(recRow, "monthly", packPriceFromRow(catalogRow, "monthly", 0));
+  const yearly = packPriceFromRow(recRow, "yearly", packPriceFromRow(catalogRow, "yearly", monthly));
+  const lifetime = packPriceFromRow(
+    recRow,
+    "lifetime",
+    packPriceFromRow(catalogRow, "lifetime", monthly)
+  );
+  const included =
+    Boolean(recRow?.is_included || catalogRow?.is_included) ||
+    (monthly === 0 && yearly === 0 && lifetime === 0 && Boolean(catalogRow || recRow));
+  const posLocked =
+    /^(barcode|discount|promo)$/i.test(code.replace(/-/g, "")) && Boolean(recRow || catalogRow);
+
+  return {
+    code,
+    name,
+    description,
+    required: posLocked,
+    monthly_price: included ? 0 : monthly,
+    yearly_price: included ? 0 : yearly,
+    lifetime_price: included ? 0 : lifetime,
+    required_module_codes: required_module_codes || undefined,
+    included,
+    price_pending: !catalogRow && !recRow?.monthly_price && !recRow?.yearly_price,
+    disabled: false,
+    recommended,
+  };
+}
+
+export function buildBuilderFeaturePacksForConfiguration(
+  rec: CatalogBuilderRecommendations,
+  overview: PublicCommercialOverview | null | undefined,
+  _modules: CatalogModule[],
+  selectedModuleCodes: string[]
+): BuilderFeaturePack[] {
+  const selected = selectedModuleSet(selectedModuleCodes);
+  const recRows = resolveBuilderRecommendationPackRows(rec);
+  const recByKey = new Map(recRows.map((row) => [normPackKey(row.code), row]));
+  const recKeys = new Set(recRows.map((row) => normPackKey(row.code)));
+  const catalog = overview?.feature_packs || [];
+  const catalogByKey = new Map(catalog.map((row) => [normPackKey(row.code), row]));
+
+  const codes = new Set<string>();
+  for (const row of recRows) codes.add(row.code);
+  for (const row of catalog) {
+    if (!isBuilderRecommendationPack(row.code) || isPackExcludedFromBuilder(row.code)) continue;
+    if (!featurePackMatchesSelectedModules(row, selected)) continue;
+    codes.add(row.code);
+  }
+
+  const packs: BuilderFeaturePack[] = [];
+  for (const code of codes) {
+    const key = normPackKey(code);
+    packs.push(
+      packRowToBuilderFeaturePack(
+        recByKey.get(key) || null,
+        catalogByKey.get(key) || null,
+        recKeys.has(key)
+      )
+    );
+  }
+  return packs.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function filterFeaturePacksForBuilder(
+  packs: BuilderFeaturePack[],
+  opts: {
+    recommendedPackCodes: string[];
+    selectedModuleCodes: string[];
+    modules: CatalogModule[];
+    commercialOverview?: PublicCommercialOverview | null;
+  }
+): BuilderFeaturePack[] {
+  const eligible = new Set(opts.recommendedPackCodes.map(normPackKey));
+  const selected = selectedModuleSet(opts.selectedModuleCodes);
+  return packs.filter((pack) => {
+    if (isPackExcludedFromBuilder(pack.code)) return false;
+    if (!featurePackMatchesSelectedModules(pack, selected)) return false;
+    return eligible.has(normPackKey(pack.code)) || isBuilderRecommendationPack(pack.code);
+  });
+}
+
+export function filterRecommendedFeaturePacks(
+  packs: BuilderFeaturePack[],
+  recommendationPackCodes: string[]
+): BuilderFeaturePack[] {
+  const keys = new Set(recommendationPackCodes.map(normPackKey));
+  return packs.filter((pack) => keys.has(normPackKey(pack.code)));
+}
+
+export function initialSelectedFeaturePackCodes(visible: BuilderFeaturePack[]): string[] {
+  const out: string[] = [];
+  for (const pack of visible) {
+    if (pack.required || pack.recommended) out.push(pack.code);
+  }
+  return Array.from(new Set(out));
+}
+
+export function isFeaturePackLocked(pack: BuilderFeaturePack): boolean {
+  return Boolean(pack.required);
+}
+
+export function resolveRecommendedConfigurationPackTags(
+  rec: CatalogBuilderRecommendations | null,
+  featurePacks: BuilderFeaturePack[],
+  _overview?: PublicCommercialOverview | null
+): Array<{ code: string; name: string }> {
+  if (!rec) return [];
+  const byKey = new Map(featurePacks.map((pack) => [normPackKey(pack.code), pack]));
+  return resolveBuilderRecommendationPackRows(rec).map((row) => {
+    const match = byKey.get(normPackKey(row.code));
+    return { code: row.code, name: match?.name || row.name || row.code };
+  });
+}
+
+export function prepareFeaturePackCodesForQuote(
+  selected: string[],
+  rec: CatalogBuilderRecommendations | null | undefined,
+  _overview?: PublicCommercialOverview | null
+): string[] {
+  const codes = selected.filter(Boolean);
+  if (!codes.length) return codes;
+
+  const recCodes = resolveBuilderRecommendationPackRows(rec).map((row) => row.code);
+  const hasBuilderPacks = [...codes, ...recCodes].some(isBuilderRecommendationPack);
+  if (!hasBuilderPacks) return codes;
+
+  return codes.filter((code) => !isLegacyProvisioningPack(code));
+}
+
+export function parseInvalidFeaturePackCodes(message: string): Set<string> {
+  const keys = new Set<string>();
+  const patterns = [
+    /feature\s*pack[s]?\s*[:\s]+['"]?([A-Za-z0-9_-]+)/gi,
+    /unknown\s+feature\s+pack\s+['"]?([A-Za-z0-9_-]+)/gi,
+    /invalid\s+feature\s+pack\s+['"]?([A-Za-z0-9_-]+)/gi,
+  ];
+  for (const re of patterns) {
+    let match: RegExpExecArray | null = re.exec(message);
+    while (match) {
+      keys.add(normPackKey(match[1]));
+      match = re.exec(message);
+    }
+  }
+  return keys;
+}
+
+export function pruneSelectedFeaturePackCodes(
+  selected: string[],
+  visiblePacks: BuilderFeaturePack[]
+): string[] {
+  const visible = new Set(visiblePacks.map((pack) => normPackKey(pack.code)));
+  return selected.filter((code) => visible.has(normPackKey(code)));
+}
+
 function num(value: unknown, fallback = 0): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -393,13 +701,6 @@ export function defaultTenantLimitsFromCommercial(
   };
 }
 
-function normPackKey(value: string): string {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "");
-}
-
 /** Merge Product Catalog prices into Builder feature packs (never invent amounts). */
 export function mergeFeaturePackCatalogPrices(
   packs: BuilderFeaturePack[],
@@ -408,7 +709,7 @@ export function mergeFeaturePackCatalogPrices(
   if (!packs.length) return packs;
   const catalog = overview?.feature_packs || [];
   const defaults = overview?.custom_builder?.feature_pack_default_unit;
-  const byKey = new Map<string, (typeof catalog)[0]>();
+  const byKey = new Map<string, PublicCommercialFeaturePack>();
   for (const row of catalog) {
     byKey.set(normPackKey(row.code), row);
     byKey.set(normPackKey(row.slug || ""), row);
@@ -424,25 +725,30 @@ export function mergeFeaturePackCatalogPrices(
       match?.monthly_price ??
       (match?.price_display?.monthly === "Included"
         ? 0
-        : num(match?.price_display?.monthly, defaults?.monthly ?? 0));
+        : num(match?.price_display?.monthly, defaults?.monthly ?? pack.monthly_price));
     const yearly =
       match?.yearly_price ??
       (match?.price_display?.yearly === "Included"
         ? 0
-        : num(match?.price_display?.yearly, defaults?.yearly ?? monthly));
+        : num(match?.price_display?.yearly, defaults?.yearly ?? pack.yearly_price));
     const lifetime =
       match?.lifetime_price ??
       (match?.price_display?.lifetime === "Included"
         ? 0
-        : num(match?.price_display?.lifetime, defaults?.lifetime ?? monthly));
+        : num(match?.price_display?.lifetime, defaults?.lifetime ?? pack.lifetime_price));
     const included =
       match?.is_included ||
+      pack.included ||
       (monthly === 0 && yearly === 0 && lifetime === 0 && !match);
     return {
       ...pack,
+      required_module_codes:
+        pack.required_module_codes || match?.required_module_codes || undefined,
       monthly_price: included ? 0 : monthly,
       yearly_price: included ? 0 : yearly,
       lifetime_price: included ? 0 : lifetime,
+      included,
+      price_pending: false,
     };
   });
 }

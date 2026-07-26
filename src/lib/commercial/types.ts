@@ -287,6 +287,36 @@ export type CatalogIndustry = {
   is_public: boolean;
 };
 
+/** License Engine GET /public/catalog/industries/:idOrSlug */
+export type CatalogIndustryDetail = CatalogIndustry & {
+  categories?: CatalogBusinessCategory[];
+  business_types?: CatalogBusinessType[];
+  default_modules?: CatalogModule[];
+  /** Industry-recommended feature packs for Custom ERP Builder. */
+  default_feature_packs?: Array<{
+    id: string;
+    code: string;
+    slug: string;
+    name: string;
+    description?: string | null;
+    required_module_codes?: string[] | null;
+    dependency_modules?: string[] | null;
+    modules?: string[] | null;
+  }>;
+  /** Alias returned by some Engine versions — same semantic as default_feature_packs. */
+  recommended_feature_packs?: Array<{
+    id: string;
+    code: string;
+    slug: string;
+    name: string;
+    description?: string | null;
+    required_module_codes?: string[] | null;
+    dependency_modules?: string[] | null;
+    modules?: string[] | null;
+  }>;
+  default_settings?: Record<string, unknown> | null;
+};
+
 export type CatalogBusinessCategory = {
   id: string;
   industry_id: string | null;
@@ -305,6 +335,49 @@ export type CatalogBusinessCategory = {
   /** Compatibility aliases used by some mappers */
   pos_mode?: "required" | "optional" | "disabled" | null;
   mobile_mode?: "required" | "disabled" | null;
+};
+
+/** License Engine GET /public/catalog/builder-recommendations?category_id= */
+export type CatalogBuilderRecommendationPack = {
+  code: string;
+  slug?: string;
+  name: string;
+  description?: string | null;
+  required_module_codes?: string[] | null;
+  dependency_modules?: string[] | null;
+  modules?: string[] | null;
+  monthly_price?: number | null;
+  yearly_price?: number | null;
+  lifetime_price?: number | null;
+  is_included?: boolean;
+  is_free?: boolean;
+  amount?: number | null;
+  billing_cycle?: string | null;
+  price_display?: {
+    monthly?: number | "Included" | null;
+    yearly?: number | "Included" | null;
+    lifetime?: number | "Included" | null;
+  } | null;
+};
+
+/** Engine may return pack codes as strings or full pack objects. */
+export type CatalogBuilderRecommendationPackInput =
+  | string
+  | CatalogBuilderRecommendationPack;
+
+export type CatalogBuilderRecommendations = {
+  industry_id: string;
+  industry_code?: string;
+  category_id: string;
+  category_code?: string;
+  category_name?: string;
+  required_modules: string[];
+  recommended_modules: string[];
+  recommended_feature_packs: CatalogBuilderRecommendationPackInput[];
+  /** Full pack rows with numeric pricing from License Engine. */
+  recommended_feature_pack_details?: CatalogBuilderRecommendationPack[];
+  strategy?: string;
+  provisioning_note?: string;
 };
 
 export type CatalogBusinessProfile = {
@@ -625,6 +698,11 @@ export type PublicCommercialFeaturePack = {
   yearly_price: number | null;
   lifetime_price: number | null;
   is_included?: boolean;
+  /** Module codes required before this pack is offered (Engine catalog). */
+  required_module_codes?: string[] | null;
+  dependency_modules?: string[] | null;
+  modules?: string[] | null;
+  category_code?: string | null;
   price_display?: {
     monthly: number | "Included";
     yearly: number | "Included";

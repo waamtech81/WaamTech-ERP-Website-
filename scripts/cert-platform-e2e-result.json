@@ -1,0 +1,204 @@
+{
+  "suite": "CERT-PLATFORM-E2E-001",
+  "at": "2026-07-26T19:20:43.292Z",
+  "duration_ms": 27113,
+  "targets": {
+    "WEBSITE": "https://waamto.com",
+    "LE": "https://api.license.waamto.com",
+    "ERP": "https://app.waamto.com",
+    "ERP_API": "https://apierp.waamto.com"
+  },
+  "checks": [
+    {
+      "name": "website_home",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "website_pricing",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "website_signup",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "website_signup_custom",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "website_builder",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "website_portal_login",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "website_modules",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "bff_industries",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "bff_modules",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "bff_commercial",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "bff_catalog",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "bff_plans",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "bff_pricing",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "bff_business_categories",
+      "ok": true,
+      "detail": "3 categories"
+    },
+    {
+      "name": "bff_builder_recommendations",
+      "ok": false,
+      "detail": "status=404"
+    },
+    {
+      "name": "bff_live_quote",
+      "ok": false,
+      "detail": "status=400"
+    },
+    {
+      "name": "le_modules",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "le_industries",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "le_plans",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "le_products",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "le_pricing",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "le_commercial",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "le_builder_recs",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "le_live_quote",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "le_module_catalog",
+      "ok": true,
+      "detail": "inv=10 pos=10"
+    },
+    {
+      "name": "le_pos_inventory_dep",
+      "ok": true,
+      "detail": "[\"inventory\"]"
+    },
+    {
+      "name": "le_registration_captcha_guard",
+      "ok": true,
+      "detail": "captcha required (expected)"
+    },
+    {
+      "name": "security_login_captcha",
+      "ok": true,
+      "detail": "captcha enforced"
+    },
+    {
+      "name": "security_no_secrets",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "erp_frontend",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "erp_api_health",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "perf_website_home",
+      "ok": true,
+      "detail": "317ms"
+    },
+    {
+      "name": "perf_bff_industries",
+      "ok": true,
+      "detail": "271ms"
+    },
+    {
+      "name": "perf_le_modules",
+      "ok": true,
+      "detail": "737ms"
+    },
+    {
+      "name": "perf_erp_health",
+      "ok": true,
+      "detail": "248ms"
+    },
+    {
+      "name": "erp_custom_package_cert",
+      "ok": true,
+      "detail": "PASS"
+    },
+    {
+      "name": "erp_tenant_isolation",
+      "ok": true,
+      "detail": "PASS"
+    }
+  ],
+  "passed": 35,
+  "minor": 0,
+  "failed": 2,
+  "total": 37,
+  "score": 95,
+  "final": "GO WITH MINOR ISSUES"
+}

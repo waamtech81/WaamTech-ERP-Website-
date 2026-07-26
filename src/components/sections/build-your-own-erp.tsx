@@ -1,12 +1,14 @@
 "use client";
 
 import {
+  useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
   useRef,
   useState,
   useTransition,
+  memo,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -44,7 +46,8 @@ import {
   CatalogSkeleton,
 } from "@/components/commercial/catalog-states";
 import { BundleRecommendationCard } from "@/components/commercial/bundle-recommendation-card";
-import { CustomErpPackageSummary } from "@/components/commercial/custom-erp-package-summary";
+import { CustomErpCommercialSummary } from "@/components/commercial/custom-erp-commercial-summary";
+import { CustomErpCouponField } from "@/components/commercial/custom-erp-coupon-field";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { Container, Section } from "@/components/shared/section";
 import { Badge } from "@/components/ui/badge";
@@ -61,11 +64,25 @@ import {
 } from "@/lib/commercial/custom-package-quote";
 import {
   BUILDER_STEPS,
-  buildCategoryRecommendation,
+  buildBuilderFeaturePacksForConfiguration,
+  builderRecommendationsFromLocalFallback,
   clampTenantLimits,
   defaultTenantLimitsFromCommercial,
   DEFAULT_TENANT_LIMITS,
+  filterFeaturePacksForBuilder,
+  filterRecommendedFeaturePacks,
+  initialSelectedFeaturePackCodes,
+  isFeaturePackLocked,
+  mapBuilderRecommendations,
   mergeFeaturePackCatalogPrices,
+  normPackKey,
+  parseInvalidFeaturePackCodes,
+  prepareFeaturePackCodesForQuote,
+  resolveBuilderRecommendationPackRows,
+  pruneSelectedFeaturePackCodes,
+  resolveBuilderEligiblePackCodes,
+  resolveModuleCodesFromLabels,
+  resolveRecommendedConfigurationPackTags,
   resolveTenantUnitPrices,
   resolveTenantUnitPricesFromCommercial,
   stepIndex,
@@ -75,15 +92,15 @@ import {
 } from "@/lib/commercial/erp-builder-config";
 import {
   cycleUnitPrice,
-  resolveRecommendedModules,
   resolveRequiredDependencies,
   uniqueCategories,
 } from "@/lib/commercial/module-builder";
-import { browseCategoryForModule } from "@/lib/commercial/modules-taxonomy";
+import { browseCategoryForModule, type ModuleBrowseCategory } from "@/lib/commercial/modules-taxonomy";
 import { savePlanSelection } from "@/lib/commercial/plan-selection";
 import type {
   BillingCycle,
   CatalogBusinessCategory,
+  CatalogBuilderRecommendations,
   CatalogIndustry,
   CatalogModule,
   CustomPackageQuoteResult,
@@ -128,6 +145,8 @@ function BuilderSelectCard({
   warnBorder,
   as = "button",
   showSelection = true,
+  iconBadgeClassName,
+  watermarkIconClassName,
 }: {
   selected: boolean;
   disabled?: boolean;
@@ -146,6 +165,8 @@ function BuilderSelectCard({
   warnBorder?: boolean;
   as?: "button" | "div";
   showSelection?: boolean;
+  iconBadgeClassName?: string;
+  watermarkIconClassName?: string;
 }) {
   const className = cn(
     "group relative flex h-full w-full flex-col overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200",
@@ -169,11 +190,12 @@ function BuilderSelectCard({
         <Icon
           className={cn(
             "h-16 w-16 transition-transform duration-300 group-hover:scale-105",
-            selected
-              ? "text-primary/12"
-              : warnBorder
-                ? "text-amber-500/12"
-                : "text-slate-400/15"
+            watermarkIconClassName ??
+              (selected
+                ? "text-primary/12"
+                : warnBorder
+                  ? "text-amber-500/12"
+                  : "text-slate-400/15")
           )}
           strokeWidth={1.15}
         />
@@ -210,10 +232,11 @@ function BuilderSelectCard({
       >
         <span
           className={cn(
-            "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm",
-            selected
-              ? "bg-primary text-white"
-              : "bg-[#0b1f3a]/[0.06] text-[#0b1f3a] ring-1 ring-[#0b1f3a]/10"
+            "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1",
+            iconBadgeClassName ??
+              (selected
+                ? "bg-primary text-white ring-primary/20"
+                : "bg-[#0b1f3a]/[0.06] text-[#0b1f3a] ring-[#0b1f3a]/10")
           )}
         >
           <Icon className="h-4 w-4" />
@@ -292,6 +315,70 @@ function BuilderSelectCard({
   );
 }
 
+const MODULE_ICON_COLORS: Record<
+  ModuleBrowseCategory,
+  { badge: string; watermark: string }
+> = {
+  Operations: {
+    badge: "bg-sky-100 text-sky-600 ring-sky-200",
+    watermark: "text-sky-500/30",
+  },
+  "Sales & CRM": {
+    badge: "bg-emerald-100 text-emerald-600 ring-emerald-200",
+    watermark: "text-emerald-500/30",
+  },
+  Finance: {
+    badge: "bg-violet-100 text-violet-600 ring-violet-200",
+    watermark: "text-violet-500/30",
+  },
+  People: {
+    badge: "bg-rose-100 text-rose-600 ring-rose-200",
+    watermark: "text-rose-500/30",
+  },
+  "Projects & Service": {
+    badge: "bg-orange-100 text-orange-600 ring-orange-200",
+    watermark: "text-orange-500/30",
+  },
+  Platform: {
+    badge: "bg-indigo-100 text-indigo-600 ring-indigo-200",
+    watermark: "text-indigo-500/30",
+  },
+  "Industry packs": {
+    badge: "bg-teal-100 text-teal-600 ring-teal-200",
+    watermark: "text-teal-500/30",
+  },
+};
+
+function moduleIconColors(
+  mod: CatalogModule,
+  state: { selected: boolean; required: boolean; recommended: boolean }
+): { badge: string; watermark: string } {
+  if (state.selected) {
+    return {
+      badge: "bg-primary text-white ring-primary/20",
+      watermark: "text-primary/35",
+    };
+  }
+  if (state.required) {
+    return {
+      badge: "bg-sky-100 text-sky-700 ring-sky-200",
+      watermark: "text-sky-500/30",
+    };
+  }
+  if (state.recommended) {
+    return {
+      badge: "bg-amber-100 text-amber-700 ring-amber-200",
+      watermark: "text-amber-500/30",
+    };
+  }
+  return (
+    MODULE_ICON_COLORS[browseCategoryForModule(mod)] ?? {
+      badge: "bg-slate-100 text-slate-600 ring-slate-200",
+      watermark: "text-slate-400/30",
+    }
+  );
+}
+
 function ModuleCard({
   mod,
   selected,
@@ -316,6 +403,7 @@ function ModuleCard({
   const hasDeps = depNames.length > 0;
   const cycleLabel = cycle === "lifetime" ? "once" : cycle === "yearly" ? "yr" : "mo";
   const categoryLabel = browseCategoryForModule(mod);
+  const iconColors = moduleIconColors(mod, { selected, required, recommended });
 
   return (
     <BuilderSelectCard
@@ -323,6 +411,8 @@ function ModuleCard({
       disabled={required && selected}
       onClick={onToggle}
       icon={Icon}
+      iconBadgeClassName={iconColors.badge}
+      watermarkIconClassName={iconColors.watermark}
       title={mod.name}
       description={mod.description}
       warnBorder={hasDeps && !selected}
@@ -502,6 +592,92 @@ function matchesSearch(haystack: Array<string | null | undefined>, query: string
   return haystack.some((part) => (part || "").toLowerCase().includes(query));
 }
 
+function featurePackCyclePriceLabel(
+  cycle: BillingCycle,
+  amount: number,
+  formatPrice: (n: number) => string
+): string {
+  const suffix = cycle === "lifetime" ? "one-time" : cycle === "yearly" ? "year" : "month";
+  return `+${formatPrice(amount)}/${suffix}`;
+}
+
+const FeaturePackCard = memo(function FeaturePackCard({
+  pack,
+  selected,
+  cycle,
+  formatPrice,
+  moduleLabels,
+  onToggle,
+}: {
+  pack: BuilderFeaturePack;
+  selected: boolean;
+  cycle: BillingCycle;
+  formatPrice: (n: number) => string;
+  moduleLabels: Record<string, string>;
+  onToggle: () => void;
+}) {
+  const locked = isFeaturePackLocked(pack);
+  const cyclePrice =
+    cycle === "yearly"
+      ? pack.yearly_price
+      : cycle === "lifetime"
+        ? pack.lifetime_price
+        : pack.monthly_price;
+  const requiredModuleNames = (pack.required_module_codes || [])
+    .map((code) => moduleLabels[code] || code)
+    .filter(Boolean);
+
+  let footerLeft: ReactNode;
+  if (pack.price_pending) {
+    footerLeft = <span className="text-sm font-semibold text-muted-foreground">…</span>;
+  } else if (pack.included) {
+    footerLeft = <span className="text-sm font-bold text-emerald-700">Included</span>;
+  } else {
+    footerLeft = (
+      <span className="text-base font-bold tabular-nums text-[#0b1f3a]">
+        {featurePackCyclePriceLabel(cycle, cyclePrice, formatPrice)}
+      </span>
+    );
+  }
+
+  return (
+    <BuilderSelectCard
+      selected={selected}
+      disabled={locked || pack.disabled}
+      onClick={onToggle}
+      icon={Package}
+      title={pack.name}
+      description={pack.description || null}
+      note={
+        requiredModuleNames.length ? (
+          <span className="text-xs leading-relaxed text-muted-foreground">
+            Requires module{requiredModuleNames.length > 1 ? "s" : ""}:{" "}
+            <span className="font-medium text-[#0b1f3a]">
+              {requiredModuleNames.join(", ")}
+            </span>
+          </span>
+        ) : null
+      }
+      badges={
+        <>
+          {pack.recommended ? (
+            <Badge className="border-primary/20 bg-primary/10 text-[10px] text-primary">
+              Recommended
+            </Badge>
+          ) : null}
+          {locked ? (
+            <Badge className="border-amber-200 bg-amber-50 text-[10px] text-amber-900">
+              Auto-added
+            </Badge>
+          ) : null}
+        </>
+      }
+      footerLeft={footerLeft}
+      footerRight={null}
+    />
+  );
+});
+
 function TenantStepper({
   label,
   icon: Icon,
@@ -510,6 +686,7 @@ function TenantStepper({
   unitPrice,
   formatPrice,
   cycle,
+  liveAmount,
   onChange,
 }: {
   label: string;
@@ -519,10 +696,29 @@ function TenantStepper({
   unitPrice: number;
   formatPrice: (n: number) => string;
   cycle: BillingCycle;
+  liveAmount?: number;
   onChange: (n: number) => void;
 }) {
-  const cycleHint = cycle === "lifetime" ? "once" : cycle === "yearly" ? "yr" : "mo";
+  const cycleSuffix = cycle === "lifetime" ? "once" : cycle === "yearly" ? "year" : "month";
+  const nextValue = value + 1;
+  const nextExtra =
+    nextValue > min && unitPrice > 0 ? (nextValue - min) * unitPrice : 0;
+  const currentExtra =
+    value > min && unitPrice > 0 ? (value - min) * unitPrice : 0;
+  const displayExtra =
+    liveAmount != null && liveAmount >= 0 ? liveAmount : currentExtra;
+  const unitLabel = label.toLowerCase() === "users" ? "seats" : label.toLowerCase();
   const aboveMin = value > min;
+
+  const stepperControlClass = cn(
+    "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-border bg-white text-[#0b1f3a] shadow-sm transition-all duration-150",
+    "hover:border-primary/45 hover:bg-slate-100 hover:shadow-md",
+    "active:scale-95 active:border-primary/55 active:bg-slate-200 active:shadow-inner",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+    "disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none",
+    "disabled:hover:border-border disabled:hover:bg-white disabled:hover:shadow-sm disabled:active:scale-100"
+  );
+
   return (
     <BuilderSelectCard
       as="div"
@@ -530,10 +726,32 @@ function TenantStepper({
       showSelection={false}
       icon={Icon}
       title={label}
-      description={
-        unitPrice > 0
-          ? `${min} included · Extra ${formatPrice(unitPrice)}/${cycleHint}`
-          : `${min} included · Extra at catalog rate`
+      note={
+        <span className="space-y-1 block text-sm leading-relaxed text-muted-foreground">
+          <span className="block">
+            <span className="font-medium text-emerald-700">{min} included</span>
+          </span>
+          <span className="block">
+            Current:{" "}
+            <span className="font-semibold text-[#0b1f3a]">
+              {value} {unitLabel}
+            </span>
+            {displayExtra > 0 ? (
+              <span className="text-primary">
+                {" "}
+                · +{formatPrice(displayExtra)}/{cycleSuffix}
+              </span>
+            ) : (
+              <span> · included</span>
+            )}
+          </span>
+          {unitPrice > 0 ? (
+            <span className="block text-[11px]">
+              Next {label.replace(/s$/, "").toLowerCase()}: {nextValue} · +
+              {formatPrice(nextExtra)}/{cycleSuffix}
+            </span>
+          ) : null}
+        </span>
       }
       footerNode={
         <div className="flex items-center justify-between gap-3">
@@ -544,14 +762,12 @@ function TenantStepper({
             )}
           >
             {value}
-            <span className="ml-1 text-xs font-medium text-muted-foreground">
-              seats
-            </span>
+            <span className="ml-1 text-xs font-medium text-muted-foreground">{unitLabel}</span>
           </p>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:bg-slate-50 disabled:opacity-40"
+              className={stepperControlClass}
               disabled={value <= min}
               onClick={() => onChange(value - 1)}
               aria-label={`Decrease ${label}`}
@@ -560,7 +776,7 @@ function TenantStepper({
             </button>
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:bg-slate-50"
+              className={stepperControlClass}
               onClick={() => onChange(value + 1)}
               aria-label={`Increase ${label}`}
             >
@@ -621,14 +837,23 @@ export function BuildYourOwnErpBuilder() {
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [quoteBusy, setQuoteBusy] = useState(false);
+  const [couponApplyPending, setCouponApplyPending] = useState(false);
   const [bundleDismissed, setBundleDismissed] = useState(false);
   const [quoteNonce, setQuoteNonce] = useState(0);
   const [commercialOverview, setCommercialOverview] =
     useState<PublicCommercialOverview | null>(null);
+  const [builderRecommendations, setBuilderRecommendations] =
+    useState<CatalogBuilderRecommendations | null>(null);
+  const [builderRequiredModules, setBuilderRequiredModules] = useState<string[]>([]);
+  const [builderRecommendedModules, setBuilderRecommendedModules] = useState<string[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
+  const [recommendationsFallback, setRecommendationsFallback] = useState(false);
   const [, startTransition] = useTransition();
   const restoreCategoryMetaRef = useRef(false);
   const pendingAddCodeRef = useRef<string | null>(null);
   const quoteCacheRef = useRef<Map<string, CustomPackageQuoteResult>>(new Map());
+  const quoteRequestIdRef = useRef(0);
 
   const selectedIndustry = useMemo(
     () => industries.find((i) => i.id === industryId) || null,
@@ -647,6 +872,35 @@ export function BuildYourOwnErpBuilder() {
       catalogBundle.data.comparison
     );
   }, [commercialOverview, catalogBundle.data.pricingPlans, catalogBundle.data.comparison]);
+
+  const builderSupportPlan = useMemo(() => {
+    const customPlanId = commercialOverview?.custom_builder?.plan_id;
+    const fromComparison = customPlanId
+      ? catalogBundle.data.comparison?.comparison?.find((r) => r.plan?.id === customPlanId)
+          ?.plan?.support_level
+      : null;
+    const fromPlans = catalogBundle.data.pricingPlans?.find(
+      (p) =>
+        p.id === customPlanId ||
+        /custom/i.test(`${p.id || ""} ${p.name || ""}`)
+    )?.supportLevel;
+    return fromComparison || fromPlans || null;
+  }, [commercialOverview, catalogBundle.data]);
+
+  const recommendationPackCodes = useMemo(
+    () => resolveBuilderRecommendationPackRows(builderRecommendations).map((row) => row.code),
+    [builderRecommendations]
+  );
+
+  const recommendedConfigurationPackTags = useMemo(
+    () =>
+      resolveRecommendedConfigurationPackTags(
+        builderRecommendations,
+        featurePacks,
+        commercialOverview
+      ),
+    [builderRecommendations, featurePacks, commercialOverview]
+  );
 
   const moduleCategories = useMemo(() => uniqueCategories(modules), [modules]);
   const seedForDeps = useMemo(
@@ -676,9 +930,29 @@ export function BuildYourOwnErpBuilder() {
     () => Array.from(new Set([...selected, ...lockedCodes])),
     [selected, lockedCodes]
   );
-  const recommended = useMemo(
-    () => resolveRecommendedModules(seedForDeps, modules, lockedCodes),
-    [seedForDeps, modules, lockedCodes]
+
+  const eligiblePackCodes = useMemo(() => {
+    if (!builderRecommendations) return [];
+    return resolveBuilderEligiblePackCodes(
+      builderRecommendations,
+      commercialOverview,
+      modules,
+      complete
+    );
+  }, [builderRecommendations, commercialOverview, modules, complete]);
+
+  const builderModuleSet = useMemo(
+    () =>
+      new Set([
+        ...builderRequiredModules,
+        ...builderRecommendedModules,
+      ]),
+    [builderRequiredModules, builderRecommendedModules]
+  );
+
+  const additionalModules = useMemo(
+    () => modules.filter((m) => !builderModuleSet.has(m.code)),
+    [modules, builderModuleSet]
   );
   /** Display totals — License Engine quote only (never local arithmetic). */
   const totals = useMemo(() => {
@@ -686,7 +960,6 @@ export function BuildYourOwnErpBuilder() {
     if (fromQuote) return fromQuote;
     return { monthly: 0, yearly: 0, lifetime: 0 };
   }, [liveQuote]);
-  const packTotal = Number(liveQuote?.pricing.feature_pack_total) || 0;
   const tenantAddon = Number(liveQuote?.pricing.seat_overage_total) || 0;
 
   const searchQ = deferredQuery.trim().toLowerCase();
@@ -719,13 +992,43 @@ export function BuildYourOwnErpBuilder() {
     });
   }, [modules, categoryFilter, searchQ]);
 
+  const moduleVisibleFeaturePacks = useMemo(
+    () =>
+      filterFeaturePacksForBuilder(featurePacks, {
+        recommendedPackCodes: eligiblePackCodes,
+        selectedModuleCodes: complete,
+        modules,
+        commercialOverview,
+      }),
+    [featurePacks, eligiblePackCodes, complete, modules, commercialOverview]
+  );
+
   const filteredFeaturePacks = useMemo(
     () =>
-      featurePacks.filter((p) =>
+      moduleVisibleFeaturePacks.filter((p) =>
         matchesSearch([p.name, p.code, p.description], searchQ)
       ),
-    [featurePacks, searchQ]
+    [moduleVisibleFeaturePacks, searchQ]
   );
+
+  const recommendedFeaturePacks = useMemo(
+    () =>
+      filterRecommendedFeaturePacks(filteredFeaturePacks, recommendationPackCodes).filter(
+        (p) => matchesSearch([p.name, p.code, p.description], searchQ)
+      ),
+    [filteredFeaturePacks, recommendationPackCodes, searchQ]
+  );
+
+  const additionalFeaturePacks = useMemo(() => {
+    const recKeys = new Set(
+      recommendationPackCodes.map((c) => c.toLowerCase().replace(/[\s_-]+/g, ""))
+    );
+    return filteredFeaturePacks.filter(
+      (p) =>
+        !p.required &&
+        !recKeys.has(p.code.toLowerCase().replace(/[\s_-]+/g, ""))
+    );
+  }, [filteredFeaturePacks, recommendationPackCodes]);
 
   const filteredCycles = useMemo(
     () => CYCLES.filter((c) => matchesSearch([c.label, c.hint, c.id], searchQ)),
@@ -766,27 +1069,137 @@ export function BuildYourOwnErpBuilder() {
   );
 
   const byCode = useMemo(() => new Map(modules.map((m) => [m.code, m])), [modules]);
-
-  const filteredLockedCodes = useMemo(
-    () =>
-      lockedCodes.filter((code) =>
-        matchesSearch([byCode.get(code)?.name, code], searchQ)
-      ),
-    [lockedCodes, byCode, searchQ]
+  const moduleLabelsMap = useMemo(
+    () => Object.fromEntries(modules.map((m) => [m.code, m.name] as const)),
+    [modules]
   );
+
+  const quotePending = quoteBusy;
+
+  const filteredLockedCodes = useMemo(() => {
+    const deps = resolveRequiredDependencies(builderRequiredModules, modules);
+    const codes = Array.from(new Set([...builderRequiredModules, ...deps]));
+    return codes.filter((code) =>
+      matchesSearch([byCode.get(code)?.name, code], searchQ)
+    );
+  }, [builderRequiredModules, modules, byCode, searchQ]);
 
   const filteredRecommendedCodes = useMemo(
     () =>
-      selected
-        .filter((c) => !lockedCodes.includes(c))
-        .filter((code) => matchesSearch([byCode.get(code)?.name, code], searchQ)),
-    [selected, lockedCodes, byCode, searchQ]
+      builderRecommendedModules.filter((code) =>
+        matchesSearch([byCode.get(code)?.name, code], searchQ)
+      ),
+    [builderRecommendedModules, byCode, searchQ]
+  );
+
+  const filteredAdditionalModules = useMemo(
+    () =>
+      additionalModules.filter((m) =>
+        matchesSearch([m.name, m.code, m.description, m.industry, m.category], searchQ)
+      ),
+    [additionalModules, searchQ]
   );
 
   const activePacks = useMemo(
+    () => moduleVisibleFeaturePacks.filter((p) => selectedPacks.includes(p.code)),
+    [moduleVisibleFeaturePacks, selectedPacks]
+  );
+
+  const selectedPackLines = useMemo(
     () =>
-      featurePacks.filter((p) => p.required || selectedPacks.includes(p.code)),
-    [featurePacks, selectedPacks]
+      activePacks.map((p) => ({
+        key: p.code,
+        name: p.name,
+        amount:
+          cycle === "yearly"
+            ? p.yearly_price
+            : cycle === "lifetime"
+              ? p.lifetime_price
+              : p.monthly_price,
+        included: Boolean(p.included),
+      })),
+    [activePacks, cycle]
+  );
+
+  /** Cart pack total — sum of visible line items (updates instantly on toggle). */
+  const packTotal = useMemo(
+    () =>
+      selectedPackLines.reduce(
+        (sum, line) => (line.included ? sum : sum + (Number(line.amount) || 0)),
+        0
+      ),
+    [selectedPackLines]
+  );
+
+  const seatLines = useMemo(() => {
+    const meta: Record<string, { label: string; unitLabel: string }> = {
+      users: { label: "Users", unitLabel: "seats" },
+      companies: { label: "Companies", unitLabel: "companies" },
+      branches: { label: "Branches", unitLabel: "branches" },
+      warehouses: { label: "Warehouses", unitLabel: "warehouses" },
+    };
+    const fromQuote = liveQuote?.pricing?.seat_overage?.lines || [];
+    if (fromQuote.length) {
+      return fromQuote.map((line) => ({
+        key: line.kind,
+        label: meta[line.kind]?.label || line.kind,
+        quantity: line.requested,
+        included: line.included,
+        amount: line.amount,
+        unitLabel: meta[line.kind]?.unitLabel || "",
+      }));
+    }
+    const keys = ["users", "companies", "branches", "warehouses"] as const;
+    const priceKey =
+      cycle === "yearly" ? "yearly" : cycle === "lifetime" ? "lifetime" : "monthly";
+    return keys.map((key) => {
+      const qty = tenantLimits[key];
+      const included = unitPrices[key].included;
+      const unit = unitPrices[key][priceKey];
+      const extra = Math.max(0, qty - included) * unit;
+      return {
+        key,
+        label: meta[key].label,
+        quantity: qty,
+        included,
+        amount: extra,
+        unitLabel: meta[key].unitLabel,
+      };
+    });
+  }, [liveQuote, tenantLimits, unitPrices, cycle]);
+
+  const summaryModuleBreakdown = useMemo(() => {
+    const line = (code: string) => {
+      const mod = byCode.get(code);
+      return {
+        key: code,
+        name: mod?.name || moduleLabelsMap[code] || code,
+        amount: mod ? cycleUnitPrice(mod, cycle) : 0,
+      };
+    };
+    const required = builderRequiredModules
+      .filter((c) => complete.includes(c))
+      .map(line);
+    const recommended = builderRecommendedModules
+      .filter((c) => complete.includes(c))
+      .map(line);
+    const additional = complete
+      .filter((c) => !builderModuleSet.has(c))
+      .map(line);
+    return { required, recommended, additional };
+  }, [
+    builderRequiredModules,
+    builderRecommendedModules,
+    complete,
+    builderModuleSet,
+    byCode,
+    moduleLabelsMap,
+    cycle,
+  ]);
+
+  const seatAmountByKey = useMemo(
+    () => new Map(seatLines.map((l) => [l.key, l.amount])),
+    [seatLines]
   );
 
   const packagePreview = useMemo(
@@ -794,7 +1207,7 @@ export function BuildYourOwnErpBuilder() {
       buildCustomErpPackagePayload({
         selected_modules: selected.filter((c) => !lockedCodes.includes(c)),
         dependency_modules: lockedCodes,
-        recommended_modules: recommended,
+        recommended_modules: builderRecommendedModules.filter((c) => complete.includes(c)),
         billing_cycle: cycle,
         monthly_price: totals.monthly,
         yearly_price: totals.yearly,
@@ -820,11 +1233,13 @@ export function BuildYourOwnErpBuilder() {
         tenant_limits: tenantLimits,
         tenant_addon_total: tenantAddon,
         feature_pack_total: packTotal,
+        support_plan: builderSupportPlan,
+        bundle_recommendation: liveQuote?.bundle_offer || null,
       }),
     [
       selected,
       lockedCodes,
-      recommended,
+      builderRecommendedModules,
       cycle,
       totals,
       modules,
@@ -839,16 +1254,19 @@ export function BuildYourOwnErpBuilder() {
       tenantLimits,
       tenantAddon,
       packTotal,
+      builderSupportPlan,
+      liveQuote?.bundle_offer,
     ]
   );
 
   const canContinueSignup =
     complete.length > 0 &&
-    Boolean(industryId && categoryId) &&
+    Boolean(industryId && categoryId && builderRecommendations) &&
     Boolean(money?.grand_total != null) &&
     !quoteBusy &&
     !quoteError &&
-    !couponError;
+    !couponError &&
+    !recommendationsLoading;
 
   /** Later tabs stay locked until prior selections are done. */
   function canAccessStep(id: BuilderStepId): boolean {
@@ -856,6 +1274,10 @@ export function BuildYourOwnErpBuilder() {
     if (!industryId) return false;
     if (id === "category") return true;
     if (!categoryId) return false;
+    if (id === "recommended") return true;
+    if (["modules", "feature-packs", "tenant", "billing"].includes(id)) {
+      return Boolean(builderRecommendations) && !recommendationsLoading && !recommendationsError;
+    }
     if (id === "review") return complete.length > 0;
     return true;
   }
@@ -930,6 +1352,11 @@ export function BuildYourOwnErpBuilder() {
     setCategoryId("");
     setSelected([]);
     setCategoryRequired([]);
+    setBuilderRequiredModules([]);
+    setBuilderRecommendedModules([]);
+    setBuilderRecommendations(null);
+    setRecommendationsError(null);
+    setRecommendationsFallback(false);
     setFeaturePacks([]);
     setSelectedPacks([]);
     setQuery("");
@@ -938,40 +1365,123 @@ export function BuildYourOwnErpBuilder() {
     setStep("category");
   }
 
+  async function loadBuilderRecommendations(
+    cat: CatalogBusinessCategory,
+    opts?: { preserveSelections?: boolean }
+  ) {
+    setRecommendationsLoading(true);
+    setRecommendationsError(null);
+    setRecommendationsFallback(false);
+    try {
+      const res = await fetch(
+        `/api/commercial/builder-recommendations?category_id=${encodeURIComponent(cat.id)}`,
+        { cache: "no-store" }
+      );
+      const json = (await res.json()) as {
+        success?: boolean;
+        message?: string;
+        data?: CatalogBuilderRecommendations;
+      };
+      if (!res.ok || json.success === false || !json.data) {
+        throw new Error(json.message || "Builder recommendations unavailable.");
+      }
+      applyBuilderRecommendations(json.data, opts);
+      setRecommendationsFallback(false);
+    } catch (err) {
+      if (modules.length) {
+        const fallback = builderRecommendationsFromLocalFallback(cat, modules);
+        applyBuilderRecommendations(fallback, opts);
+        setRecommendationsError(null);
+        setRecommendationsFallback(true);
+      } else {
+        setBuilderRecommendations(null);
+        setBuilderRequiredModules([]);
+        setBuilderRecommendedModules([]);
+        setCategoryRequired([]);
+        setSelected([]);
+        setFeaturePacks([]);
+        setSelectedPacks([]);
+        setRecommendationsError(
+          err instanceof Error ? err.message : "Builder recommendations unavailable."
+        );
+        setRecommendationsFallback(false);
+      }
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  }
+
+  function applyBuilderRecommendations(
+    rec: CatalogBuilderRecommendations,
+    opts?: { preserveSelections?: boolean }
+  ) {
+    if (!modules.length) return;
+    setBuilderRecommendations(rec);
+    const mapped = mapBuilderRecommendations(rec, modules, commercialOverview);
+    setBuilderRequiredModules(
+      resolveModuleCodesFromLabels(rec.required_modules || [], modules)
+    );
+    setCategoryRequired(mapped.required_modules);
+    setBuilderRecommendedModules(mapped.recommended_modules);
+    const pendingAdd = pendingAddCodeRef.current;
+    const nextSelected = pendingAdd
+      ? Array.from(new Set([...mapped.recommended_modules, pendingAdd]))
+      : mapped.recommended_modules;
+    if (pendingAdd) pendingAddCodeRef.current = null;
+    if (!opts?.preserveSelections) {
+      setSelected(nextSelected);
+    }
+
+    const eligibleCodes = resolveBuilderEligiblePackCodes(
+      rec,
+      commercialOverview,
+      modules,
+      Array.from(new Set([...mapped.required_modules, ...nextSelected]))
+    );
+    const priced = mergeFeaturePackCatalogPrices(
+      buildBuilderFeaturePacksForConfiguration(
+        rec,
+        commercialOverview,
+        modules,
+        Array.from(new Set([...mapped.required_modules, ...nextSelected]))
+      ),
+      commercialOverview
+    );
+    setFeaturePacks(priced);
+    if (!opts?.preserveSelections) {
+      const visible = filterFeaturePacksForBuilder(priced, {
+        recommendedPackCodes: eligibleCodes,
+        selectedModuleCodes: Array.from(
+          new Set([...mapped.required_modules, ...nextSelected])
+        ),
+        modules,
+        commercialOverview,
+      });
+      setSelectedPacks(initialSelectedFeaturePackCodes(visible));
+      setTenantLimits(
+        clampTenantLimits(
+          commercialOverview
+            ? defaultTenantLimitsFromCommercial(commercialOverview)
+            : {
+                users: unitPrices.users.included,
+                companies: unitPrices.companies.included,
+                branches: unitPrices.branches.included,
+                warehouses: unitPrices.warehouses.included,
+              },
+          DEFAULT_TENANT_LIMITS,
+          unitPrices
+        )
+      );
+    }
+  }
+
   function selectCategory(cat: CatalogBusinessCategory) {
     setCategoryId(cat.id);
-    applyCategoryConfig(cat);
     setQuery("");
     setCategoryFilter("all");
     setMaxReached("recommended");
     setStep("recommended");
-  }
-
-  function applyCategoryConfig(cat: CatalogBusinessCategory | null) {
-    if (!cat || !modules.length) return;
-    const rec = buildCategoryRecommendation(cat, modules);
-    setCategoryRequired(rec.required_modules);
-    // Recommended modules are pre-selected and editable; required stay locked via categoryRequired.
-    const pendingAdd = pendingAddCodeRef.current;
-    const nextSelected = pendingAdd
-      ? Array.from(new Set([...rec.recommended_modules, pendingAdd]))
-      : rec.recommended_modules;
-    if (pendingAdd) pendingAddCodeRef.current = null;
-    setSelected(nextSelected);
-    setFeaturePacks(rec.feature_packs);
-    setSelectedPacks(rec.feature_packs.map((p) => p.code));
-    setTenantLimits(
-      clampTenantLimits(
-        {
-          users: unitPrices.users.included,
-          companies: unitPrices.companies.included,
-          branches: unitPrices.branches.included,
-          warehouses: unitPrices.warehouses.included,
-        },
-        DEFAULT_TENANT_LIMITS,
-        unitPrices
-      )
-    );
+    void loadBuilderRecommendations(cat);
   }
 
   useEffect(() => {
@@ -1084,26 +1594,45 @@ export function BuildYourOwnErpBuilder() {
     };
   }, [cycle]);
 
-  // Restore locked/required + packs from category registry after categories load.
+  // Restore builder recommendations after edit-mode hydration.
   useEffect(() => {
     if (!hydrated || !restoreCategoryMetaRef.current) return;
     if (!categoryId || !modules.length || !categories.length) return;
     const cat = categories.find((c) => c.id === categoryId);
     if (!cat) return;
-    const rec = buildCategoryRecommendation(cat, modules);
-    setCategoryRequired(rec.required_modules);
-    if (!featurePacks.length) {
-      const priced = mergeFeaturePackCatalogPrices(rec.feature_packs, commercialOverview);
-      setFeaturePacks(priced);
-      setSelectedPacks(priced.map((p) => p.code));
-    }
     restoreCategoryMetaRef.current = false;
-  }, [hydrated, categoryId, categories, modules, featurePacks.length, commercialOverview]);
+    void loadBuilderRecommendations(cat, { preserveSelections: true });
+  }, [hydrated, categoryId, categories, modules.length]);
 
+  // Rebuild eligible packs when modules, category recommendations, or catalog prices change.
   useEffect(() => {
-    if (!commercialOverview || !featurePacks.length) return;
-    setFeaturePacks((prev) => mergeFeaturePackCatalogPrices(prev, commercialOverview));
-  }, [commercialOverview]);
+    if (!builderRecommendations || !modules.length) return;
+    const built = buildBuilderFeaturePacksForConfiguration(
+      builderRecommendations,
+      commercialOverview,
+      modules,
+      complete
+    );
+    setFeaturePacks(mergeFeaturePackCatalogPrices(built, commercialOverview));
+  }, [builderRecommendations, commercialOverview, modules, complete]);
+
+  // Re-clamp tenant limits when catalog unit prices / included baselines load.
+  useEffect(() => {
+    if (!commercialOverview) return;
+    setTenantLimits((prev) => clampTenantLimits({}, prev, unitPrices));
+  }, [commercialOverview, unitPrices]);
+
+  // Keep POS-locked packs in selection.
+  useEffect(() => {
+    const locked = featurePacks.filter(isFeaturePackLocked).map((p) => p.code);
+    if (!locked.length) return;
+    setSelectedPacks((prev) => {
+      const next = Array.from(new Set([...prev, ...locked]));
+      return next.length === prev.length && locked.every((c) => prev.includes(c))
+        ? prev
+        : next;
+    });
+  }, [featurePacks]);
 
   useEffect(() => {
     if (!notice) return;
@@ -1115,6 +1644,34 @@ export function BuildYourOwnErpBuilder() {
   const packKey = selectedPacks.slice().sort().join("|");
   const tenantKey = `${tenantLimits.users}|${tenantLimits.companies}|${tenantLimits.branches}|${tenantLimits.warehouses}`;
 
+  // Drop packs whose required modules were removed.
+  useEffect(() => {
+    if (!hydrated) return;
+    setSelectedPacks((prev) => {
+      const pruned = pruneSelectedFeaturePackCodes(prev, moduleVisibleFeaturePacks);
+      return pruned.length === prev.length && pruned.every((c, i) => c === prev[i])
+        ? prev
+        : pruned;
+    });
+  }, [hydrated, moduleVisibleFeaturePacks, completeKey]);
+
+  // Drop legacy category BP packs superseded by Builder Recommendation API packs.
+  useEffect(() => {
+    if (!hydrated || !builderRecommendations || !selectedPacks.length) return;
+    const quoteReady = prepareFeaturePackCodesForQuote(
+      selectedPacks,
+      builderRecommendations,
+      commercialOverview
+    );
+    if (
+      quoteReady.length === selectedPacks.length &&
+      quoteReady.every((code, index) => code === selectedPacks[index])
+    ) {
+      return;
+    }
+    setSelectedPacks(quoteReady);
+  }, [hydrated, builderRecommendations, commercialOverview, selectedPacks]);
+
   useEffect(() => {
     if (!hydrated) return;
     if (!completeKey) {
@@ -1123,10 +1680,16 @@ export function BuildYourOwnErpBuilder() {
       setQuoteError(null);
       setCouponError(null);
       setQuoteBusy(false);
+      setCouponApplyPending(false);
       return;
     }
 
     const moduleCodes = completeKey.split("|").filter(Boolean);
+    const normalizedPacks = prepareFeaturePackCodesForQuote(
+      selectedPacks,
+      builderRecommendations,
+      commercialOverview
+    );
     const quoteBody = buildCustomPackageQuotePayload({
       product_slug: "waamto-erp",
       billing_cycle: cycle,
@@ -1134,7 +1697,7 @@ export function BuildYourOwnErpBuilder() {
       discount_code: appliedCoupon,
       industry_id: industryId || null,
       category_id: categoryId || null,
-      selected_feature_packs: selectedPacks,
+      selected_feature_packs: normalizedPacks,
       user_limit: tenantLimits.users,
       company_limit: tenantLimits.companies,
       branch_limit: tenantLimits.branches,
@@ -1147,10 +1710,12 @@ export function BuildYourOwnErpBuilder() {
       setMoney(engineMoneyFromQuote(cached));
       setQuoteError(null);
       setQuoteBusy(false);
+      setCouponApplyPending(false);
       return;
     }
 
     const controller = new AbortController();
+    const requestId = ++quoteRequestIdRef.current;
     const timer = window.setTimeout(async () => {
       setQuoteBusy(true);
       setQuoteError(null);
@@ -1167,19 +1732,18 @@ export function BuildYourOwnErpBuilder() {
           message?: string;
           data?: CustomPackageQuoteResult | null;
         };
+
+        if (requestId !== quoteRequestIdRef.current) return;
+
         if (!res.ok || json.success === false || !json.data?.pricing) {
           const msg =
             json.message || "Live pricing is unavailable. Retry to continue.";
-          // Retry once without feature packs when Engine rejects unknown pack codes.
+
           if (
-            selectedPacks.length &&
-            /feature pack/i.test(msg) &&
-            quoteBody.selected_feature_packs?.length
+            appliedCoupon &&
+            /discount|coupon|promo/i.test(msg)
           ) {
-            const retryBody = {
-              ...quoteBody,
-              selected_feature_packs: [] as string[],
-            };
+            const retryBody = { ...quoteBody, discount_code: null };
             const retryRes = await fetch("/api/commercial/custom-package-quote", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1192,39 +1756,90 @@ export function BuildYourOwnErpBuilder() {
               message?: string;
               data?: CustomPackageQuoteResult | null;
             };
+            if (requestId !== quoteRequestIdRef.current) return;
             if (retryRes.ok && retryJson.success !== false && retryJson.data?.pricing) {
-              json.data = retryJson.data;
-            } else {
-              setLiveQuote(null);
-              setMoney(null);
-              if (appliedCoupon) {
-                setCouponError(msg);
+              const retryCacheKey = JSON.stringify(retryBody);
+              setLiveQuote(retryJson.data);
+              quoteCacheRef.current.set(retryCacheKey, retryJson.data!);
+              setMoney(engineMoneyFromQuote(retryJson.data));
+              setQuoteError(null);
+              setAppliedCoupon(null);
+              setCouponError(
+                /not found/i.test(msg) ? "Discount code not found." : msg
+              );
+              setBundleDismissed(false);
+              return;
+            }
+          }
+
+          if (
+            selectedPacks.length &&
+            /feature pack/i.test(msg) &&
+            quoteBody.selected_feature_packs?.length
+          ) {
+            const invalidKeys = parseInvalidFeaturePackCodes(msg);
+            const retrySelected = invalidKeys.size
+              ? selectedPacks.filter((code) => !invalidKeys.has(normPackKey(code)))
+              : pruneSelectedFeaturePackCodes(selectedPacks, moduleVisibleFeaturePacks);
+            const prunedPacks = prepareFeaturePackCodesForQuote(
+              retrySelected,
+              builderRecommendations,
+              commercialOverview
+            );
+            if (
+              prunedPacks.length &&
+              prunedPacks.length !== quoteBody.selected_feature_packs.length
+            ) {
+              const retryBody = {
+                ...quoteBody,
+                selected_feature_packs: prunedPacks,
+              };
+              const retryRes = await fetch("/api/commercial/custom-package-quote", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(retryBody),
+                signal: controller.signal,
+                cache: "no-store",
+              });
+              const retryJson = (await retryRes.json().catch(() => ({}))) as {
+                success?: boolean;
+                message?: string;
+                data?: CustomPackageQuoteResult | null;
+              };
+              if (requestId !== quoteRequestIdRef.current) return;
+              if (retryRes.ok && retryJson.success !== false && retryJson.data?.pricing) {
+                setSelectedPacks(prunedPacks);
+                json.data = retryJson.data;
               } else {
-                setCouponError(null);
                 setQuoteError(msg);
+                if (appliedCoupon) setCouponError(msg);
+                return;
               }
+            } else {
+              setQuoteError(msg);
+              if (appliedCoupon) setCouponError(msg);
               return;
             }
           } else {
-            setLiveQuote(null);
-            setMoney(null);
+            setQuoteError(msg);
             if (appliedCoupon) {
               setCouponError(msg);
             } else {
               setCouponError(null);
-              setQuoteError(msg);
             }
             return;
           }
         }
 
+        if (requestId !== quoteRequestIdRef.current) return;
+
         setLiveQuote(json.data);
-        quoteCacheRef.current.set(cacheKey, json.data);
+        quoteCacheRef.current.set(cacheKey, json.data!);
         if (quoteCacheRef.current.size > 40) {
           const first = quoteCacheRef.current.keys().next().value;
           if (first) quoteCacheRef.current.delete(first);
         }
-        const pricing = json.data.pricing;
+        const pricing = json.data!.pricing;
         const nextMoney = engineMoneyFromQuote(json.data);
         setMoney(nextMoney);
         setQuoteError(null);
@@ -1232,7 +1847,9 @@ export function BuildYourOwnErpBuilder() {
 
         if (appliedCoupon) {
           if (!couponAppliedInPricing(pricing)) {
+            setAppliedCoupon(null);
             setCouponError("This coupon is invalid or not applicable.");
+            setQuoteError(null);
             return;
           }
           const matched = String(pricing.discount_code || appliedCoupon).toUpperCase();
@@ -1245,14 +1862,20 @@ export function BuildYourOwnErpBuilder() {
         setCouponError(null);
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
-        setLiveQuote(null);
-        setMoney(null);
-        setQuoteError("Could not load live pricing from License Engine.");
+        if (requestId !== quoteRequestIdRef.current) return;
+        const msg =
+          err instanceof Error && err.message
+            ? err.message
+            : "Could not load live pricing from License Engine.";
+        setQuoteError(msg);
         if (appliedCoupon) {
           setCouponError("Could not verify coupon right now.");
         }
       } finally {
-        if (!controller.signal.aborted) setQuoteBusy(false);
+        if (requestId === quoteRequestIdRef.current) {
+          setQuoteBusy(false);
+          setCouponApplyPending(false);
+        }
       }
     }, 400);
 
@@ -1275,7 +1898,39 @@ export function BuildYourOwnErpBuilder() {
     tenantLimits.branches,
     tenantLimits.warehouses,
     quoteNonce,
+    commercialOverview,
+    builderRecommendations,
+    moduleVisibleFeaturePacks,
   ]);
+
+  const handleCouponCodeChange = useCallback((value: string) => {
+    setCouponInput(value.toUpperCase());
+    setCouponError(null);
+  }, []);
+
+  const handleApplyCoupon = useCallback(() => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) {
+      setAppliedCoupon(null);
+      setCouponError(null);
+      return;
+    }
+    if (!complete.length) {
+      setCouponError("Select at least one module before applying a coupon.");
+      return;
+    }
+    setCouponError(null);
+    setCouponInput(code);
+    setCouponApplyPending(true);
+    setAppliedCoupon(code);
+  }, [couponInput, complete.length]);
+
+  const handleClearCoupon = useCallback(() => {
+    setCouponInput("");
+    setAppliedCoupon(null);
+    setCouponError(null);
+    setCouponApplyPending(false);
+  }, []);
 
   function toggleModule(code: string) {
     startTransition(() => {
@@ -1301,8 +1956,10 @@ export function BuildYourOwnErpBuilder() {
   }
 
   function togglePack(code: string) {
-    const pack = featurePacks.find((p) => p.code === code);
-    if (!pack || pack.required) return;
+    const pack =
+      moduleVisibleFeaturePacks.find((p) => p.code === code) ||
+      featurePacks.find((p) => p.code === code);
+    if (!pack || isFeaturePackLocked(pack) || pack.disabled) return;
     setSelectedPacks((prev) =>
       prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
     );
@@ -1647,9 +2304,15 @@ export function BuildYourOwnErpBuilder() {
                       Recommended configuration
                     </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Loaded for {selectedCategory?.name || "your category"}. Required modules
-                      stay locked; recommended modules stay editable.
+                      Lean essentials from License Engine for{" "}
+                      {selectedCategory?.name || "your category"}. Required modules stay
+                      locked; recommended modules are editable in the next step.
                     </p>
+                    {builderRecommendations?.provisioning_note ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {builderRecommendations.provisioning_note}
+                      </p>
+                    ) : null}
                     <BuilderSearchField
                       value={query}
                       onChange={setQuery}
@@ -1659,75 +2322,100 @@ export function BuildYourOwnErpBuilder() {
                     />
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-border bg-white p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Required modules
-                      </p>
-                      <ul className="mt-2 space-y-1.5 text-sm text-[#0b1f3a]">
-                        {filteredLockedCodes.length ? (
-                          filteredLockedCodes.map((code) => (
+                  {recommendationsLoading ? (
+                    <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted-foreground">
+                      Loading builder recommendations from License Engine…
+                    </div>
+                  ) : recommendationsError ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-900">
+                      <p className="font-semibold">Recommendations unavailable</p>
+                      <p className="mt-1 text-xs">{recommendationsError}</p>
+                      {selectedCategory ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="mt-3 rounded-full"
+                          onClick={() => void loadBuilderRecommendations(selectedCategory)}
+                        >
+                          Retry
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {recommendationsFallback ? (
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:col-span-2">
+                          Live License Engine recommendations are temporarily unavailable. Showing
+                          offline defaults until the service recovers.
+                        </div>
+                      ) : null}
+                      <div className="rounded-2xl border border-border bg-white p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Required modules
+                        </p>
+                        <ul className="mt-2 space-y-1.5 text-sm text-[#0b1f3a]">
+                          {filteredLockedCodes.length ? (
+                            filteredLockedCodes.map((code) => (
+                              <li key={code} className="flex items-center gap-2">
+                                <Lock className="h-3.5 w-3.5 text-primary" />
+                                {byCode.get(code)?.name || code}
+                                <Badge className="ml-auto bg-primary/10 text-primary text-[10px]">
+                                  Required
+                                </Badge>
+                              </li>
+                            ))
+                          ) : (
+                            <li className="text-muted-foreground">
+                              {searchQ ? "No required modules match" : "None required"}
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-white p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Recommended modules
+                        </p>
+                        <ul className="mt-2 space-y-1.5 text-sm text-[#0b1f3a]">
+                          {filteredRecommendedCodes.map((code) => (
                             <li key={code} className="flex items-center gap-2">
-                              <Lock className="h-3.5 w-3.5 text-primary" />
+                              <Check className="h-3.5 w-3.5 text-amber-700" />
                               {byCode.get(code)?.name || code}
                             </li>
-                          ))
-                        ) : (
-                          <li className="text-muted-foreground">
-                            {searchQ ? "No required modules match" : "None locked yet"}
-                          </li>
-                        )}
-                      </ul>
-                    </div>
-                    <div className="rounded-2xl border border-border bg-white p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Recommended modules
-                      </p>
-                      <ul className="mt-2 space-y-1.5 text-sm text-[#0b1f3a]">
-                        {filteredRecommendedCodes.map((code) => (
-                          <li key={code} className="flex items-center gap-2">
-                            <Check className="h-3.5 w-3.5 text-amber-700" />
-                            {byCode.get(code)?.name || code}
-                          </li>
-                        ))}
-                        {!filteredRecommendedCodes.length ? (
-                          <li className="text-muted-foreground">
-                            {searchQ
-                              ? "No recommended modules match"
-                              : "Using required set only — add more in the next step"}
-                          </li>
-                        ) : null}
-                      </ul>
-                    </div>
-                    <div className="rounded-2xl border border-border bg-white p-4 sm:col-span-2">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Recommended feature packs
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {filteredFeaturePacks.length ? (
-                          filteredFeaturePacks.map((p) => (
-                            <Badge
-                              key={p.code}
-                              className={
-                                p.required
-                                  ? "bg-primary/10 text-primary"
-                                  : "bg-amber-50 text-amber-900"
-                              }
-                            >
-                              {p.name}
-                              {p.required ? " · required" : ""}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            {searchQ
-                              ? "No feature packs match your search"
-                              : "No feature packs listed for this category"}
-                          </span>
-                        )}
+                          ))}
+                          {!filteredRecommendedCodes.length ? (
+                            <li className="text-muted-foreground">
+                              {searchQ
+                                ? "No recommended modules match"
+                                : "No optional recommendations — customize in the next step"}
+                            </li>
+                          ) : null}
+                        </ul>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-white p-4 sm:col-span-2">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Recommended feature packs
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {recommendedConfigurationPackTags.length ? (
+                            recommendedConfigurationPackTags.map((p) => (
+                              <Badge key={p.code} className="bg-amber-50 text-amber-900">
+                                {p.name}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              {searchQ
+                                ? "No recommended feature packs match"
+                                : recommendationsLoading
+                                  ? "Loading feature packs…"
+                                  : "No feature packs recommended for this category"}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="hidden flex-wrap gap-3 sm:flex">
                     <Button
@@ -1742,6 +2430,7 @@ export function BuildYourOwnErpBuilder() {
                     <Button
                       type="button"
                       className="rounded-full"
+                      disabled={!categoryId || recommendationsLoading || Boolean(recommendationsError)}
                       onClick={() => goTo("modules")}
                     >
                       Customize modules
@@ -1757,7 +2446,8 @@ export function BuildYourOwnErpBuilder() {
                     <div className="min-w-0">
                       <h3 className="text-lg font-semibold text-[#0b1f3a]">Module builder</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Add or remove optional modules. Required dependencies stay locked.
+                        Required modules stay locked. Recommended modules are pre-selected but
+                        optional. Add more from Additional modules.
                       </p>
                     </div>
                     <div className="hidden gap-2 sm:flex">
@@ -1845,40 +2535,110 @@ export function BuildYourOwnErpBuilder() {
                     </div>
                   ) : null}
 
-                  <div className="mt-5">
-                    {filtered.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-12 text-center">
-                        <p className="text-sm font-medium text-[#0b1f3a]">
-                          No modules match your search
+                  <div className="mt-5 space-y-8">
+                    {filteredLockedCodes.length ? (
+                      <section>
+                        <h4 className="text-sm font-semibold text-[#0b1f3a]">Required modules</h4>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Essential for {selectedCategory?.name || "your category"} — cannot be removed.
                         </p>
-                      </div>
-                    ) : (
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {filtered.map((mod, i) => {
-                          const depNames = (mod.dependencies || [])
-                            .map((c) => byCode.get(c)?.name || c)
-                            .filter(Boolean);
-                          const isLocked = lockedCodes.includes(mod.code);
-                          return (
-                            <AnimateIn key={mod.id} delay={Math.min(i * 0.03, 0.3)}>
-                              <ModuleCard
-                                mod={mod}
-                                selected={complete.includes(mod.code)}
-                                required={isLocked && complete.includes(mod.code)}
-                                recommended={
-                                  recommended.includes(mod.code) ||
-                                  (selected.includes(mod.code) && !isLocked)
-                                }
-                                cycle={cycle}
-                                onToggle={() => toggleModule(mod.code)}
-                                formatPrice={formatPrice}
-                                depNames={depNames}
-                              />
-                            </AnimateIn>
-                          );
-                        })}
-                      </div>
-                    )}
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          {filteredLockedCodes.map((code, i) => {
+                            const mod = byCode.get(code);
+                            if (!mod) return null;
+                            const depNames = (mod.dependencies || [])
+                              .map((c) => byCode.get(c)?.name || c)
+                              .filter(Boolean);
+                            return (
+                              <AnimateIn key={code} delay={Math.min(i * 0.03, 0.3)}>
+                                <ModuleCard
+                                  mod={mod}
+                                  selected
+                                  required
+                                  recommended={builderRequiredModules.includes(code)}
+                                  cycle={cycle}
+                                  onToggle={() => undefined}
+                                  formatPrice={formatPrice}
+                                  depNames={depNames}
+                                />
+                              </AnimateIn>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    ) : null}
+
+                    {filteredRecommendedCodes.length ? (
+                      <section>
+                        <h4 className="text-sm font-semibold text-[#0b1f3a]">
+                          Recommended modules
+                        </h4>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Suggested by License Engine — toggle freely.
+                        </p>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          {filteredRecommendedCodes.map((code, i) => {
+                            const mod = byCode.get(code);
+                            if (!mod) return null;
+                            const depNames = (mod.dependencies || [])
+                              .map((c) => byCode.get(c)?.name || c)
+                              .filter(Boolean);
+                            const isSelected = complete.includes(code);
+                            return (
+                              <AnimateIn key={code} delay={Math.min(i * 0.03, 0.3)}>
+                                <ModuleCard
+                                  mod={mod}
+                                  selected={isSelected}
+                                  required={false}
+                                  recommended
+                                  cycle={cycle}
+                                  onToggle={() => toggleModule(code)}
+                                  formatPrice={formatPrice}
+                                  depNames={depNames}
+                                />
+                              </AnimateIn>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    ) : null}
+
+                    <section>
+                      <h4 className="text-sm font-semibold text-[#0b1f3a]">Additional modules</h4>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Everything else in the catalog — unselected by default.
+                      </p>
+                      {filteredAdditionalModules.length === 0 ? (
+                        <div className="mt-3 rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center">
+                          <p className="text-sm font-medium text-[#0b1f3a]">
+                            {searchQ ? "No additional modules match your search" : "No additional modules"}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          {filteredAdditionalModules.map((mod, i) => {
+                            const depNames = (mod.dependencies || [])
+                              .map((c) => byCode.get(c)?.name || c)
+                              .filter(Boolean);
+                            const isLocked = lockedCodes.includes(mod.code);
+                            return (
+                              <AnimateIn key={mod.id} delay={Math.min(i * 0.03, 0.3)}>
+                                <ModuleCard
+                                  mod={mod}
+                                  selected={complete.includes(mod.code)}
+                                  required={isLocked && complete.includes(mod.code)}
+                                  recommended={false}
+                                  cycle={cycle}
+                                  onToggle={() => toggleModule(mod.code)}
+                                  formatPrice={formatPrice}
+                                  depNames={depNames}
+                                />
+                              </AnimateIn>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </section>
                   </div>
                 </div>
               ) : null}
@@ -1888,14 +2648,10 @@ export function BuildYourOwnErpBuilder() {
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
                       <h3 className="text-lg font-semibold text-[#0b1f3a]">Feature packs</h3>
-                      {featurePacks.some((p) => !p.required) ? (
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Enable optional packs for{" "}
-                          {selectedCategory?.name || "your category"}. Required packs stay
-                          locked. Prices come from the catalog when published (currently
-                          included).
-                        </p>
-                      ) : null}
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Packs shown match your industry, category, and selected modules.
+                        Prices load live from the Product Catalog.
+                      </p>
                     </div>
                     <div className="hidden gap-2 sm:flex">
                       <Button
@@ -1928,58 +2684,70 @@ export function BuildYourOwnErpBuilder() {
                     className="mt-4 sm:mt-5"
                   />
 
-                  {!featurePacks.length ? (
+                  {!builderRecommendations ? (
                     <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted-foreground">
-                      No feature packs are listed for this category. Continue to tenant limits.
+                      Select a category to load feature packs for your business profile.
                     </div>
                   ) : filteredFeaturePacks.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted-foreground">
-                      No feature packs match your search.
+                      {searchQ
+                        ? "No feature packs match your search."
+                        : "No Feature Packs available for your current configuration."}
                     </div>
                   ) : (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {filteredFeaturePacks.map((pack) => {
-                        const on = pack.required || selectedPacks.includes(pack.code);
-                        const price =
-                          cycle === "yearly"
-                            ? pack.yearly_price
-                            : cycle === "lifetime"
-                              ? pack.lifetime_price
-                              : pack.monthly_price;
-                        const cycleLabel =
-                          cycle === "lifetime" ? "once" : cycle === "yearly" ? "yr" : "mo";
-                        return (
-                          <BuilderSelectCard
-                            key={pack.code}
-                            selected={on}
-                            disabled={pack.required}
-                            onClick={() => togglePack(pack.code)}
-                            icon={Package}
-                            title={pack.name}
-                            description={pack.description}
-                            badges={
-                              pack.required ? (
-                                <Badge className="border-primary/20 bg-primary/10 text-[10px] text-primary">
-                                  Auto-added
-                                </Badge>
-                              ) : null
-                            }
-                            footerLeft={
-                              price > 0 ? (
-                                <>
-                                  {formatPrice(price)}
-                                  <span className="ml-1 text-xs font-medium text-muted-foreground">
-                                    / {cycleLabel}
-                                  </span>
-                                </>
-                              ) : (
-                                <span className="text-base font-bold">Included</span>
-                              )
-                            }
-                            footerRight="Feature pack"
-                          />
-                        );
-                      })}
+                    <div className="space-y-8">
+                      {recommendedFeaturePacks.length ? (
+                        <section className="space-y-3">
+                          <div>
+                            <h4 className="text-sm font-semibold text-[#0b1f3a]">
+                              Recommended for your business
+                            </h4>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Pre-selected from your industry profile. You can deselect any pack
+                              that is not required.
+                            </p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {recommendedFeaturePacks.map((pack) => (
+                              <FeaturePackCard
+                                key={pack.code}
+                                pack={pack}
+                                selected={selectedPacks.includes(pack.code)}
+                                cycle={cycle}
+                                formatPrice={formatPrice}
+                                moduleLabels={moduleLabelsMap}
+                                onToggle={() => togglePack(pack.code)}
+                              />
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
+
+                      {additionalFeaturePacks.length ? (
+                        <section className="space-y-3">
+                          <div>
+                            <h4 className="text-sm font-semibold text-[#0b1f3a]">
+                              Additional feature packs
+                            </h4>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Optional add-ons from the Product Catalog — select manually.
+                            </p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {additionalFeaturePacks.map((pack) => (
+                              <FeaturePackCard
+                                key={pack.code}
+                                pack={pack}
+                                selected={selectedPacks.includes(pack.code)}
+                                cycle={cycle}
+                                formatPrice={formatPrice}
+                                moduleLabels={moduleLabelsMap}
+                                onToggle={() => togglePack(pack.code)}
+                              />
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
                     </div>
                   )}
                 </div>
@@ -2042,6 +2810,7 @@ export function BuildYourOwnErpBuilder() {
                           unitPrice={cycleUnit(row.key)}
                           formatPrice={formatPrice}
                           cycle={cycle}
+                          liveAmount={seatAmountByKey.get(row.key)}
                           onChange={(n) =>
                             setTenantLimits((prev) =>
                               clampTenantLimits({ [row.key]: n }, prev, unitPrices)
@@ -2136,6 +2905,20 @@ export function BuildYourOwnErpBuilder() {
                       })}
                     </div>
                   )}
+
+                  {builderSupportPlan ? (
+                    <div className="rounded-2xl border border-border bg-slate-50 px-4 py-3.5">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Support plan
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-[#0b1f3a]">
+                        {builderSupportPlan}
+                        <span className="ml-1 text-xs font-medium text-emerald-700">
+                          Included
+                        </span>
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -2227,51 +3010,36 @@ export function BuildYourOwnErpBuilder() {
                       ) : null}
 
                       <div className="rounded-2xl border-2 border-sky-200 bg-sky-50 p-4 shadow-sm lg:hidden">
-                        <CustomErpPackageSummary
-                          package={packagePreview}
-                          readOnly={false}
-                          cycle={cycle}
-                          totals={totals}
-                          money={money}
-                          className="border-0 bg-transparent p-0 shadow-none"
+                        <CustomErpCouponField
                           couponCode={couponInput}
-                          onCouponCodeChange={(value) => {
-                            const next = value.toUpperCase();
-                            setCouponInput(next);
-                            setCouponError(null);
-                            if (!next.trim() && appliedCoupon) setAppliedCoupon(null);
-                            else if (
-                              appliedCoupon &&
-                              next.trim() &&
-                              next.trim() !== appliedCoupon
-                            ) {
-                              setAppliedCoupon(null);
-                            }
-                          }}
-                          onApplyCoupon={() => {
-                            const code = couponInput.trim().toUpperCase();
-                            if (!code) {
-                              setAppliedCoupon(null);
-                              setCouponError(null);
-                              return;
-                            }
-                            if (!complete.length) {
-                              setCouponError(
-                                "Select at least one module before applying a coupon."
-                              );
-                              return;
-                            }
-                            setCouponError(null);
-                            setCouponInput(code);
-                            setAppliedCoupon(code);
-                          }}
-                          onClearCoupon={() => {
-                            setCouponInput("");
-                            setAppliedCoupon(null);
-                            setCouponError(null);
-                          }}
+                          onCouponCodeChange={handleCouponCodeChange}
+                          onApplyCoupon={handleApplyCoupon}
+                          onClearCoupon={handleClearCoupon}
                           couponError={couponError}
-                          couponBusy={quoteBusy}
+                          couponBusy={couponApplyPending}
+                          couponApplied={Boolean(money?.discount_code) && !couponError}
+                          appliedCode={money?.discount_code}
+                          discountAmount={money?.discount_amount}
+                          formatPrice={formatPrice}
+                          showDiscount={(money?.discount_amount ?? 0) > 0}
+                          disabled={!complete.length}
+                          className="mb-3"
+                        />
+                        <CustomErpCommercialSummary
+                          cycle={cycle}
+                          money={money}
+                          liveQuote={liveQuote}
+                          quotePending={quotePending}
+                          moduleCodes={complete}
+                          moduleLabels={moduleLabelsMap}
+                          moduleBreakdown={summaryModuleBreakdown}
+                          selectedPackLines={selectedPackLines}
+                          featurePackCount={activePacks.length}
+                          featurePackTotal={packTotal}
+                          tenantAddonTotal={tenantAddon}
+                          seatLines={seatLines}
+                          bundleSavings={liveQuote?.bundle_offer?.bundle_savings ?? 0}
+                          appliedCouponCode={appliedCoupon}
                         />
                       </div>
 
@@ -2314,14 +3082,14 @@ export function BuildYourOwnErpBuilder() {
               <aside className="hidden lg:col-span-4 lg:block">
                 <div className="sticky top-24 space-y-4">
                   {quoteError ? (
-                    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
                       <p className="font-semibold">Live pricing unavailable</p>
-                      <p className="mt-1 text-rose-800/90">{quoteError}</p>
+                      <p className="mt-1 text-xs text-rose-800/90">{quoteError}</p>
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="mt-3 rounded-full border-rose-300 bg-white"
+                        className="mt-2 rounded-full border-rose-300 bg-white"
                         onClick={() => {
                           quoteCacheRef.current.clear();
                           setQuoteError(null);
@@ -2333,7 +3101,7 @@ export function BuildYourOwnErpBuilder() {
                     </div>
                   ) : null}
 
-                  {quoteBusy && !money ? (
+                  {quoteBusy && !money && !liveQuote ? (
                     <div className="animate-pulse space-y-3 rounded-2xl border-2 border-sky-200 bg-sky-50 p-5">
                       <div className="h-4 w-1/3 rounded bg-sky-200/80" />
                       <div className="h-10 w-2/3 rounded bg-sky-200/80" />
@@ -2341,54 +3109,39 @@ export function BuildYourOwnErpBuilder() {
                       <div className="h-3 w-5/6 rounded bg-sky-100" />
                     </div>
                   ) : (
-                  <div className="rounded-2xl border-2 border-sky-200 bg-sky-50 p-1 shadow-sm">
-                    <CustomErpPackageSummary
-                      package={packagePreview}
-                      readOnly={false}
-                      cycle={cycle}
-                      totals={totals}
-                      money={money}
-                      className="border-0 bg-transparent shadow-none"
-                      couponCode={couponInput}
-                      onCouponCodeChange={(value) => {
-                        const next = value.toUpperCase();
-                        setCouponInput(next);
-                        setCouponError(null);
-                        if (!next.trim() && appliedCoupon) setAppliedCoupon(null);
-                        else if (
-                          appliedCoupon &&
-                          next.trim() &&
-                          next.trim() !== appliedCoupon
-                        ) {
-                          setAppliedCoupon(null);
-                        }
-                      }}
-                      onApplyCoupon={() => {
-                        const code = couponInput.trim().toUpperCase();
-                        if (!code) {
-                          setAppliedCoupon(null);
-                          setCouponError(null);
-                          return;
-                        }
-                        if (!complete.length) {
-                          setCouponError(
-                            "Select at least one module before applying a coupon."
-                          );
-                          return;
-                        }
-                        setCouponError(null);
-                        setCouponInput(code);
-                        setAppliedCoupon(code);
-                      }}
-                      onClearCoupon={() => {
-                        setCouponInput("");
-                        setAppliedCoupon(null);
-                        setCouponError(null);
-                      }}
-                      couponError={couponError}
-                      couponBusy={quoteBusy}
-                    />
-                  </div>
+                    <div className="rounded-2xl border-2 border-sky-200 bg-sky-50 p-3 shadow-sm">
+                      <CustomErpCouponField
+                        couponCode={couponInput}
+                        onCouponCodeChange={handleCouponCodeChange}
+                        onApplyCoupon={handleApplyCoupon}
+                        onClearCoupon={handleClearCoupon}
+                        couponError={couponError}
+                        couponBusy={couponApplyPending}
+                        couponApplied={Boolean(money?.discount_code) && !couponError}
+                        appliedCode={money?.discount_code}
+                        discountAmount={money?.discount_amount}
+                        formatPrice={formatPrice}
+                        showDiscount={(money?.discount_amount ?? 0) > 0}
+                        disabled={!complete.length}
+                        className="mb-3"
+                      />
+                      <CustomErpCommercialSummary
+                        cycle={cycle}
+                        money={money}
+                        liveQuote={liveQuote}
+                        quotePending={quotePending}
+                        moduleCodes={complete}
+                        moduleLabels={moduleLabelsMap}
+                        moduleBreakdown={summaryModuleBreakdown}
+                        selectedPackLines={selectedPackLines}
+                        featurePackCount={activePacks.length}
+                        featurePackTotal={packTotal}
+                        tenantAddonTotal={tenantAddon}
+                        seatLines={seatLines}
+                        bundleSavings={liveQuote?.bundle_offer?.bundle_savings ?? 0}
+                        appliedCouponCode={appliedCoupon}
+                      />
+                    </div>
                   )}
 
                   {!bundleDismissed &&
@@ -2412,13 +3165,16 @@ export function BuildYourOwnErpBuilder() {
                     />
                   ) : null}
 
-                  {recommended.length && step === "modules" ? (
+                  {builderRecommendedModules.some((c) => !complete.includes(c)) &&
+                  step === "modules" ? (
                     <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4 shadow-sm">
                       <p className="text-xs font-medium uppercase tracking-wide text-sky-800/80">
-                        Optional recommendations
+                        Recommended modules
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {recommended.map((code) => (
+                        {builderRecommendedModules
+                          .filter((c) => !complete.includes(c))
+                          .map((code) => (
                           <button
                             key={code}
                             type="button"

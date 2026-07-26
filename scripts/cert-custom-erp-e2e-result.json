@@ -1,7 +1,7 @@
 {
   "suite": "CERT-CUSTOM-ERP-E2E-001",
-  "at": "2026-07-26T11:58:17.924Z",
-  "email_attempted": "cert.custom.1785067087281@example.com",
+  "at": "2026-07-26T19:28:27.249Z",
+  "email_attempted": "cert.custom.1785094093988@example.com",
   "checks": [
     {
       "name": "website_builder_page",
@@ -11,7 +11,7 @@
     {
       "name": "le_public_modules",
       "ok": true,
-      "detail": "27 modules"
+      "detail": "29 modules"
     },
     {
       "name": "le_pos_depends_inventory",

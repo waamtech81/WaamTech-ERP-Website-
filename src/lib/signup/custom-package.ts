@@ -31,6 +31,21 @@ export type CustomErpFeaturePackSelection = {
   lifetime_price?: number;
 };
 
+export type CustomErpBundleRecommendation = {
+  matched_plan_id: string | null;
+  matched_plan_name: string | null;
+  matched_plan_slug: string | null;
+  matched_plan_price: number;
+  custom_price: number;
+  bundle_savings: number;
+  bundle_percentage: number;
+  match_score: number;
+  exact_match?: boolean;
+  close_match?: boolean;
+  show_bundle_offer?: boolean;
+  message?: string | null;
+};
+
 export type CustomErpPackagePayload = {
   package_type: "custom";
   selected_modules: string[];
@@ -59,6 +74,10 @@ export type CustomErpPackagePayload = {
   /** Add-ons estimated from catalog plan rates (users/companies/branches/warehouses). */
   tenant_addon_total?: number;
   feature_pack_total?: number;
+  /** Support tier from License Engine plan/commercial snapshot. */
+  support_plan?: string | null;
+  /** Bundle recommendation from live quote (handoff only — never auto-switch). */
+  bundle_recommendation?: CustomErpBundleRecommendation | null;
 };
 
 export function estimatedTotalForCycle(
@@ -132,6 +151,8 @@ export function buildCustomErpPackagePayload(input: {
   tenant_limits?: CustomErpTenantLimits | null;
   tenant_addon_total?: number;
   feature_pack_total?: number;
+  support_plan?: string | null;
+  bundle_recommendation?: CustomErpBundleRecommendation | null;
 }): CustomErpPackagePayload {
   const selected_module_count = new Set([
     ...input.selected_modules,
@@ -161,6 +182,8 @@ export function buildCustomErpPackagePayload(input: {
     tenant_limits: input.tenant_limits ?? null,
     tenant_addon_total: tenantAddon,
     feature_pack_total: featurePackTotal,
+    support_plan: input.support_plan ?? null,
+    bundle_recommendation: input.bundle_recommendation ?? null,
     estimated_total: 0,
   };
   // Engine money.grand_total is SSOT (modules + seats + packs + tax − discount).
@@ -219,6 +242,8 @@ export function loadCustomErpPackage(): CustomErpPackagePayload | null {
       tenant_limits: parsed.tenant_limits ?? null,
       tenant_addon_total: tenantAddon,
       feature_pack_total: featurePackTotal,
+      support_plan: parsed.support_plan ?? null,
+      bundle_recommendation: parsed.bundle_recommendation ?? null,
       estimated_total: 0,
     };
     const estimated_total =

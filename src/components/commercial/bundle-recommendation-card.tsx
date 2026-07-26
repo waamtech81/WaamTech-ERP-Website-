@@ -49,11 +49,13 @@ export function BundleRecommendationCard({
           </span>
           <div className="min-w-0">
             <p className="text-sm font-bold text-[#0b1f3a]">
-              {mode === "bundle" ? "Better value available" : "Close match available"}
+              {mode === "bundle"
+                ? "Your configuration matches"
+                : "Close match available"}
             </p>
             <p className="text-xs text-[#0b1f3a]/75">
               {mode === "bundle"
-                ? `Your configuration matches ${planName}`
+                ? `Matched plan: ${planName}`
                 : offer.message ||
                   `This configuration is very similar to our ${planName}.`}
             </p>

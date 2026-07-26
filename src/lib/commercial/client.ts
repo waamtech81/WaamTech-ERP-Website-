@@ -7,6 +7,7 @@ import { normalizeCustomPackageQuote } from "@/lib/commercial/custom-package-quo
 import { toPublicError } from "@/lib/api/errors";
 import { logApiError } from "@/lib/api/logger";
 import { friendlyNetworkError } from "@/lib/network/errors";
+import { commercialUpstreamMessage } from "@/lib/commercial/upstream-error";
 import type {
   CatalogBusinessCategory,
   CatalogBusinessProfile,
@@ -14,6 +15,8 @@ import type {
   CatalogComparisonBundle,
   CatalogFetchResult,
   CatalogIndustry,
+  CatalogIndustryDetail,
+  CatalogBuilderRecommendations,
   CatalogModule,
   CatalogPlan,
   CatalogPlanLimits,
@@ -62,7 +65,7 @@ function publicUpstreamMessage(
       technicalMessage: technical,
     });
   }
-  return toPublicError(technical, status, { code }).message;
+  return commercialUpstreamMessage(raw, status, fallback);
 }
 
 async function getPublic<T>(
@@ -295,10 +298,10 @@ export async function fetchCustomPackageQuote(
   if (body.selected_feature_packs?.length) {
     payload.selected_feature_packs = body.selected_feature_packs;
   }
-  if (body.user_limit != null) payload.user_limit = body.user_limit;
-  if (body.company_limit != null) payload.company_limit = body.company_limit;
-  if (body.branch_limit != null) payload.branch_limit = body.branch_limit;
-  if (body.warehouse_limit != null) payload.warehouse_limit = body.warehouse_limit;
+  if (body.user_limit != null) payload.user_limit = Math.floor(Number(body.user_limit));
+  if (body.company_limit != null) payload.company_limit = Math.floor(Number(body.company_limit));
+  if (body.branch_limit != null) payload.branch_limit = Math.floor(Number(body.branch_limit));
+  if (body.warehouse_limit != null) payload.warehouse_limit = Math.floor(Number(body.warehouse_limit));
 
   try {
     const res = await fetch(url, {
@@ -331,6 +334,19 @@ export async function fetchCustomPackageQuote(
           json.code || json.error?.code
         ),
         data: normalized,
+      };
+    }
+
+    if (!normalized) {
+      return {
+        ok: false,
+        status: 502,
+        message: publicUpstreamMessage(
+          json.message || "License Engine returned an unreadable quote payload.",
+          502,
+          "License Engine returned an unreadable quote payload."
+        ),
+        data: null,
       };
     }
 
@@ -515,6 +531,33 @@ export async function fetchPublicIndustries(): Promise<
     limit: REGISTRY_PAGE_LIMIT,
   });
   return { ...result, data: asArray(result.data) };
+}
+
+export async function fetchPublicIndustryDetail(
+  idOrSlug: string
+): Promise<CatalogFetchResult<CatalogIndustryDetail | null>> {
+  const result = await getPublic<CatalogIndustryDetail>(
+    `/v1/public/catalog/industries/${encodeURIComponent(idOrSlug)}`,
+    undefined,
+    { revalidate: 60 }
+  );
+  return { ...result, data: result.data ?? null };
+}
+
+/** Lean Custom ERP Builder recommendations — NOT provisioning defaults. */
+export async function fetchPublicBuilderRecommendations(
+  categoryId: string
+): Promise<CatalogFetchResult<CatalogBuilderRecommendations | null>> {
+  const id = String(categoryId || "").trim();
+  if (!id) {
+    return emptyResult(null, "category_id is required.", 400);
+  }
+  const result = await getPublic<CatalogBuilderRecommendations>(
+    "/v1/public/catalog/builder-recommendations",
+    { category_id: id },
+    { revalidate: false }
+  );
+  return { ...result, data: result.data ?? null };
 }
 
 export async function fetchPublicBusinessCategories(

@@ -11,6 +11,7 @@ import type {
   CatalogBusinessCategory,
   CatalogBusinessProfile,
   CatalogBusinessType,
+  CatalogBuilderRecommendations,
   CatalogComparisonBundle,
   CatalogIndustry,
   CatalogModule,
@@ -237,6 +238,16 @@ export function useCatalogBusinessCategories(industryId?: string | null) {
     enabled ? `catalog:categories:${industryId}` : null,
     enabled ? `/api/commercial/business-categories${qs}` : null,
     EMPTY_ARRAY as unknown as CatalogBusinessCategory[]
+  );
+}
+
+export function useCatalogBuilderRecommendations(categoryId?: string | null) {
+  const enabled = Boolean(categoryId);
+  const qs = categoryId ? `?category_id=${encodeURIComponent(categoryId)}` : "";
+  return useCommercialQuery<CatalogBuilderRecommendations | null>(
+    enabled ? `catalog:builder-rec:${categoryId}` : null,
+    enabled ? `/api/commercial/builder-recommendations${qs}` : null,
+    null
   );
 }
 

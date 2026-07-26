@@ -291,6 +291,11 @@ export function buildCustomPackageQuotePayload(input: {
   branch_limit?: number;
   warehouse_limit?: number;
 }): CustomPackageQuotePayload {
+  const seat = (value: number | undefined) => {
+    if (value == null) return undefined;
+    const n = Math.floor(Number(value));
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
   return {
     product_slug: input.product_slug || "waamto-erp",
     billing_cycle: input.billing_cycle,
@@ -301,10 +306,10 @@ export function buildCustomPackageQuotePayload(input: {
     selected_feature_packs: input.selected_feature_packs?.length
       ? [...input.selected_feature_packs]
       : [],
-    user_limit: input.user_limit,
-    company_limit: input.company_limit,
-    branch_limit: input.branch_limit,
-    warehouse_limit: input.warehouse_limit,
+    user_limit: seat(input.user_limit),
+    company_limit: seat(input.company_limit),
+    branch_limit: seat(input.branch_limit),
+    warehouse_limit: seat(input.warehouse_limit),
   };
 }
 
@@ -326,7 +331,9 @@ export function quoteCycleTotals(quote: CustomPackageQuoteResult | null): {
 }
 
 export function shouldShowBundleOffer(quote: CustomPackageQuoteResult | null): boolean {
-  return Boolean(quote?.bundle_offer?.show_bundle_offer && quote.bundle_offer.matched_plan_id);
+  const offer = quote?.bundle_offer;
+  if (!offer?.matched_plan_id) return false;
+  return Boolean(offer.exact_match || offer.show_bundle_offer);
 }
 
 export function shouldShowCloseMatch(quote: CustomPackageQuoteResult | null): boolean {

@@ -81,6 +81,30 @@ function priceOrDefault(value: unknown): number {
   return Number.isFinite(n) ? n : DEFAULT_MODULE_PRICE_USD;
 }
 
+/** Display-only acronym fixes when Engine sends title-cased codes (Pos/Crm/Hr…). */
+const MODULE_DISPLAY_NAMES: Record<string, string> = {
+  pos: "POS",
+  crm: "CRM",
+  hr: "HR",
+  wms: "WMS",
+  ai: "AI",
+  api: "API",
+  dms: "DMS",
+  pos_retail: "POS Retail",
+};
+
+function displayModuleName(code: string, name: string | undefined): string {
+  const key = String(code || "").trim().toLowerCase();
+  if (MODULE_DISPLAY_NAMES[key]) return MODULE_DISPLAY_NAMES[key];
+  const trimmed = String(name || "").trim();
+  if (!trimmed) return code;
+  // Engine sometimes mirrors the code as "Pos" / "Crm" — prefer acronym map via code.
+  if (/^[A-Za-z]{2,4}$/.test(trimmed) && trimmed.toLowerCase() === key && MODULE_DISPLAY_NAMES[key]) {
+    return MODULE_DISPLAY_NAMES[key];
+  }
+  return trimmed;
+}
+
 /** Normalize Engine modules + apply safe fallbacks for deps/pricing. */
 export function normalizeCatalogModules(modules: CatalogModule[]): CatalogModule[] {
   const known = new Set(modules.map((m) => m.code));
@@ -99,12 +123,14 @@ export function normalizeCatalogModules(modules: CatalogModule[]): CatalogModule
       const recommended = uniq(rawRec.map((d) => canonicalCode(d, known))).filter(
         (d) => known.has(d) && d !== code
       );
+      const name = displayModuleName(code, m.name);
       return {
         ...m,
+        name,
         version: m.version || "1.0.0",
         category: m.category || "General",
         industry: m.industry || "General",
-        description: m.description || `${m.name} module`,
+        description: m.description || `${name} module`,
         dependencies: deps,
         recommended_modules: recommended,
         monthly_price: priceOrDefault(m.monthly_price),
@@ -220,4 +246,4 @@ export function slugifyLabel(value: string): string {
 }
 
 export const USER_LIMIT_NOTE =
-  "User seats are finalized with your custom package (typically starting from 5 users).";
+  "User seats are finalized with your custom package (typically starting from 1 user).";

@@ -63,6 +63,13 @@ import { getCategoryAccessHints } from "@/lib/data/mobile-app";
 import {
   normalizePermalinkSlug,
 } from "@/lib/signup/permalinks";
+import { CustomErpPackageSummary } from "@/components/commercial/custom-erp-package-summary";
+import {
+  clearCustomErpPackage,
+  loadCustomErpPackage,
+  type CustomErpPackagePayload,
+  type SignupPackageType,
+} from "@/lib/signup/custom-package";
 
 export type SignUpClientProps = {
   /** Pre-resolved Engine UUIDs from server slug lookup (never from public URL). */
@@ -234,6 +241,11 @@ function SignUpForm({
   const defaultPlanSlug = searchParams.get("plan") || "";
   const defaultPlanId = searchParams.get("plan_id") || "";
   const defaultBillingCycle = searchParams.get("billing_cycle") || "";
+  const defaultPackageType: SignupPackageType =
+    searchParams.get("package_type")?.toLowerCase() === "custom" ? "custom" : "predefined";
+
+  const [packageType, setPackageType] = useState<SignupPackageType>(defaultPackageType);
+  const [customPackage, setCustomPackage] = useState<CustomErpPackagePayload | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -299,6 +311,19 @@ function SignUpForm({
   const plansQuery = useCatalogPlans(productSlug || null);
   const industriesQuery = useCatalogIndustries();
   const categoriesQuery = useCatalogBusinessCategories(industryId || null);
+
+  // Custom mode only when arriving from the builder (`?package_type=custom`).
+  // Do not flip normal signup just because a prior draft exists in session.
+  useEffect(() => {
+    const fromUrl = searchParams.get("package_type")?.toLowerCase() === "custom";
+    if (!fromUrl) {
+      setPackageType("predefined");
+      return;
+    }
+    setPackageType("custom");
+    const saved = loadCustomErpPackage();
+    if (saved) setCustomPackage(saved);
+  }, [searchParams]);
 
   // Keep an unfinished signup in this browser tab across refresh/back navigation.
   // Passwords are deliberately never persisted in browser storage.
@@ -444,10 +469,13 @@ function SignUpForm({
         (p) =>
           !p.contact_sales &&
           p.pricing_type !== "custom" &&
-          String(p.tier || p.slug).toLowerCase() !== "enterprise"
+          String(p.tier || p.slug).toLowerCase() !== "enterprise" &&
+          !String(p.slug || "").toLowerCase().includes("custom-erp")
       ),
     [plansQuery.data]
   );
+
+  const isCustomPackage = packageType === "custom";
 
   const selectedProduct = useMemo(
     () =>
@@ -731,7 +759,7 @@ function SignUpForm({
     setError("");
     setSuccess("");
 
-    if (!permalinkReady) {
+    if (!isCustomPackage && !permalinkReady) {
       setError("This signup link is invalid. Please start again from pricing.");
       return;
     }
@@ -751,24 +779,33 @@ function SignUpForm({
       return;
     }
 
-    if (!productId) {
-      setError("Please choose a product.");
-      return;
-    }
+    if (isCustomPackage) {
+      if (!customPackage?.selected_modules?.length) {
+        setError(
+          "Assemble your package on Build your own custom ERP first, then continue to signup."
+        );
+        return;
+      }
+    } else {
+      if (!productId) {
+        setError("Please choose a product.");
+        return;
+      }
 
-    if (!planId) {
-      setError("Please choose a plan.");
-      return;
-    }
+      if (!planId) {
+        setError("Please choose a plan.");
+        return;
+      }
 
-    if (!industryId) {
-      setError("Please choose an industry.");
-      return;
-    }
+      if (!industryId) {
+        setError("Please choose an industry.");
+        return;
+      }
 
-    if (!categoryId) {
-      setError("Please select a business category.");
-      return;
+      if (!categoryId) {
+        setError("Please select a business category.");
+        return;
+      }
     }
 
     if (!phone.trim()) {
@@ -816,10 +853,53 @@ function SignUpForm({
           phone_country_code: selectedPhoneDial?.code || phoneDialCode || undefined,
           company_name: companyName,
           country: countryCode,
-          // Commercial: IDs only — Engine is SSOT for product/price/modules/limits
-          plan_id: planId,
-          industry_id: industryId,
-          category_id: categoryId,
+          package_type: isCustomPackage ? "custom" : "predefined",
+          ...(isCustomPackage && customPackage
+            ? {
+                product_slug: customPackage.product_slug || "waamto-erp",
+                selected_modules: customPackage.selected_modules,
+                dependency_modules: customPackage.dependency_modules,
+                recommended_modules: customPackage.recommended_modules,
+                billing_cycle: customPackage.billing_cycle,
+                monthly_price: customPackage.monthly_price,
+                yearly_price: customPackage.yearly_price,
+                lifetime_price: customPackage.lifetime_price,
+                estimated_total:
+                  customPackage.money?.grand_total ?? customPackage.estimated_total,
+                selected_module_count: customPackage.selected_module_count,
+                ...(customPackage.industry_id
+                  ? { industry_id: customPackage.industry_id }
+                  : {}),
+                ...(customPackage.industry_name
+                  ? { industry_name: customPackage.industry_name }
+                  : {}),
+                ...(customPackage.category_id
+                  ? { category_id: customPackage.category_id }
+                  : {}),
+                ...(customPackage.category_name
+                  ? { category_name: customPackage.category_name }
+                  : {}),
+                ...(customPackage.feature_packs?.length
+                  ? { feature_packs: customPackage.feature_packs }
+                  : {}),
+                ...(customPackage.tenant_limits
+                  ? { tenant_limits: customPackage.tenant_limits }
+                  : {}),
+                ...(customPackage.discount_code || customPackage.money?.discount_code
+                  ? {
+                      discount_code:
+                        customPackage.discount_code ||
+                        customPackage.money?.discount_code ||
+                        undefined,
+                    }
+                  : {}),
+              }
+            : {
+                // Commercial: IDs only — Engine is SSOT for product/price/modules/limits
+                plan_id: planId,
+                industry_id: industryId,
+                category_id: categoryId,
+              }),
           marketing_opt_in: marketingOptIn,
           website: honeypot,
           _t: formStartedAt,
@@ -845,11 +925,13 @@ function SignUpForm({
         setRegistrationId(nextRegistrationId);
         setOtpStep(true);
         setSuccess(json.message || "Enter the verification code sent to your email.");
+        clearCustomErpPackage();
         setLoading(false);
         return;
       }
 
       clearSignupDraft();
+      clearCustomErpPackage();
       setSuccess(json.message || "Account created.");
       setLoading(false);
     } catch (err) {
@@ -1172,7 +1254,32 @@ function SignUpForm({
               Loading plan from License Engine…
             </div>
           ) : null}
-          {selectedIndustry && selectedCategory ? (
+
+          {/* Desktop left — Build your own custom ERP summary OR selection + POS/Mobile */}
+          {isCustomPackage ? (
+            <div className="mt-6 sm:mt-8 space-y-3 hidden lg:block">
+              {customPackage ? (
+                <CustomErpPackageSummary
+                  package={customPackage}
+                  readOnly
+                  compact
+                  showEditLink
+                />
+              ) : (
+                <div className="rounded-2xl border-2 border-sky-400 bg-sky-50 p-4 md:p-5 text-sm">
+                  <p className="text-base font-bold text-sky-800">
+                    Build your own custom ERP
+                  </p>
+                  <p className="mt-1 text-sky-900/80">
+                    No custom package selected yet. Assemble modules first, then continue to signup.
+                  </p>
+                  <Button asChild className="mt-3 cursor-pointer rounded-full" size="sm">
+                    <Link href="/build-your-own-erp">Build your own custom ERP</Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : selectedIndustry && selectedCategory ? (
             <div className="mt-6 sm:mt-8 space-y-4 hidden lg:block">
               {selectedProduct && selectedPlan ? (
                 <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
@@ -1258,7 +1365,30 @@ function SignUpForm({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {selectedIndustry && selectedCategory ? (
+            {isCustomPackage ? (
+              <div className="mb-5 space-y-3 lg:hidden">
+                {customPackage ? (
+                  <CustomErpPackageSummary
+                    package={customPackage}
+                    readOnly
+                    compact
+                    showEditLink
+                  />
+                ) : (
+                  <div className="rounded-2xl border-2 border-sky-400 bg-sky-50 p-4 text-sm">
+                    <p className="text-base font-bold text-sky-800">
+                      Build your own custom ERP
+                    </p>
+                    <p className="mt-1 text-sky-900/80">
+                      No custom package selected yet. Assemble modules first, then continue to signup.
+                    </p>
+                    <Button asChild className="mt-3 cursor-pointer rounded-full" size="sm">
+                      <Link href="/build-your-own-erp">Build your own custom ERP</Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : selectedIndustry && selectedCategory ? (
               <div className="mb-5 space-y-4 lg:hidden">
                 <div className="rounded-2xl border border-border bg-slate-50 p-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1337,6 +1467,7 @@ function SignUpForm({
                   onChange={(e) => setHoneypot(e.target.value)}
                 />
               </div>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="name">Full name</Label>
@@ -1554,6 +1685,8 @@ function SignUpForm({
                 </ul>
               </FancySelect>
 
+              {!isCustomPackage ? (
+              <>
               <FancySelect
                 label="Product"
                 placeholder="Select a product"
@@ -1809,7 +1942,6 @@ function SignUpForm({
                     posRequirement={
                       selectedCategory.pos_requirement ?? selectedCategory.pos_mode
                     }
-                    compact
                   />
                   <MobileAppProfileCallout
                     categoryCode={selectedCategory.code}
@@ -1820,9 +1952,10 @@ function SignUpForm({
                     mobileRequirement={
                       selectedCategory.mobile_requirement ?? selectedCategory.mobile_mode
                     }
-                    compact
                   />
                 </div>
+              ) : null}
+              </>
               ) : null}
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -1986,12 +2119,11 @@ function SignUpForm({
                 disabled={
                   loading ||
                   !countryCode ||
-                  !productId ||
-                  !planId ||
-                  !industryId ||
-                  !categoryId ||
                   !passwordStrong ||
-                  !passwordsMatch
+                  !passwordsMatch ||
+                  (isCustomPackage
+                    ? !customPackage?.selected_modules?.length
+                    : !productId || !planId || !industryId || !categoryId)
                 }
               >
                 {loading ? (

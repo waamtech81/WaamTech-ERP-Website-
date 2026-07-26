@@ -10,13 +10,43 @@ export type TrialRegistrationInput = {
   phone?: string;
   company_name: string;
   country: string;
-  /** Required commercial selection — License Engine validates + auto-resolves profile from category. */
-  industry_id: string;
-  category_id: string;
-  product_id: string;
-  plan_id: string;
+  /** Predefined: required. Custom: optional (Engine may auto-resolve). */
+  industry_id?: string;
+  category_id?: string;
+  product_id?: string;
+  plan_id?: string;
+  product_slug?: string;
+  package_type?: "predefined" | "custom";
+  selected_modules?: string[];
+  dependency_modules?: string[];
+  recommended_modules?: string[];
+  billing_cycle?: "monthly" | "yearly" | "lifetime";
+  monthly_price?: number;
+  yearly_price?: number;
+  lifetime_price?: number;
+  estimated_total?: number;
+  selected_module_count?: number;
+  discount_code?: string | null;
+  pricing_summary?: Record<string, unknown>;
   marketing_opt_in?: boolean;
   captcha_token?: string;
+  /** Custom builder context — Engine may store / ignore unknown fields. */
+  industry_name?: string | null;
+  category_name?: string | null;
+  feature_packs?: Array<{
+    code: string;
+    name: string;
+    required?: boolean;
+    monthly_price?: number;
+    yearly_price?: number;
+    lifetime_price?: number;
+  }>;
+  tenant_limits?: {
+    users: number;
+    companies: number;
+    branches: number;
+    warehouses: number;
+  } | null;
 };
 
 export type RegistrationStartResult = {
@@ -201,12 +231,55 @@ export async function startRegistrationOnLicenseServer(
       company: input.company_name,
       country: input.country,
       country_code: input.country,
-      // Commercial IDs only — Engine re-validates product/plan/industry/category server-side
-      industry_id: input.industry_id,
-      category_id: input.category_id,
-      business_category_id: input.category_id,
-      product_id: input.product_id,
-      plan_id: input.plan_id,
+      // Commercial IDs — Engine re-validates (custom packages may omit plan/industry/category)
+      ...(input.industry_id ? { industry_id: input.industry_id } : {}),
+      ...(input.category_id
+        ? { category_id: input.category_id, business_category_id: input.category_id }
+        : {}),
+      ...(input.product_id ? { product_id: input.product_id } : {}),
+      ...(input.plan_id ? { plan_id: input.plan_id } : {}),
+      ...(input.product_slug ? { product_slug: input.product_slug } : {}),
+      package_type: input.package_type || "predefined",
+      ...(input.package_type === "custom"
+        ? {
+            selected_modules: input.selected_modules || [],
+            dependency_modules: input.dependency_modules || [],
+            recommended_modules: input.recommended_modules || [],
+            billing_cycle: input.billing_cycle,
+            estimated_total: input.estimated_total,
+            selected_module_count: input.selected_module_count,
+            ...(input.discount_code
+              ? { discount_code: input.discount_code }
+              : {}),
+            ...(input.industry_name
+              ? { industry_name: input.industry_name }
+              : {}),
+            ...(input.category_name
+              ? {
+                  category_name: input.category_name,
+                  business_category_name: input.category_name,
+                }
+              : {}),
+            ...(input.feature_packs?.length
+              ? { feature_packs: input.feature_packs }
+              : {}),
+            ...(input.tenant_limits
+              ? {
+                  tenant_limits: input.tenant_limits,
+                  limits: input.tenant_limits,
+                }
+              : {}),
+            pricing_summary: input.pricing_summary || {
+              monthly: input.monthly_price,
+              yearly: input.yearly_price,
+              lifetime: input.lifetime_price,
+              ...(input.discount_code
+                ? { discount_code: input.discount_code }
+                : {}),
+              grand_total: input.estimated_total,
+            },
+          }
+        : {}),
       marketing_opt_in: Boolean(input.marketing_opt_in),
       trial_days: authConfig.trialDays,
       source: "waamto-website",

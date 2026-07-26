@@ -44,6 +44,13 @@ export type CustomerProfile = {
   feature_packs?: Array<{ id: string; code: string; name: string; slug?: string }>;
 };
 
+export type IdentityLicenseTenantLimits = {
+  users?: number | null;
+  companies?: number | null;
+  branches?: number | null;
+  warehouses?: number | null;
+};
+
 export type IdentityLicense = {
   id: string;
   license_key: string;
@@ -61,6 +68,15 @@ export type IdentityLicense = {
   days_remaining?: number | null;
   expiry_date?: string | null;
   grace_period_days?: number | null;
+  /** Custom / entitlement fields when Engine returns them. */
+  package_type?: string | null;
+  billing_cycle?: string | null;
+  selected_modules?: string[];
+  dependency_modules?: string[];
+  modules?: string[];
+  feature_packs?: Array<{ code?: string; name?: string; slug?: string } | string>;
+  tenant_limits?: IdentityLicenseTenantLimits | null;
+  max_users?: number | null;
 };
 
 export type IdentitySession = {
@@ -395,12 +411,156 @@ export async function identityMe(accessToken: string) {
   }>("GET", ["/v1/identity/me", "/identity/me"], { accessToken });
 }
 
+function asStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string" && item.trim()) {
+      out.push(item.trim());
+      continue;
+    }
+    if (item && typeof item === "object") {
+      const row = item as Record<string, unknown>;
+      const code = String(row.code || row.slug || row.name || "").trim();
+      if (code) out.push(code);
+    }
+  }
+  return Array.from(new Set(out));
+}
+
+function asFeaturePackList(
+  value: unknown
+): Array<{ code?: string; name?: string; slug?: string } | string> {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item) => {
+    if (typeof item === "string") return Boolean(item.trim());
+    return Boolean(item && typeof item === "object");
+  }) as Array<{ code?: string; name?: string; slug?: string } | string>;
+}
+
+function asTenantLimits(value: unknown): IdentityLicenseTenantLimits | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const users = row.users ?? row.max_users ?? row.included_users;
+  const companies = row.companies ?? row.max_companies;
+  const branches = row.branches ?? row.max_branches;
+  const warehouses = row.warehouses ?? row.max_warehouses;
+  const out: IdentityLicenseTenantLimits = {
+    users: users != null && Number.isFinite(Number(users)) ? Number(users) : null,
+    companies:
+      companies != null && Number.isFinite(Number(companies))
+        ? Number(companies)
+        : null,
+    branches:
+      branches != null && Number.isFinite(Number(branches))
+        ? Number(branches)
+        : null,
+    warehouses:
+      warehouses != null && Number.isFinite(Number(warehouses))
+        ? Number(warehouses)
+        : null,
+  };
+  if (
+    out.users == null &&
+    out.companies == null &&
+    out.branches == null &&
+    out.warehouses == null
+  ) {
+    return null;
+  }
+  return out;
+}
+
+/** Normalize Engine license rows — entitlement fields vary by Engine version. */
+export function normalizeIdentityLicense(raw: unknown): IdentityLicense | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  const id = String(row.id || "").trim();
+  const license_key = String(row.license_key || row.licenseKey || "").trim();
+  if (!id && !license_key) return null;
+
+  const selected = asStringList(
+    row.selected_modules || row.selected_module_codes || row.module_codes
+  );
+  const deps = asStringList(row.dependency_modules || row.required_modules);
+  const modulesFromEngine = asStringList(
+    row.modules || row.enabled_modules || row.active_modules
+  );
+  const modules = modulesFromEngine.length
+    ? modulesFromEngine
+    : Array.from(new Set([...selected, ...deps]));
+  const tenant_limits =
+    asTenantLimits(row.tenant_limits) ||
+    asTenantLimits(row.limits) ||
+    asTenantLimits({
+      users: row.max_users,
+      companies: row.max_companies,
+      branches: row.max_branches,
+      warehouses: row.max_warehouses,
+    });
+
+  return {
+    id: id || license_key,
+    license_key,
+    product_name:
+      row.product_name != null ? String(row.product_name) : null,
+    product_slug:
+      row.product_slug != null ? String(row.product_slug) : null,
+    plan_name: row.plan_name != null ? String(row.plan_name) : null,
+    plan_type: row.plan_type != null ? String(row.plan_type) : null,
+    plan_slug: row.plan_slug != null ? String(row.plan_slug) : null,
+    deployment_type:
+      row.deployment_type != null ? String(row.deployment_type) : null,
+    activation_date:
+      row.activation_date != null ? String(row.activation_date) : null,
+    status: String(row.status || row.effective_status || "unknown"),
+    effective_status:
+      row.effective_status != null
+        ? String(row.effective_status)
+        : row.status != null
+          ? String(row.status)
+          : undefined,
+    expired: Boolean(row.expired),
+    in_grace: Boolean(row.in_grace),
+    days_remaining:
+      row.days_remaining != null && Number.isFinite(Number(row.days_remaining))
+        ? Number(row.days_remaining)
+        : null,
+    expiry_date: row.expiry_date != null ? String(row.expiry_date) : null,
+    grace_period_days:
+      row.grace_period_days != null &&
+      Number.isFinite(Number(row.grace_period_days))
+        ? Number(row.grace_period_days)
+        : null,
+    package_type:
+      row.package_type != null ? String(row.package_type) : null,
+    billing_cycle:
+      row.billing_cycle != null ? String(row.billing_cycle) : null,
+    selected_modules: selected,
+    dependency_modules: deps,
+    modules,
+    feature_packs: asFeaturePackList(row.feature_packs || row.featurePacks),
+    tenant_limits,
+    max_users:
+      row.max_users != null && Number.isFinite(Number(row.max_users))
+        ? Number(row.max_users)
+        : tenant_limits?.users ?? null,
+  };
+}
+
 export async function identityListLicenses(accessToken: string) {
-  return requestLicense<IdentityLicense[]>(
+  const result = await requestLicense<IdentityLicense[]>(
     "GET",
     ["/v1/identity/licenses", "/identity/licenses"],
     { accessToken }
   );
+  if (!result.ok || !Array.isArray(result.data)) return result;
+  return {
+    ...result,
+    data: result.data
+      .map((row) => normalizeIdentityLicense(row))
+      .filter((row): row is IdentityLicense => Boolean(row)),
+  };
 }
 
 export async function identityLicenseStatus(

@@ -18,6 +18,7 @@ import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { formatPortalDate } from "@/components/portal/use-portal-data";
 import { PortalBusinessProfileView } from "@/components/portal/portal-business-profile";
 import { PortalInvoicesView } from "@/components/portal/portal-invoices";
+import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
 import { PortalNotificationsView } from "@/components/portal/portal-notifications";
 import { PortalSettingsView } from "@/components/portal/portal-settings";
 import {
@@ -154,8 +155,18 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     body = data.licenses.length ? (
       <div className="space-y-4">
         {data.licenses.map((lic) => {
-          const linkedSubId =
-            data.subscriptions?.find((s) => s.license_id === lic.id)?.id || primarySubId;
+          const linkedSub =
+            data.subscriptions?.find((s) => s.license_id === lic.id) ||
+            data.subscriptions?.[0] ||
+            null;
+          const linkedSubId = linkedSub?.id || primarySubId;
+          const planTitle =
+            lic.plan_name ||
+            (String(lic.package_type || "").toLowerCase() === "custom"
+              ? "Custom package"
+              : lic.modules.length
+                ? "Custom package"
+                : "Plan");
           return (
           <article
             key={lic.id}
@@ -164,7 +175,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="font-semibold tracking-tight">
-                  {lic.product_name || "Product"} · {lic.plan_name || "Plan"}
+                  {lic.product_name || "Product"} · {planTitle}
                 </p>
                 <p className="mt-2 font-mono text-xs tracking-wide text-[var(--portal-muted)]">
                   {lic.keyMasked || "—"}
@@ -188,6 +199,12 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   </div>
                 ))}
             </div>
+            <PortalLicenseEntitlements
+              license={lic}
+              industry={data.overview?.industry}
+              category={data.overview?.businessCategory}
+              billingCycleFallback={linkedSub?.billing_cycle}
+            />
             <div className="mt-5 flex flex-wrap gap-2">
               <Button asChild size="sm" className="rounded-xl">
                 <Link href={plansHref("renew", linkedSubId)}>Renew</Link>
@@ -598,7 +615,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
         {data.modules.length ? (
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--portal-muted)]">
-              Installed / enabled modules
+              Licensed modules
             </p>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {data.modules.map((m) => (
@@ -611,7 +628,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{m}</p>
-                    <p className="text-xs text-[var(--portal-muted)]">Enabled</p>
+                    <p className="text-xs text-[var(--portal-muted)]">From license</p>
                   </div>
                 </div>
               ))}

@@ -203,6 +203,30 @@ export function PortalPlansView() {
     ? priceForCycle(selectedPlan, billingCycle)
     : null;
 
+  const recommendedUpgrade = useMemo(() => {
+    if (mode !== "upgrade") return null;
+    const business =
+      displayPlans.find((p) => /business/i.test(p.id) || /business/i.test(p.name)) ||
+      displayPlans.find((p) => p.popular) ||
+      null;
+    if (!business?.planId) return null;
+    const rec = priceForCycle(business, billingCycle);
+    if (rec.price == null || rec.contactSales) return null;
+    const currentAmount = Number(activeSub?.unit_price ?? NaN);
+    const savings =
+      Number.isFinite(currentAmount) && currentAmount > rec.price
+        ? currentAmount - rec.price
+        : null;
+    return {
+      plan: business,
+      price: rec.price,
+      unitLabel: rec.unitLabel,
+      currentAmount: Number.isFinite(currentAmount) ? currentAmount : null,
+      savings,
+      isCurrent: business.planId === activeSub?.plan_id,
+    };
+  }, [mode, displayPlans, billingCycle, activeSub]);
+
   const industries = (industriesQuery.data || []).filter(
     (i) => i.is_public !== false && String(i.status || "active").toLowerCase() !== "inactive"
   );
@@ -579,6 +603,54 @@ export function PortalPlansView() {
 
       {step === "plan" ? (
         <div className="space-y-5">
+          {mode === "upgrade" && recommendedUpgrade && !recommendedUpgrade.isCurrent ? (
+            <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 sm:p-5">
+              <div className="flex flex-wrap items-start gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-amber-700 shadow-sm">
+                  <Sparkles className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#0b1f3a]">Bundle recommendation</p>
+                  <p className="mt-0.5 text-xs text-[#0b1f3a]/75">
+                    Current package
+                    {activeSub?.plan_name ? `: ${activeSub.plan_name}` : ""}
+                    {recommendedUpgrade.currentAmount != null
+                      ? ` · ${formatPrice(recommendedUpgrade.currentAmount)}`
+                      : ""}
+                    {" → "}
+                    recommended {recommendedUpgrade.plan.name}{" "}
+                    {formatPrice(recommendedUpgrade.price)}
+                    <span className="text-[var(--portal-muted)]">
+                      {" "}
+                      {recommendedUpgrade.unitLabel}
+                    </span>
+                  </p>
+                  {recommendedUpgrade.savings != null && recommendedUpgrade.savings > 0 ? (
+                    <p className="mt-2 text-sm font-semibold text-emerald-800">
+                      Potential savings {formatPrice(recommendedUpgrade.savings)}{" "}
+                      {recommendedUpgrade.unitLabel}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs text-[var(--portal-muted)]">
+                      Upgrade price from License Engine catalog — optional recommendation.
+                    </p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  className="rounded-full"
+                  onClick={() => {
+                    if (!recommendedUpgrade.plan.planId) return;
+                    setSelectedPlanId(recommendedUpgrade.plan.planId);
+                    setStep("confirm");
+                  }}
+                >
+                  Switch to {recommendedUpgrade.plan.name}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-[var(--portal-fg)]">

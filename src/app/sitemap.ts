@@ -7,6 +7,10 @@ import { buildAbsoluteSiteUrl, getSiteOrigin } from "@/lib/urls";
 const routes = [
   "",
   "/products",
+  "/modules",
+  "/modules/category",
+  "/modules/industry",
+  "/build-your-own-erp",
   "/erp-features",
   "/industries",
   "/pricing",

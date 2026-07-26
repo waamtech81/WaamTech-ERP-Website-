@@ -375,26 +375,53 @@ export function PricingTeaser() {
         {!catalog.loading && plans.length > 0 ? (
           <PricingCards plans={plans} yearly={true} compact columns="sm:grid-cols-2 xl:grid-cols-3" />
         ) : null}
-        {enterprise ? (
-          <div className="mt-8 rounded-2xl border border-border bg-white px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <p className="font-semibold text-[#0b1f3a]">
-                {enterprise.name || "Enterprise"}
-                {enterprise.subtitle ? ` — ${enterprise.subtitle}` : ""}
+        <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary to-[#0b1f3a] px-6 py-6 text-white flex flex-col">
+            <div className="flex-1">
+              <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
+                Build your own custom ERP
               </p>
-              {(enterprise.marketingSummary || enterprise.description) ? (
-                <p className="text-sm text-muted-foreground mt-1">
-                  {enterprise.marketingSummary || enterprise.description}
-                </p>
-              ) : null}
+              <p className="mt-1.5 font-semibold tracking-tight">
+                Assemble modules instead of a fixed plan
+              </p>
+              <p className="mt-1 text-sm text-white/80">
+                Pick CRM, Inventory, POS, and more — live prices, auto dependencies.
+              </p>
             </div>
-            <Button asChild className="rounded-full shrink-0">
-              <Link href={enterprise.href || "/contact?intent=enterprise"}>
-                {enterprise.cta || "Contact Sales"}
-              </Link>
+            <Button
+              asChild
+              className="mt-4 self-start rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
+            >
+              <Link href="/build-your-own-erp">Build your own custom ERP</Link>
             </Button>
           </div>
-        ) : null}
+          {enterprise ? (
+            <div className="rounded-2xl border border-border bg-[#0b1f3a] px-6 py-6 text-white flex flex-col">
+              <div className="flex-1">
+                <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
+                  {enterprise.ribbon || enterprise.badge || "Enterprise"}
+                </p>
+                <p className="mt-1.5 font-semibold tracking-tight">
+                  {enterprise.name || "Enterprise"}
+                  {enterprise.subtitle ? ` — ${enterprise.subtitle}` : ""}
+                </p>
+                {(enterprise.marketingSummary || enterprise.description) ? (
+                  <p className="mt-1 text-sm text-white/70">
+                    {enterprise.marketingSummary || enterprise.description}
+                  </p>
+                ) : null}
+              </div>
+              <Button
+                asChild
+                className="mt-4 self-start rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
+              >
+                <Link href={enterprise.href || "/contact?intent=enterprise"}>
+                  {enterprise.cta || "Contact Sales"}
+                </Link>
+              </Button>
+            </div>
+          ) : null}
+        </div>
         <div className="mt-8 md:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Button asChild variant="link">
             <Link href="/pricing">Compare all plans →</Link>

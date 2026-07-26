@@ -3,6 +3,7 @@ import {
   commercialApiBase,
   commercialHeaders,
 } from "@/lib/commercial/config";
+import { normalizeCustomPackageQuote } from "@/lib/commercial/custom-package-quote";
 import { toPublicError } from "@/lib/api/errors";
 import { logApiError } from "@/lib/api/logger";
 import { friendlyNetworkError } from "@/lib/network/errors";
@@ -13,6 +14,7 @@ import type {
   CatalogComparisonBundle,
   CatalogFetchResult,
   CatalogIndustry,
+  CatalogModule,
   CatalogPlan,
   CatalogPlanLimits,
   CatalogPricing,
@@ -21,6 +23,12 @@ import type {
   CommercialPayment,
   CommercialRenewal,
   CommercialSubscription,
+  CustomPackageQuotePayload,
+  CustomPackageQuoteResult,
+  CustomPackageRequestPayload,
+  CustomPackageRequestResult,
+  PublicCommercialOverview,
+  BillingCycle,
   CustomerBillingHistory,
   PaginatedResult,
 } from "@/lib/commercial/types";
@@ -235,9 +243,198 @@ function asArray<T>(data: T[] | null | undefined): T[] {
   return Array.isArray(data) ? data : [];
 }
 
+export async function fetchPublicCommercialOverview(opts?: {
+  product?: string;
+  billing_cycle?: BillingCycle;
+}): Promise<CatalogFetchResult<PublicCommercialOverview | null>> {
+  const result = await getPublic<PublicCommercialOverview>("/v1/public/catalog/commercial", {
+    product: opts?.product || "waamto-erp",
+    billing_cycle: opts?.billing_cycle || "monthly",
+  });
+  return { ...result, data: result.data ?? null };
+}
+
 export async function fetchPublicProducts(): Promise<CatalogFetchResult<CatalogProduct[]>> {
   const result = await getPublic<CatalogProduct[]>("/v1/public/catalog/products");
   return { ...result, data: asArray(result.data) };
+}
+
+export async function fetchPublicModules(
+  productSlug?: string
+): Promise<CatalogFetchResult<CatalogModule[]>> {
+  const result = await getPublicPaginated<CatalogModule>("/v1/public/catalog/modules", {
+    product: productSlug,
+    limit: "200",
+    page: "1",
+  });
+  return {
+    ok: result.ok,
+    status: result.status,
+    message: result.message,
+    data: asArray(result.data.data),
+  };
+}
+
+/** Anonymous live quote — modules + seats + packs + coupon/tax from License Engine. */
+export async function fetchCustomPackageQuote(
+  body: CustomPackageQuotePayload
+): Promise<CatalogFetchResult<CustomPackageQuoteResult | null>> {
+  const base = commercialApiBase();
+  const url = `${base}/v1/public/catalog/custom-packages/quote`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+
+  const payload: Record<string, unknown> = {
+    product_slug: body.product_slug || "waamto-erp",
+    billing_cycle: body.billing_cycle,
+    selected_module_codes: body.selected_module_codes,
+    discount_code: body.discount_code || null,
+  };
+  if (body.industry_id) payload.industry_id = body.industry_id;
+  if (body.category_id) payload.category_id = body.category_id;
+  if (body.selected_feature_packs?.length) {
+    payload.selected_feature_packs = body.selected_feature_packs;
+  }
+  if (body.user_limit != null) payload.user_limit = body.user_limit;
+  if (body.company_limit != null) payload.company_limit = body.company_limit;
+  if (body.branch_limit != null) payload.branch_limit = body.branch_limit;
+  if (body.warehouse_limit != null) payload.warehouse_limit = body.warehouse_limit;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...commercialHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    let json: LicenseEnvelope<unknown> = {};
+    try {
+      json = (await res.json()) as LicenseEnvelope<unknown>;
+    } catch {
+      json = { success: false, message: "Invalid response from License Engine." };
+    }
+
+    const normalized = normalizeCustomPackageQuote(json.data);
+
+    if (!res.ok || json.success === false) {
+      return {
+        ok: false,
+        status: res.status,
+        message: publicUpstreamMessage(
+          json.message || json.error?.message,
+          res.status,
+          `License Engine request failed (${res.status}).`,
+          json.code || json.error?.code
+        ),
+        data: normalized,
+      };
+    }
+
+    return {
+      ok: true,
+      status: res.status,
+      message: json.message || "OK",
+      data: normalized,
+    };
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
+    logApiError(error, {
+      httpStatus: aborted ? 504 : 502,
+      technicalMessage:
+        error instanceof Error ? error.message : "Custom package quote failed",
+    });
+    return emptyResult(
+      null,
+      toPublicError(
+        friendlyNetworkError(
+          error,
+          aborted
+            ? "The quote request timed out. Please retry."
+            : "Could not load live pricing. Please try again."
+        ),
+        aborted ? 504 : 502
+      ).message,
+      aborted ? 504 : 502
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Anonymous custom package lead — no customer JWT required. */
+export async function submitCustomPackageRequest(
+  body: CustomPackageRequestPayload
+): Promise<CatalogFetchResult<CustomPackageRequestResult | null>> {
+  const base = commercialApiBase();
+  const url = `${base}/v1/public/catalog/custom-package-requests`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...commercialHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    let json: LicenseEnvelope<CustomPackageRequestResult> = {};
+    try {
+      json = (await res.json()) as LicenseEnvelope<CustomPackageRequestResult>;
+    } catch {
+      json = { success: false, message: "Invalid response from License Engine." };
+    }
+
+    if (!res.ok || json.success === false) {
+      return {
+        ok: false,
+        status: res.status,
+        message: publicUpstreamMessage(
+          json.message || json.error?.message,
+          res.status,
+          `License Engine request failed (${res.status}).`,
+          json.code || json.error?.code
+        ),
+        data: (json.data as CustomPackageRequestResult) ?? null,
+      };
+    }
+
+    return {
+      ok: true,
+      status: res.status,
+      message: json.message || "OK",
+      data: (json.data as CustomPackageRequestResult) ?? null,
+    };
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
+    logApiError(error, {
+      httpStatus: aborted ? 504 : 502,
+      technicalMessage:
+        error instanceof Error ? error.message : "Custom package request failed",
+    });
+    return emptyResult(
+      null,
+      toPublicError(
+        friendlyNetworkError(
+          error,
+          aborted
+            ? "The request timed out. Please retry."
+            : "Something went wrong. Please try again later."
+        ),
+        aborted ? 504 : 502
+      ).message,
+      aborted ? 504 : 502
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function fetchPublicPlans(

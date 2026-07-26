@@ -6,12 +6,21 @@ import {
   fetchPublicBusinessProfiles,
   fetchPublicBusinessTypes,
   fetchPublicIndustries,
+  fetchPublicModules,
   fetchPublicPlans,
   fetchPublicPricing,
   fetchPublicProducts,
+  fetchCustomPackageQuote,
   fetchPublicCatalogBundle,
+  fetchPublicCommercialOverview,
   fetchPublicPlanComparison,
+  submitCustomPackageRequest,
 } from "@/lib/commercial/client";
+import { normalizeCatalogModules } from "@/lib/commercial/module-builder";
+import type {
+  CustomPackageQuotePayload,
+  CustomPackageRequestPayload,
+} from "@/lib/commercial/types";
 import {
   cardPlans,
   enterprisePlan,
@@ -144,6 +153,74 @@ export async function GET_industries() {
   return jsonOk(result.data);
 }
 
+export async function GET_modules(req: Request) {
+  const product = new URL(req.url).searchParams.get("product") || undefined;
+  const result = await fetchPublicModules(product || undefined);
+  if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
+  return jsonOk(normalizeCatalogModules(result.data));
+}
+
+export async function POST_customPackageRequest(req: Request) {
+  const body = (await req.json().catch(() => ({}))) as CustomPackageRequestPayload;
+  const result = await submitCustomPackageRequest(body);
+  if (!result.ok || !result.data) {
+    return apiFail(result.message || "Could not submit custom package request.", {
+      status: result.status >= 400 ? result.status : 502,
+      code:
+        result.status === 400
+          ? ApiErrorCode.VALIDATION_ERROR
+          : result.status === 429
+            ? ApiErrorCode.RATE_LIMITED
+            : ApiErrorCode.SERVICE_UNAVAILABLE,
+    });
+  }
+  return apiSuccess(result.data.message || "Custom package request received.", {
+    data: result.data,
+    status: 201,
+  });
+}
+
+export async function POST_customPackageQuote(req: Request) {
+  const body = (await req.json().catch(() => ({}))) as CustomPackageQuotePayload;
+  if (!Array.isArray(body.selected_module_codes) || !body.selected_module_codes.length) {
+    return apiFail("Select at least one module for a quote.", {
+      status: 400,
+      code: ApiErrorCode.VALIDATION_ERROR,
+    });
+  }
+  const result = await fetchCustomPackageQuote({
+    product_slug: body.product_slug || "waamto-erp",
+    billing_cycle: body.billing_cycle || "monthly",
+    selected_module_codes: body.selected_module_codes,
+    discount_code: body.discount_code || null,
+    industry_id: body.industry_id || null,
+    category_id: body.category_id || null,
+    selected_feature_packs: Array.isArray(body.selected_feature_packs)
+      ? body.selected_feature_packs
+      : [],
+    user_limit: body.user_limit,
+    company_limit: body.company_limit,
+    branch_limit: body.branch_limit,
+    warehouse_limit: body.warehouse_limit,
+  });
+  if (!result.ok || !result.data) {
+    return apiFail(result.message || "Could not calculate package quote.", {
+      status: result.status >= 400 ? result.status : 502,
+      code:
+        result.status === 400
+          ? ApiErrorCode.VALIDATION_ERROR
+          : result.status === 429
+            ? ApiErrorCode.RATE_LIMITED
+            : ApiErrorCode.SERVICE_UNAVAILABLE,
+      data: null,
+    });
+  }
+  return apiSuccess("OK", {
+    data: result.data,
+    status: 200,
+  });
+}
+
 export async function GET_businessCategories(req: Request) {
   const industryId = new URL(req.url).searchParams.get("industry_id") || undefined;
   const result = await fetchPublicBusinessCategories(industryId);
@@ -163,6 +240,23 @@ export async function GET_businessTypes(req: Request) {
   const result = await fetchPublicBusinessTypes(industryId);
   if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
   return jsonOk(result.data);
+}
+
+export async function GET_commercial(req: Request) {
+  const url = new URL(req.url);
+  const product = url.searchParams.get("product") || "waamto-erp";
+  const billingCycle = (url.searchParams.get("billing_cycle") || "monthly") as
+    | "monthly"
+    | "yearly"
+    | "lifetime";
+  const result = await fetchPublicCommercialOverview({
+    product,
+    billing_cycle: billingCycle,
+  });
+  if (!result.ok || !result.data) {
+    return jsonFail(result.message || "Commercial overview unavailable.", result.status);
+  }
+  return jsonOk(result.data, { cacheSeconds: 30 });
 }
 
 export async function GET_catalog(req: Request) {

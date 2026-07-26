@@ -29,6 +29,7 @@ import {
   PortalStatCard,
   PortalStatusBadge,
 } from "@/components/portal/portal-ui";
+import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
 import { TrustBadgeStrip } from "@/components/trust-badges";
 
 export function PortalDashboardView() {
@@ -359,7 +360,12 @@ export function PortalDashboardView() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-lg font-semibold tracking-tight">
-                      {primary.product_name || "Product"} · {primary.plan_name || "Plan"}
+                      {primary.product_name || "Product"} ·{" "}
+                      {primary.plan_name ||
+                        (String(primary.package_type || "").toLowerCase() === "custom" ||
+                        primary.modules.length
+                          ? "Custom package"
+                          : "Plan")}
                     </p>
                     <p className="mt-2 font-mono text-xs tracking-wide text-[var(--portal-muted)]">
                       {license?.keyMasked || primary.keyMasked || "—"}
@@ -392,6 +398,12 @@ export function PortalDashboardView() {
                       </div>
                     ))}
                 </div>
+                <PortalLicenseEntitlements
+                  license={primary}
+                  industry={overview.industry}
+                  category={overview.businessCategory}
+                  billingCycleFallback={data.subscriptions?.[0]?.billing_cycle}
+                />
                 <div className="flex flex-wrap gap-2">
                   <Button asChild size="sm" className="rounded-xl">
                     <Link

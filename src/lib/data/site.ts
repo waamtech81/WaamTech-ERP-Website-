@@ -38,6 +38,7 @@ export const mainNav: NavItem[] = [
   { title: "Products", href: "/products" },
   { title: "Industries", href: "/industries" },
   { title: "Pricing", href: "/pricing" },
+  { title: "Build Own ERP", href: "/build-your-own-erp" },
 ];
 
 /** Secondary links grouped under the header “Other” mega menu */
@@ -48,6 +49,12 @@ export const otherMegaMenu: {
   {
     category: "Platform",
     items: [
+      {
+        title: "Build Own ERP",
+        href: "/build-your-own-erp",
+        description: "Pick modules with live pricing & dependencies.",
+        icon: "Layers",
+      },
       {
         title: "ERP Features",
         href: "/erp-features",
@@ -71,7 +78,9 @@ export const otherMegaMenu: {
   {
     category: "Resources",
     items: [
-      { title: "Knowledge Base", href: "https://doc.waamto.com", description: "WAAMTO product documentation and guides.", icon: "Layers" },
+      { title: "Knowledge Base", href: "https://doc.waamto.com", description: "WAAMTO product documentation and guides.", icon: "FileText" },
+      { title: "Modules by Category", href: "/modules/category", description: "Browse ERP modules grouped by category.", icon: "Boxes" },
+      { title: "Modules by Industry", href: "/modules/industry", description: "Browse ERP modules for your industry.", icon: "Factory" },
       { title: "Support Center", href: "/support", description: "Email, live chat & portal tickets.", icon: "ShieldCheck" },
       { title: "FAQs", href: "/faqs", description: "Quick answers to common questions.", icon: "Sparkles" },
     ],
@@ -97,7 +106,8 @@ export const productMegaMenu: {
     category: "Intelligence",
     items: [
       { title: "AI Workspace", href: "/products#ai", description: "Assistant, Document AI, insights & recommendations.", icon: "Bot" },
-      { title: "All Modules", href: "/products", description: "Explore the full WAAMTO module suite.", icon: "Boxes" },
+      { title: "All Modules", href: "/modules", description: "Explore the full WAAMTO module suite.", icon: "Boxes" },
+      { title: "Build Own ERP", href: "/build-your-own-erp", description: "Pick modules with live pricing & dependencies.", icon: "Layers" },
       { title: "ERP Features", href: "/erp-features", description: "Deep capabilities across every department.", icon: "Sparkles" },
       { title: "Mobile App", href: "/mobile-app", description: "Responsive web + native field app.", icon: "Smartphone" },
     ],

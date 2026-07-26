@@ -613,6 +613,22 @@ export function Header() {
               {t("nav.pricing", "Pricing")}
             </Link>
 
+            <Link
+              href="/build-your-own-erp"
+              className={cn(
+                "notranslate relative inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                isActive("/build-your-own-erp")
+                  ? "text-primary bg-primary/5"
+                  : "text-foreground/80 hover:text-primary hover:bg-muted"
+              )}
+              translate="no"
+            >
+              <span className="pointer-events-none absolute -right-1 -top-1.5 z-10 rounded bg-orange-500 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-white shadow-sm">
+                New
+              </span>
+              {t("nav.buildYourOwnErp", "Build Own ERP")}
+            </Link>
+
             <NavDropdown
               label={t("nav.other", "Other")}
               open={dropdown === "other"}
@@ -798,6 +814,17 @@ export function Header() {
                 translate="no"
               >
                 {t("nav.pricing", "Pricing")}
+              </Link>
+
+              <Link
+                href="/build-your-own-erp"
+                className="notranslate relative block rounded-xl border border-border px-4 py-3.5 text-sm font-semibold hover:bg-muted"
+                translate="no"
+              >
+                <span className="pointer-events-none absolute -right-1 -top-2 z-10 rounded bg-orange-500 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-white shadow-sm">
+                  New
+                </span>
+                {t("nav.buildYourOwnErp", "Build Own ERP")}
               </Link>
 
               <MobileAccordion

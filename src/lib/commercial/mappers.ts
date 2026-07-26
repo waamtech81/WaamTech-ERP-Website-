@@ -16,26 +16,49 @@ import { buildAppPath, buildSignupPath } from "@/lib/urls";
 
 const TIER_ORDER = ["starter", "business", "lifetime", "enterprise"] as const;
 
+/** Sentinel for Compare Plans: available via Custom ERP builder (render icon, not text). */
+export const CUSTOM_ERP_COMPARE_CELL = "custom";
+
+export function isBuildYourOwnPlan(plan: {
+  id?: string | null;
+  name?: string | null;
+  slug?: string | null;
+}): boolean {
+  const id = String(plan.id || "").toLowerCase();
+  const name = String(plan.name || "").toLowerCase();
+  const slug = String(plan.slug || "").toLowerCase();
+  return (
+    id.includes("custom-erp") ||
+    slug.includes("custom-erp") ||
+    name.includes("build your own") ||
+    name.includes("custom erp")
+  );
+}
+
 function hierarchyChain(
   comparison?: CatalogComparisonBundle | null,
   featureMatrix?: CatalogFeatureMatrix | null
 ): string[] {
   const fromBundle = comparison?.hierarchy;
+  let chain: string[] = [];
   if (Array.isArray(fromBundle) && fromBundle.length) {
-    return fromBundle.map((s) => String(s).toLowerCase());
-  }
-  if (
+    chain = fromBundle.map((s) => String(s).toLowerCase());
+  } else if (
     fromBundle &&
     typeof fromBundle === "object" &&
     !Array.isArray(fromBundle) &&
     Array.isArray(fromBundle.chain)
   ) {
-    return fromBundle.chain.map((s: string) => String(s).toLowerCase());
+    chain = fromBundle.chain.map((s: string) => String(s).toLowerCase());
+  } else if (featureMatrix?.hierarchy?.length) {
+    chain = featureMatrix.hierarchy.map((s) => String(s).toLowerCase());
+  } else {
+    chain = [...TIER_ORDER];
   }
-  if (featureMatrix?.hierarchy?.length) {
-    return featureMatrix.hierarchy.map((s) => String(s).toLowerCase());
-  }
-  return [...TIER_ORDER];
+  // Custom ERP is modular — never participate in Starter→Enterprise inheritance.
+  return chain.filter(
+    (s) => !s.includes("custom-erp") && !s.includes("build-your-own")
+  );
 }
 
 function engineUnitLabel(
@@ -959,22 +982,54 @@ function applyBooleanHierarchy(
   chain: string[]
 ): Record<string, string | boolean> {
   if (row.__section === true) return row;
-  const ids = plans.map((p) => p.id);
-  if (!ids.every((id) => typeof row[id] === "boolean")) return row;
+  const tierPlans = plans.filter((p) => !isBuildYourOwnPlan(p));
+  if (!tierPlans.length) return row;
+  if (!tierPlans.every((p) => typeof row[p.id] === "boolean")) return row;
 
   let lowest = Number.POSITIVE_INFINITY;
-  for (const plan of plans) {
+  for (const plan of tierPlans) {
     if (row[plan.id] !== true) continue;
     const idx = chain.indexOf(String(plan.id).toLowerCase());
     if (idx >= 0 && idx < lowest) lowest = idx;
   }
   if (!Number.isFinite(lowest)) return row;
 
-  for (const plan of plans) {
+  for (const plan of tierPlans) {
     const idx = chain.indexOf(String(plan.id).toLowerCase());
     if (idx >= lowest) row[plan.id] = true;
   }
   return row;
+}
+
+/**
+ * Custom ERP column: keep Engine core green-ticks (true);
+ * replace empty / not-included / dash with builder icon sentinel.
+ * Meaningful dimension text (users, support, …) is kept as-is.
+ */
+function applyCustomErpColumnCells(
+  plans: PricingPlan[],
+  rows: Array<Record<string, string | boolean>>
+): void {
+  const customIds = plans.filter(isBuildYourOwnPlan).map((p) => p.id);
+  if (!customIds.length) return;
+
+  for (const row of rows) {
+    if (row.__section === true) continue;
+    for (const id of customIds) {
+      const val = row[id];
+      if (val === true) continue; // core / Engine-included → green tick
+      if (typeof val === "string") {
+        const trimmed = val.trim();
+        if (!trimmed || trimmed === "—" || trimmed === "-" || trimmed === "–") {
+          row[id] = CUSTOM_ERP_COMPARE_CELL;
+        }
+        // else keep Engine dimension text (e.g. seat counts)
+        continue;
+      }
+      // false / undefined → available via Custom ERP builder
+      row[id] = CUSTOM_ERP_COMPARE_CELL;
+    }
+  }
 }
 
 function dedupeComparisonRows(
@@ -1113,9 +1168,11 @@ export function buildDynamicComparison(
         if (row[key] === undefined) row[key] = "—";
       }
     }
-    return dedupeComparisonRows(
+    const cleaned = dedupeComparisonRows(
       matrix.filter((row) => !/\bstorage\b/i.test(String(row.name || "")))
     );
+    applyCustomErpColumnCells(visible, cleaned);
+    return cleaned;
   }
 
   // Fallback when comparison API is unavailable — limits + full feature groups from plans.
@@ -1131,9 +1188,11 @@ export function buildDynamicComparison(
       if (row[key] === undefined) row[key] = false;
     }
   }
-  return dedupeComparisonRows(
+  const cleaned = dedupeComparisonRows(
     rows.filter((row) => !/\bstorage\b/i.test(String(row.name || "")))
   );
+  applyCustomErpColumnCells(visible, cleaned);
+  return cleaned;
 }
 
 /** Promo strip sourced from Engine launch campaign fields (never hardcoded). */
@@ -1221,7 +1280,14 @@ function sortCardDisplayOrder(plans: PricingPlan[]): PricingPlan[] {
 
 export function cardPlans(plans: PricingPlan[]): PricingPlan[] {
   const marketing = publicMarketingPlans(plans);
-  return sortCardDisplayOrder(marketing.filter((p) => p !== enterprisePlan(marketing)));
+  return sortCardDisplayOrder(
+    marketing.filter((p) => {
+      if (p === enterprisePlan(marketing)) return false;
+      // Dedicated /build-your-own-erp surface — keep fixed-plan cards unchanged.
+      if (isBuildYourOwnPlan(p)) return false;
+      return true;
+    })
+  );
 }
 
 /** Append billing cycle onto a plan CTA href — never attach client-side prices. */

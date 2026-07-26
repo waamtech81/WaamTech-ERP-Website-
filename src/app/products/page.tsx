@@ -110,6 +110,10 @@ export default function ProductsPage() {
           </div>
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Need a custom package?{" "}
+            <Link href="/build-your-own-erp" className="text-primary hover:underline">
+              Build Your Own ERP
+            </Link>
+            {" · "}
             <Link href="/contact?intent=enterprise" className="text-primary hover:underline">
               Contact sales
             </Link>
@@ -120,6 +124,10 @@ export default function ProductsPage() {
       <CTASection
         title={`Build your ${siteConfig.name} stack`}
         description="Start with the modules you need today and expand as your operations grow."
+        primaryLabel="Build Your Own ERP"
+        primaryHref="/build-your-own-erp"
+        secondaryLabel="Browse all modules"
+        secondaryHref="/modules"
       />
     </>
   );

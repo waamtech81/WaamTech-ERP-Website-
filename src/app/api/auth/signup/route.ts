@@ -17,6 +17,8 @@ import {
   sanitizeText,
 } from "@/lib/security/guards";
 import { validateSignupCommercialSelection } from "@/lib/signup/validate-commercial";
+import { validateSignupCustomPackage } from "@/lib/signup/validate-custom-package";
+import type { BillingCycle } from "@/lib/commercial/types";
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
@@ -84,22 +86,37 @@ export const POST = withApiHandler(
     const industry_id = sanitizeText(body?.industry_id, 80) || undefined;
     const plan_id = sanitizeText(body?.plan_id, 80) || undefined;
     const product_id_hint = sanitizeText(body?.product_id, 80) || undefined;
+    const package_type =
+      sanitizeText(body?.package_type, 20).toLowerCase() === "custom"
+        ? "custom"
+        : "predefined";
+    const rawBilling = sanitizeText(body?.billing_cycle, 20).toLowerCase();
+    const billing_cycle: BillingCycle | undefined =
+      rawBilling === "monthly" || rawBilling === "yearly" || rawBilling === "lifetime"
+        ? rawBilling
+        : undefined;
+    const selected_modules = Array.isArray(body?.selected_modules)
+      ? body.selected_modules.map((c: unknown) => sanitizeText(c, 80)).filter(Boolean)
+      : Array.isArray(body?.selected_module_codes)
+        ? body.selected_module_codes.map((c: unknown) => sanitizeText(c, 80)).filter(Boolean)
+        : [];
+    const discount_code =
+      sanitizeText(body?.discount_code || body?.coupon_code, 64).toUpperCase() ||
+      undefined;
     const marketing_opt_in = Boolean(body?.marketing_opt_in);
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
       8192
     );
 
-    if (
-      !name ||
-      !password ||
-      !email ||
-      !company_name ||
-      !country ||
-      !plan_id ||
-      !industry_id ||
-      !category_id
-    ) {
+    if (!name || !password || !email || !company_name || !country) {
+      return apiFail(
+        "Please fill name, email, password, company name, and country.",
+        { status: 400, code: ApiErrorCode.VALIDATION_ERROR }
+      );
+    }
+
+    if (package_type === "predefined" && (!plan_id || !industry_id || !category_id)) {
       return apiFail(
         "Please fill name, email, password, company name, country, plan, industry, and business category.",
         { status: 400, code: ApiErrorCode.VALIDATION_ERROR }
@@ -134,43 +151,133 @@ export const POST = withApiHandler(
       });
     }
 
-    const commercial = await validateSignupCommercialSelection({
-      plan_id,
-      industry_id,
-      category_id,
-      product_id: product_id_hint,
-    });
+    let license;
+    if (package_type === "custom") {
+      if (!billing_cycle) {
+        return apiFail("Choose a billing cycle for your Build your own custom ERP package.", {
+          status: 400,
+          code: ApiErrorCode.VALIDATION_ERROR,
+        });
+      }
+      const custom = await validateSignupCustomPackage({
+        selected_modules,
+        billing_cycle,
+        product_slug: sanitizeText(body?.product_slug, 100) || "waamto-erp",
+        recommended_modules: Array.isArray(body?.recommended_modules)
+          ? body.recommended_modules.map((c: unknown) => sanitizeText(c, 80)).filter(Boolean)
+          : undefined,
+        discount_code: discount_code || null,
+        industry_id: industry_id || sanitizeText(body?.industry_id, 80) || null,
+        industry_name: sanitizeText(body?.industry_name, 120) || null,
+        category_id: category_id || sanitizeText(body?.category_id, 80) || null,
+        category_name:
+          sanitizeText(body?.category_name || body?.business_category_name, 120) ||
+          null,
+        feature_packs: body?.feature_packs,
+        tenant_limits: body?.tenant_limits,
+      });
+      if (!custom.ok) {
+        return apiFail(custom.message, {
+          status: custom.status,
+          code: custom.code || ApiErrorCode.VALIDATION_ERROR,
+        });
+      }
 
-    if (!commercial.ok) {
-      return apiFail(commercial.message, {
-        status: commercial.status,
-        code: commercial.code || ApiErrorCode.VALIDATION_ERROR,
+      const emailLimited = await rateLimit(`signup-email:${email}`, 3, 60 * 60_000);
+      if (!emailLimited.ok) {
+        return apiFail(
+          "Too many verification emails requested for this address. Try later.",
+          { status: 429, code: ApiErrorCode.RATE_LIMITED }
+        );
+      }
+
+      const pkg = custom.data.package;
+      const finalTotal = pkg.money?.grand_total ?? pkg.estimated_total;
+      license = await startRegistrationOnLicenseServer({
+        name,
+        email,
+        password,
+        phone,
+        company_name,
+        country,
+        industry_id: pkg.industry_id || industry_id || undefined,
+        category_id: pkg.category_id || category_id || undefined,
+        industry_name: pkg.industry_name || undefined,
+        category_name: pkg.category_name || undefined,
+        product_id: custom.data.product.id,
+        product_slug: custom.data.product.slug,
+        package_type: "custom",
+        selected_modules: pkg.selected_modules,
+        dependency_modules: pkg.dependency_modules,
+        recommended_modules: pkg.recommended_modules,
+        billing_cycle: pkg.billing_cycle,
+        monthly_price: pkg.monthly_price,
+        yearly_price: pkg.yearly_price,
+        lifetime_price: pkg.lifetime_price,
+        estimated_total: finalTotal,
+        selected_module_count: pkg.selected_module_count,
+        discount_code: pkg.discount_code || discount_code || null,
+        feature_packs: pkg.feature_packs,
+        tenant_limits: pkg.tenant_limits,
+        pricing_summary: {
+          monthly: pkg.monthly_price,
+          yearly: pkg.yearly_price,
+          lifetime: pkg.lifetime_price,
+          billing_cycle: pkg.billing_cycle,
+          subtotal: pkg.money?.subtotal ?? null,
+          discount_code: pkg.discount_code || null,
+          discount_amount: pkg.money?.discount_amount ?? 0,
+          tax_amount: pkg.money?.tax_amount ?? 0,
+          tax_label: pkg.money?.tax_label ?? null,
+          grand_total: finalTotal,
+          ...(pkg.tenant_limits ? { tenant_limits: pkg.tenant_limits } : {}),
+          ...(pkg.feature_packs?.length
+            ? { feature_packs: pkg.feature_packs }
+            : {}),
+        },
+        marketing_opt_in,
+        captcha_token: captchaToken || undefined,
+      });
+    } else {
+      const commercial = await validateSignupCommercialSelection({
+        plan_id: plan_id!,
+        industry_id: industry_id!,
+        category_id: category_id!,
+        product_id: product_id_hint,
+      });
+
+      if (!commercial.ok) {
+        return apiFail(commercial.message, {
+          status: commercial.status,
+          code: commercial.code || ApiErrorCode.VALIDATION_ERROR,
+        });
+      }
+
+      const emailLimited = await rateLimit(`signup-email:${email}`, 3, 60 * 60_000);
+      if (!emailLimited.ok) {
+        return apiFail(
+          "Too many verification emails requested for this address. Try later.",
+          { status: 429, code: ApiErrorCode.RATE_LIMITED }
+        );
+      }
+
+      license = await startRegistrationOnLicenseServer({
+        name,
+        email,
+        password,
+        phone,
+        company_name,
+        country,
+        industry_id: commercial.data.industry.id,
+        category_id: commercial.data.category.id,
+        product_id: commercial.data.product.id,
+        plan_id: commercial.data.plan.id,
+        package_type: "predefined",
+        marketing_opt_in,
+        // License Engine is the sole verifier; reCAPTCHA tokens are single-use.
+        captcha_token: captchaToken || undefined,
       });
     }
-
-    const emailLimited = await rateLimit(`signup-email:${email}`, 3, 60 * 60_000);
-    if (!emailLimited.ok) {
-      return apiFail(
-        "Too many verification emails requested for this address. Try later.",
-        { status: 429, code: ApiErrorCode.RATE_LIMITED }
-      );
-    }
-
-    const license = await startRegistrationOnLicenseServer({
-      name,
-      email,
-      password,
-      phone,
-      company_name,
-      country,
-      industry_id: commercial.data.industry.id,
-      category_id: commercial.data.category.id,
-      product_id: commercial.data.product.id,
-      plan_id: commercial.data.plan.id,
-      marketing_opt_in,
-      // License Engine is the sole verifier; reCAPTCHA tokens are single-use.
-      captcha_token: captchaToken || undefined,
-    });
 
     if (!license.ok || !license.data?.registrationId) {
       return upstreamFail(

@@ -59,11 +59,6 @@ export function HomeCatalogSearch({
 
   const inner = (
     <>
-      <p className="mb-2 text-center text-xs text-muted-foreground">
-        Search {catalogStats.products || products.length} products ·{" "}
-        {catalogStats.industries} industries · {catalogStats.categories}+ categories
-      </p>
-
       <div ref={wrapRef} className="relative mx-auto max-w-2xl">
           <div className="flex items-center gap-3 rounded-full border border-border bg-white px-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <Search className="h-5 w-5 shrink-0 text-primary" aria-hidden />
@@ -106,21 +101,27 @@ export function HomeCatalogSearch({
           </div>
 
           {!showPanel ? (
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              {hints.map((hint) => (
-                <button
-                  key={hint}
-                  type="button"
-                  onClick={() => {
-                    setQuery(hint);
-                    setOpen(true);
-                    inputRef.current?.focus();
-                  }}
-                  className="rounded-full border border-border bg-slate-50 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-white hover:text-primary"
-                >
-                  {hint}
-                </button>
-              ))}
+            <div className="mt-2 flex flex-nowrap items-center justify-between gap-2 overflow-x-auto scrollbar-none">
+              <p className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">
+                Search {catalogStats.products || products.length} products ·{" "}
+                {catalogStats.industries} industries · {catalogStats.categories}+ categories
+              </p>
+              <div className="flex flex-nowrap items-center gap-1.5">
+                {hints.map((hint) => (
+                  <button
+                    key={hint}
+                    type="button"
+                    onClick={() => {
+                      setQuery(hint);
+                      setOpen(true);
+                      inputRef.current?.focus();
+                    }}
+                    className="shrink-0 whitespace-nowrap rounded-full border border-border bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-white hover:text-primary"
+                  >
+                    {hint}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
 

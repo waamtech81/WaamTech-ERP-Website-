@@ -1,0 +1,99 @@
+{
+  "suite": "CERT-CUSTOM-ERP-E2E-001",
+  "at": "2026-07-26T11:58:17.924Z",
+  "email_attempted": "cert.custom.1785067087281@example.com",
+  "checks": [
+    {
+      "name": "website_builder_page",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "le_public_modules",
+      "ok": true,
+      "detail": "27 modules"
+    },
+    {
+      "name": "le_pos_depends_inventory",
+      "ok": true,
+      "detail": "[\"inventory\"]"
+    },
+    {
+      "name": "le_module_price_10",
+      "ok": true,
+      "detail": "inventory+pos=10"
+    },
+    {
+      "name": "le_quote",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "le_quote_deps",
+      "ok": true,
+      "detail": "[\"inventory\"]"
+    },
+    {
+      "name": "le_quote_effective",
+      "ok": true,
+      "detail": "[\"pos\",\"crm\",\"inventory\"]"
+    },
+    {
+      "name": "le_quote_pricing",
+      "ok": true,
+      "detail": "30"
+    },
+    {
+      "name": "le_quote_package_type",
+      "ok": true,
+      "detail": "custom"
+    },
+    {
+      "name": "website_signup_custom",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "website_pricing_regression",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "le_registration_start_custom_guarded",
+      "ok": true,
+      "detail": "status=400 {\"success\":false,\"error\":{\"code\":\"validation_error\",\"message\":\"captcha verification is required\"}}"
+    },
+    {
+      "name": "le_existing_plans",
+      "ok": true,
+      "detail": "5 plans"
+    },
+    {
+      "name": "erp_custom_package_cert",
+      "ok": true,
+      "detail": "PASS"
+    },
+    {
+      "name": "erp_extra_module_isolation",
+      "ok": true,
+      "detail": "PASS"
+    },
+    {
+      "name": "erp_frontend",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "erp_api",
+      "ok": true,
+      "detail": "200"
+    }
+  ],
+  "passed": 17,
+  "failed": 0,
+  "final": "PASS",
+  "notes": [
+    "Full OTP signup+activation requires captcha/email in local env; registration shape validated.",
+    "ERP runtime certs cover sync/install/thank-you/isolation."
+  ]
+}

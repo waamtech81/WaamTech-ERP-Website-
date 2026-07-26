@@ -19,6 +19,7 @@ import {
   fetchMyPayments,
   fetchMyRenewals,
   fetchMySubscriptions,
+  fetchPublicModules,
   portalInvoiceDocumentPath,
   portalInvoicePdfPath,
 } from "@/lib/commercial/client";
@@ -54,6 +55,13 @@ export type PortalBusinessCard = {
   subscriptionId: string | null;
 };
 
+export type PortalLicenseTenantLimits = {
+  users?: number | null;
+  companies?: number | null;
+  branches?: number | null;
+  warehouses?: number | null;
+};
+
 export type PortalLicense = {
   id: string;
   /** Masked only — never the full Engine key */
@@ -72,6 +80,11 @@ export type PortalLicense = {
   days_remaining?: number | null;
   expiry_date?: string | null;
   grace_period_days?: number | null;
+  package_type?: string | null;
+  billing_cycle?: string | null;
+  modules: string[];
+  feature_packs: string[];
+  tenant_limits?: PortalLicenseTenantLimits | null;
 };
 
 export type PortalWorkspaceUser = {
@@ -204,7 +217,18 @@ export type PortalNotification = {
   created_at?: string;
 };
 
-function toPortalLicense(lic: IdentityLicense): PortalLicense {
+function toPortalLicense(
+  lic: IdentityLicense,
+  moduleLabels?: Map<string, string>
+): PortalLicense {
+  const codes = Array.from(
+    new Set([
+      ...(lic.modules || []),
+      ...(lic.selected_modules || []),
+      ...(lic.dependency_modules || []),
+    ])
+  ).filter(Boolean);
+  const modules = codes.map((code) => moduleLabels?.get(code) || code);
   return {
     id: lic.id,
     keyMasked: maskLicenseKey(lic.license_key),
@@ -222,6 +246,20 @@ function toPortalLicense(lic: IdentityLicense): PortalLicense {
     days_remaining: lic.days_remaining,
     expiry_date: lic.expiry_date,
     grace_period_days: lic.grace_period_days,
+    package_type: lic.package_type || null,
+    billing_cycle: lic.billing_cycle || null,
+    modules,
+    feature_packs: extractFeaturePackNames(lic.feature_packs),
+    tenant_limits: lic.tenant_limits
+      ? {
+          users: lic.tenant_limits.users ?? lic.max_users ?? null,
+          companies: lic.tenant_limits.companies ?? null,
+          branches: lic.tenant_limits.branches ?? null,
+          warehouses: lic.tenant_limits.warehouses ?? null,
+        }
+      : lic.max_users != null
+        ? { users: lic.max_users, companies: null, branches: null, warehouses: null }
+        : null,
   };
 }
 
@@ -256,6 +294,29 @@ function extractFeaturePackNames(source: unknown): string[] {
       if (item && typeof item === "object") {
         const row = item as Record<string, unknown>;
         return String(row.name || row.label || row.code || "").trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+}
+
+function extractModuleLabels(
+  source: unknown,
+  labels?: Map<string, string>
+): string[] {
+  if (!Array.isArray(source)) return [];
+  return source
+    .map((item) => {
+      if (typeof item === "string") {
+        const code = item.trim();
+        return labels?.get(code) || code;
+      }
+      if (item && typeof item === "object") {
+        const row = item as Record<string, unknown>;
+        const code = String(row.code || row.slug || "").trim();
+        const name = String(row.name || row.label || "").trim();
+        if (name) return name;
+        if (code) return labels?.get(code) || code;
       }
       return "";
     })
@@ -681,12 +742,18 @@ async function loadPortalDashboardUncached(
       fetchBillingUsage(token),
     ]);
 
-  const [invoicesRes, paymentsRes, renewalsRes, engineDashboardRes] =
+  const productSlugHint =
+    me.data.customer?.product_slug ||
+    (Array.isArray(licensesRes.data) && licensesRes.data[0]?.product_slug) ||
+    "waamto-erp";
+
+  const [invoicesRes, paymentsRes, renewalsRes, engineDashboardRes, modulesCatalogRes] =
     await Promise.all([
       fetchMyInvoices(token, { limit: 50 }),
       fetchMyPayments(token, { limit: 50 }),
       fetchMyRenewals(token),
       fetchBillingDashboard(token),
+      fetchPublicModules(String(productSlugHint)),
     ]);
 
   // Notifications loaded via /api/portal/notifications — skip here to avoid Engine
@@ -716,7 +783,12 @@ async function loadPortalDashboardUncached(
     };
   }
 
-  const licenses = rawLicenses.map(toPortalLicense);
+  const moduleLabels = new Map<string, string>();
+  for (const mod of modulesCatalogRes.data || []) {
+    if (mod?.code) moduleLabels.set(mod.code, mod.name || mod.code);
+  }
+
+  const licenses = rawLicenses.map((lic) => toPortalLicense(lic, moduleLabels));
   const sessions = Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
   const primary = primaryLicense(rawLicenses);
   const trial = trialFromLicenses(rawLicenses);
@@ -730,12 +802,8 @@ async function loadPortalDashboardUncached(
   const companyNames = resolveCompanyNames(company, customer);
   const workspaceUsers = mapWorkspaceUsers(usageRes.ok ? usageRes.data : null);
 
-  const modules = Array.from(
-    new Set(
-      rawLicenses
-        .map((l) => l.product_name)
-        .filter((v): v is string => Boolean(v && String(v).trim()))
-    )
+  const licenseModules = Array.from(
+    new Set(licenses.flatMap((l) => l.modules).filter(Boolean))
   );
 
   const overview = {
@@ -823,6 +891,30 @@ async function loadPortalDashboardUncached(
   const commercialInvoices = invoicesRes.ok ? invoicesRes.data.data : [];
   const commercialPayments = paymentsRes.ok ? paymentsRes.data.data : [];
   const commercialRenewals = renewalsRes.ok ? renewalsRes.data : [];
+
+  // Backfill billing cycle / package type from commercial subscription when Engine
+  // license row omits them.
+  for (const lic of licenses) {
+    const linked =
+      commercialSubs.find((s) => s.license_id === lic.id) ||
+      commercialSubs.find(
+        (s) =>
+          Boolean(s.product_name) &&
+          Boolean(lic.product_name) &&
+          s.product_name === lic.product_name
+      );
+    if (!lic.billing_cycle && linked?.billing_cycle) {
+      lic.billing_cycle = linked.billing_cycle;
+    }
+  }
+
+  const companyModuleLabels = Array.from(
+    new Set([
+      ...extractModuleLabels(company?.selected_modules, moduleLabels),
+      ...extractModuleLabels(company?.modules, moduleLabels),
+      ...extractModuleLabels(company?.enabled_modules, moduleLabels),
+    ])
+  );
 
   const commercialBillingOk =
     subsRes.ok || invoicesRes.ok || paymentsRes.ok || renewalsRes.ok;
@@ -912,17 +1004,22 @@ async function loadPortalDashboardUncached(
 
   const companyFeaturePacks = extractFeaturePackNames(company?.feature_packs);
   const customerFeaturePacks = extractFeaturePackNames(customer?.feature_packs);
+  const licenseFeaturePacks = Array.from(
+    new Set(licenses.flatMap((l) => l.feature_packs).filter(Boolean))
+  );
   const erpFeaturePacks = Array.isArray(erpCounts.feature_packs)
     ? (erpCounts.feature_packs as string[])
     : Array.isArray(erpCounts.featurePacks)
       ? (erpCounts.featurePacks as string[])
       : [];
-  const featurePacks =
-    companyFeaturePacks.length > 0
-      ? companyFeaturePacks
-      : customerFeaturePacks.length > 0
-        ? customerFeaturePacks
-        : erpFeaturePacks;
+  const featurePacks = Array.from(
+    new Set([
+      ...licenseFeaturePacks,
+      ...companyFeaturePacks,
+      ...customerFeaturePacks,
+      ...erpFeaturePacks,
+    ])
+  );
 
   const businesses = buildBusinessCards(
     rawLicenses,
@@ -937,11 +1034,31 @@ async function loadPortalDashboardUncached(
     commercialInvoices
   );
 
-  const erpModules = Array.isArray(erpCounts.modules)
-    ? (erpCounts.modules as string[])
+  const erpModulesRaw = Array.isArray(erpCounts.modules)
+    ? erpCounts.modules
     : Array.isArray(erpCounts.active_modules)
-      ? (erpCounts.active_modules as string[])
+      ? erpCounts.active_modules
       : [];
+  const erpModules = erpModulesRaw
+    .map((item) => {
+      if (typeof item === "string") {
+        const code = item.trim();
+        return moduleLabels.get(code) || code;
+      }
+      if (item && typeof item === "object") {
+        const row = item as Record<string, unknown>;
+        const code = String(row.code || row.slug || "").trim();
+        const name = String(row.name || "").trim();
+        if (name) return name;
+        if (code) return moduleLabels.get(code) || code;
+      }
+      return "";
+    })
+    .filter(Boolean);
+
+  const modules = Array.from(
+    new Set([...licenseModules, ...companyModuleLabels, ...erpModules])
+  );
 
   const quickActions = [
     {
@@ -1036,7 +1153,7 @@ async function loadPortalDashboardUncached(
       renewals: commercialRenewals,
     },
     counts,
-    modules: [...modules, ...erpModules].filter(Boolean),
+    modules: modules.filter(Boolean),
     featurePacks,
     quickActions,
     erp: erp && Object.keys(erp).length ? erp : null,

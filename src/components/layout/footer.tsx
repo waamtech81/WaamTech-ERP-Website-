@@ -37,6 +37,8 @@ const footerColumns = [
     title: "Resources",
     links: [
       { label: "Knowledge Base", href: "https://doc.waamto.com" },
+      { label: "All Modules", href: "/modules" },
+      { label: "Build Own ERP", href: "/build-your-own-erp" },
       { label: "FAQs", href: "/faqs" },
       { label: "Support", href: "/support" },
       { label: "Pricing", href: "/pricing" },

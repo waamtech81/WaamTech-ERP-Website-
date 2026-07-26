@@ -134,3 +134,50 @@ const iconMap: Record<string, LucideIcon> = {
 export function getIcon(name: string): LucideIcon {
   return iconMap[name] ?? Boxes;
 }
+
+/** Keyword → icon for ERP module names when catalog `icon` is missing/generic. */
+const MODULE_NAME_ICON_RULES: { match: RegExp; icon: LucideIcon }[] = [
+  { match: /\b(pos|point of sale|cashier|retail till)\b/i, icon: ShoppingCart },
+  { match: /\b(inventory|stock|warehouse|wms)\b/i, icon: Warehouse },
+  { match: /\b(purchase|procurement|vendor|supplier)\b/i, icon: ShoppingBag },
+  { match: /\b(sales|crm|customer|lead)\b/i, icon: Handshake },
+  { match: /\b(finance|account|ledger|bookkeep|invoice|billing|tax)\b/i, icon: Wallet },
+  { match: /\b(hr|human resource|payroll|employee|attendance)\b/i, icon: Users },
+  { match: /\b(manufactur|production|bom|mrp)\b/i, icon: Factory },
+  { match: /\b(project|task|timesheet)\b/i, icon: Layers },
+  { match: /\b(report|analytics|dashboard|bi|insight)\b/i, icon: BarChart3 },
+  { match: /\b(mobile|app)\b/i, icon: Smartphone },
+  { match: /\b(delivery|fleet|logistics|shipping|transport)\b/i, icon: Truck },
+  { match: /\b(ecommerce|online store|shop)\b/i, icon: Store },
+  { match: /\b(restaurant|kitchen|fnb|food)\b/i, icon: UtensilsCrossed },
+  { match: /\b(healthcare|clinic|hospital|pharmacy)\b/i, icon: HeartPulse },
+  { match: /\b(education|school|lms|campus)\b/i, icon: GraduationCap },
+  { match: /\b(security|access|permission|role)\b/i, icon: ShieldCheck },
+  { match: /\b(integration|api|connector|webhook)\b/i, icon: Plug },
+  { match: /\b(ai|assistant|bot|automation)\b/i, icon: Bot },
+  { match: /\b(document|file|contract)\b/i, icon: FileText },
+  { match: /\b(settings|config|admin)\b/i, icon: Cog },
+  { match: /\b(asset|fixed asset)\b/i, icon: HardDrive },
+  { match: /\b(messaging|chat|communication)\b/i, icon: MessageCircle },
+  { match: /\b(monitor|terminal|kiosk)\b/i, icon: Monitor },
+];
+
+/**
+ * Prefer catalog icon when set; otherwise pick from module name keywords.
+ */
+export function resolveModuleIcon(
+  name: string | null | undefined,
+  catalogIcon?: string | null
+): LucideIcon {
+  const fromCatalog = catalogIcon?.trim() ? getIcon(catalogIcon.trim()) : null;
+  if (fromCatalog && fromCatalog !== Boxes) return fromCatalog;
+
+  const label = (name || "").trim();
+  if (label) {
+    for (const rule of MODULE_NAME_ICON_RULES) {
+      if (rule.match.test(label)) return rule.icon;
+    }
+  }
+
+  return fromCatalog || Package;
+}

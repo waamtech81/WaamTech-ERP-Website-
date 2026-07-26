@@ -1,8 +1,12 @@
 "use client";
 
-import { Check, Minus } from "lucide-react";
+import { Check, Layers, Minus } from "lucide-react";
 import type { PricingPlan } from "@/types";
 import { CatalogSkeleton } from "@/components/commercial/catalog-states";
+import {
+  CUSTOM_ERP_COMPARE_CELL,
+  isBuildYourOwnPlan,
+} from "@/lib/commercial/mappers";
 
 type PricingComparisonTableProps = {
   plans: PricingPlan[];
@@ -10,6 +14,38 @@ type PricingComparisonTableProps = {
   loading?: boolean;
   hierarchyNote?: string | null;
 };
+
+function planHeaderTitle(plan: PricingPlan): string {
+  if (!isBuildYourOwnPlan(plan)) return plan.name;
+  // Header only: drop trailing "ERP" — keep "Build Your Own".
+  return (
+    String(plan.name || "")
+      .replace(/\s*ERP\s*$/i, "")
+      .trim() || "Build Your Own"
+  );
+}
+
+function CompareCellValue({ value }: { value: string | boolean | undefined }) {
+  if (value === CUSTOM_ERP_COMPARE_CELL) {
+    return (
+      <Layers
+        className="mx-auto h-4 w-4 text-primary"
+        aria-label="Available in Custom ERP"
+        strokeWidth={2}
+      />
+    );
+  }
+  if (typeof value === "boolean") {
+    return value ? (
+      <Check className="mx-auto h-4 w-4 text-emerald-600" aria-label="Included" />
+    ) : (
+      <Minus className="mx-auto h-4 w-4 text-slate-300" aria-label="Not included" />
+    );
+  }
+  return (
+    <span className="text-xs sm:text-sm">{String(value ?? "—")}</span>
+  );
+}
 
 export function PricingComparisonTable({
   plans,
@@ -42,19 +78,26 @@ export function PricingComparisonTable({
               <th className="sticky left-0 top-0 z-30 bg-slate-50 px-3 py-3 text-left font-semibold text-[#0b1f3a] shadow-[0_1px_0_0_rgba(15,23,42,0.08)] sm:px-4">
                 Feature
               </th>
-              {plans.map((p) => (
-                <th
-                  key={p.id}
-                  className="bg-slate-50 px-3 py-3 text-center font-semibold text-[#0b1f3a] shadow-[0_1px_0_0_rgba(15,23,42,0.08)] sm:px-4"
-                >
-                  <span className="block">{p.name}</span>
-                  {p.ribbon || p.badge ? (
-                    <span className="mt-1 block text-[10px] font-medium uppercase tracking-wide text-primary">
-                      {p.ribbon || p.badge}
-                    </span>
-                  ) : null}
-                </th>
-              ))}
+              {plans.map((p) => {
+                const buildYourOwn = isBuildYourOwnPlan(p);
+                return (
+                  <th
+                    key={p.id}
+                    className="bg-slate-50 px-3 py-3 text-center font-semibold text-[#0b1f3a] shadow-[0_1px_0_0_rgba(15,23,42,0.08)] sm:px-4"
+                  >
+                    <span className="block">{planHeaderTitle(p)}</span>
+                    {buildYourOwn ? (
+                      <span className="mt-1 block text-[10px] font-medium uppercase tracking-wide text-primary">
+                        ERP System
+                      </span>
+                    ) : p.ribbon || p.badge ? (
+                      <span className="mt-1 block text-[10px] font-medium uppercase tracking-wide text-primary">
+                        {p.ribbon || p.badge}
+                      </span>
+                    ) : null}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -77,33 +120,14 @@ export function PricingComparisonTable({
                   <td className="sticky left-0 z-10 border-b border-border/70 bg-white px-3 py-3 font-medium text-[#0b1f3a] sm:px-4">
                     {row.name}
                   </td>
-                  {plans.map((p) => {
-                    const val = row[p.id];
-                    return (
-                      <td
-                        key={p.id}
-                        className="border-b border-border/70 bg-white px-3 py-3 text-center text-muted-foreground sm:px-4"
-                      >
-                        {typeof val === "boolean" ? (
-                          val ? (
-                            <Check
-                              className="mx-auto h-4 w-4 text-emerald-600"
-                              aria-label="Included"
-                            />
-                          ) : (
-                            <Minus
-                              className="mx-auto h-4 w-4 text-slate-300"
-                              aria-label="Not included"
-                            />
-                          )
-                        ) : (
-                          <span className="text-xs sm:text-sm">
-                            {String(val ?? "—")}
-                          </span>
-                        )}
-                      </td>
-                    );
-                  })}
+                  {plans.map((p) => (
+                    <td
+                      key={p.id}
+                      className="border-b border-border/70 bg-white px-3 py-3 text-center text-muted-foreground sm:px-4"
+                    >
+                      <CompareCellValue value={row[p.id] as string | boolean | undefined} />
+                    </td>
+                  ))}
                 </tr>
               );
             })}

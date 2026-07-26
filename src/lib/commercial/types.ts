@@ -432,3 +432,244 @@ export type PaginatedResult<T> = {
 
 /** Billing cycle selected on the Website pricing UI (passed through to signup). */
 export type BillingCycle = "monthly" | "yearly" | "lifetime";
+
+/** License Engine public catalog module (Build Your Own ERP / module pages). */
+export type CatalogModule = {
+  id: string;
+  product_id: string | null;
+  code: string;
+  name: string;
+  slug: string;
+  version: string;
+  description: string | null;
+  category: string | null;
+  industry: string | null;
+  /** Required dependency module codes (mandatory). */
+  dependencies: string[] | null;
+  /** Optional recommended module codes. */
+  recommended_modules: string[] | null;
+  monthly_price: number;
+  yearly_price: number;
+  lifetime_price: number;
+  icon: string | null;
+  display_order: number;
+  status: string;
+  is_public?: boolean;
+};
+
+export type CustomPackageRequestPayload = {
+  product_slug?: string;
+  billing_cycle: BillingCycle;
+  contact_name: string;
+  contact_email: string;
+  company: string;
+  phone?: string;
+  country_code?: string;
+  selected_module_codes: string[];
+  recommended_module_codes?: string[];
+  user_limit_note?: string;
+  notes?: string;
+  source?: string;
+};
+
+export type CustomPackageRequestResult = {
+  id: string;
+  status: string;
+  billing_cycle: BillingCycle;
+  selected_module_codes: string[];
+  required_module_codes: string[];
+  recommended_module_codes: string[];
+  complete_module_codes: string[];
+  total_monthly: number;
+  total_yearly: number;
+  total_lifetime: number;
+  user_limit_note?: string | null;
+  message?: string;
+};
+
+/** License Engine public custom-package quote (live calculator). */
+export type CustomPackageQuoteTaxLine = {
+  tax_id: string;
+  code: string;
+  name: string;
+  rate: number;
+  mode: "inclusive" | "exclusive";
+  amount: number;
+};
+
+export type CustomPackageQuoteSeatLine = {
+  kind: string;
+  included: number;
+  requested: number;
+  extra_qty: number;
+  unit_price: number;
+  amount: number;
+};
+
+export type CustomPackageQuotePricing = {
+  currency: string;
+  monthly_total: number;
+  yearly_total: number;
+  lifetime_total: number;
+  module_count: number;
+  selected_billing_cycle: BillingCycle;
+  selected_total: number;
+  subtotal: number;
+  modules_subtotal?: number;
+  feature_pack_total?: number;
+  seat_overage_total?: number;
+  addons_total?: number;
+  discount_code?: string | null;
+  discount_id?: string | null;
+  discount_type?: "percentage" | "fixed" | null;
+  discount_value?: number | null;
+  discount_amount?: number;
+  tax_id?: string | null;
+  tax_amount?: number;
+  taxes?: CustomPackageQuoteTaxLine[];
+  grand_total: number;
+  seat_overage?: {
+    lines: CustomPackageQuoteSeatLine[];
+    total: number;
+  };
+  additional_charges?: {
+    users?: { qty: number; unit_price: number; amount: number };
+    companies?: { qty: number; unit_price: number; amount: number };
+    branches?: { qty: number; unit_price: number; amount: number };
+    warehouses?: { qty: number; unit_price: number; amount: number };
+  };
+};
+
+export type CustomPackageBundleOffer = {
+  show_bundle_offer: boolean;
+  close_match: boolean;
+  exact_match: boolean;
+  match_score: number;
+  matched_plan_id: string | null;
+  matched_plan_name: string | null;
+  matched_plan_slug: string | null;
+  matched_plan_price: number;
+  custom_price: number;
+  bundle_savings: number;
+  bundle_percentage: number;
+  continue_custom: boolean;
+  switch_to_plan: boolean;
+  message: string | null;
+  match_reason: string | null;
+  enable_savings_banner: boolean;
+  included_modules: string[];
+  included_feature_packs: string[];
+  included_limits: {
+    users: number;
+    companies: number;
+    branches: number;
+    warehouses: number;
+  } | null;
+  matched_plan?: Record<string, unknown> | null;
+};
+
+export type CustomPackageQuoteResult = {
+  package_type: "custom";
+  selected_modules: string[];
+  dependency_modules: string[];
+  recommended_modules: string[];
+  effective_modules?: string[];
+  selected_feature_packs?: string[];
+  pricing: CustomPackageQuotePricing;
+  included_limits?: {
+    users: number;
+    companies: number;
+    branches: number;
+    warehouses: number;
+  } | null;
+  show_bundle_offer?: boolean;
+  match_score?: number;
+  close_match?: boolean;
+  exact_match?: boolean;
+  matched_plan_id?: string | null;
+  matched_plan_name?: string | null;
+  matched_plan_price?: number | null;
+  custom_price?: number | null;
+  bundle_savings?: number;
+  bundle_offer?: CustomPackageBundleOffer | null;
+};
+
+export type CustomPackageQuotePayload = {
+  product_slug?: string;
+  billing_cycle: BillingCycle;
+  selected_module_codes: string[];
+  discount_code?: string | null;
+  industry_id?: string | null;
+  category_id?: string | null;
+  /** Engine accepts flat seat fields (not a nested tenant_limits object). */
+  selected_feature_packs?: string[];
+  user_limit?: number;
+  company_limit?: number;
+  branch_limit?: number;
+  warehouse_limit?: number;
+};
+
+export type PublicCommercialUnitPrice = {
+  included: number;
+  monthly: number;
+  yearly: number;
+  lifetime: number;
+};
+
+export type PublicCommercialFeaturePack = {
+  code: string;
+  slug?: string;
+  name: string;
+  description?: string | null;
+  monthly_price: number | null;
+  yearly_price: number | null;
+  lifetime_price: number | null;
+  is_included?: boolean;
+  price_display?: {
+    monthly: number | "Included";
+    yearly: number | "Included";
+    lifetime: number | "Included";
+  };
+  billing_cycle?: BillingCycle;
+  cycle_price?: number | null;
+};
+
+export type PublicCommercialOverview = {
+  product_slug: string;
+  billing_cycle: BillingCycle;
+  pricing_cards: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    tier?: string | null;
+    billing_cycle: BillingCycle;
+    price: number | null;
+    currency?: string;
+    limits?: CatalogPlanLimits | null;
+    is_popular?: boolean;
+    is_recommended?: boolean;
+  }>;
+  custom_builder: {
+    plan_id: string | null;
+    plan_slug: string;
+    included_limits: {
+      users: number;
+      companies: number;
+      branches: number;
+      warehouses: number;
+    };
+    unit_prices: {
+      users: PublicCommercialUnitPrice;
+      companies: PublicCommercialUnitPrice;
+      branches: PublicCommercialUnitPrice;
+      warehouses: PublicCommercialUnitPrice;
+    };
+    feature_pack_default_unit: {
+      monthly: number;
+      yearly: number;
+      lifetime: number;
+    };
+  };
+  feature_packs: PublicCommercialFeaturePack[];
+  bundle_config?: Record<string, unknown>;
+};

@@ -15,20 +15,29 @@ export function SwiverHero() {
           {siteConfig.name}
         </p>
 
-        <p className="mt-1.5 mb-6 font-sans text-sm md:text-base font-medium tracking-wide text-primary">
+        <p className="mt-0 mb-4 font-sans text-sm md:text-base font-medium tracking-wide text-primary leading-tight">
           {siteConfig.productLine} by {siteConfig.companyName}
         </p>
 
         <h1 className="mx-auto max-w-4xl font-heading text-h2 font-semibold tracking-tight text-[#0b1f3a]/90 text-balance leading-[1.2]">
           Control your business. Optimize operations. Unlock growth.
         </h1>
+        <p className="mx-auto mt-2 max-w-3xl font-heading text-lg md:text-xl font-semibold tracking-tight text-balance leading-snug text-[#0b1f3a]/85">
+          <Link
+            href="/build-your-own-erp"
+            className="bg-gradient-to-r from-primary to-sky-600 bg-clip-text text-transparent hover:opacity-90"
+          >
+            Design your own ERP
+          </Link>{" "}
+          at runtime or launch instantly with a pre-built industry solution.
+        </p>
 
-        <p className="mx-auto mt-5 max-w-2xl font-sans text-description font-normal text-muted-foreground leading-relaxed">
+        <p className="mx-auto mt-3 max-w-2xl font-sans text-sm font-normal text-muted-foreground leading-relaxed">
           One modular platform for Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing,
           and built-in AI — configured for your industry in minutes.
         </p>
 
-        <div className="mt-7">
+        <div className="mt-6">
           <HomeCatalogSearch variant="hero" />
         </div>
 

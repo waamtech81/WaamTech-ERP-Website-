@@ -13,6 +13,7 @@ import type {
   CatalogBusinessType,
   CatalogComparisonBundle,
   CatalogIndustry,
+  CatalogModule,
   CatalogPlan,
   CatalogPricing,
   CatalogProduct,
@@ -274,5 +275,15 @@ export function useCatalogBundle(productSlug?: string | null) {
     productSlug ? `catalog:bundle:${productSlug}` : "catalog:bundle",
     `/api/commercial/catalog${qs}`,
     EMPTY_BUNDLE
+  );
+}
+
+export function useCatalogModules(productSlug?: string | null) {
+  const qs = productSlug ? `?product=${encodeURIComponent(productSlug)}` : "";
+  const key = productSlug ? `catalog:modules:${productSlug}` : "catalog:modules";
+  return useCommercialQuery<CatalogModule[]>(
+    key,
+    `/api/commercial/modules${qs}`,
+    EMPTY_ARRAY as unknown as CatalogModule[]
   );
 }

@@ -21,6 +21,12 @@ import { PortalInvoicesView } from "@/components/portal/portal-invoices";
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
 import { PortalNotificationsView } from "@/components/portal/portal-notifications";
 import { PortalSettingsView } from "@/components/portal/portal-settings";
+import { PortalCustomErpRenewButton } from "@/components/portal/portal-custom-erp-renew";
+import {
+  primaryPortalLicense,
+  resolvePrimaryBillingCycle,
+  showRenewalUi,
+} from "@/lib/portal/package-type";
 import {
   PortalDataRow,
   PortalEmptyState,
@@ -150,6 +156,15 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   const erp = (data.erp || {}) as Record<string, unknown>;
   const journey = data.commercialJourney || "predefined";
   const isCustomJourney = journey === "custom";
+  const primaryLicense = primaryPortalLicense(data.licenses);
+  const billingCycle = resolvePrimaryBillingCycle(primaryLicense, data.subscriptions);
+  const canRenew = showRenewalUi(billingCycle);
+  const activeSubId =
+    data.subscriptions?.find((s) =>
+      ["active", "trial", "trialing", "grace", "suspended"].includes(
+        String(s.status || "").toLowerCase()
+      )
+    )?.id || data.subscriptions?.[0]?.id || null;
   let body: React.ReactNode = null;
   let flush = false;
 
@@ -214,9 +229,15 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               billingCycleFallback={linkedSub?.billing_cycle}
             />
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button asChild size="sm" className="rounded-xl">
-                <Link href={plansHref("renew", linkedSubId, journey)}>Renew</Link>
-              </Button>
+              {canRenew ? (
+                isCustomJourney ? (
+                  <PortalCustomErpRenewButton subscriptionId={linkedSubId} label="Renew" />
+                ) : (
+                  <Button asChild size="sm" className="rounded-xl">
+                    <Link href={plansHref("renew", linkedSubId, journey)}>Renew</Link>
+                  </Button>
+                )
+              ) : null}
               {isCustomJourney ? (
                 <>
                   <Button asChild size="sm" variant="outline" className="rounded-xl">
@@ -261,11 +282,11 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             <thead>
               <tr>
                 <th scope="col">Subscription</th>
-                <th scope="col">Plan</th>
+                {!isCustomJourney ? <th scope="col">Plan</th> : null}
                 <th scope="col">Status</th>
                 <th scope="col">Billing cycle</th>
-                <th scope="col">Renewal</th>
-                <th scope="col">Auto renew</th>
+                {canRenew ? <th scope="col">Renewal</th> : null}
+                {canRenew ? <th scope="col">Auto renew</th> : null}
                 <th scope="col">Actions</th>
               </tr>
             </thead>
@@ -275,18 +296,31 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   <td className="font-medium">
                     {sub.subscription_number || sub.product_name || sub.id}
                   </td>
-                  <td>{sub.plan_name || "—"}</td>
+                  {!isCustomJourney ? <td>{sub.plan_name || "—"}</td> : null}
                   <td>
                     <PortalStatusBadge status={sub.status} />
                   </td>
                   <td>{sub.billing_cycle || "—"}</td>
-                  <td>{formatPortalDate(sub.renewal_date || sub.expiry_date) || "—"}</td>
-                  <td>{sub.auto_renewal ? "Enabled" : "Off"}</td>
+                  {canRenew ? (
+                    <td>{formatPortalDate(sub.renewal_date || sub.expiry_date) || "—"}</td>
+                  ) : null}
+                  {canRenew ? <td>{sub.auto_renewal ? "Enabled" : "Off"}</td> : null}
                   <td>
                     <div className="flex flex-wrap gap-1.5">
-                      <Button asChild size="sm" className="rounded-lg h-8">
-                        <Link href={plansHref("renew", sub.id, journey)}>Renew</Link>
-                      </Button>
+                      {canRenew ? (
+                        isCustomJourney ? (
+                          <PortalCustomErpRenewButton
+                            subscriptionId={sub.id}
+                            label="Renew"
+                            size="sm"
+                            className="h-8 rounded-lg px-3"
+                          />
+                        ) : (
+                          <Button asChild size="sm" className="rounded-lg h-8">
+                            <Link href={plansHref("renew", sub.id, journey)}>Renew</Link>
+                          </Button>
+                        )
+                      ) : null}
                       {isCustomJourney ? (
                         <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
                           <Link href="/portal/custom-erp">Modify package</Link>
@@ -312,7 +346,10 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     } else {
       const rows = data.subscription
         ? [
-            { label: "Current plan", value: data.subscription.currentPlan },
+            {
+              label: isCustomJourney ? "Current package" : "Current plan",
+              value: isCustomJourney ? "Custom ERP Package" : data.subscription.currentPlan,
+            },
             { label: "Status", value: data.subscription.status },
             { label: "Trial status", value: data.subscription.trialStatus },
             {
@@ -322,17 +359,23 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   ? `${data.subscription.trialRemainingDays} days`
                   : null,
             },
-            { label: "Renewal / expiry", value: formatPortalDate(data.subscription.renewalDate) },
+            ...(canRenew
+              ? [{ label: "Renewal / expiry", value: formatPortalDate(data.subscription.renewalDate) }]
+              : []),
             { label: "Billing cycle", value: (erp.billing_cycle as string) || null },
-            {
-              label: "Auto renewal",
-              value:
-                typeof erp.auto_renewal === "boolean"
-                  ? erp.auto_renewal
-                    ? "Enabled"
-                    : "Disabled"
-                  : null,
-            },
+            ...(canRenew
+              ? [
+                  {
+                    label: "Auto renewal",
+                    value:
+                      typeof erp.auto_renewal === "boolean"
+                        ? erp.auto_renewal
+                          ? "Enabled"
+                          : "Disabled"
+                        : null,
+                  },
+                ]
+              : []),
           ].filter((r) => r.value)
         : [];
       body = rows.length ? (
@@ -343,9 +386,18 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" className="rounded-xl">
-                <Link href={plansHref("renew", data.subscriptions?.[0]?.id, journey)}>Renew</Link>
-              </Button>
+            {canRenew ? (
+              isCustomJourney ? (
+                <PortalCustomErpRenewButton
+                  subscriptionId={activeSubId}
+                  label="Renew"
+                />
+              ) : (
+                <Button asChild size="sm" className="rounded-xl">
+                  <Link href={plansHref("renew", activeSubId, journey)}>Renew</Link>
+                </Button>
+              )
+            ) : null}
               {isCustomJourney ? (
                 <Button asChild size="sm" variant="outline" className="rounded-xl">
                   <Link href="/portal/custom-erp">Modify package</Link>
@@ -375,28 +427,37 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     const gateways = data.gateways || [];
     const availableGateways = gateways.filter((g) => g.configured || g.online);
     const rows = [
-      { label: "Next invoice / renewal", value: data.billing?.nextInvoice },
+      ...(canRenew
+        ? [{ label: "Next invoice / renewal", value: data.billing?.nextInvoice }]
+        : []),
       { label: "Outstanding balance", value: data.billing?.outstandingBalance },
-      { label: "Current plan", value: data.subscription?.currentPlan },
+      {
+        label: isCustomJourney ? "Current subscription" : "Current plan",
+        value: isCustomJourney ? "Custom ERP Package" : data.subscription?.currentPlan,
+      },
       {
         label: "Billing cycle",
         value:
           data.subscriptions?.[0]?.billing_cycle ||
           (typeof erp.billing_cycle === "string" ? erp.billing_cycle : null),
       },
-      {
-        label: "Auto renewal",
-        value:
-          typeof data.subscriptions?.[0]?.auto_renewal === "boolean"
-            ? data.subscriptions[0].auto_renewal
-              ? "Enabled"
-              : "Disabled"
-            : typeof erp.auto_renewal === "boolean"
-              ? erp.auto_renewal
-                ? "Enabled"
-                : "Disabled"
-              : null,
-      },
+      ...(canRenew
+        ? [
+            {
+              label: "Auto renewal",
+              value:
+                typeof data.subscriptions?.[0]?.auto_renewal === "boolean"
+                  ? data.subscriptions[0].auto_renewal
+                    ? "Enabled"
+                    : "Disabled"
+                  : typeof erp.auto_renewal === "boolean"
+                    ? erp.auto_renewal
+                      ? "Enabled"
+                      : "Disabled"
+                    : null,
+            },
+          ]
+        : []),
       {
         label: "Payment gateways",
         value: availableGateways.length
@@ -507,11 +568,19 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           </div>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" className="rounded-xl">
-            <Link href={isCustomJourney ? "/portal/billing" : "/portal/plans?intent=renew"}>
-              Pay / renew
-            </Link>
-          </Button>
+          {canRenew ? (
+            isCustomJourney ? (
+              <PortalCustomErpRenewButton subscriptionId={activeSubId} label="Pay / renew" />
+            ) : (
+              <Button asChild size="sm" className="rounded-xl">
+                <Link href="/portal/plans?intent=renew">Pay / renew</Link>
+              </Button>
+            )
+          ) : isCustomJourney ? (
+            <Button asChild size="sm" className="rounded-xl">
+              <Link href="/portal/custom-erp">Upgrade package</Link>
+            </Button>
+          ) : null}
           <Button asChild size="sm" variant="outline" className="rounded-xl">
             <Link href="/portal/invoices">View invoices</Link>
           </Button>

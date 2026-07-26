@@ -8,17 +8,18 @@ import {
 } from "@/components/portal/portal-custom-erp";
 import { PortalErrorState, PortalSkeleton } from "@/components/portal/portal-ui";
 
+type JourneySectionConfig =
+  | { predefinedSection: PortalSectionKey; customSection: CustomErpSectionKey }
+  | { predefinedSection: PortalSectionKey; customSection?: undefined };
+
 /**
- * For shared routes (e.g. /portal/modules): Custom ERP customers get the
- * dedicated Custom ERP section UI; predefined customers keep existing section.
+ * Shared portal routes: Custom ERP customers get dedicated section UI;
+ * predefined customers keep the existing portal section unchanged.
  */
 export function PortalJourneySection({
   predefinedSection,
   customSection,
-}: {
-  predefinedSection: PortalSectionKey;
-  customSection: CustomErpSectionKey;
-}) {
+}: JourneySectionConfig) {
   const { data, loading, error, reload } = usePortalContext();
 
   if (loading) return <PortalSkeleton rows={2} />;
@@ -26,7 +27,7 @@ export function PortalJourneySection({
     return <PortalErrorState message={error} onRetry={reload} />;
   }
 
-  if (data?.commercialJourney === "custom") {
+  if (data?.commercialJourney === "custom" && customSection) {
     return <PortalCustomErpSectionView section={customSection} />;
   }
 

@@ -13,7 +13,6 @@ import {
   Puzzle,
   Settings,
   Settings2,
-  SlidersHorizontal,
   UserCircle2,
   Users,
 } from "lucide-react";
@@ -53,18 +52,24 @@ export const PORTAL_NAV: PortalNavItem[] = [
  */
 export const CUSTOM_ERP_PORTAL_NAV: PortalNavItem[] = [
   { href: "/portal", label: "Dashboard", icon: LayoutDashboard, exact: true, group: "main" },
-  { href: "/portal/licenses", label: "Active License", icon: KeyRound, group: "main" },
+  { href: "/portal/licenses", label: "License", icon: KeyRound, group: "main" },
+  { href: "/portal/subscriptions", label: "Subscription", icon: Package, group: "main" },
   { href: "/portal/modules", label: "Modules", icon: Boxes, group: "custom" },
   { href: "/portal/feature-packs", label: "Feature Packs", icon: Puzzle, group: "custom" },
   { href: "/portal/limits", label: "Limits", icon: Gauge, group: "custom" },
-  { href: "/portal/custom-erp", label: "Custom ERP", icon: SlidersHorizontal, group: "custom" },
   { href: "/portal/billing", label: "Billing", icon: CreditCard, group: "main" },
   { href: "/portal/invoices", label: "Invoices", icon: FileText, group: "main" },
   { href: "/portal/organization", label: "Organizations", icon: Building2, group: "workspace" },
   { href: "/portal/users", label: "Users", icon: Users, group: "workspace" },
-  { href: "/portal/support", label: "Support", icon: LifeBuoy, group: "account" },
+  {
+    href: "/portal/business-profile",
+    label: "Business Profile",
+    icon: UserCircle2,
+    group: "workspace",
+  },
   { href: "/portal/notifications", label: "Notifications", icon: Bell, group: "account" },
   { href: "/portal/settings", label: "Settings", icon: Settings, group: "account" },
+  { href: "/portal/support", label: "Support", icon: LifeBuoy, group: "account" },
 ];
 
 export const PORTAL_NAV_GROUPS: Array<{ id: PortalNavItem["group"]; label: string }> = [

@@ -8,6 +8,7 @@ import {
   ExternalLink,
   FileText,
   Gauge,
+  History,
   KeyRound,
   LifeBuoy,
   Package,
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { formatPortalDate } from "@/components/portal/use-portal-data";
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
+import { PortalCustomErpRenewButton } from "@/components/portal/portal-custom-erp-renew";
 import {
   PortalEmptyState,
   PortalErrorState,
@@ -28,8 +30,14 @@ import {
   PortalSkeleton,
   PortalStatCard,
   PortalStatusBadge,
+  PortalUsageMeter,
 } from "@/components/portal/portal-ui";
-import { primaryPortalLicense } from "@/lib/portal/package-type";
+import type { PortalDashboard } from "@/lib/portal/dashboard";
+import {
+  primaryPortalLicense,
+  resolvePrimaryBillingCycle,
+  showRenewalUi,
+} from "@/lib/portal/package-type";
 import { authConfig } from "@/lib/auth/config";
 
 function titleCaseCode(code: string) {
@@ -49,12 +57,78 @@ function titleCaseCode(code: string) {
     .replace(/\b\w/g, (ch) => ch.toUpperCase());
 }
 
+function formatBillingCycleLabel(cycle?: string | null) {
+  const raw = String(cycle || "").trim();
+  if (!raw) return "—";
+  if (/lifetime|one.?time|once/i.test(raw)) return "Lifetime";
+  if (/year/i.test(raw)) return "Yearly";
+  if (/month/i.test(raw)) return "Monthly";
+  return titleCaseCode(raw);
+}
+
+function activeSubscription(data: PortalDashboard) {
+  return (
+    data.subscriptions?.find((s) =>
+      ["active", "trial", "trialing", "grace", "suspended"].includes(
+        String(s.status || "").toLowerCase()
+      )
+    ) ||
+    data.subscriptions?.[0] ||
+    null
+  );
+}
+
+function resolveUsage(data: PortalDashboard) {
+  const primary = primaryPortalLicense(data.licenses);
+  const limits = primary?.tenant_limits || {};
+  const erp = (data.erp || {}) as Record<string, unknown>;
+  const erpCounts = (erp.counts || erp) as Record<string, unknown>;
+
+  const num = (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value) ? value : null;
+
+  return [
+    {
+      label: "Users",
+      used: data.counts.registeredUsers ?? data.workspaceUsers.length ?? null,
+      max: limits.users ?? null,
+    },
+    {
+      label: "Companies",
+      used: data.counts.registeredBusinesses ?? num(erpCounts.companies) ?? num(erpCounts.businesses),
+      max: limits.companies ?? null,
+    },
+    {
+      label: "Branches",
+      used: num(erpCounts.branches),
+      max: limits.branches ?? null,
+    },
+    {
+      label: "Warehouses",
+      used: num(erpCounts.warehouses),
+      max: limits.warehouses ?? null,
+    },
+    {
+      label: "Storage",
+      used: num(erpCounts.storage) ?? num(erpCounts.storage_gb),
+      max: limits.storage ?? null,
+    },
+    {
+      label: "API",
+      used: num(erpCounts.api) ?? num(erpCounts.api_calls),
+      max: limits.api ?? null,
+    },
+  ];
+}
+
 export type CustomErpSectionKey =
   | "modules"
   | "feature-packs"
   | "limits"
   | "custom-erp"
-  | "support";
+  | "support"
+  | "subscription"
+  | "license";
 
 /** Custom ERP customer dashboard — no predefined plan upgrade/compare surfaces. */
 export function PortalCustomErpDashboardView() {
@@ -66,17 +140,19 @@ export function PortalCustomErpDashboardView() {
   }
 
   const primary = primaryPortalLicense(data.licenses);
-  const billingCycle = String(
-    primary?.billing_cycle || data.subscriptions?.[0]?.billing_cycle || "—"
-  );
+  const sub = activeSubscription(data);
+  const billingCycle = resolvePrimaryBillingCycle(primary, data.subscriptions);
+  const canRenew = showRenewalUi(billingCycle);
   const renewal =
     data.subscription?.renewalDate ||
+    sub?.renewal_date ||
     data.billing?.nextInvoice ||
     primary?.expiry_date ||
     null;
   const moduleCount = primary?.modules?.length || data.modules.length;
   const packCount = primary?.feature_packs?.length || data.featurePacks.length;
-  const limits = primary?.tenant_limits || {};
+  const usage = resolveUsage(data);
+  const invoices = data.invoices || [];
 
   const actions = [
     {
@@ -106,7 +182,7 @@ export function PortalCustomErpDashboardView() {
     {
       href: "/portal/billing",
       label: "Billing & renewal",
-      hint: "Subscription · invoices · payments",
+      hint: canRenew ? "Subscription · invoices · payments" : "Invoices · payments",
       icon: CreditCard,
     },
     {
@@ -184,7 +260,9 @@ export function PortalCustomErpDashboardView() {
                 <Link
                   href={
                     /\/portal\/plans/i.test(data.accessNotice.actionHref)
-                      ? "/portal/billing"
+                      ? canRenew
+                        ? "/portal/billing"
+                        : "/portal/custom-erp"
                       : data.accessNotice.actionHref
                   }
                 >
@@ -204,11 +282,37 @@ export function PortalCustomErpDashboardView() {
           href="/portal/licenses"
         />
         <PortalStatCard
+          label="Subscription"
+          value={String(sub?.status || data.subscription?.status || "—")}
+          hint={formatBillingCycleLabel(billingCycle)}
+          icon={Package}
+          href="/portal/subscriptions"
+        />
+        <PortalStatCard
           label="Billing cycle"
-          value={titleCaseCode(billingCycle)}
+          value={formatBillingCycleLabel(billingCycle)}
           icon={CreditCard}
           href="/portal/billing"
         />
+        {canRenew ? (
+          <PortalStatCard
+            label="Renewal date"
+            value={formatPortalDate(renewal) || "—"}
+            icon={RefreshCw}
+            href="/portal/billing"
+          />
+        ) : (
+          <PortalStatCard
+            label="Package type"
+            value="Lifetime"
+            hint="No renewal required"
+            icon={RefreshCw}
+            href="/portal/subscriptions"
+          />
+        )}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <PortalStatCard
           label="Modules"
           value={String(moduleCount)}
@@ -222,6 +326,20 @@ export function PortalCustomErpDashboardView() {
           hint="Active packs"
           icon={Puzzle}
           href="/portal/feature-packs"
+        />
+        <PortalStatCard
+          label="Invoices"
+          value={invoices.length ? String(invoices.length) : "—"}
+          hint="Recent billing documents"
+          icon={FileText}
+          href="/portal/invoices"
+        />
+        <PortalStatCard
+          label="Outstanding"
+          value={data.billing?.outstandingBalance || "—"}
+          hint="From License Engine"
+          icon={CreditCard}
+          href="/portal/billing"
         />
       </div>
 
@@ -252,7 +370,9 @@ export function PortalCustomErpDashboardView() {
                 <div className="grid gap-3 sm:grid-cols-3">
                   {[
                     { label: "Activation", value: formatPortalDate(primary.activation_date) },
-                    { label: "Renewal / expiry", value: formatPortalDate(renewal) },
+                    ...(canRenew
+                      ? [{ label: "Renewal / expiry", value: formatPortalDate(renewal) }]
+                      : []),
                     {
                       label: "Days left",
                       value:
@@ -278,12 +398,15 @@ export function PortalCustomErpDashboardView() {
                   license={primary}
                   industry={data.overview.industry}
                   category={data.overview.businessCategory}
-                  billingCycleFallback={data.subscriptions?.[0]?.billing_cycle}
+                  billingCycleFallback={sub?.billing_cycle}
                 />
                 <div className="flex flex-wrap gap-2">
-                  <Button asChild size="sm" className="rounded-xl">
-                    <Link href="/portal/billing">Renew</Link>
-                  </Button>
+                  {canRenew ? (
+                    <PortalCustomErpRenewButton
+                      subscriptionId={sub?.id}
+                      label="Renew now"
+                    />
+                  ) : null}
                   <Button asChild size="sm" variant="outline" className="rounded-xl">
                     <Link href="/portal/modules">Add modules</Link>
                   </Button>
@@ -315,24 +438,29 @@ export function PortalCustomErpDashboardView() {
         </PortalFadeIn>
 
         <PortalFadeIn>
-          <PortalPanel title="Limits snapshot" description="Current entitlement caps on this package.">
+          <PortalPanel title="Usage & limits" description="Current usage against entitlement caps.">
             <div className="space-y-3">
-              {[
-                { label: "Users", value: limits.users },
-                { label: "Companies", value: limits.companies },
-                { label: "Branches", value: limits.branches },
-                { label: "Warehouses", value: limits.warehouses },
-              ].map((row) => (
-                <div
-                  key={row.label}
-                  className="flex items-center justify-between rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3"
-                >
-                  <span className="text-sm text-[var(--portal-muted)]">{row.label}</span>
-                  <span className="text-sm font-semibold">
-                    {row.value == null ? "—" : String(row.value)}
-                  </span>
-                </div>
-              ))}
+              {usage.map((row) =>
+                row.max != null && row.max > 0 && row.used != null ? (
+                  <PortalUsageMeter
+                    key={row.label}
+                    label={row.label}
+                    used={Number(row.used)}
+                    limit={Number(row.max)}
+                  />
+                ) : (
+                  <div
+                    key={row.label}
+                    className="flex items-center justify-between rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3"
+                  >
+                    <span className="text-sm text-[var(--portal-muted)]">{row.label}</span>
+                    <span className="text-sm font-semibold">
+                      {row.used != null ? `${row.used}` : "—"}
+                      {row.max != null ? ` / ${row.max}` : row.max === null && row.used == null ? "" : ""}
+                    </span>
+                  </div>
+                )
+              )}
               <Button asChild size="sm" variant="outline" className="w-full rounded-xl">
                 <Link href="/portal/limits">
                   Manage limits
@@ -343,11 +471,73 @@ export function PortalCustomErpDashboardView() {
           </PortalPanel>
         </PortalFadeIn>
       </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <PortalPanel title="Recent changes" description="Payments, renewals, and invoices from License Engine.">
+          {(data.activities || []).length ? (
+            <ul className="space-y-2">
+              {(data.activities || []).slice(0, 8).map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-start justify-between gap-3 rounded-xl border border-[var(--portal-border)] px-4 py-3 text-sm"
+                >
+                  <span className="font-medium">{item.title}</span>
+                  <span className="shrink-0 text-xs text-[var(--portal-muted)]">
+                    {formatPortalDate(item.created_at) || "—"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <PortalEmptyState
+              title="No recent activity"
+              description="Billing events will appear here after your first payment or renewal."
+            />
+          )}
+        </PortalPanel>
+
+        <PortalPanel
+          title="Recent invoices"
+          action={
+            <Button asChild variant="outline" size="sm" className="rounded-xl">
+              <Link href="/portal/invoices">View all</Link>
+            </Button>
+          }
+        >
+          {invoices.length ? (
+            <div className="space-y-2">
+              {invoices.slice(0, 5).map((inv) => (
+                <div
+                  key={inv.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--portal-border)] px-4 py-3 text-sm"
+                >
+                  <div>
+                    <p className="font-medium">{inv.number}</p>
+                    <p className="text-xs text-[var(--portal-muted)]">
+                      {formatPortalDate(inv.date) || "—"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="tabular-nums font-medium">{inv.amount || "—"}</p>
+                    <PortalStatusBadge status={inv.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <PortalEmptyState
+              title="No invoices yet"
+              description="Invoices from License Engine billing will appear here."
+              icon={CreditCard}
+            />
+          )}
+        </PortalPanel>
+      </div>
     </div>
   );
 }
 
-/** Dedicated Custom ERP portal sections (modules / packs / limits / modify / support). */
+/** Dedicated Custom ERP portal sections. */
 export function PortalCustomErpSectionView({ section }: { section: CustomErpSectionKey }) {
   const { data, loading, error, reload } = usePortalContext();
 
@@ -357,23 +547,209 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
   }
 
   const primary = primaryPortalLicense(data.licenses);
+  const sub = activeSubscription(data);
+  const billingCycle = resolvePrimaryBillingCycle(primary, data.subscriptions);
+  const canRenew = showRenewalUi(billingCycle);
   const modules = primary?.modules?.length ? primary.modules : data.modules;
-  const packs = primary?.feature_packs?.length
-    ? primary.feature_packs
-    : data.featurePacks;
+  const packs = primary?.feature_packs?.length ? primary.feature_packs : data.featurePacks;
   const limits = primary?.tenant_limits || {};
-  const sub = data.subscriptions?.[0] || null;
+  const usage = resolveUsage(data);
+  const renewal =
+    data.subscription?.renewalDate ||
+    sub?.renewal_date ||
+    data.billing?.nextInvoice ||
+    primary?.expiry_date ||
+    null;
+
+  if (section === "license") {
+    return (
+      <div className="space-y-6">
+        <PortalPageHeader
+          eyebrow="Custom ERP"
+          title="License"
+          description="License ID, status, billing cycle, and package composition from License Engine."
+        />
+        {primary ? (
+          <PortalPanel title="Active license" description="Custom ERP package entitlement.">
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-lg font-semibold tracking-tight">Custom ERP Package</p>
+                  <p className="mt-2 text-sm text-[var(--portal-muted)]">
+                    License ID · <span className="font-mono text-xs">{primary.id}</span>
+                  </p>
+                  <p className="mt-1 font-mono text-xs tracking-wide text-[var(--portal-muted)]">
+                    {primary.keyMasked || "—"}
+                  </p>
+                </div>
+                <PortalStatusBadge status={primary.effective_status || primary.status} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { label: "Status", value: primary.effective_status || primary.status },
+                  { label: "Expires", value: formatPortalDate(primary.expiry_date) },
+                  { label: "Billing cycle", value: formatBillingCycleLabel(billingCycle) },
+                  ...(canRenew
+                    ? [{ label: "Renewal", value: formatPortalDate(renewal) }]
+                    : []),
+                  { label: "Activated", value: formatPortalDate(primary.activation_date) },
+                  { label: "Current package", value: "Custom ERP Package" },
+                  {
+                    label: "Version",
+                    value: String((data.erp as Record<string, unknown> | null)?.version || "—"),
+                  },
+                ]
+                  .filter((r) => r.value && r.value !== "—")
+                  .map((r) => (
+                    <div
+                      key={r.label}
+                      className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3"
+                    >
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+                        {r.label}
+                      </p>
+                      <p className="mt-1.5 text-sm font-medium capitalize">{r.value}</p>
+                    </div>
+                  ))}
+              </div>
+              <PortalLicenseEntitlements
+                license={primary}
+                industry={data.overview.industry}
+                category={data.overview.businessCategory}
+                billingCycleFallback={sub?.billing_cycle}
+              />
+              {data.renewals?.length ? (
+                <div>
+                  <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                    <History className="h-4 w-4" />
+                    License history
+                  </p>
+                  <div className="portal-table-wrap">
+                    <table className="portal-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Renewal</th>
+                          <th scope="col">Status</th>
+                          <th scope="col">Date</th>
+                          <th scope="col">New expiry</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.renewals.slice(0, 10).map((r) => (
+                          <tr key={r.id}>
+                            <td className="font-medium">{r.id}</td>
+                            <td>
+                              <PortalStatusBadge status={r.status} />
+                            </td>
+                            <td>{formatPortalDate(r.renewal_date) || "—"}</td>
+                            <td>{formatPortalDate(r.new_expiry) || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </PortalPanel>
+        ) : (
+          <PortalEmptyState
+            title="No license found"
+            description="Your Custom ERP license will appear when issued by License Engine."
+            actionLabel="Open billing"
+            actionHref="/portal/billing"
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (section === "subscription") {
+    const paymentStatus =
+      data.payments?.[0]?.status ||
+      sub?.status ||
+      data.subscription?.status ||
+      primary?.effective_status ||
+      "—";
+
+    return (
+      <div className="space-y-6">
+        <PortalPageHeader
+          eyebrow="Custom ERP"
+          title="Subscription"
+          description="Current billing for your Custom ERP package — not a predefined Starter / Business / Enterprise plan."
+        />
+        <PortalPanel
+          title="Current subscription"
+          description="Billing cycle, renewal, and payment status from License Engine."
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { label: "Package", value: "Custom ERP Package" },
+              { label: "Current billing", value: formatBillingCycleLabel(billingCycle) },
+              { label: "Status", value: String(sub?.status || data.subscription?.status || "—") },
+              ...(canRenew
+                ? [{ label: "Renewal date", value: formatPortalDate(renewal) }]
+                : []),
+              ...(canRenew
+                ? [
+                    {
+                      label: "Auto renewal",
+                      value: sub?.auto_renewal ? "Enabled" : "Off",
+                    },
+                  ]
+                : []),
+              { label: "Payment status", value: String(paymentStatus) },
+            ].map((row) => (
+              <div
+                key={row.label}
+                className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+                  {row.label}
+                </p>
+                <p className="mt-2 text-sm font-semibold capitalize">{row.value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button asChild size="sm" className="rounded-xl">
+              <Link href="/portal/custom-erp">Upgrade Custom ERP</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="rounded-xl">
+              <Link href="/portal/custom-erp">Modify ERP</Link>
+            </Button>
+            {canRenew ? (
+              <PortalCustomErpRenewButton subscriptionId={sub?.id} label="Renew license" />
+            ) : null}
+            <Button asChild size="sm" variant="ghost" className="rounded-xl">
+              <Link href="/portal/billing">View billing</Link>
+            </Button>
+          </div>
+          {!canRenew ? (
+            <p className="mt-4 text-sm text-[var(--portal-muted)]">
+              Lifetime packages do not renew. Upgrade modules, feature packs, or limits instead.
+            </p>
+          ) : null}
+        </PortalPanel>
+      </div>
+    );
+  }
 
   if (section === "modules") {
+    const catalogModules = data.modules.filter(Boolean);
+    const enabled = new Set(modules.map((m) => m.toLowerCase()));
+    const available = catalogModules.filter((m) => !enabled.has(m.toLowerCase()));
+
     return (
       <div className="space-y-6">
         <PortalPageHeader
           eyebrow="Custom ERP"
           title="Modules"
-          description="Installed modules on your Custom ERP package. Add or remove modules to change entitlements — never through predefined plans."
+          description="Purchased, enabled, and available modules on your Custom ERP package."
         />
         <div className="grid gap-6 xl:grid-cols-2">
-          <PortalPanel title="Installed / enabled modules" description="Active on your license.">
+          <PortalPanel title="Purchased / enabled modules" description="Active on your license.">
             {modules.length ? (
               <ul className="grid gap-2 sm:grid-cols-2">
                 {modules.map((m) => (
@@ -382,6 +758,7 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                     className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3 text-sm font-medium"
                   >
                     {titleCaseCode(m)}
+                    <span className="ml-2 text-xs text-[var(--portal-primary)]">Enabled</span>
                   </li>
                 ))}
               </ul>
@@ -392,28 +769,31 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
               />
             )}
           </PortalPanel>
-          <PortalPanel
-            title="Add / remove modules"
-            description="Commercial changes go through Custom ERP configuration and License Engine quotes."
-          >
-            <div className="space-y-3 text-sm text-[var(--portal-muted)]">
-              <p>
-                To add modules, preview pricing, or request a license update, open Modify ERP
-                Configuration. Removals and adds update your Custom ERP package — they do not switch
-                you to Starter, Business, or Enterprise.
+          <PortalPanel title="Available modules" description="Add via Custom ERP configuration quote.">
+            {available.length ? (
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {available.map((m) => (
+                  <li
+                    key={m}
+                    className="rounded-xl border border-dashed border-[var(--portal-border)] px-3.5 py-3 text-sm"
+                  >
+                    {titleCaseCode(m)}
+                    <span className="ml-2 text-xs text-[var(--portal-muted)]">Not installed</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-[var(--portal-muted)]">
+                All catalog modules on your account are enabled, or the catalog is loading from License Engine.
               </p>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm" className="rounded-xl">
-                  <Link href="/portal/custom-erp">Add modules · quote preview</Link>
-                </Button>
-                <Button asChild size="sm" variant="outline" className="rounded-xl">
-                  <Link href="/build-your-own-erp">Open Custom ERP Builder</Link>
-                </Button>
-              </div>
-              <p className="text-xs">
-                Module pricing and history are confirmed on the License Engine quote before any
-                license update.
-              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button asChild size="sm" className="rounded-xl">
+                <Link href="/portal/custom-erp">Add module · preview cost</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="rounded-xl">
+                <Link href="/portal/custom-erp">Send upgrade request</Link>
+              </Button>
             </div>
           </PortalPanel>
         </div>
@@ -427,10 +807,10 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
         <PortalPageHeader
           eyebrow="Custom ERP"
           title="Feature Packs"
-          description="Active feature packs on your Custom ERP package."
+          description="Purchased and available feature packs on your Custom ERP package."
         />
         <div className="grid gap-6 xl:grid-cols-2">
-          <PortalPanel title="Active feature packs" description="Currently entitled packs.">
+          <PortalPanel title="Purchased / active packs" description="Currently entitled packs.">
             {packs.length ? (
               <ul className="grid gap-2 sm:grid-cols-2">
                 {packs.map((p) => (
@@ -449,18 +829,20 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
               />
             )}
           </PortalPanel>
-          <PortalPanel
-            title="Add / remove feature packs"
-            description="Pack changes use Custom ERP quotes — not predefined plan cards."
-          >
+          <PortalPanel title="Add / remove / preview" description="Pack changes via Custom ERP quote.">
             <div className="space-y-3 text-sm text-[var(--portal-muted)]">
               <p>
-                Available packs and pack pricing are reviewed in Modify ERP Configuration / the
-                Custom ERP Builder, then confirmed with License Engine before the license updates.
+                Available packs and pricing are reviewed in Modify ERP Configuration, then confirmed
+                with License Engine before the license updates.
               </p>
-              <Button asChild size="sm" className="rounded-xl">
-                <Link href="/portal/custom-erp">Manage feature packs</Link>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" className="rounded-xl">
+                  <Link href="/portal/custom-erp">Add pack · preview</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="rounded-xl">
+                  <Link href="/portal/custom-erp">Remove · upgrade request</Link>
+                </Button>
+              </div>
             </div>
           </PortalPanel>
         </div>
@@ -469,24 +851,16 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
   }
 
   if (section === "limits") {
-    const rows = [
-      { label: "Users", value: limits.users },
-      { label: "Companies", value: limits.companies },
-      { label: "Branches", value: limits.branches },
-      { label: "Warehouses", value: limits.warehouses },
-      { label: "Storage", value: null as number | null },
-      { label: "API", value: null as number | null },
-    ];
     return (
       <div className="space-y-6">
         <PortalPageHeader
           eyebrow="Custom ERP"
           title="Limits"
-          description="Tenant limits for your Custom ERP package. Increase limits through configuration quotes — not plan upgrades."
+          description="Tenant limits for your Custom ERP package. Increase limits through configuration quotes."
         />
-        <PortalPanel title="Current limits" description="Entitlement caps from your active license.">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {rows.map((row) => (
+        <PortalPanel title="Current vs maximum" description="Usage and entitlement caps from License Engine.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {usage.map((row) => (
               <div
                 key={row.label}
                 className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4"
@@ -494,16 +868,26 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
                   {row.label}
                 </p>
-                <p className="mt-2 text-xl font-semibold tracking-tight">
-                  {row.value == null ? "—" : String(row.value)}
-                </p>
-                <p className="mt-1 text-xs text-[var(--portal-muted)]">Current entitlement</p>
+                {row.max != null && row.max > 0 && row.used != null ? (
+                  <div className="mt-3">
+                    <PortalUsageMeter
+                      label={`${row.label} usage`}
+                      used={Number(row.used)}
+                      limit={Number(row.max)}
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xl font-semibold tracking-tight">
+                    {row.used != null ? `${row.used}` : "—"}
+                    {row.max != null ? ` / ${row.max}` : ""}
+                  </p>
+                )}
               </div>
             ))}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="sm" className="rounded-xl">
-              <Link href="/portal/custom-erp">Request limit change</Link>
+              <Link href="/portal/custom-erp">Increase limit · preview pricing</Link>
             </Button>
             <Button asChild size="sm" variant="outline" className="rounded-xl">
               <Link href="/portal/users">View users</Link>
@@ -562,24 +946,24 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
     );
   }
 
-  // custom-erp (modify / quote / confirm)
   return (
     <div className="space-y-6">
       <PortalPageHeader
         eyebrow="Custom ERP"
         title="Modify ERP Configuration"
-        description="Preview pricing changes for modules, feature packs, and limits — then confirm a license update. Predefined plans are not offered on this journey."
+        description="Preview pricing changes for modules, feature packs, and limits — then confirm a license update."
       />
       <div className="grid gap-6 xl:grid-cols-2">
         <PortalPanel
-          title="Configuration & quote preview"
-          description="Continue in the Custom ERP Builder with live License Engine pricing."
+          title="Upgrade preview → quote → checkout"
+          description="Select modules, feature packs, and limits — License Engine confirms pricing."
         >
           <ol className="list-decimal space-y-2 pl-5 text-sm text-[var(--portal-muted)]">
             <li>Review installed modules and feature packs.</li>
             <li>Adjust modules, packs, or tenant limits in the builder.</li>
             <li>Request a quote preview and review pricing changes.</li>
-            <li>Confirm the upgrade — License Engine updates your custom package.</li>
+            <li>Confirm checkout — License Engine updates your custom package.</li>
+            <li>Portal refreshes and ERP syncs automatically.</li>
           </ol>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button asChild size="sm" className="rounded-xl">
@@ -607,20 +991,18 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
             </div>
             <div className="flex justify-between gap-3 border-b border-[var(--portal-border)] py-2">
               <span className="text-[var(--portal-muted)]">Billing cycle</span>
-              <span className="font-medium">
-                {titleCaseCode(String(primary?.billing_cycle || sub?.billing_cycle || "—"))}
-              </span>
+              <span className="font-medium">{formatBillingCycleLabel(billingCycle)}</span>
             </div>
-            <div className="flex justify-between gap-3 py-2">
-              <span className="text-[var(--portal-muted)]">Next renewal</span>
-              <span className="font-medium">
-                {formatPortalDate(
-                  data.subscription?.renewalDate ||
-                    data.billing?.nextInvoice ||
-                    primary?.expiry_date
-                )}
-              </span>
-            </div>
+            {canRenew ? (
+              <div className="flex justify-between gap-3 py-2">
+                <span className="text-[var(--portal-muted)]">Next renewal</span>
+                <span className="font-medium">{formatPortalDate(renewal)}</span>
+              </div>
+            ) : (
+              <div className="py-2 text-[var(--portal-muted)]">
+                Lifetime package — no renewal required.
+              </div>
+            )}
           </div>
         </PortalPanel>
       </div>

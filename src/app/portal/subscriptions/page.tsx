@@ -1,5 +1,5 @@
 "use client";
 
-import { createPortalSectionLazy } from "@/components/portal/portal-lazy";
+import { createPortalJourneySectionLazy } from "@/components/portal/portal-journey-lazy";
 
-export default createPortalSectionLazy("subscriptions");
+export default createPortalJourneySectionLazy("subscriptions", "subscription");

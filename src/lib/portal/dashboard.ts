@@ -38,6 +38,8 @@ import type {
 } from "@/lib/commercial/types";
 import {
   resolveJourneyFromLicenses,
+  resolvePrimaryBillingCycle,
+  showRenewalUi,
   type PortalCommercialJourney,
 } from "@/lib/portal/package-type";
 
@@ -64,6 +66,8 @@ export type PortalLicenseTenantLimits = {
   companies?: number | null;
   branches?: number | null;
   warehouses?: number | null;
+  storage?: number | null;
+  api?: number | null;
 };
 
 export type PortalLicense = {
@@ -265,6 +269,14 @@ function toPortalLicense(
           companies: lic.tenant_limits.companies ?? null,
           branches: lic.tenant_limits.branches ?? null,
           warehouses: lic.tenant_limits.warehouses ?? null,
+          storage:
+            (lic.tenant_limits as Record<string, unknown>).storage != null
+              ? Number((lic.tenant_limits as Record<string, unknown>).storage)
+              : null,
+          api:
+            (lic.tenant_limits as Record<string, unknown>).api != null
+              ? Number((lic.tenant_limits as Record<string, unknown>).api)
+              : null,
         }
       : lic.max_users != null
         ? { users: lic.max_users, companies: null, branches: null, warehouses: null }
@@ -1071,14 +1083,23 @@ async function loadPortalDashboardUncached(
 
   const commercialJourney = resolveJourneyFromLicenses(licenses);
   const isCustomJourney = commercialJourney === "custom";
+  const primaryBillingCycle = resolvePrimaryBillingCycle(
+    licenses.find((l) => l.id === primary?.id) || licenses[0] || null,
+    commercialSubs
+  );
+  const customShowsRenew = showRenewalUi(primaryBillingCycle);
 
   const quickActions = isCustomJourney
     ? [
-        {
-          id: "renew",
-          label: "Renew License",
-          href: "/portal/billing",
-        },
+        ...(customShowsRenew
+          ? [
+              {
+                id: "renew",
+                label: "Renew License",
+                href: "/portal/billing",
+              },
+            ]
+          : []),
         {
           id: "modules",
           label: "Manage Modules",

@@ -5,12 +5,30 @@ import { PortalSkeleton } from "@/components/portal/portal-ui";
 
 export const PortalDashboardLazy = dynamic(
   () =>
-    import("@/components/portal/portal-dashboard").then((m) => m.PortalDashboardView),
+    import("@/components/portal/portal-dashboard-router").then(
+      (m) => m.PortalDashboardRouter
+    ),
   {
     loading: () => <PortalSkeleton rows={3} />,
     ssr: false,
   }
 );
+
+export const PortalCustomErpSectionLazy = (
+  section: "modules" | "feature-packs" | "limits" | "custom-erp" | "support"
+) => {
+  const LazySection = dynamic(
+    () =>
+      import("@/components/portal/portal-custom-erp").then((m) => m.PortalCustomErpSectionView),
+    {
+      loading: () => <PortalSkeleton rows={2} />,
+      ssr: false,
+    }
+  );
+  return function PortalCustomErpSectionLazyPage() {
+    return <LazySection section={section} />;
+  };
+};
 
 export function createPortalSectionLazy(
   section:

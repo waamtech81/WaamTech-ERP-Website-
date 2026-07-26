@@ -1,5 +1,16 @@
 "use client";
 
-import { createPortalSectionLazy } from "@/components/portal/portal-lazy";
+import dynamic from "next/dynamic";
+import { PortalSkeleton } from "@/components/portal/portal-ui";
 
-export default createPortalSectionLazy("modules");
+const Journey = dynamic(
+  () =>
+    import("@/components/portal/portal-journey-section").then(
+      (m) => m.PortalJourneySection
+    ),
+  { loading: () => <PortalSkeleton rows={2} />, ssr: false }
+);
+
+export default function PortalModulesPage() {
+  return <Journey predefinedSection="modules" customSection="modules" />;
+}

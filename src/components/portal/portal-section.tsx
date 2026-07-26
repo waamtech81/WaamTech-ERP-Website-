@@ -46,8 +46,14 @@ export type PortalSectionKey =
 
 function plansHref(
   intent: "renew" | "upgrade" | "new_place",
-  subscriptionId?: string | null
+  subscriptionId?: string | null,
+  journey: "custom" | "predefined" = "predefined"
 ) {
+  // Custom ERP customers never enter predefined plan change flows.
+  if (journey === "custom") {
+    if (intent === "upgrade" || intent === "new_place") return "/portal/custom-erp";
+    return "/portal/billing";
+  }
   const q = new URLSearchParams({ intent });
   if (subscriptionId) q.set("subscription_id", subscriptionId);
   return `/portal/plans?${q.toString()}`;
@@ -142,6 +148,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   }
 
   const erp = (data.erp || {}) as Record<string, unknown>;
+  const journey = data.commercialJourney || "predefined";
+  const isCustomJourney = journey === "custom";
   let body: React.ReactNode = null;
   let flush = false;
 
@@ -207,14 +215,27 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             />
             <div className="mt-5 flex flex-wrap gap-2">
               <Button asChild size="sm" className="rounded-xl">
-                <Link href={plansHref("renew", linkedSubId)}>Renew</Link>
+                <Link href={plansHref("renew", linkedSubId, journey)}>Renew</Link>
               </Button>
-              <Button asChild size="sm" variant="outline" className="rounded-xl">
-                <Link href={plansHref("upgrade", linkedSubId)}>Upgrade</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="rounded-xl">
-                <Link href={plansHref("new_place")}>Create New Business</Link>
-              </Button>
+              {isCustomJourney ? (
+                <>
+                  <Button asChild size="sm" variant="outline" className="rounded-xl">
+                    <Link href="/portal/modules">Manage modules</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="rounded-xl">
+                    <Link href="/portal/custom-erp">Modify configuration</Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button asChild size="sm" variant="outline" className="rounded-xl">
+                    <Link href={plansHref("upgrade", linkedSubId, journey)}>Upgrade</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="rounded-xl">
+                    <Link href={plansHref("new_place", null, journey)}>Create New Business</Link>
+                  </Button>
+                </>
+              )}
               <Button size="sm" variant="outline" className="rounded-xl" disabled title="Available when License Engine exposes downloadable license files">
                 <Download className="h-4 w-4" />
                 Download license
@@ -264,14 +285,22 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   <td>
                     <div className="flex flex-wrap gap-1.5">
                       <Button asChild size="sm" className="rounded-lg h-8">
-                        <Link href={plansHref("renew", sub.id)}>Renew</Link>
+                        <Link href={plansHref("renew", sub.id, journey)}>Renew</Link>
                       </Button>
-                      <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
-                        <Link href={plansHref("upgrade", sub.id)}>Upgrade</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
-                        <Link href={plansHref("new_place")}>Create New Business</Link>
-                      </Button>
+                      {isCustomJourney ? (
+                        <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
+                          <Link href="/portal/custom-erp">Modify package</Link>
+                        </Button>
+                      ) : (
+                        <>
+                          <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
+                            <Link href={plansHref("upgrade", sub.id, journey)}>Upgrade</Link>
+                          </Button>
+                          <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
+                            <Link href={plansHref("new_place", null, journey)}>Create New Business</Link>
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -315,11 +344,17 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           </div>
           <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" className="rounded-xl">
-                <Link href={plansHref("renew", data.subscriptions?.[0]?.id)}>Renew</Link>
+                <Link href={plansHref("renew", data.subscriptions?.[0]?.id, journey)}>Renew</Link>
               </Button>
-              <Button asChild size="sm" variant="outline" className="rounded-xl">
-                <Link href={plansHref("upgrade", data.subscriptions?.[0]?.id)}>Upgrade</Link>
-              </Button>
+              {isCustomJourney ? (
+                <Button asChild size="sm" variant="outline" className="rounded-xl">
+                  <Link href="/portal/custom-erp">Modify package</Link>
+                </Button>
+              ) : (
+                <Button asChild size="sm" variant="outline" className="rounded-xl">
+                  <Link href={plansHref("upgrade", data.subscriptions?.[0]?.id, journey)}>Upgrade</Link>
+                </Button>
+              )}
           </div>
           <p className="text-xs text-[var(--portal-muted)]">
             Subscriptions load from License Engine public billing APIs.
@@ -473,22 +508,30 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
         ) : null}
         <div className="flex flex-wrap gap-2">
           <Button asChild size="sm" className="rounded-xl">
-            <Link href="/portal/plans?intent=renew">Pay / renew</Link>
+            <Link href={isCustomJourney ? "/portal/billing" : "/portal/plans?intent=renew"}>
+              Pay / renew
+            </Link>
           </Button>
           <Button asChild size="sm" variant="outline" className="rounded-xl">
             <Link href="/portal/invoices">View invoices</Link>
           </Button>
-          <Button asChild size="sm" variant="outline" className="rounded-xl">
-            <Link href="/portal/subscriptions">Manage subscription</Link>
-          </Button>
+          {!isCustomJourney ? (
+            <Button asChild size="sm" variant="outline" className="rounded-xl">
+              <Link href="/portal/subscriptions">Manage subscription</Link>
+            </Button>
+          ) : (
+            <Button asChild size="sm" variant="outline" className="rounded-xl">
+              <Link href="/portal/custom-erp">Modify package</Link>
+            </Button>
+          )}
         </div>
       </div>
     ) : (
       <PortalEmptyState
         title="No billing activity yet"
         description="Payment gateways, invoices, and payment history from License Engine will appear here after your first renewal or upgrade."
-        actionLabel="Go to plans"
-        actionHref="/portal/plans?intent=renew"
+        actionLabel={isCustomJourney ? "Open Custom ERP" : "Go to plans"}
+        actionHref={isCustomJourney ? "/portal/custom-erp" : "/portal/plans?intent=renew"}
       />
     );
   }

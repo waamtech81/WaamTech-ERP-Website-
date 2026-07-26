@@ -217,30 +217,54 @@ export function PortalDashboardView() {
           </div>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            {
-              href: renewSubId
-                ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
-                : "/portal/plans?intent=upgrade",
-              label: "Upgrade plan",
-              hint: "Industry · category · plan · price",
-            },
-            {
-              href: "/portal/plans?intent=new_place",
-              label: "Create New Business",
-              hint: "New business on same account",
-            },
-            {
-              href: "/portal/billing",
-              label: "Billing & payments",
-              hint: "Gateways · payment history",
-            },
-            {
-              href: "/portal/settings",
-              label: "Security & password",
-              hint: "2FA · Email OTP · strength",
-            },
-          ].map((item) => (
+          {(data.commercialJourney === "custom"
+            ? [
+                {
+                  href: "/portal/modules",
+                  label: "Manage modules",
+                  hint: "Add modules · Custom ERP only",
+                },
+                {
+                  href: "/portal/custom-erp",
+                  label: "Modify ERP configuration",
+                  hint: "Quote preview · license update",
+                },
+                {
+                  href: "/portal/billing",
+                  label: "Billing & payments",
+                  hint: "Gateways · payment history",
+                },
+                {
+                  href: "/portal/settings",
+                  label: "Security & password",
+                  hint: "2FA · Email OTP · strength",
+                },
+              ]
+            : [
+                {
+                  href: renewSubId
+                    ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
+                    : "/portal/plans?intent=upgrade",
+                  label: "Upgrade plan",
+                  hint: "Industry · category · plan · price",
+                },
+                {
+                  href: "/portal/plans?intent=new_place",
+                  label: "Create New Business",
+                  hint: "New business on same account",
+                },
+                {
+                  href: "/portal/billing",
+                  label: "Billing & payments",
+                  hint: "Gateways · payment history",
+                },
+                {
+                  href: "/portal/settings",
+                  label: "Security & password",
+                  hint: "2FA · Email OTP · strength",
+                },
+              ]
+          ).map((item) => (
             <Link
               key={item.href + item.label}
               href={item.href}
@@ -408,28 +432,43 @@ export function PortalDashboardView() {
                   <Button asChild size="sm" className="rounded-xl">
                     <Link
                       href={
-                        renewSubId
-                          ? `/portal/plans?intent=renew&subscription_id=${encodeURIComponent(renewSubId)}`
-                          : "/portal/plans?intent=renew"
+                        data.commercialJourney === "custom"
+                          ? "/portal/billing"
+                          : renewSubId
+                            ? `/portal/plans?intent=renew&subscription_id=${encodeURIComponent(renewSubId)}`
+                            : "/portal/plans?intent=renew"
                       }
                     >
                       Renew
                     </Link>
                   </Button>
-                  <Button asChild size="sm" variant="outline" className="rounded-xl">
-                    <Link
-                      href={
-                        renewSubId
-                          ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
-                          : "/portal/plans?intent=upgrade"
-                      }
-                    >
-                      Upgrade
-                    </Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline" className="rounded-xl">
-                    <Link href="/portal/plans?intent=new_place">Create New Business</Link>
-                  </Button>
+                  {data.commercialJourney === "custom" ? (
+                    <>
+                      <Button asChild size="sm" variant="outline" className="rounded-xl">
+                        <Link href="/portal/modules">Manage modules</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline" className="rounded-xl">
+                        <Link href="/portal/custom-erp">Modify configuration</Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button asChild size="sm" variant="outline" className="rounded-xl">
+                        <Link
+                          href={
+                            renewSubId
+                              ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
+                              : "/portal/plans?intent=upgrade"
+                          }
+                        >
+                          Upgrade
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline" className="rounded-xl">
+                        <Link href="/portal/plans?intent=new_place">Create New Business</Link>
+                      </Button>
+                    </>
+                  )}
                   <Button asChild size="sm" variant="ghost" className="rounded-xl">
                     <Link href="/portal/billing">Payments</Link>
                   </Button>

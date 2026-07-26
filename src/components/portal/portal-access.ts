@@ -1,13 +1,23 @@
 import type { PortalDashboard } from "@/lib/portal/dashboard";
-import { PORTAL_NAV, type PortalNavItem } from "@/components/portal/portal-nav";
+import {
+  portalNavForJourney,
+  type PortalNavItem,
+} from "@/components/portal/portal-nav";
 
 /**
  * Resolves which portal pages a customer may see.
- * Prefer explicit entitlements from optional ERP stats when present;
- * otherwise grant the full authenticated customer-success nav.
+ * Journey (custom vs predefined) selects the nav set first;
+ * optional ERP entitlements can further filter within that set.
  */
 export function getAccessibleNav(data: PortalDashboard | null): PortalNavItem[] {
-  if (!data) return PORTAL_NAV.filter((item) => item.href === "/portal" || item.href === "/portal/settings");
+  const journey = data?.commercialJourney || "predefined";
+  const baseNav = portalNavForJourney(journey);
+
+  if (!data) {
+    return baseNav.filter(
+      (item) => item.href === "/portal" || item.href === "/portal/settings"
+    );
+  }
 
   const erp = (data.erp || {}) as Record<string, unknown>;
   const raw =
@@ -17,9 +27,9 @@ export function getAccessibleNav(data: PortalDashboard | null): PortalNavItem[] 
     erp.permissions;
 
   const allowed = normalizePermissionList(raw);
-  if (!allowed) return PORTAL_NAV;
+  if (!allowed) return baseNav;
 
-  return PORTAL_NAV.filter((item) => {
+  return baseNav.filter((item) => {
     const key = navPermissionKey(item.href);
     return (
       allowed.has("*") ||

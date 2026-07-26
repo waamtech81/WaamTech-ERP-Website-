@@ -36,6 +36,10 @@ import type {
   CommercialRenewal,
   CommercialSubscription,
 } from "@/lib/commercial/types";
+import {
+  resolveJourneyFromLicenses,
+  type PortalCommercialJourney,
+} from "@/lib/portal/package-type";
 
 export type PortalBusinessCard = {
   businessName: string;
@@ -165,6 +169,11 @@ export type PortalDashboard = {
   };
   modules: string[];
   featurePacks: string[];
+  /**
+   * Portal rendering journey — derived from primary license package_type.
+   * Does not change License Engine commercial logic.
+   */
+  commercialJourney: PortalCommercialJourney;
   quickActions: Array<{
     id: string;
     label: string;
@@ -1060,69 +1069,146 @@ async function loadPortalDashboardUncached(
     new Set([...licenseModules, ...companyModuleLabels, ...erpModules])
   );
 
-  const quickActions = [
-    {
-      id: "renew",
-      label: "Renew Subscription",
-      href: "/portal/plans?intent=renew",
-    },
-    {
-      id: "upgrade",
-      label: "Upgrade Plan",
-      href: "/portal/plans?intent=upgrade",
-    },
-    {
-      id: "new_place",
-      label: "Create New Business",
-      href: "/portal/plans?intent=new_place",
-    },
-    {
-      id: "users",
-      label: "Manage Users",
-      href: "/portal/users",
-    },
-    {
-      id: "erp",
-      label: "Open WAAMTO ERP",
-      href: `${authConfig.appUrl.replace(/\/+$/, "")}/login?email=${encodeURIComponent(identity.email)}`,
-      external: true,
-    },
-    {
-      id: "billing",
-      label: "View Billing",
-      href: "/portal/billing",
-    },
-    {
-      id: "licenses",
-      label: "Download License",
-      href: "/portal/licenses",
-    },
-    {
-      id: "org",
-      label: "Manage Organization",
-      href: "/portal/organization",
-    },
-    {
-      id: "profile",
-      label: "Business Profile",
-      href: "/portal/business-profile",
-    },
-    {
-      id: "settings",
-      label: "Account Settings",
-      href: "/portal/settings",
-    },
-    {
-      id: "invoices",
-      label: "View Invoices",
-      href: "/portal/invoices",
-    },
-    {
-      id: "notifications",
-      label: "Notifications",
-      href: "/portal/notifications",
-    },
-  ];
+  const commercialJourney = resolveJourneyFromLicenses(licenses);
+  const isCustomJourney = commercialJourney === "custom";
+
+  const quickActions = isCustomJourney
+    ? [
+        {
+          id: "renew",
+          label: "Renew License",
+          href: "/portal/billing",
+        },
+        {
+          id: "modules",
+          label: "Manage Modules",
+          href: "/portal/modules",
+        },
+        {
+          id: "feature_packs",
+          label: "Feature Packs",
+          href: "/portal/feature-packs",
+        },
+        {
+          id: "limits",
+          label: "Tenant Limits",
+          href: "/portal/limits",
+        },
+        {
+          id: "custom_erp",
+          label: "Modify ERP Configuration",
+          href: "/portal/custom-erp",
+        },
+        {
+          id: "users",
+          label: "Manage Users",
+          href: "/portal/users",
+        },
+        {
+          id: "erp",
+          label: "Open WAAMTO ERP",
+          href: `${authConfig.appUrl.replace(/\/+$/, "")}/login?email=${encodeURIComponent(identity.email)}`,
+          external: true,
+        },
+        {
+          id: "billing",
+          label: "View Billing",
+          href: "/portal/billing",
+        },
+        {
+          id: "licenses",
+          label: "Active License",
+          href: "/portal/licenses",
+        },
+        {
+          id: "org",
+          label: "Manage Organization",
+          href: "/portal/organization",
+        },
+        {
+          id: "settings",
+          label: "Account Settings",
+          href: "/portal/settings",
+        },
+        {
+          id: "invoices",
+          label: "Invoice History",
+          href: "/portal/invoices",
+        },
+        {
+          id: "support",
+          label: "Support",
+          href: "/portal/support",
+        },
+        {
+          id: "notifications",
+          label: "Notifications",
+          href: "/portal/notifications",
+        },
+      ]
+    : [
+        {
+          id: "renew",
+          label: "Renew Subscription",
+          href: "/portal/plans?intent=renew",
+        },
+        {
+          id: "upgrade",
+          label: "Upgrade Plan",
+          href: "/portal/plans?intent=upgrade",
+        },
+        {
+          id: "new_place",
+          label: "Create New Business",
+          href: "/portal/plans?intent=new_place",
+        },
+        {
+          id: "users",
+          label: "Manage Users",
+          href: "/portal/users",
+        },
+        {
+          id: "erp",
+          label: "Open WAAMTO ERP",
+          href: `${authConfig.appUrl.replace(/\/+$/, "")}/login?email=${encodeURIComponent(identity.email)}`,
+          external: true,
+        },
+        {
+          id: "billing",
+          label: "View Billing",
+          href: "/portal/billing",
+        },
+        {
+          id: "licenses",
+          label: "Download License",
+          href: "/portal/licenses",
+        },
+        {
+          id: "org",
+          label: "Manage Organization",
+          href: "/portal/organization",
+        },
+        {
+          id: "profile",
+          label: "Business Profile",
+          href: "/portal/business-profile",
+        },
+        {
+          id: "settings",
+          label: "Account Settings",
+          href: "/portal/settings",
+        },
+        {
+          id: "invoices",
+          label: "View Invoices",
+          href: "/portal/invoices",
+        },
+        {
+          id: "notifications",
+          label: "Notifications",
+          href: "/portal/notifications",
+        },
+      ];
 
   const data: PortalDashboard = {
     identity,
@@ -1155,6 +1241,7 @@ async function loadPortalDashboardUncached(
     counts,
     modules: modules.filter(Boolean),
     featurePacks,
+    commercialJourney,
     quickActions,
     erp: erp && Object.keys(erp).length ? erp : null,
     notifications,
@@ -1167,7 +1254,23 @@ async function loadPortalDashboardUncached(
     company,
     engineDashboard,
     unreadNotifications,
-    accessNotice: licenseAccess.notice,
+    accessNotice: (() => {
+      const notice = licenseAccess.notice;
+      if (!notice || !isCustomJourney) return notice;
+      // Custom ERP: never send customers into predefined plan upgrade/renew UI.
+      if (notice.actionHref && /\/portal\/plans/i.test(notice.actionHref)) {
+        return {
+          ...notice,
+          actionLabel: notice.actionLabel?.includes("upgrade")
+            ? "Modify package"
+            : "View billing",
+          actionHref: notice.actionLabel?.toLowerCase().includes("upgrade")
+            ? "/portal/custom-erp"
+            : "/portal/billing",
+        };
+      }
+      return notice;
+    })(),
   };
 
   return { ok: true, status: 200, message: "OK", data, refreshed };

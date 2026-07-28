@@ -79,11 +79,10 @@ export const PORTAL_PAYMENT_METHODS: PortalPaymentMethod[] = [
   {
     id: "paypal",
     label: "PayPal",
-    // Email/receive flow + transaction ID (not REST webhook checkout).
-    kind: "transfer",
-    engineGateway: "manual",
-    requiresTransactionId: true,
-    shortHint: "Pay via PayPal, then paste the transaction ID",
+    kind: "online",
+    engineGateway: "paypal",
+    requiresTransactionId: false,
+    shortHint: "Pay with PayPal account or debit / credit card via PayPal",
   },
   {
     id: "stripe",

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PortalPaymentMethodPicker } from "@/components/portal/portal-payment-methods";
+import { PayPalCheckout } from "@/components/portal/paypal-checkout";
 import { PortalFlash, PortalPanel, PortalSkeleton } from "@/components/portal/portal-ui";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
@@ -197,24 +198,40 @@ function PortalCheckoutInner() {
         />
       </div>
 
+      {/* PayPal REST checkout — handles its own submit + redirect */}
+      {selectedMethod === "paypal" && checkout?.amount != null && checkout.currency ? (
+        <div className="mb-6">
+          <PayPalCheckout
+            sessionToken={session}
+            amount={Number(checkout.amount)}
+            currency={String(checkout.currency)}
+            mode={mode}
+            planName={planName}
+            onError={setError}
+          />
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          className="rounded-xl"
-          disabled={!session || confirming || Boolean(error && !checkout)}
-          onClick={() => void confirmPayment()}
-        >
-          {confirming ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Submitting…
-            </>
-          ) : needsTxn ? (
-            "Submit transaction ID"
-          ) : (
-            "Pay now"
-          )}
-        </Button>
+        {selectedMethod !== "paypal" ? (
+          <Button
+            type="button"
+            className="rounded-xl"
+            disabled={!session || confirming || Boolean(error && !checkout)}
+            onClick={() => void confirmPayment()}
+          >
+            {confirming ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Submitting…
+              </>
+            ) : needsTxn ? (
+              "Submit transaction ID"
+            ) : (
+              "Pay now"
+            )}
+          </Button>
+        ) : null}
         <Button asChild variant="outline" className="rounded-xl">
           <Link href="/portal/plans">Back to plans</Link>
         </Button>

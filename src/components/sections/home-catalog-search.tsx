@@ -60,7 +60,7 @@ export function HomeCatalogSearch({
   const inner = (
     <>
       <div ref={wrapRef} className="relative mx-auto max-w-2xl">
-          <div className="flex items-center gap-3 rounded-full border border-amber-500/80 bg-[linear-gradient(135deg,#fff8d6_0%,#fef3c7_100%)] px-5 py-2 shadow-[0_12px_32px_rgba(2,6,23,0.08)] transition-all duration-200 focus-within:border-amber-600 focus-within:shadow-[0_14px_36px_rgba(2,6,23,0.12)]">
+          <div className="flex items-center gap-3 rounded-full border border-amber-600 bg-[linear-gradient(135deg,#fff8d6_0%,#fef3c7_100%)] px-5 py-2 shadow-[0_12px_32px_rgba(2,6,23,0.08)] transition-all duration-200 focus-within:border-amber-700 focus-within:shadow-[0_14px_36px_rgba(2,6,23,0.12)]">
             <Search className="h-5 w-5 shrink-0 text-amber-600" aria-hidden />
             <input
               ref={inputRef}

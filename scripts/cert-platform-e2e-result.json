@@ -1,7 +1,7 @@
 {
   "suite": "CERT-PLATFORM-E2E-001",
-  "at": "2026-07-26T19:20:43.292Z",
-  "duration_ms": 27113,
+  "at": "2026-07-26T20:19:33.426Z",
+  "duration_ms": 25266,
   "targets": {
     "WEBSITE": "https://waamto.com",
     "LE": "https://api.license.waamto.com",
@@ -81,8 +81,8 @@
     },
     {
       "name": "bff_builder_recommendations",
-      "ok": false,
-      "detail": "status=404"
+      "ok": true,
+      "detail": "data present"
     },
     {
       "name": "bff_live_quote",
@@ -167,22 +167,22 @@
     {
       "name": "perf_website_home",
       "ok": true,
-      "detail": "317ms"
+      "detail": "464ms"
     },
     {
       "name": "perf_bff_industries",
       "ok": true,
-      "detail": "271ms"
+      "detail": "277ms"
     },
     {
       "name": "perf_le_modules",
       "ok": true,
-      "detail": "737ms"
+      "detail": "751ms"
     },
     {
       "name": "perf_erp_health",
       "ok": true,
-      "detail": "248ms"
+      "detail": "273ms"
     },
     {
       "name": "erp_custom_package_cert",
@@ -195,10 +195,10 @@
       "detail": "PASS"
     }
   ],
-  "passed": 35,
+  "passed": 36,
   "minor": 0,
-  "failed": 2,
+  "failed": 1,
   "total": 37,
-  "score": 95,
+  "score": 97,
   "final": "GO WITH MINOR ISSUES"
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers, cookies } from "next/headers";
+import Script from "next/script";
 import { SiteShell } from "@/components/layout/site-shell";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { SearchIndexProvider } from "@/components/providers/search-index-provider";
@@ -147,6 +148,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const { language, currency, country, direction } = await resolveLocale();
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_GOOGLE_CAPTCHA_SITE_KEY?.trim() || "";
   // Don't block HTML on live exchange rates — client refreshes via /api/exchange-rates.
   const table = fallbackTable();
   // Prime License Engine catalog search index once for the whole site shell.
@@ -164,6 +166,9 @@ export default async function RootLayout({
         dir={direction}
         className="min-h-full flex flex-col bg-background text-foreground font-sans"
       >
+        <Script id="waamto-recaptcha-site-key" strategy="beforeInteractive">
+          {`window.__WAAMTO_RECAPTCHA_SITE_KEY__ = ${JSON.stringify(recaptchaSiteKey)};`}
+        </Script>
         <LocaleProvider
           initialLanguage={language}
           initialCurrency={currency}

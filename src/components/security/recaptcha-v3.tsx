@@ -5,6 +5,10 @@ import Script from "next/script";
 const SITE_KEY =
   process.env.NEXT_PUBLIC_GOOGLE_CAPTCHA_SITE_KEY?.trim() || "";
 
+type WindowWithRecaptchaKey = Window & {
+  __WAAMTO_RECAPTCHA_SITE_KEY__?: string;
+};
+
 type GoogleRecaptcha = {
   ready: (callback: () => void) => void;
   execute: (
@@ -18,6 +22,14 @@ function googleRecaptcha(): GoogleRecaptcha | undefined {
   return (window as typeof window & { grecaptcha?: GoogleRecaptcha }).grecaptcha;
 }
 
+function recaptchaSiteKey(): string {
+  if (typeof window === "undefined") return SITE_KEY;
+  return (
+    (window as WindowWithRecaptchaKey).__WAAMTO_RECAPTCHA_SITE_KEY__?.trim() ||
+    SITE_KEY
+  );
+}
+
 async function waitForRecaptcha(timeoutMs = 8_000): Promise<GoogleRecaptcha | null> {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
@@ -29,19 +41,21 @@ async function waitForRecaptcha(timeoutMs = 8_000): Promise<GoogleRecaptcha | nu
 }
 
 export function RecaptchaV3() {
-  if (!SITE_KEY) return null;
+  const siteKey = recaptchaSiteKey();
+  if (!siteKey) return null;
 
   return (
     <Script
       id="google-recaptcha-v3"
-      src={`https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(SITE_KEY)}`}
+      src={`https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}`}
       strategy="afterInteractive"
     />
   );
 }
 
 export async function executeRecaptcha(action: string): Promise<string | null> {
-  if (!SITE_KEY || !action.trim()) return null;
+  const siteKey = recaptchaSiteKey();
+  if (!siteKey || !action.trim()) return null;
 
   const recaptcha = await waitForRecaptcha();
   if (!recaptcha) return null;
@@ -57,7 +71,7 @@ export async function executeRecaptcha(action: string): Promise<string | null> {
 
     recaptcha.ready(() => {
       recaptcha
-        .execute(SITE_KEY, { action })
+        .execute(siteKey, { action })
         .then((token) => {
           if (settled) return;
           settled = true;
@@ -75,5 +89,5 @@ export async function executeRecaptcha(action: string): Promise<string | null> {
 }
 
 export function hasRecaptchaV3SiteKey(): boolean {
-  return Boolean(SITE_KEY);
+  return Boolean(recaptchaSiteKey());
 }

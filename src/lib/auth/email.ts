@@ -342,3 +342,109 @@ export async function sendContactFormMessage(opts: {
     ].join("\n"),
   });
 }
+
+function paymentNotificationHtml(data: {
+  userEmail: string;
+  amount?: string | number | null;
+  currency?: string | null;
+  transactionId?: string | null;
+  orderId?: string | null;
+  sessionToken?: string | null;
+  engineOk?: boolean;
+  source?: string;
+  status?: string;
+  eventType?: string;
+}) {
+  const statusLabel = data.engineOk
+    ? '<span style="color:#16a34a;font-weight:700;">✓ Confirmed on License Engine</span>'
+    : '<span style="color:#dc2626;font-weight:700;">⚠ Pending — manual check may be needed</span>';
+
+  const rows = [
+    ["User / source", escapeHtml(data.userEmail || "—")],
+    ["Amount", data.amount ? `${data.amount} ${data.currency || ""}`.trim() : "—"],
+    ["Transaction / Capture ID", escapeHtml(data.transactionId || "—")],
+    ["PayPal Order ID", escapeHtml(data.orderId || "—")],
+    ["Session token", escapeHtml((data.sessionToken || "—").slice(0, 60))],
+    ["Source", escapeHtml(data.source || "checkout")],
+    ...(data.eventType ? [["Event", escapeHtml(data.eventType)]] as [string, string][] : []),
+    ...(data.status ? [["Status", escapeHtml(data.status)]] as [string, string][] : []),
+    ["Engine confirmed", statusLabel],
+  ]
+    .map(
+      ([label, value]) =>
+        `<tr><td style="padding:8px 0;color:#64748b;font-size:13px;width:160px;vertical-align:top;">${label}</td><td style="padding:8px 0;color:#0b1f3a;font-size:14px;">${value}</td></tr>`
+    )
+    .join("");
+
+  const isFailure =
+    data.eventType === "PAYMENT.CAPTURE.DENIED" ||
+    data.eventType === "PAYMENT.CAPTURE.REVERSED";
+
+  return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f7fb;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+          <tr>
+            <td style="background:${isFailure ? "#7f1d1d" : "#0b1f3a"};padding:24px 28px;">
+              <div style="color:#ffffff;font-size:22px;font-weight:700;">${siteConfig.name}</div>
+              <div style="color:#93c5fd;font-size:13px;margin-top:4px;">PayPal Payment Notification</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px;">
+              <h1 style="margin:0 0 16px;font-size:20px;color:#0b1f3a;">
+                ${isFailure ? "⚠ PayPal payment failed" : "✓ PayPal payment received"}
+              </h1>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${rows}</table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+export async function sendPaymentNotificationEmail(opts: {
+  userEmail: string;
+  amount?: string | number | null;
+  currency?: string | null;
+  transactionId?: string | null;
+  orderId?: string | null;
+  sessionToken?: string | null;
+  engineOk?: boolean;
+  source?: string;
+  status?: string;
+  eventType?: string;
+}): Promise<SendResult> {
+  const isFailure =
+    opts.eventType === "PAYMENT.CAPTURE.DENIED" ||
+    opts.eventType === "PAYMENT.CAPTURE.REVERSED";
+
+  const subject = isFailure
+    ? `[ALERT] PayPal payment ${opts.eventType || "failed"} — ${opts.userEmail}`
+    : `PayPal payment received${opts.engineOk ? "" : " ⚠ pending engine confirm"} — ${opts.userEmail}`;
+
+  return sendEmail({
+    to: CONTACT_INBOX,
+    subject,
+    html: paymentNotificationHtml(opts),
+    text: [
+      isFailure ? "ALERT: PayPal payment issue" : "PayPal payment notification",
+      "",
+      `User / source: ${opts.userEmail}`,
+      `Amount: ${opts.amount ?? "—"} ${opts.currency ?? ""}`,
+      `Transaction ID: ${opts.transactionId ?? "—"}`,
+      `PayPal Order ID: ${opts.orderId ?? "—"}`,
+      `Session token: ${String(opts.sessionToken ?? "—").slice(0, 60)}`,
+      `Source: ${opts.source ?? "checkout"}`,
+      ...(opts.eventType ? [`Event: ${opts.eventType}`] : []),
+      ...(opts.status ? [`Status: ${opts.status}`] : []),
+      `Engine confirmed: ${opts.engineOk ? "yes" : "no — manual check may be needed"}`,
+    ].join("\n"),
+  });
+}

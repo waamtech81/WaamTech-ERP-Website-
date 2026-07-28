@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
-  PAYPAL_RECEIVE_EMAIL,
   PK_MOBILE_WALLET_ACCOUNT,
   WISE_PAYMENT_ID,
   paymentMethodsForCountry,
-  paypalCheckoutUrl,
   standardCharteredDetails,
   walletTransferMessage,
   type PortalPaymentMethod,
@@ -180,20 +178,15 @@ export function PortalPaymentMethodPicker({
 
       {selected?.id === "paypal" ? (
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm text-[var(--portal-fg)]">
-          <p className="font-semibold">PayPal</p>
-          <p className="mt-2 leading-relaxed">
-            Complete payment to <span className="font-mono font-semibold">{PAYPAL_RECEIVE_EMAIL}</span>,
-            then paste the PayPal transaction ID below.
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-[var(--portal-primary)]" />
+            <p className="font-semibold">PayPal secure checkout</p>
+          </div>
+          <p className="mt-2 leading-relaxed text-[var(--portal-muted)]">
+            PayPal&apos;s checkout will appear below. You can pay with your PayPal
+            account or enter a debit / credit card — no PayPal account required for
+            card payments.
           </p>
-          <a
-            href={paypalCheckoutUrl(amount, currency)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--portal-primary)] hover:underline"
-          >
-            Open PayPal
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
         </div>
       ) : null}
 

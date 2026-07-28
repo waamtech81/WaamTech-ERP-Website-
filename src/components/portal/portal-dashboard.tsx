@@ -31,6 +31,7 @@ import {
 } from "@/components/portal/portal-ui";
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
 import { TrustBadgeStrip } from "@/components/trust-badges";
+import { PortalDashboardPayBanner } from "@/components/portal/portal-dashboard-pay-banner";
 
 export function PortalDashboardView() {
   const { data, loading, error, reload } = usePortalContext();
@@ -189,6 +190,7 @@ export function PortalDashboardView() {
 
   return (
     <div className="space-y-8">
+      <PortalDashboardPayBanner data={data} />
       <PortalPageHeader
         eyebrow="Customer success"
         title={`Welcome back, ${firstName}`}

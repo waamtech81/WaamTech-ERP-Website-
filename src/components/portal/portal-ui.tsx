@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatPortalStatus } from "@/lib/portal/display-labels";
 
 export function PortalPageHeader({
   title,
@@ -121,6 +122,7 @@ export function PortalStatusBadge({
 }) {
   if (!status) return null;
   const s = status.toLowerCase();
+  const label = formatPortalStatus(status);
   const tone =
     s.includes("active") ||
     s.includes("paid") ||
@@ -150,12 +152,12 @@ export function PortalStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
         tone,
         className
       )}
     >
-      {status}
+      {label}
     </span>
   );
 }

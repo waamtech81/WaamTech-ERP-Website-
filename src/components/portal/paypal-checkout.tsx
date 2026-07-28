@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 import { paypalSdkCurrency } from "@/lib/paypal/currency";
 
-// Minimal PayPal SDK types for what we use
 interface PayPalButtonsComponent {
   render: (container: HTMLElement) => Promise<void>;
   close: () => Promise<void>;
@@ -56,10 +55,20 @@ export function PayPalCheckout({
   const buttonsInstanceRef = useRef<PayPalButtonsComponent | null>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
   const mountedRef = useRef(true);
+  const sessionTokenRef = useRef(sessionToken);
+  const modeRef = useRef(mode);
+  const planNameRef = useRef(planName);
+  const onErrorRef = useRef(onError);
+  const pendingOrderRef = useRef<Promise<string> | null>(null);
 
   const [status, setStatus] = useState<PayPalCheckoutState>("loading");
   const [localError, setLocalError] = useState("");
   const [clientId, setClientId] = useState("");
+
+  sessionTokenRef.current = sessionToken;
+  modeRef.current = mode;
+  planNameRef.current = planName;
+  onErrorRef.current = onError;
 
   const sdkCurrency = useMemo(() => paypalSdkCurrency(currency), [currency]);
 
@@ -69,7 +78,28 @@ export function PayPalCheckout({
     };
   }, []);
 
-  // Step 1: fetch our server-side client ID
+  const createOrderOnServer = useCallback(async (): Promise<string> => {
+    const res = await fetch("/api/paypal/create-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      cache: "no-store",
+      body: JSON.stringify({ session_token: sessionTokenRef.current }),
+    });
+    const json = await res.json();
+    if (!json.success || !json.data?.order_id) {
+      throw new Error(String(json.message || "Failed to create PayPal order."));
+    }
+    return String(json.data.order_id);
+  }, []);
+
+  const warmOrder = useCallback(() => {
+    pendingOrderRef.current = createOrderOnServer().catch((err) => {
+      pendingOrderRef.current = null;
+      throw err;
+    });
+  }, [createOrderOnServer]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -83,6 +113,7 @@ export function PayPalCheckout({
           return;
         }
         setClientId(String(json.data.client_id));
+        warmOrder();
       } catch {
         if (!cancelled && mountedRef.current) {
           setLocalError("Could not load PayPal. Please refresh and try again.");
@@ -93,12 +124,15 @@ export function PayPalCheckout({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [warmOrder]);
+
+  useEffect(() => {
+    if (clientId) warmOrder();
+  }, [clientId, sessionToken, warmOrder]);
 
   const renderButtons = useCallback(async () => {
     if (!mountedRef.current || !containerRef.current || !window.paypal) return;
 
-    // Close any previous instance
     if (buttonsInstanceRef.current) {
       try {
         await buttonsInstanceRef.current.close();
@@ -115,29 +149,21 @@ export function PayPalCheckout({
 
       createOrder: async () => {
         if (!mountedRef.current) throw new Error("Component unmounted.");
-        setStatus("processing");
-        setLocalError("");
-
-        const res = await fetch("/api/paypal/create-order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          cache: "no-store",
-          body: JSON.stringify({ session_token: sessionToken }),
-        });
-        const json = await res.json();
-
-        if (!json.success || !json.data?.order_id) {
-          const msg = String(json.message || "Failed to create PayPal order.");
+        try {
+          const pending =
+            pendingOrderRef.current ?? createOrderOnServer();
+          pendingOrderRef.current = createOrderOnServer();
+          return await pending;
+        } catch (err) {
+          const msg =
+            err instanceof Error ? err.message : "Failed to create PayPal order.";
           if (mountedRef.current) {
             setLocalError(msg);
             setStatus("ready");
           }
-          onError?.(msg);
-          throw new Error(msg);
+          onErrorRef.current?.(msg);
+          throw err;
         }
-        if (mountedRef.current) setStatus("ready");
-        return String(json.data.order_id);
       },
 
       onApprove: async (data) => {
@@ -153,7 +179,7 @@ export function PayPalCheckout({
             cache: "no-store",
             body: JSON.stringify({
               order_id: data.orderID,
-              session_token: sessionToken,
+              session_token: sessionTokenRef.current,
             }),
           });
           const json = await res.json();
@@ -164,21 +190,23 @@ export function PayPalCheckout({
               setLocalError(msg);
               setStatus("ready");
             }
-            onError?.(msg);
+            onErrorRef.current?.(msg);
+            warmOrder();
             return;
           }
 
-          const qs = new URLSearchParams({ session: sessionToken });
-          if (mode) qs.set("mode", mode);
-          if (planName) qs.set("plan", planName);
+          const qs = new URLSearchParams({ session: sessionTokenRef.current });
+          if (modeRef.current) qs.set("mode", modeRef.current);
+          if (planNameRef.current) qs.set("plan", planNameRef.current);
           router.replace(`/portal/checkout/success?${qs.toString()}`);
         } catch {
           if (mountedRef.current) {
             const msg = "Payment processing failed. Please try again.";
             setLocalError(msg);
             setStatus("ready");
-            onError?.(msg);
+            onErrorRef.current?.(msg);
           }
+          warmOrder();
         }
       },
 
@@ -195,7 +223,8 @@ export function PayPalCheckout({
           setLocalError(msg);
           setStatus("ready");
         }
-        onError?.(msg);
+        onErrorRef.current?.(msg);
+        warmOrder();
       },
 
       onCancel: () => {
@@ -203,15 +232,15 @@ export function PayPalCheckout({
           setStatus("cancelled");
           setLocalError("");
         }
+        warmOrder();
       },
     });
 
     buttonsInstanceRef.current = buttons;
     await buttons.render(containerRef.current);
     if (mountedRef.current) setStatus("ready");
-  }, [sessionToken, mode, planName, onError, router]);
+  }, [createOrderOnServer, router, warmOrder]);
 
-  // Step 2: inject PayPal SDK script (card + PayPal account funding)
   useEffect(() => {
     if (!clientId) return;
 
@@ -220,11 +249,11 @@ export function PayPalCheckout({
       currency: sdkCurrency,
       intent: "capture",
       components: "buttons",
-      "enable-funding": "card,paypal",
-      "disable-funding": "paylater,venmo,credit",
+      "enable-funding": "card,paylater,paypal",
+      "disable-funding": "venmo,credit",
     });
     const sdkUrl = `https://www.paypal.com/sdk/js?${sdkParams.toString()}`;
-    const sdkKey = `${clientId}:${sdkCurrency}`;
+    const sdkKey = `${clientId}:${sdkCurrency}:v2`;
 
     const renderWhenReady = () => {
       if (mountedRef.current && window.paypal) {
@@ -253,6 +282,8 @@ export function PayPalCheckout({
     script.async = true;
     script.dataset.paypalSdk = "true";
     script.dataset.paypalKey = sdkKey;
+    // Inline overlay instead of a separate about:blank popup window.
+    script.setAttribute("data-popups-disabled", "true");
     script.onload = renderWhenReady;
     script.onerror = () => {
       if (mountedRef.current) {
@@ -266,7 +297,6 @@ export function PayPalCheckout({
     scriptRef.current = script;
   }, [clientId, sdkCurrency, renderButtons]);
 
-  // Cleanup buttons on unmount
   useEffect(() => {
     return () => {
       if (buttonsInstanceRef.current) {
@@ -292,7 +322,7 @@ export function PayPalCheckout({
 
       {status === "cancelled" && !localError && (
         <p className="text-sm text-[var(--portal-muted)]">
-          Payment cancelled — click the button below to try again.
+          Payment cancelled — click a button below to try again.
         </p>
       )}
 
@@ -305,16 +335,15 @@ export function PayPalCheckout({
         <p className="text-sm text-red-600">{localError}</p>
       ) : null}
 
-      {/* PayPal SDK renders into this container */}
       <div
         ref={containerRef}
         className={status === "error" ? "hidden" : ""}
-        style={{ minHeight: isLoading ? 0 : 52 }}
+        style={{ minHeight: 52 }}
       />
 
       <p className="text-xs text-[var(--portal-muted)]">
-        Pay with your PayPal account or a debit / credit card via PayPal&#39;s
-        secure checkout. You will not be charged until you confirm on PayPal.
+        Pay with PayPal, debit / credit card, or Pay Later — all through
+        PayPal&apos;s secure checkout overlay.
       </p>
     </div>
   );

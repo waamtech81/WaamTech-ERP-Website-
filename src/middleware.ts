@@ -48,6 +48,13 @@ function applyHeaders(res: NextResponse, pathname?: string) {
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
     res.headers.set(k, v);
   }
+  // PayPal checkout (account login, card, Pay Later) needs popup/overlay communication.
+  if (
+    pathname?.startsWith("/portal") ||
+    pathname?.startsWith("/api/paypal")
+  ) {
+    res.headers.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  }
   if (
     pathname &&
     NO_STORE_PREFIXES.some(

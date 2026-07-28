@@ -19,8 +19,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { formatPortalDate } from "@/components/portal/use-portal-data";
+import { formatPortalRenewalLabel } from "@/lib/portal/display-labels";
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
 import { PortalCustomErpRenewButton } from "@/components/portal/portal-custom-erp-renew";
+import { PortalDashboardPayBanner } from "@/components/portal/portal-dashboard-pay-banner";
 import {
   PortalEmptyState,
   PortalErrorState,
@@ -195,6 +197,7 @@ export function PortalCustomErpDashboardView() {
 
   return (
     <div className="space-y-6">
+      <PortalDashboardPayBanner data={data} />
       <PortalPageHeader
         eyebrow="Custom ERP"
         title="Custom ERP Package"
@@ -637,7 +640,7 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                       <tbody>
                         {data.renewals.slice(0, 10).map((r) => (
                           <tr key={r.id}>
-                            <td className="font-medium">{r.id}</td>
+                            <td className="font-medium">{formatPortalRenewalLabel(r)}</td>
                             <td>
                               <PortalStatusBadge status={r.status} />
                             </td>

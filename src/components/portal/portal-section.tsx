@@ -16,6 +16,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { formatPortalDate } from "@/components/portal/use-portal-data";
+import {
+  formatPortalReference,
+  formatPortalRenewalLabel,
+} from "@/lib/portal/display-labels";
 import { PortalBusinessProfileView } from "@/components/portal/portal-business-profile";
 import { PortalInvoicesView } from "@/components/portal/portal-invoices";
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
@@ -517,7 +521,9 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   {payments.slice(0, 15).map((p) => (
                     <tr key={p.id}>
                       <td className="font-medium">
-                        {p.transaction_id || p.reference_number || p.id}
+                        {formatPortalReference(
+                          p.transaction_id || p.reference_number || p.id
+                        )}
                       </td>
                       <td className="tabular-nums">
                         {p.currency} {Number(p.amount).toFixed(2)}
@@ -554,7 +560,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 <tbody>
                   {renewals.slice(0, 10).map((r) => (
                     <tr key={r.id}>
-                      <td className="font-medium">{r.id}</td>
+                      <td className="font-medium">{formatPortalRenewalLabel(r)}</td>
                       <td>
                         <PortalStatusBadge status={r.status} />
                       </td>

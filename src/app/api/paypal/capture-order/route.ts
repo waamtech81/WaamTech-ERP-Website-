@@ -6,7 +6,7 @@ import {
   applyPortalRefreshCookies,
   clearPortalOnUnauthorized,
 } from "@/lib/portal/access";
-import { confirmCheckoutSession } from "@/lib/commercial/client";
+import { confirmCheckoutSession, fetchCheckoutSession } from "@/lib/commercial/client";
 import { readPortalTokens } from "@/lib/auth/session";
 import { capturePayPalOrder, paypalEnabled } from "@/lib/paypal/client";
 import { sendPaymentNotificationEmail } from "@/lib/auth/email";
@@ -38,6 +38,14 @@ export const POST = withApiHandler(
       return clearPortalOnUnauthorized(res, resolved.status);
     }
 
+    const session = await fetchCheckoutSession(
+      resolved.access.accessToken,
+      sessionToken
+    );
+    if (!session.ok || !session.data) {
+      return apiFail("Checkout session not found.", { status: 404 });
+    }
+
     // Capture the payment on PayPal
     const capture = await capturePayPalOrder(orderId);
 
@@ -56,11 +64,14 @@ export const POST = withApiHandler(
     // Build reference string for License Engine
     const reference = `method=paypal|txn=${captureId}|order=${orderId}`.slice(0, 240);
 
-    // Confirm on License Engine
+    // Confirm on License Engine — gateway must match the checkout session (often manual when LE PayPal is off).
     const confirm = await confirmCheckoutSession(
       resolved.access.accessToken,
       sessionToken,
-      { reference, gateway: "paypal" }
+      {
+        reference,
+        gateway: String(session.data.gateway || "manual"),
+      }
     );
 
     // Notify superadmin (non-blocking — never fail the user response)

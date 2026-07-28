@@ -7,7 +7,6 @@
 export type PaymentMethodId =
   | "jazzcash"
   | "easypaisa"
-  | "ufone"
   | "paypal"
   | "stripe"
   | "card"
@@ -30,6 +29,7 @@ export type PortalPaymentMethod = {
 };
 
 export const PK_MOBILE_WALLET_ACCOUNT = "03002830192";
+export const EASYPAYSA_IBAN = "PK94TMFB0000000045745494";
 export const WISE_PAYMENT_ID = "atif.rehmani@gmail.com";
 export const PAYPAL_RECEIVE_EMAIL = "atifrehmani@gmail.com";
 
@@ -65,16 +65,7 @@ export const PORTAL_PAYMENT_METHODS: PortalPaymentMethod[] = [
     pakistanOnly: true,
     engineGateway: "manual",
     requiresTransactionId: true,
-    shortHint: "Send to mobile wallet, then enter transaction ID",
-  },
-  {
-    id: "ufone",
-    label: "Ufone Money",
-    kind: "wallet",
-    pakistanOnly: true,
-    engineGateway: "manual",
-    requiresTransactionId: true,
-    shortHint: "Send to mobile wallet, then enter transaction ID",
+    shortHint: "Transfer to IBAN, then enter transaction ID",
   },
   {
     id: "paypal",
@@ -94,19 +85,20 @@ export const PORTAL_PAYMENT_METHODS: PortalPaymentMethod[] = [
   },
   {
     id: "card",
-    label: "Bank card",
+    label: "Debit/Credit Card",
     kind: "online",
     engineGateway: "stripe",
     requiresTransactionId: false,
-    shortHint: "Debit / credit card via Stripe when available",
+    shortHint: "Pay with debit or credit card when Stripe is available",
   },
   {
     id: "bank",
-    label: "Standard Chartered (bank transfer)",
+    label: "Direct Bank Transfer",
     kind: "transfer",
+    pakistanOnly: true,
     engineGateway: "bank",
     requiresTransactionId: true,
-    shortHint: "Transfer to bank account, then enter transaction ID",
+    shortHint: "Transfer to our bank account, then enter transaction ID",
   },
   {
     id: "wise",
@@ -129,7 +121,7 @@ export function paymentMethodsForCountry(
   country: string | null | undefined
 ): PortalPaymentMethod[] {
   const pk = isPakistanCountry(country);
-  return PORTAL_PAYMENT_METHODS.filter((m) => (m.pakistanOnly ? pk : true));
+  return PORTAL_PAYMENT_METHODS.filter((m) => !m.pakistanOnly || pk);
 }
 
 /** Map UI method → Engine gateway id for checkout create. */
@@ -157,8 +149,18 @@ export function buildPaymentReference(input: {
   return parts.join("|").slice(0, 240);
 }
 
+export function jazzcashTransferMessage(): string {
+  return `Send the exact bill amount to JazzCash using account number ${PK_MOBILE_WALLET_ACCOUNT}. After the transfer succeeds, enter the transaction ID below and submit — License Engine will record the payment and notify your account.`;
+}
+
+export function easypaisaTransferMessage(): string {
+  return `Send the exact bill amount via EasyPaisa bank transfer using IBAN ${EASYPAYSA_IBAN}. After the transfer succeeds, enter the transaction ID below and submit — License Engine will record the payment and notify your account.`;
+}
+
+/** @deprecated Use jazzcashTransferMessage or easypaisaTransferMessage */
 export function walletTransferMessage(methodLabel: string): string {
-  return `Send the exact bill amount to ${methodLabel} (or JazzCash / EasyPaisa / Ufone Money) using account number ${PK_MOBILE_WALLET_ACCOUNT}. After the transfer succeeds, enter the transaction ID below and submit — License Engine will record the payment and notify your account.`;
+  if (/easypaisa/i.test(methodLabel)) return easypaisaTransferMessage();
+  return jazzcashTransferMessage();
 }
 
 export function paypalCheckoutUrl(amount?: number | null, currency?: string | null): string {

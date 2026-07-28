@@ -16,7 +16,6 @@ import {
   resolveCyclePrice,
 } from "@/lib/commercial/mappers";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
-import { PortalPaymentMethodPicker } from "@/components/portal/portal-payment-methods";
 import {
   PortalFlash,
   PortalPanel,
@@ -27,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLocale } from "@/components/providers/locale-provider";
+import { formatUsdAs } from "@/lib/currency/format";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import { cn } from "@/lib/utils";
 import type { PricingPlan } from "@/types";
@@ -94,7 +94,7 @@ export function PortalPlansView() {
   const { data: portal, loading: portalLoading } = usePortalContext();
   const catalog = useCatalogBundle();
   const industriesQuery = useCatalogIndustries();
-  const { formatPrice } = useLocale();
+  const { formatPrice, rates } = useLocale();
 
   const [mode, setMode] = useState<FlowMode>(initialMode);
   const [step, setStep] = useState<Step>(
@@ -106,8 +106,6 @@ export function PortalPlansView() {
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("yearly");
   const [companyName, setCompanyName] = useState("");
-  const [gatewayId, setGatewayId] = useState("");
-  const [transactionId, setTransactionId] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
 
@@ -307,11 +305,8 @@ export function PortalPlansView() {
           industry_id: industryId || undefined,
           category_id: categoryId || undefined,
           business_profile_id: profileId || undefined,
-          gateway: gatewayId || undefined,
           company_name: companyName.trim() || undefined,
           subscription_id: activeSub?.id,
-          payment_method: gatewayId || undefined,
-          transaction_id: transactionId.trim() || undefined,
         };
 
         const res = await fetch("/api/portal/billing/subscribe", {
@@ -337,13 +332,10 @@ export function PortalPlansView() {
         const href = checkoutHrefFromPayload(json.data);
         if (href) {
           const sep = href.includes("?") ? "&" : "?";
-          const methodQs = gatewayId
-            ? `&method=${encodeURIComponent(gatewayId)}`
-            : "";
           router.push(
             `${href}${sep}mode=${encodeURIComponent(mode)}&plan=${encodeURIComponent(
               selectedPlan.name
-            )}${methodQs}`
+            )}`
           );
           return;
         }
@@ -777,7 +769,7 @@ export function PortalPlansView() {
       {step === "confirm" && selectedPlan ? (
         <PortalPanel
           title="Confirm & go to billing"
-          description="Review your selection, choose a payment method, then continue to checkout."
+          description="Review your selection, then continue to checkout to choose a payment method and pay."
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm">
@@ -810,9 +802,17 @@ export function PortalPlansView() {
               </p>
               <p className="mt-1 font-medium tabular-nums">
                 {selectedPrice?.price != null
-                  ? `${formatPrice(selectedPrice.price)} (${billingCycle})`
+                  ? `${formatPrice(selectedPrice.price, { showCode: true })} (${billingCycle})`
                   : "Custom"}
               </p>
+              {selectedPrice?.price != null ? (
+                <p className="mt-1 text-xs text-[var(--portal-muted)]">
+                  Payment amount:{" "}
+                  <span className="font-medium tabular-nums text-[var(--portal-fg)]">
+                    {formatUsdAs(selectedPrice.price, "USD", rates, { showCode: true })}
+                  </span>
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -828,22 +828,6 @@ export function PortalPlansView() {
               />
             </div>
           ) : null}
-
-          <div className="mt-4">
-            <PortalPaymentMethodPicker
-              value={gatewayId}
-              onChange={setGatewayId}
-              transactionId={transactionId}
-              onTransactionIdChange={setTransactionId}
-              country={portal?.overview?.country}
-              amount={selectedPrice?.price}
-              currency={undefined}
-            />
-            <p className="mt-2 text-xs text-[var(--portal-muted)]">
-              After you continue, complete the transfer on the checkout page and submit the
-              transaction ID so License Engine can activate your plan and send a notification.
-            </p>
-          </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
             <Button

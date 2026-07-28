@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
+  easypaisaTransferMessage,
+  jazzcashTransferMessage,
   PK_MOBILE_WALLET_ACCOUNT,
+  EASYPAYSA_IBAN,
   WISE_PAYMENT_ID,
   paymentMethodsForCountry,
   standardCharteredDetails,
-  walletTransferMessage,
   type PortalPaymentMethod,
 } from "@/lib/portal/payment-methods";
 
@@ -38,13 +40,10 @@ export function PortalPaymentMethodPicker({
   autoSelectFirst = true,
   className,
 }: Props) {
-  const [geoCountry, setGeoCountry] = useState<string | null>(countryProp ?? null);
+  const [geoCountry, setGeoCountry] = useState<string | null>(null);
 
+  // Visitor geolocation only — Pakistan wallets / bank transfer are PK-only.
   useEffect(() => {
-    if (countryProp) {
-      setGeoCountry(countryProp);
-      return;
-    }
     let cancelled = false;
     (async () => {
       try {
@@ -52,7 +51,7 @@ export function PortalPaymentMethodPicker({
         const json = await res.json();
         if (cancelled) return;
         const c = json?.extra?.country || json?.data?.country || null;
-        if (c) setGeoCountry(String(c));
+        if (c) setGeoCountry(String(c).trim().toUpperCase());
       } catch {
         /* geo optional */
       }
@@ -60,7 +59,7 @@ export function PortalPaymentMethodPicker({
     return () => {
       cancelled = true;
     };
-  }, [countryProp]);
+  }, []);
 
   const methods = useMemo(
     () => paymentMethodsForCountry(geoCountry),
@@ -84,10 +83,6 @@ export function PortalPaymentMethodPicker({
 
   const selected: PortalPaymentMethod | undefined = methods.find((m) => m.id === value);
   const bank = standardCharteredDetails();
-  const isWallet =
-    selected?.id === "jazzcash" ||
-    selected?.id === "easypaisa" ||
-    selected?.id === "ufone";
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -95,8 +90,8 @@ export function PortalPaymentMethodPicker({
         <Label>Payment method</Label>
         <p className="mt-1 text-xs text-[var(--portal-muted)]">
           {geoCountry
-            ? `Methods for your location (${geoCountry}). Pakistan wallets appear only for PK visitors.`
-            : "Detecting location for available methods…"}
+            ? `Methods for your location (${geoCountry}). JazzCash, EasyPaisa, and bank transfer are available in Pakistan only.`
+            : "Detecting your location for available payment methods…"}
         </p>
       </div>
 
@@ -119,12 +114,25 @@ export function PortalPaymentMethodPicker({
         ))}
       </div>
 
-      {isWallet && selected ? (
+      {selected?.id === "jazzcash" ? (
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm text-[var(--portal-fg)]">
-          <p className="font-semibold">{selected.label} transfer</p>
-          <p className="mt-2 leading-relaxed">{walletTransferMessage(selected.label)}</p>
+          <p className="font-semibold">JazzCash transfer</p>
+          <p className="mt-2 leading-relaxed">{jazzcashTransferMessage()}</p>
           <p className="mt-3 font-mono text-base font-semibold tracking-wide">
             {PK_MOBILE_WALLET_ACCOUNT}
+          </p>
+        </div>
+      ) : null}
+
+      {selected?.id === "easypaisa" ? (
+        <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm text-[var(--portal-fg)]">
+          <p className="font-semibold">EasyPaisa transfer</p>
+          <p className="mt-2 leading-relaxed">{easypaisaTransferMessage()}</p>
+          <p className="mt-3 text-xs font-medium uppercase tracking-wide text-[var(--portal-muted)]">
+            IBAN
+          </p>
+          <p className="mt-1 font-mono text-base font-semibold tracking-wide">
+            {EASYPAYSA_IBAN}
           </p>
         </div>
       ) : null}
@@ -142,7 +150,7 @@ export function PortalPaymentMethodPicker({
 
       {selected?.id === "bank" ? (
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm text-[var(--portal-fg)]">
-          <p className="font-semibold">Standard Chartered bank transfer</p>
+          <p className="font-semibold">Direct bank transfer</p>
           <dl className="mt-3 grid gap-2 sm:grid-cols-2">
             <div>
               <dt className="text-xs text-[var(--portal-muted)]">Bank</dt>

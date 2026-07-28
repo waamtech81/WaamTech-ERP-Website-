@@ -2,6 +2,33 @@ import { fetchBillingGateways } from "@/lib/commercial/client";
 import { engineGatewayForMethod } from "@/lib/portal/payment-methods";
 import { paypalEnabled } from "@/lib/paypal/client";
 
+type EngineGateway = { id: string; configured?: boolean; online?: boolean };
+
+function engineHasPaypal(list: EngineGateway[]): boolean {
+  const paypal = list.find((g) => g.id === "paypal");
+  return Boolean(paypal && (paypal.configured || paypal.online));
+}
+
+function engineManualOrBank(list: EngineGateway[]): string {
+  return (
+    list.find((g) => g.id === "manual")?.id ||
+    list.find((g) => g.id === "bank")?.id ||
+    "manual"
+  );
+}
+
+/**
+ * Website PayPal REST runs on waamto-website; License Engine checkout may not
+ * expose PayPal as a configured gateway. Use an Engine-accepted gateway for the
+ * checkout session/confirm while the UI still collects via PayPal.
+ */
+export function resolveWebsitePayPalEngineGateway(
+  list: EngineGateway[]
+): string {
+  if (engineHasPaypal(list)) return "paypal";
+  return engineManualOrBank(list);
+}
+
 /** Prefer a live online gateway; fall back to bank/manual; never force simulated in production. */
 export async function resolvePreferredGateway(
   accessToken: string,
@@ -11,9 +38,9 @@ export async function resolvePreferredGateway(
   const gateways = await fetchBillingGateways(accessToken);
   const list = gateways.ok ? gateways.data : [];
 
-  // Website-side PayPal REST checkout — honour explicit PayPal choice when configured locally.
+  // Website-side PayPal REST — honour PayPal in UI; map to Engine gateway for checkout session.
   if (requestedId === "paypal" && paypalEnabled()) {
-    return "paypal";
+    return resolveWebsitePayPalEngineGateway(list);
   }
 
   if (requestedId) {

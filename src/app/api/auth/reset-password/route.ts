@@ -2,8 +2,6 @@ import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess, upstreamFail } from "@/lib/api/response";
 import { normalizePasswordResetOrigin, getPasswordResetLoginUrl } from "@/lib/auth/reset-flow";
-import { isValidPasswordResetCode } from "@/lib/security/password-reset-code";
-import { getPasswordResetStore } from "@/lib/security/password-reset-store";
 import {
   getClientIp,
   isSameOrigin,
@@ -12,15 +10,14 @@ import {
 } from "@/lib/security/guards";
 
 /**
- * Password reset completion — validates reset code, then forwards new password to License Engine.
+ * Password reset completion — takes reset token from email, then forwards new password to License Engine.
  * Website never stores or hashes passwords locally.
  * 
  * Flow:
- * 1. Client provides: code (from email), password, confirm_password
- * 2. Validate code against password reset store
- * 3. Retrieve email + origin from stored code
- * 4. Forward password to License Engine for actual update
- * 5. Delete used code from store
+ * 1. User receives email with reset token from License Engine
+ * 2. User clicks link: /forgot-password?token=...
+ * 3. ResetPasswordForm submits: code (which is the token), password, confirm_password
+ * 4. Forward token + password to License Engine for actual update
  */
 export const POST = withApiHandler(
   async (req) => {
@@ -45,7 +42,7 @@ export const POST = withApiHandler(
     }
 
     const body = await req.json();
-    const code = sanitizeText(body?.code, 256);
+    const token = sanitizeText(body?.code || body?.token, 256);
     const password = String(body?.password || body?.new_password || "");
     const confirm = String(body?.confirm_password || body?.confirmPassword || "");
     const origin = normalizePasswordResetOrigin(body?.origin || body?.origin_value || body?.reset_origin);
@@ -54,7 +51,7 @@ export const POST = withApiHandler(
       8192
     );
 
-    if (!code || !isValidPasswordResetCode(code)) {
+    if (!token || token.length < 20) {
       return apiFail("This reset link is invalid or incomplete.", {
         status: 400,
         code: ApiErrorCode.VALIDATION_ERROR,
@@ -87,25 +84,11 @@ export const POST = withApiHandler(
       });
     }
 
-    // Retrieve stored password reset data
-    const store = getPasswordResetStore();
-    const resetData = await store.get(code);
-
-    if (!resetData) {
-      return apiFail("Reset link is invalid or expired. Request a new one.", {
-        status: 400,
-        code: ApiErrorCode.VALIDATION_ERROR,
-      });
-    }
-
-    // Delete code immediately (single-use)
-    await store.delete(code);
-
-    // Now send the actual password reset to License Engine using email-based reset
-    const { identityResetPasswordByEmail } = await import("@/lib/license/identity");
+    // Forward to License Engine with reset token
+    const { identityResetPassword } = await import("@/lib/license/identity");
     
-    const result = await identityResetPasswordByEmail({
-      email: resetData.email,
+    const result = await identityResetPassword({
+      token,
       new_password: password,
       captcha_token: captchaToken || undefined,
     });
@@ -119,10 +102,10 @@ export const POST = withApiHandler(
       );
     }
 
-    const redirectUrl = getPasswordResetLoginUrl(resetData.origin);
+    const redirectUrl = getPasswordResetLoginUrl(origin === "erp" ? "erp" : "website");
 
     return apiSuccess(result.message || "Password updated successfully.", {
-      extra: { redirectUrl, origin: resetData.origin },
+      extra: { redirectUrl, origin: origin || "website" },
     });
   },
   { endpoint: "/api/auth/reset-password" }

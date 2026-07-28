@@ -2,6 +2,7 @@ import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess } from "@/lib/api/response";
 import { normalizePasswordResetOrigin } from "@/lib/auth/reset-flow";
+import { sendPasswordResetEmail } from "@/lib/auth/email";
 import { identityCheckEmailExists } from "@/lib/license/identity";
 import { generatePasswordResetCode } from "@/lib/security/password-reset-code";
 import { getPasswordResetStore } from "@/lib/security/password-reset-store";
@@ -91,6 +92,13 @@ export const POST = withApiHandler(
     const code = generatePasswordResetCode();
     const store = getPasswordResetStore();
     await store.set(code, { email, createdAt: Date.now(), origin }, 15 * 60_000);
+
+    // Send password reset email
+    await sendPasswordResetEmail({
+      to: email,
+      code,
+      origin: origin === "erp" ? "erp" : "website",
+    });
 
     return apiSuccess("If an account exists for that email, a reset link has been sent.", {
       extra: { origin, code },

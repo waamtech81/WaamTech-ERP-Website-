@@ -5,6 +5,8 @@ import { resolvePortalAccess, applyPortalRefreshCookies, clearPortalOnUnauthoriz
 import { fetchCheckoutSession } from "@/lib/commercial/client";
 import { readPortalTokens } from "@/lib/auth/session";
 import { createPayPalOrder, paypalEnabled } from "@/lib/paypal/client";
+import { ApiError } from "@/lib/api/errors";
+import { ApiErrorCode } from "@/lib/api/codes";
 
 export const POST = withApiHandler(
   async (req) => {
@@ -45,12 +47,25 @@ export const POST = withApiHandler(
       return apiFail("Checkout session has an invalid amount.", { status: 400 });
     }
 
-    const order = await createPayPalOrder({
-      amount,
-      currency,
-      sessionToken,
-      description: String(session.data.purpose || "WAAMTO ERP subscription"),
-    });
+    let order;
+    try {
+      order = await createPayPalOrder({
+        amount,
+        currency,
+        sessionToken,
+        description: String(session.data.purpose || "WAAMTO ERP subscription"),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to start PayPal checkout.";
+      throw new ApiError(ApiErrorCode.VALIDATION_ERROR, {
+        message,
+        status: 400,
+        cause: error,
+      });
+    }
 
     const { remember } = await readPortalTokens();
     const res = apiSuccess("PayPal order created.", {

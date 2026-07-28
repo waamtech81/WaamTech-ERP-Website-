@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
+import { paypalSdkCurrency } from "@/lib/paypal/currency";
 
 // Minimal PayPal SDK types for what we use
 interface PayPalButtonsComponent {
@@ -59,6 +60,8 @@ export function PayPalCheckout({
   const [status, setStatus] = useState<PayPalCheckoutState>("loading");
   const [localError, setLocalError] = useState("");
   const [clientId, setClientId] = useState("");
+
+  const sdkCurrency = useMemo(() => paypalSdkCurrency(currency), [currency]);
 
   useEffect(() => {
     return () => {
@@ -214,14 +217,14 @@ export function PayPalCheckout({
 
     const sdkParams = new URLSearchParams({
       "client-id": clientId,
-      currency: currency.toUpperCase(),
+      currency: sdkCurrency,
       intent: "capture",
       components: "buttons",
       "enable-funding": "card,paypal",
       "disable-funding": "paylater,venmo,credit",
     });
     const sdkUrl = `https://www.paypal.com/sdk/js?${sdkParams.toString()}`;
-    const sdkKey = `${clientId}:${currency.toUpperCase()}`;
+    const sdkKey = `${clientId}:${sdkCurrency}`;
 
     const renderWhenReady = () => {
       if (mountedRef.current && window.paypal) {
@@ -261,7 +264,7 @@ export function PayPalCheckout({
     };
     document.head.appendChild(script);
     scriptRef.current = script;
-  }, [clientId, currency, renderButtons]);
+  }, [clientId, sdkCurrency, renderButtons]);
 
   // Cleanup buttons on unmount
   useEffect(() => {

@@ -106,3 +106,18 @@ export function convertFromUsd(
   const rate = table.rates[currency] ?? FALLBACK_RATES[currency] ?? 1;
   return usd * rate;
 }
+
+/** Convert a priced amount into USD using a USD-based rate table. */
+export function convertToUsd(
+  amount: number,
+  currency: string,
+  table: RateTable
+): number {
+  const code = String(currency || "USD").toUpperCase();
+  if (code === "USD") return Number(amount);
+  const rate =
+    table.rates[code as CurrencyCode] ??
+    FALLBACK_RATES[code as CurrencyCode];
+  if (!rate || rate <= 0) return Number(amount);
+  return Math.round((Number(amount) / rate) * 100) / 100;
+}

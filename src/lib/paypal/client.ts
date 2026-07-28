@@ -1,5 +1,32 @@
 /** Server-side PayPal REST API v2 client. Reads from PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET. */
 
+import { convertToUsd, getRates } from "@/lib/currency/exchange";
+import {
+  paypalSdkCurrency,
+  PAYPAL_ORDER_CURRENCIES,
+} from "@/lib/paypal/currency";
+
+export { paypalSdkCurrency, PAYPAL_ORDER_CURRENCIES };
+
+export async function resolvePayPalOrderAmount(
+  amount: number,
+  currency?: string | null
+): Promise<{ amount: number; currency: string }> {
+  const rawCurrency = String(currency || "USD")
+    .trim()
+    .toUpperCase();
+  const paypalCurrency = paypalSdkCurrency(rawCurrency);
+  if (paypalCurrency === rawCurrency) {
+    return { amount: Number(amount), currency: paypalCurrency };
+  }
+  const rates = await getRates();
+  const usdAmount = convertToUsd(Number(amount), rawCurrency, rates);
+  if (!usdAmount || usdAmount <= 0) {
+    throw new Error("Checkout amount could not be converted for PayPal.");
+  }
+  return { amount: usdAmount, currency: "USD" };
+}
+
 const PAYPAL_BASE =
   process.env.PAYPAL_MODE === "live"
     ? "https://api-m.paypal.com"
@@ -23,6 +50,11 @@ async function getAccessToken(): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    if (res.status === 401) {
+      throw new Error(
+        "PayPal credentials are invalid. Check PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, and PAYPAL_MODE."
+      );
+    }
     throw new Error(`PayPal auth failed (${res.status}): ${text}`);
   }
   const json = (await res.json()) as { access_token: string };
@@ -53,6 +85,19 @@ export type PayPalCaptureResult = {
   }>;
 };
 
+function parsePayPalErrorBody(raw: unknown): string {
+  if (!raw || typeof raw !== "object") return "";
+  const row = raw as {
+    message?: string;
+    name?: string;
+    details?: Array<{ issue?: string; description?: string }>;
+  };
+  const detail = row.details?.[0];
+  if (detail?.description) return detail.description;
+  if (detail?.issue) return detail.issue;
+  return row.message || row.name || "";
+}
+
 export async function createPayPalOrder(opts: {
   amount: number;
   currency: string;
@@ -60,6 +105,7 @@ export async function createPayPalOrder(opts: {
   description?: string;
 }): Promise<PayPalOrderResult> {
   const token = await getAccessToken();
+  const resolved = await resolvePayPalOrderAmount(opts.amount, opts.currency);
 
   const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders`, {
     method: "POST",
@@ -75,8 +121,8 @@ export async function createPayPalOrder(opts: {
           custom_id: opts.sessionToken.slice(0, 127),
           description: (opts.description || "WAAMTO ERP subscription").slice(0, 127),
           amount: {
-            currency_code: opts.currency.toUpperCase(),
-            value: Number(opts.amount).toFixed(2),
+            currency_code: resolved.currency,
+            value: Number(resolved.amount).toFixed(2),
           },
         },
       ],
@@ -85,8 +131,15 @@ export async function createPayPalOrder(opts: {
   });
 
   if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { message?: string; name?: string };
-    throw new Error(err.message || err.name || `PayPal create order: ${res.status}`);
+    const err = (await res.json().catch(() => ({}))) as {
+      message?: string;
+      name?: string;
+      details?: Array<{ issue?: string; description?: string }>;
+    };
+    const parsed = parsePayPalErrorBody(err);
+    throw new Error(
+      parsed || err.message || err.name || `PayPal create order failed (${res.status}).`
+    );
   }
   return res.json() as Promise<PayPalOrderResult>;
 }
@@ -109,8 +162,15 @@ export async function capturePayPalOrder(
   );
 
   if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { message?: string; name?: string };
-    throw new Error(err.message || err.name || `PayPal capture: ${res.status}`);
+    const err = (await res.json().catch(() => ({}))) as {
+      message?: string;
+      name?: string;
+      details?: Array<{ issue?: string; description?: string }>;
+    };
+    const parsed = parsePayPalErrorBody(err);
+    throw new Error(
+      parsed || err.message || err.name || `PayPal capture failed (${res.status}).`
+    );
   }
   return res.json() as Promise<PayPalCaptureResult>;
 }

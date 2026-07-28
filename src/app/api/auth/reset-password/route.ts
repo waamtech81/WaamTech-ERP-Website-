@@ -1,7 +1,7 @@
 import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess, upstreamFail } from "@/lib/api/response";
-import { getPortalLoginPath } from "@/lib/auth/config";
+import { normalizePasswordResetOrigin, getPasswordResetLoginUrl } from "@/lib/auth/reset-flow";
 import { identityResetPassword } from "@/lib/license/identity";
 import {
   getClientIp,
@@ -40,6 +40,7 @@ export const POST = withApiHandler(
     const token = sanitizeText(body?.token, 256);
     const password = String(body?.password || body?.new_password || "");
     const confirm = String(body?.confirm_password || body?.confirmPassword || "");
+    const origin = normalizePasswordResetOrigin(body?.origin || body?.origin_value || body?.reset_origin);
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
       8192
@@ -93,10 +94,10 @@ export const POST = withApiHandler(
       );
     }
 
-    const portalLogin = getPortalLoginPath({ next: "/portal" });
+    const redirectUrl = getPasswordResetLoginUrl(origin);
 
     return apiSuccess(result.message || "Password updated successfully.", {
-      extra: { redirectUrl: portalLogin },
+      extra: { redirectUrl, origin },
     });
   },
   { endpoint: "/api/auth/reset-password" }

@@ -18,7 +18,14 @@ function ResetPasswordAlias() {
 
   useEffect(() => {
     if (token && token.length >= 20) {
-      router.replace(`/forgot-password?token=${encodeURIComponent(token)}`);
+      const params = new URLSearchParams(window.location.search);
+      const origin = params.get("origin")?.trim().toLowerCase();
+      const nextParams = new URLSearchParams();
+      nextParams.set("token", token);
+      if (origin === "erp") {
+        nextParams.set("origin", "erp");
+      }
+      router.replace(`/forgot-password?${nextParams.toString()}`);
     }
   }, [token, router]);
 

@@ -14,14 +14,15 @@ import {
   hasRecaptchaV3SiteKey,
   RecaptchaV3,
 } from "@/components/security/recaptcha-v3";
-import { getPortalLoginPath } from "@/lib/auth/config";
+import { getPasswordResetLoginUrl } from "@/lib/auth/reset-flow";
 
-const PORTAL_LOGIN_PATH = getPortalLoginPath({ next: "/portal" });
+const DEFAULT_LOGIN_PATH = getPasswordResetLoginUrl("website");
 
 function ForgotPasswordForm() {
   const searchParams = useSearchParams();
   const token = (searchParams.get("token") || "").trim();
   const [email, setEmail] = useState(searchParams.get("email") || "");
+  const origin = (searchParams.get("origin") || "website").trim().toLowerCase();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
@@ -51,7 +52,7 @@ function ForgotPasswordForm() {
         </div>
       );
     }
-    return <ResetPasswordForm token={token} />;
+    return <ResetPasswordForm token={token} origin={origin === "erp" ? "erp" : "website"} />;
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -74,6 +75,7 @@ function ForgotPasswordForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email.trim(),
+          origin: origin === "erp" ? "erp" : "website",
           ...(captchaToken ? { captcha_token: captchaToken } : {}),
         }),
       });
@@ -136,7 +138,7 @@ function ForgotPasswordForm() {
                     .
                   </p>
                   <Button asChild variant="outline" className="w-full rounded-full">
-                    <Link href={PORTAL_LOGIN_PATH}>Back to Portal login</Link>
+                    <Link href={DEFAULT_LOGIN_PATH}>Back to login</Link>
                   </Button>
                 </div>
               ) : (
@@ -170,7 +172,7 @@ function ForgotPasswordForm() {
                     )}
                   </Button>
                   <Link
-                    href={PORTAL_LOGIN_PATH}
+                    href={DEFAULT_LOGIN_PATH}
                     className="inline-flex w-full items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />

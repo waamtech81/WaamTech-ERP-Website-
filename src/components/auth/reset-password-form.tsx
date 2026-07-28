@@ -14,7 +14,7 @@ import {
   RecaptchaV3,
 } from "@/components/security/recaptcha-v3";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
-import { getPortalLoginPath } from "@/lib/auth/config";
+import { getPasswordResetLoginUrl } from "@/lib/auth/reset-flow";
 
 const passwordRules = [
   { id: "length", label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -28,14 +28,14 @@ const passwordRules = [
   },
 ];
 
-const PORTAL_LOGIN_PATH = getPortalLoginPath({ next: "/portal" });
+const DEFAULT_LOGIN_PATH = getPasswordResetLoginUrl("website");
 
 /**
  * Shared Reset Password form — used at /forgot-password?token=… (canonical)
  * and /reset-password?token=… (legacy alias).
  * UI aligned with Signup password fields.
  */
-export function ResetPasswordForm({ token }: { token: string }) {
+export function ResetPasswordForm({ token, origin = "website" }: { token: string; origin?: "website" | "erp" }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -89,6 +89,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           token,
           password,
           confirm_password: confirm,
+          origin,
           ...(captchaToken ? { captcha_token: captchaToken } : {}),
         }),
       });
@@ -99,7 +100,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         return;
       }
       setSuccess(apiMessageFromJson(json, "Password updated successfully."));
-      const redirectTo = json.redirectUrl || PORTAL_LOGIN_PATH;
+      const redirectTo = json.redirectUrl || getPasswordResetLoginUrl(origin);
       window.setTimeout(() => {
         if (String(redirectTo).startsWith("http")) {
           window.location.href = redirectTo;
@@ -247,8 +248,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
                 <p className="text-center text-xs text-muted-foreground">
                   After update you&apos;ll be taken to{" "}
-                  <Link href={PORTAL_LOGIN_PATH} className="text-primary hover:underline">
-                    Customer Portal login
+                  <Link href={getPasswordResetLoginUrl(origin)} className="text-primary hover:underline">
+                    {origin === "erp" ? "ERP app login" : "Customer Portal login"}
                   </Link>
                   .
                 </p>

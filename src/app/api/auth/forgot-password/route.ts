@@ -1,6 +1,7 @@
 import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess } from "@/lib/api/response";
+import { normalizePasswordResetOrigin } from "@/lib/auth/reset-flow";
 import { identityForgotPassword } from "@/lib/license/identity";
 import {
   getClientIp,
@@ -51,6 +52,7 @@ export const POST = withApiHandler(
 
     const body = await req.json();
     const email = sanitizeText(body?.email, 254).toLowerCase();
+    const origin = normalizePasswordResetOrigin(body?.origin || body?.origin_value || body?.reset_origin);
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
       8192
@@ -66,7 +68,7 @@ export const POST = withApiHandler(
     // Forward captcha to Engine when the public site has one. The Engine remains
     // the sole verifier; requiring a token here would block deployments where
     // captcha is disabled or unavailable before the Engine can apply its policy.
-    const result = await identityForgotPassword(email, captchaToken || undefined).catch(() => null);
+    const result = await identityForgotPassword(email, captchaToken || undefined, origin).catch(() => null);
     if (!result) {
       return apiFail("Password reset service is temporarily unavailable. Please try again.", {
         status: 503,
@@ -90,7 +92,9 @@ export const POST = withApiHandler(
       });
     }
 
-    return apiSuccess("A reset link has been sent to your registered email.");
+    return apiSuccess("A reset link has been sent to your registered email.", {
+      extra: { origin },
+    });
   },
   { endpoint: "/api/auth/forgot-password" }
 );

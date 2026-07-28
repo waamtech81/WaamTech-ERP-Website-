@@ -380,11 +380,13 @@ export async function identityLogoutAll(accessToken: string) {
 
 export async function identityForgotPassword(
   email: string,
-  captcha_token?: string
+  captcha_token?: string,
+  origin?: "website" | "erp"
 ) {
   return requestLicense("POST", ["/v1/identity/forgot-password", "/identity/forgot-password"], {
     body: {
       email,
+      ...(origin ? { origin } : {}),
       ...(captcha_token ? { captcha_token } : {}),
     },
   });

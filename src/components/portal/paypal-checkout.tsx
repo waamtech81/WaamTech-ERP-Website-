@@ -133,6 +133,7 @@ export function PayPalCheckout({
           onError?.(msg);
           throw new Error(msg);
         }
+        if (mountedRef.current) setStatus("ready");
         return String(json.data.order_id);
       },
 
@@ -180,8 +181,13 @@ export function PayPalCheckout({
 
       onError: (err) => {
         console.error("[PayPal]", err);
-        const msg =
-          "PayPal encountered an error. Please try again or choose another payment method.";
+        const detail =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message || "")
+            : "";
+        const msg = detail.trim()
+          ? detail
+          : "PayPal encountered an error. Please try again or choose another payment method.";
         if (mountedRef.current) {
           setLocalError(msg);
           setStatus("ready");
@@ -202,23 +208,49 @@ export function PayPalCheckout({
     if (mountedRef.current) setStatus("ready");
   }, [sessionToken, mode, planName, onError, router]);
 
-  // Step 2: inject PayPal SDK script
+  // Step 2: inject PayPal SDK script (card + PayPal account funding)
   useEffect(() => {
     if (!clientId) return;
-    if (scriptRef.current) return; // already injecting
 
-    // If SDK already loaded (cached), just render
-    if (window.paypal) {
-      renderButtons();
+    const sdkParams = new URLSearchParams({
+      "client-id": clientId,
+      currency: currency.toUpperCase(),
+      intent: "capture",
+      components: "buttons",
+      "enable-funding": "card,paypal",
+      "disable-funding": "paylater,venmo,credit",
+    });
+    const sdkUrl = `https://www.paypal.com/sdk/js?${sdkParams.toString()}`;
+    const sdkKey = `${clientId}:${currency.toUpperCase()}`;
+
+    const renderWhenReady = () => {
+      if (mountedRef.current && window.paypal) {
+        void renderButtons();
+      }
+    };
+
+    const existing = document.querySelector(
+      'script[data-paypal-sdk="true"]'
+    ) as HTMLScriptElement | null;
+
+    if (existing?.dataset.paypalKey === sdkKey && window.paypal) {
+      renderWhenReady();
+      scriptRef.current = existing;
       return;
     }
 
+    if (existing) {
+      existing.remove();
+      scriptRef.current = null;
+      delete window.paypal;
+    }
+
     const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency.toUpperCase()}&intent=capture&components=buttons`;
+    script.src = sdkUrl;
     script.async = true;
-    script.onload = () => {
-      if (mountedRef.current) renderButtons();
-    };
+    script.dataset.paypalSdk = "true";
+    script.dataset.paypalKey = sdkKey;
+    script.onload = renderWhenReady;
     script.onerror = () => {
       if (mountedRef.current) {
         setLocalError(
@@ -229,11 +261,6 @@ export function PayPalCheckout({
     };
     document.head.appendChild(script);
     scriptRef.current = script;
-
-    return () => {
-      // Do NOT remove the script on cleanup — PayPal SDK should stay loaded
-      // to avoid re-downloading. Removing it causes "paypal is not defined".
-    };
   }, [clientId, currency, renderButtons]);
 
   // Cleanup buttons on unmount

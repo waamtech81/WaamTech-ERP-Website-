@@ -337,10 +337,13 @@ export function PortalPlansView() {
         const href = checkoutHrefFromPayload(json.data);
         if (href) {
           const sep = href.includes("?") ? "&" : "?";
+          const methodQs = gatewayId
+            ? `&method=${encodeURIComponent(gatewayId)}`
+            : "";
           router.push(
             `${href}${sep}mode=${encodeURIComponent(mode)}&plan=${encodeURIComponent(
               selectedPlan.name
-            )}`
+            )}${methodQs}`
           );
           return;
         }

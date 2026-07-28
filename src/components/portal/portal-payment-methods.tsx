@@ -22,6 +22,8 @@ type Props = {
   country?: string | null;
   amount?: number | null;
   currency?: string | null;
+  /** When false, do not auto-pick the first geo method (checkout preserves user choice). */
+  autoSelectFirst?: boolean;
   className?: string;
 };
 
@@ -33,6 +35,7 @@ export function PortalPaymentMethodPicker({
   country: countryProp,
   amount,
   currency,
+  autoSelectFirst = true,
   className,
 }: Props) {
   const [geoCountry, setGeoCountry] = useState<string | null>(countryProp ?? null);
@@ -65,7 +68,7 @@ export function PortalPaymentMethodPicker({
   );
 
   useEffect(() => {
-    if (!methods.length) return;
+    if (!autoSelectFirst || !methods.length) return;
     const firstId = methods[0]?.id;
     if (!firstId) return;
     if (!value) {
@@ -77,7 +80,7 @@ export function PortalPaymentMethodPicker({
     }
     // Intentionally omit onChange from deps — parent setters are stable; including it can loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [methods, value]);
+  }, [methods, value, autoSelectFirst]);
 
   const selected: PortalPaymentMethod | undefined = methods.find((m) => m.id === value);
   const bank = standardCharteredDetails();

@@ -1,5 +1,6 @@
 import { fetchBillingGateways } from "@/lib/commercial/client";
 import { engineGatewayForMethod } from "@/lib/portal/payment-methods";
+import { paypalEnabled } from "@/lib/paypal/client";
 
 /** Prefer a live online gateway; fall back to bank/manual; never force simulated in production. */
 export async function resolvePreferredGateway(
@@ -9,6 +10,11 @@ export async function resolvePreferredGateway(
   const requestedId = engineGatewayForMethod(requested);
   const gateways = await fetchBillingGateways(accessToken);
   const list = gateways.ok ? gateways.data : [];
+
+  // Website-side PayPal REST checkout — honour explicit PayPal choice when configured locally.
+  if (requestedId === "paypal" && paypalEnabled()) {
+    return "paypal";
+  }
 
   if (requestedId) {
     const match = list.find((g) => g.id === requestedId);

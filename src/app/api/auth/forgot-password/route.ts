@@ -71,7 +71,7 @@ export const POST = withApiHandler(
     // Check if email exists in identity system
     const emailCheckResult = await identityCheckEmailExists(email).catch(() => null);
     if (!emailCheckResult || !emailCheckResult.ok) {
-      if (isUnregisteredEmail(emailCheckResult || {})) {
+      if (emailCheckResult && isUnregisteredEmail(emailCheckResult)) {
         return apiFail(
           "This email is not registered. Please check the address or create an account.",
           { status: 404, code: ApiErrorCode.NOT_FOUND }

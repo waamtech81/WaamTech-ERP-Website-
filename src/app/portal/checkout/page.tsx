@@ -23,12 +23,19 @@ function PortalCheckoutInner() {
   const session = String(searchParams.get("session") || "").trim();
   const mode = String(searchParams.get("mode") || "").trim();
   const planName = String(searchParams.get("plan") || "").trim();
+  const methodFromUrl = String(searchParams.get("method") || "").trim().toLowerCase();
   const { formatPrice } = useLocale();
   const { data: portal } = usePortalContext();
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
-  const [selectedMethod, setSelectedMethod] = useState("");
+  const [selectedMethod, setSelectedMethod] = useState(() => {
+    if (!methodFromUrl) return "";
+    return PORTAL_PAYMENT_METHODS.some((m) => m.id === methodFromUrl)
+      ? methodFromUrl
+      : "";
+  });
+  const [methodReady, setMethodReady] = useState(Boolean(selectedMethod));
   const [transactionId, setTransactionId] = useState("");
   const [checkout, setCheckout] = useState<{
     session_token?: string;
@@ -62,10 +69,20 @@ function PortalCheckoutInner() {
         } else {
           const data = json.data || null;
           setCheckout(data);
+          const urlMethod = PORTAL_PAYMENT_METHODS.some((m) => m.id === methodFromUrl)
+            ? methodFromUrl
+            : "";
           const gw = String(data?.gateway || "").toLowerCase();
-          if (gw === "paypal") setSelectedMethod("paypal");
-          else if (gw === "stripe") setSelectedMethod("stripe");
-          else if (gw === "bank") setSelectedMethod("bank");
+          const fromGateway =
+            gw === "paypal"
+              ? "paypal"
+              : gw === "stripe"
+                ? "stripe"
+                : gw === "bank"
+                  ? "bank"
+                  : "";
+          setSelectedMethod((prev) => urlMethod || fromGateway || prev);
+          setMethodReady(true);
         }
       } catch (err) {
         if (!cancelled) {
@@ -79,7 +96,7 @@ function PortalCheckoutInner() {
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [session, methodFromUrl]);
 
   const selectedMeta = PORTAL_PAYMENT_METHODS.find((m) => m.id === selectedMethod);
   const needsTxn = Boolean(selectedMeta?.requiresTransactionId);
@@ -195,6 +212,7 @@ function PortalCheckoutInner() {
           country={portal?.overview?.country}
           amount={checkout?.amount}
           currency={checkout?.currency}
+          autoSelectFirst={methodReady && !methodFromUrl}
         />
       </div>
 

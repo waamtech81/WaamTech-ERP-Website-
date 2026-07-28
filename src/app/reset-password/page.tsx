@@ -31,7 +31,7 @@ function ResetPasswordAlias() {
 
   if (token && token.length >= 20) {
     // Brief render while redirecting; also usable if replace is slow
-    return <ResetPasswordForm token={token} />;
+    return <ResetPasswordForm code={token} />;
   }
 
   return (

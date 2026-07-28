@@ -378,6 +378,16 @@ export async function identityLogoutAll(accessToken: string) {
   });
 }
 
+/**
+ * Check if an email exists in License Engine without initiating password reset.
+ * Used by website to validate email before generating password reset code.
+ */
+export async function identityCheckEmailExists(email: string) {
+  return requestLicense("POST", ["/v1/identity/check-email", "/identity/check-email"], {
+    body: { email },
+  });
+}
+
 export async function identityForgotPassword(
   email: string,
   captcha_token?: string,
@@ -400,6 +410,24 @@ export async function identityResetPassword(input: {
   return requestLicense("POST", ["/v1/identity/reset-password", "/identity/reset-password"], {
     body: {
       token: input.token,
+      new_password: input.new_password,
+      ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
+    },
+  });
+}
+
+/**
+ * Reset password by email (website-initiated password reset).
+ * License Engine receives email + new password, handles the reset without token.
+ */
+export async function identityResetPasswordByEmail(input: {
+  email: string;
+  new_password: string;
+  captcha_token?: string;
+}) {
+  return requestLicense("POST", ["/v1/identity/reset-password-by-email", "/identity/reset-password-by-email"], {
+    body: {
+      email: input.email,
       new_password: input.new_password,
       ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
     },

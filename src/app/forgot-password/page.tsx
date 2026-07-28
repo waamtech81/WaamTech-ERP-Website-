@@ -28,7 +28,7 @@ function ForgotPasswordForm() {
   const [sent, setSent] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Email link lands here with ?token= — show reset form (Signup-style UI).
+  // Email link lands here with ?code= — show reset form (Signup-style UI).
   if (token) {
     if (token.length < 20) {
       return (
@@ -52,7 +52,7 @@ function ForgotPasswordForm() {
         </div>
       );
     }
-    return <ResetPasswordForm token={token} origin={origin === "erp" ? "erp" : "website"} />;
+    return <ResetPasswordForm code={token} origin={origin === "erp" ? "erp" : "website"} />;
   }
 
   async function onSubmit(e: React.FormEvent) {

@@ -31,11 +31,11 @@ const passwordRules = [
 const DEFAULT_LOGIN_PATH = getPasswordResetLoginUrl("website");
 
 /**
- * Shared Reset Password form — used at /forgot-password?token=… (canonical)
- * and /reset-password?token=… (legacy alias).
+ * Shared Reset Password form — used at /forgot-password?code=… (canonical)
+ * and /reset-password?code=… (legacy alias).
  * UI aligned with Signup password fields.
  */
-export function ResetPasswordForm({ token, origin = "website" }: { token: string; origin?: "website" | "erp" }) {
+export function ResetPasswordForm({ code, origin = "website" }: { code: string; origin?: "website" | "erp" }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -57,7 +57,7 @@ export function ResetPasswordForm({ token, origin = "website" }: { token: string
     setError("");
     setSuccess("");
 
-    if (!token || token.length < 20) {
+    if (!code || code.length < 20) {
       setError("This reset link is invalid or incomplete. Request a new one.");
       return;
     }
@@ -86,7 +86,7 @@ export function ResetPasswordForm({ token, origin = "website" }: { token: string
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          token,
+          code,
           password,
           confirm_password: confirm,
           origin,

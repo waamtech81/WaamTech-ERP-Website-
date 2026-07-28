@@ -2,7 +2,10 @@ import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess } from "@/lib/api/response";
 import { normalizePasswordResetOrigin } from "@/lib/auth/reset-flow";
-import { identityForgotPassword } from "@/lib/license/identity";
+import { sendPasswordResetEmail } from "@/lib/auth/email";
+import { identityCheckEmailExists } from "@/lib/license/identity";
+import { generatePasswordResetCode } from "@/lib/security/password-reset-code";
+import { getPasswordResetStore } from "@/lib/security/password-reset-store";
 import {
   getClientIp,
   isSameOrigin,
@@ -65,35 +68,32 @@ export const POST = withApiHandler(
       });
     }
 
-    // Forward captcha to Engine when the public site has one. The Engine remains
-    // the sole verifier; requiring a token here would block deployments where
-    // captcha is disabled or unavailable before the Engine can apply its policy.
-    const result = await identityForgotPassword(email, captchaToken || undefined, origin).catch(() => null);
-    if (!result) {
-      return apiFail("Password reset service is temporarily unavailable. Please try again.", {
-        status: 503,
-        code: ApiErrorCode.SERVICE_UNAVAILABLE,
-      });
-    }
-
-    if (!result.ok) {
-      if (isUnregisteredEmail(result)) {
+    // Check if email exists in identity system
+    const emailCheckResult = await identityCheckEmailExists(email).catch(() => null);
+    if (!emailCheckResult || !emailCheckResult.ok) {
+      if (isUnregisteredEmail(emailCheckResult || {})) {
         return apiFail(
           "This email is not registered. Please check the address or create an account.",
           { status: 404, code: ApiErrorCode.NOT_FOUND }
         );
       }
-
-      return apiFail(result.message || "Could not send a reset link. Please try again.", {
-        status: result.status >= 400 && result.status < 600 ? result.status : 502,
-        code: /captcha/i.test(String(result.message || ""))
-          ? ApiErrorCode.VALIDATION_ERROR
-          : ApiErrorCode.SERVICE_UNAVAILABLE,
-      });
     }
 
-    return apiSuccess("A reset link has been sent to your registered email.", {
-      extra: { origin },
+    // Generate and store password reset code (website-owned, not from License Engine)
+    // Code valid for 15 minutes
+    const code = generatePasswordResetCode();
+    const store = getPasswordResetStore();
+    await store.set(code, { email, createdAt: Date.now(), origin }, 15 * 60_000);
+
+    // Send password reset email
+    await sendPasswordResetEmail({
+      to: email,
+      code,
+      origin: origin === "erp" ? "erp" : "website",
+    });
+
+    return apiSuccess("If an account exists for that email, a reset link has been sent.", {
+      extra: { origin, code },
     });
   },
   { endpoint: "/api/auth/forgot-password" }

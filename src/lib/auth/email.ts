@@ -83,6 +83,10 @@ export function buildVerifyUrl(token: string) {
   return buildAbsoluteSiteUrl("/verify-email", { token });
 }
 
+export function buildPasswordResetUrl(code: string, origin: "website" | "erp" = "website") {
+  return buildAbsoluteSiteUrl("/forgot-password", { token: code, origin });
+}
+
 function verificationHtml(name: string, verifyUrl: string) {
   return `<!DOCTYPE html>
 <html>
@@ -112,6 +116,46 @@ function verificationHtml(name: string, verifyUrl: string) {
               </p>
               <p style="margin:16px 0 0;color:#94a3b8;font-size:11px;word-break:break-all;">
                 ${verifyUrl}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function passwordResetHtml(resetUrl: string) {
+  return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f7fb;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+          <tr>
+            <td style="background:#0b1f3a;padding:24px 28px;">
+              <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.02em;">${siteConfig.name}</div>
+              <div style="color:#93c5fd;font-size:13px;margin-top:4px;">${siteConfig.productLine} by ${siteConfig.companyName}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px;">
+              <h1 style="margin:0 0 12px;font-size:22px;color:#0b1f3a;">Reset your password</h1>
+              <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.6;">
+                We received a password reset request for your ${siteConfig.name} account.
+                Click the button below to create a new password.
+              </p>
+              <a href="${resetUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:999px;">
+                Reset password
+              </a>
+              <p style="margin:20px 0 0;color:#64748b;font-size:12px;line-height:1.6;">
+                This link expires in 15 minutes. If you did not request this reset, you can ignore this email.
+              </p>
+              <p style="margin:16px 0 0;color:#94a3b8;font-size:11px;word-break:break-all;">
+                ${resetUrl}
               </p>
             </td>
           </tr>
@@ -225,6 +269,20 @@ export async function sendVerificationEmail(opts: {
     subject: `Verify your ${siteConfig.name} email`,
     html: verificationHtml(opts.name, verifyUrl),
     text: `Hi ${opts.name || "there"},\n\nVerify your ${siteConfig.name} email:\n${verifyUrl}\n\nThis link expires in 24 hours.`,
+  });
+}
+
+export async function sendPasswordResetEmail(opts: {
+  to: string;
+  code: string;
+  origin?: "website" | "erp";
+}): Promise<SendResult> {
+  const resetUrl = buildPasswordResetUrl(opts.code, opts.origin || "website");
+  return sendEmail({
+    to: opts.to,
+    subject: `Reset your ${siteConfig.name} password`,
+    html: passwordResetHtml(resetUrl),
+    text: `Reset your ${siteConfig.name} password:\n${resetUrl}\n\nThis link expires in 15 minutes. If you did not request this reset, you can ignore this email.`,
   });
 }
 

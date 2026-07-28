@@ -1,7 +1,5 @@
 import type { NextConfig } from "next";
 
-const projectRoot = process.cwd();
-
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -43,9 +41,6 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  turbopack: {
-    root: projectRoot,
-  },
   images: {
     // Prefer WebP for smaller files + sharp quality (AVIF as progressive enhancement)
     formats: ["image/webp", "image/avif"],

@@ -53,10 +53,33 @@ function matchesStatusFilter(invoice: PortalInvoice, filter: InvoiceStatusFilter
   if (filter === "all") return true;
   const status = normalize(invoice.status);
   const payment = normalize(invoice.paymentStatus);
-  if (filter === "paid") {
-    return payment === "paid" || status === "paid";
+  const paid = status === "paid" || payment === "paid";
+
+  switch (filter) {
+    case "paid":
+      return paid;
+    case "partial":
+      return status === "partially_paid" || payment === "partially_paid" || status === "partial";
+    case "overdue":
+      return status === "overdue";
+    case "cancelled":
+      return status === "cancelled";
+    case "sent":
+      return status === "sent" || status === "pending";
+    case "open":
+      return (
+        !paid &&
+        status !== "cancelled" &&
+        status !== "partially_paid" &&
+        status !== "overdue" &&
+        (status === "draft" ||
+          status === "pending" ||
+          status === "open" ||
+          status === "unpaid")
+      );
+    default:
+      return status === filter || payment === filter;
   }
-  return status === filter || payment === filter;
 }
 
 function isInvoicePaid(invoice: PortalInvoice) {

@@ -148,8 +148,27 @@ export function usePortalData() {
 
 export function formatPortalDate(value?: string | null) {
   if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  // Prefer calendar date from YYYY-MM-DD prefix — avoids UTC midnight shifting a day.
+  const datePrefix = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (datePrefix) {
+    const year = Number(datePrefix[1]);
+    const month = Number(datePrefix[2]);
+    const day = Number(datePrefix[3]);
+    const local = new Date(year, month - 1, day);
+    if (!Number.isNaN(local.getTime())) {
+      return local.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
+  }
+
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
   return d.toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",

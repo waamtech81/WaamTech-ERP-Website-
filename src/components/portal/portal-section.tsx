@@ -7,8 +7,10 @@ import {
   CreditCard,
   Download,
   FileText,
+  Gauge,
   KeyRound,
   Package,
+  Puzzle,
   RefreshCw,
   Settings,
   Users,
@@ -50,6 +52,8 @@ export type PortalSectionKey =
   | "users"
   | "organization"
   | "modules"
+  | "feature-packs"
+  | "limits"
   | "business-profile"
   | "notifications"
   | "settings";
@@ -119,10 +123,24 @@ const META: Record<
   },
   modules: {
     title: "Modules",
-    description: "Installed products, enabled modules, and feature packs.",
+    description: "Licensed modules enabled on your WAAMTO workspace.",
     emptyTitle: "No modules assigned",
     emptyDescription: "Modules appear from licenses and optional ERP workspace data.",
     eyebrow: "Products",
+  },
+  "feature-packs": {
+    title: "Feature Packs",
+    description: "Purchased feature packs on your license from License Engine.",
+    emptyTitle: "No feature packs",
+    emptyDescription: "Feature packs appear when included on your plan or custom package.",
+    eyebrow: "Products",
+  },
+  limits: {
+    title: "Limits",
+    description: "User, company, branch, and warehouse limits from License Engine.",
+    emptyTitle: "No limits data",
+    emptyDescription: "Tenant limits appear when returned on your license or subscription.",
+    eyebrow: "Workspace",
   },
   "business-profile": {
     title: "Business profile",
@@ -432,7 +450,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     const availableGateways = gateways.filter((g) => g.configured || g.online);
     const rows = [
       ...(canRenew
-        ? [{ label: "Next invoice / renewal", value: data.billing?.nextInvoice }]
+        ? [{ label: "Next invoice / renewal", value: formatPortalDate(data.billing?.nextInvoice) }]
         : []),
       { label: "Outstanding balance", value: data.billing?.outstandingBalance },
       {
@@ -727,52 +745,116 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   }
 
   if (section === "modules") {
-    const items = [...data.modules, ...data.featurePacks];
-    body = items.length ? (
+    const primary = primaryPortalLicense(data.licenses);
+    const moduleItems =
+      primary?.modules?.length ? primary.modules : data.modules.filter(Boolean);
+    body = moduleItems.length ? (
       <div className="space-y-6">
-        {data.modules.length ? (
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--portal-muted)]">
-              Licensed modules
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {data.modules.map((m) => (
-                <div
-                  key={m}
-                  className="flex items-center gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3"
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--portal-primary-soft)] text-[var(--portal-primary)]">
-                    <Package className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{m}</p>
-                    <p className="text-xs text-[var(--portal-muted)]">From license</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {data.featurePacks.length ? (
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--portal-muted)]">
-              Feature packs
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {data.featurePacks.map((f) => (
-                <span
-                  key={f}
-                  className="rounded-full bg-[var(--portal-primary-soft)] px-3 py-1.5 text-xs font-medium text-[var(--portal-primary)]"
-                >
-                  {f}
+        <div>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--portal-muted)]">
+            Licensed modules
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {moduleItems.map((m) => (
+              <div
+                key={m}
+                className="flex items-center gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--portal-primary-soft)] text-[var(--portal-primary)]">
+                  <Package className="h-4 w-4" />
                 </span>
-              ))}
-            </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{m}</p>
+                  <p className="text-xs text-[var(--portal-muted)]">Active on license</p>
+                </div>
+              </div>
+            ))}
           </div>
-        ) : null}
+        </div>
         {typeof erp.version === "string" ? (
           <PortalDataRow label="Version" value={erp.version} />
         ) : null}
+        {!isCustomJourney ? (
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline" className="rounded-xl">
+              <Link href="/portal/plans?intent=upgrade">Upgrade plan</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="rounded-xl">
+              <Link href="/portal/feature-packs">View feature packs</Link>
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    ) : null;
+  }
+
+  if (section === "feature-packs") {
+    const primary = primaryPortalLicense(data.licenses);
+    const packs =
+      primary?.feature_packs?.length ? primary.feature_packs : data.featurePacks.filter(Boolean);
+    body = packs.length ? (
+      <div className="space-y-6">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {packs.map((pack) => (
+            <div
+              key={pack}
+              className="flex items-center gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--portal-primary-soft)] text-[var(--portal-primary)]">
+                <Puzzle className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{pack}</p>
+                <p className="text-xs text-[var(--portal-muted)]">Purchased · active</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        {!isCustomJourney ? (
+          <Button asChild size="sm" variant="outline" className="rounded-xl">
+            <Link href="/portal/plans?intent=upgrade">Add packs via plan upgrade</Link>
+          </Button>
+        ) : null}
+      </div>
+    ) : null;
+  }
+
+  if (section === "limits") {
+    const primary = primaryPortalLicense(data.licenses);
+    const limits = primary?.tenant_limits;
+    const userLimit = limits?.users ?? (typeof erp.user_limit === "number" ? erp.user_limit : null);
+    const licensed = data.counts.licensedUsers ?? data.workspaceUsers?.length ?? null;
+    const limitRows = [
+      { label: "Users", max: userLimit, used: licensed },
+      { label: "Companies", max: limits?.companies ?? null, used: data.counts.registeredBusinesses },
+      { label: "Branches", max: limits?.branches ?? null, used: typeof erp.branches === "number" ? erp.branches : typeof erp.branch_count === "number" ? erp.branch_count : null },
+      { label: "Warehouses", max: limits?.warehouses ?? null, used: typeof erp.warehouses === "number" ? erp.warehouses : typeof erp.warehouse_count === "number" ? erp.warehouse_count : null },
+    ].filter((r) => r.max != null || r.used != null);
+    body = limitRows.length ? (
+      <div className="grid gap-3 sm:grid-cols-2">
+        {limitRows.map((row) => (
+          <div
+            key={row.label}
+            className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+              {row.label}
+            </p>
+            {row.max != null && row.max > 0 && row.used != null ? (
+              <div className="mt-3">
+                <PortalUsageMeter
+                  label={`${row.label} usage`}
+                  used={Number(row.used)}
+                  limit={Number(row.max)}
+                />
+              </div>
+            ) : (
+              <p className="mt-2 text-sm font-medium text-[var(--portal-fg)]">
+                {row.max != null ? `Limit: ${row.max}` : `In use: ${row.used}`}
+              </p>
+            )}
+          </div>
+        ))}
       </div>
     ) : null;
   }
@@ -793,6 +875,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     users: Users,
     organization: Building2,
     modules: Package,
+    "feature-packs": Puzzle,
+    limits: Gauge,
     "business-profile": Building2,
     notifications: Bell,
     settings: Settings,

@@ -30,6 +30,8 @@ export type TrialRegistrationInput = {
   pricing_summary?: Record<string, unknown>;
   marketing_opt_in?: boolean;
   captcha_token?: string;
+  signup_mode?: "trial" | "paid";
+  trial_days?: number;
   /** Custom builder context — Engine may store / ignore unknown fields. */
   industry_name?: string | null;
   category_name?: string | null;
@@ -47,6 +49,12 @@ export type TrialRegistrationInput = {
     branches: number;
     warehouses: number;
   } | null;
+  selected_feature_packs?: string[];
+  required_modules?: string[];
+  user_limit?: number | null;
+  company_limit?: number | null;
+  branch_limit?: number | null;
+  warehouse_limit?: number | null;
 };
 
 export type RegistrationStartResult = {
@@ -73,6 +81,10 @@ export type RegistrationCompleteResult = {
   provisioned?: boolean;
   licenseEmailed?: boolean;
   message?: string;
+  payment_required?: boolean;
+  signup_mode?: "trial" | "paid";
+  checkout_session_token?: string;
+  checkoutUrl?: string;
 };
 
 type LicenseApiResponse<T = Record<string, unknown>> = {
@@ -244,12 +256,26 @@ export async function startRegistrationOnLicenseServer(
         ? {
             selected_modules: input.selected_modules || [],
             dependency_modules: input.dependency_modules || [],
+            required_modules:
+              input.required_modules?.length
+                ? input.required_modules
+                : input.dependency_modules || [],
             recommended_modules: input.recommended_modules || [],
+            selected_feature_packs:
+              input.selected_feature_packs?.length
+                ? input.selected_feature_packs
+                : (input.feature_packs || [])
+                    .map((p) => String(p.code || "").trim())
+                    .filter(Boolean),
             billing_cycle: input.billing_cycle,
             estimated_total: input.estimated_total,
             selected_module_count: input.selected_module_count,
+            ...(input.user_limit != null ? { user_limit: input.user_limit } : {}),
+            ...(input.company_limit != null ? { company_limit: input.company_limit } : {}),
+            ...(input.branch_limit != null ? { branch_limit: input.branch_limit } : {}),
+            ...(input.warehouse_limit != null ? { warehouse_limit: input.warehouse_limit } : {}),
             ...(input.discount_code
-              ? { discount_code: input.discount_code }
+              ? { discount_code: input.discount_code, coupon_code: input.discount_code }
               : {}),
             ...(input.industry_name
               ? { industry_name: input.industry_name }
@@ -267,6 +293,18 @@ export async function startRegistrationOnLicenseServer(
               ? {
                   tenant_limits: input.tenant_limits,
                   limits: input.tenant_limits,
+                  ...(input.user_limit == null && input.tenant_limits.users != null
+                    ? { user_limit: input.tenant_limits.users }
+                    : {}),
+                  ...(input.company_limit == null && input.tenant_limits.companies != null
+                    ? { company_limit: input.tenant_limits.companies }
+                    : {}),
+                  ...(input.branch_limit == null && input.tenant_limits.branches != null
+                    ? { branch_limit: input.tenant_limits.branches }
+                    : {}),
+                  ...(input.warehouse_limit == null && input.tenant_limits.warehouses != null
+                    ? { warehouse_limit: input.tenant_limits.warehouses }
+                    : {}),
                 }
               : {}),
             pricing_summary: input.pricing_summary || {
@@ -281,7 +319,10 @@ export async function startRegistrationOnLicenseServer(
           }
         : {}),
       marketing_opt_in: Boolean(input.marketing_opt_in),
-      trial_days: authConfig.trialDays,
+      ...(input.signup_mode ? { signup_mode: input.signup_mode } : {}),
+      trial_days:
+        input.trial_days ??
+        (input.signup_mode === "paid" ? 0 : authConfig.trialDays),
       source: "waamto-website",
       ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
     }

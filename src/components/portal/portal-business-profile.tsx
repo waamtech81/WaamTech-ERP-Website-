@@ -1,6 +1,8 @@
 "use client";
 
-import { Building2, Package } from "lucide-react";
+import Link from "next/link";
+import { Building2, Package, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { formatPortalDate } from "@/components/portal/use-portal-data";
 import { PortalEmptyState, PortalStatusBadge } from "@/components/portal/portal-ui";
@@ -113,14 +115,34 @@ export function PortalBusinessProfileView({ embedded = false }: { embedded?: boo
 
   return (
     <div className={embedded ? "space-y-4" : "space-y-6"}>
-      {embedded ? (
-        <div>
-          <h3 className="text-sm font-semibold text-[var(--portal-fg)]">Business profiles</h3>
-          <p className="mt-1 text-xs text-[var(--portal-muted)]">
-            Products, plans, and license status across your workspace.
-          </p>
+      {!embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--portal-fg)]">Business profiles</h2>
+            <p className="mt-1 text-sm text-[var(--portal-muted)]">
+              One login can manage multiple businesses — each with its own license and subscription.
+            </p>
+          </div>
+          <Button asChild size="sm" className="rounded-xl">
+            <Link href="/portal/create-business">
+              <Plus className="h-4 w-4" />
+              Add another business
+            </Link>
+          </Button>
         </div>
-      ) : null}
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--portal-fg)]">Business profiles</h3>
+            <p className="mt-1 text-xs text-[var(--portal-muted)]">
+              Products, plans, and license status across your workspace.
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="rounded-xl h-8">
+            <Link href="/portal/create-business">Add business</Link>
+          </Button>
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-2">
         {businesses.map((business, index) => (
           <BusinessCard

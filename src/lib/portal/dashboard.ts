@@ -438,7 +438,11 @@ function buildBusinessCards(
         businessProfile: names.businessProfile,
         product: sub.product_name || lic?.product_name || null,
         plan: sub.plan_name || lic?.plan_name || null,
-        featurePacks,
+        featurePacks: lic
+          ? extractFeaturePackNames(lic.feature_packs).length
+            ? extractFeaturePackNames(lic.feature_packs)
+            : featurePacks
+          : featurePacks,
         workspace: names.workspace,
         licenseStatus: lic?.effective_status || lic?.status || null,
         subscriptionStatus: sub.status || null,
@@ -480,7 +484,9 @@ function buildBusinessCards(
     businessProfile: names.businessProfile,
     product: lic.product_name || null,
     plan: lic.plan_name || null,
-    featurePacks,
+    featurePacks: extractFeaturePackNames(lic.feature_packs).length
+      ? extractFeaturePackNames(lic.feature_packs)
+      : featurePacks,
     workspace: names.workspace,
     licenseStatus: lic.effective_status || lic.status || null,
     subscriptionStatus: null,
@@ -515,7 +521,11 @@ function toPortalInvoice(inv: CommercialInvoice, index: number): PortalInvoice {
     id,
     number: inv.invoice_number || inv.id || `INV-${index + 1}`,
     status: inv.status || null,
-    paymentStatus: isPaid ? "paid" : inv.status || null,
+    paymentStatus: isPaid
+      ? "paid"
+      : status === "partially_paid"
+        ? "partially_paid"
+        : inv.status || null,
     date: inv.issue_date || null,
     dueDate: inv.due_date || null,
     amount:
@@ -1182,6 +1192,21 @@ async function loadPortalDashboardUncached(
           id: "new_place",
           label: "Create New Business",
           href: "/portal/plans?intent=new_place",
+        },
+        {
+          id: "modules",
+          label: "View Modules",
+          href: "/portal/modules",
+        },
+        {
+          id: "feature_packs",
+          label: "Feature Packs",
+          href: "/portal/feature-packs",
+        },
+        {
+          id: "limits",
+          label: "Tenant Limits",
+          href: "/portal/limits",
         },
         {
           id: "users",

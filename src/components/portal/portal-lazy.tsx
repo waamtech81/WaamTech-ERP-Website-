@@ -39,6 +39,8 @@ export function createPortalSectionLazy(
     | "users"
     | "organization"
     | "modules"
+    | "feature-packs"
+    | "limits"
     | "business-profile"
     | "notifications"
     | "settings"

@@ -110,23 +110,37 @@ export const POST = withApiHandler(
 
     const appUrl = result.data.appUrl || result.data.loginUrl || authConfig.appUrl;
     const trialDays = result.data.trialDays || authConfig.trialDays;
+    const isPaid = Boolean(result.data.payment_required || result.data.signup_mode === "paid");
+    const checkoutToken = result.data.checkout_session_token;
+    const checkoutUrl =
+      result.data.checkoutUrl ||
+      (checkoutToken
+        ? `/portal/checkout?session=${encodeURIComponent(checkoutToken)}&mode=signup`
+        : undefined);
+
     const portalLogin = getPortalLoginPath({
       email: result.data.email || email,
-      next: "/portal",
+      next: checkoutUrl || "/portal",
     });
 
     return apiSuccess(
-      result.message || `Email verified. Your ${trialDays}-day trial is ready.`,
+      result.message ||
+        (isPaid
+          ? "Email verified. Complete payment to activate your account."
+          : `Email verified. Your ${trialDays}-day trial is ready.`),
       {
         data: {
           appUrl,
           loginUrl: portalLogin,
-          trialDays,
+          trialDays: isPaid ? 0 : trialDays,
           trialEndsAt: result.data.trialEndsAt || undefined,
           username: result.data.username || undefined,
           email: result.data.email || undefined,
-          /** Customer Portal on this website — not ERP app login. */
-          redirectUrl: portalLogin,
+          payment_required: isPaid,
+          signup_mode: isPaid ? "paid" : "trial",
+          checkout_session_token: checkoutToken,
+          checkoutUrl,
+          redirectUrl: isPaid && checkoutUrl ? checkoutUrl : portalLogin,
           erpLoginUrl: appUrl,
         },
       }

@@ -71,6 +71,10 @@ import {
   type CustomErpPackagePayload,
   type SignupPackageType,
 } from "@/lib/signup/custom-package";
+import {
+  resolveSignupCommercialMode,
+  signupModeCtaLabel,
+} from "@/lib/signup/commercial-mode";
 
 export type SignUpClientProps = {
   /** Pre-resolved Engine UUIDs from server slug lookup (never from public URL). */
@@ -556,6 +560,18 @@ function SignUpForm({
     [signupPlans, planId, planSlug, enginePlan]
   );
 
+  const signupMode = useMemo(
+    () =>
+      resolveSignupCommercialMode({
+        packageType: isCustomPackage ? "custom" : "predefined",
+        plan: selectedPlan,
+        billingCycle,
+      }),
+    [isCustomPackage, selectedPlan, billingCycle]
+  );
+
+  const isPaidSignup = signupMode === "paid";
+
   const enginePricing = useMemo(() => {
     if (!selectedPlan) return null;
     const mapped = mapCatalogPlanToPricingPlan(selectedPlan);
@@ -564,9 +580,10 @@ function SignUpForm({
   }, [selectedPlan, billingCycle]);
 
   const signupCtaLabel = useMemo(() => {
+    if (isCustomPackage || isPaidSignup) return "Ready to Buy";
     if (!selectedPlan) return "Create account";
-    return planCtaLabel(selectedPlan);
-  }, [selectedPlan]);
+    return signupModeCtaLabel("trial", selectedPlan);
+  }, [selectedPlan, isCustomPackage, isPaidSignup]);
 
   // License Engine SSOT — resolve plan_id from URL (never trust client prices)
   useEffect(() => {
@@ -947,8 +964,22 @@ function SignUpForm({
                 ...(customPackage.feature_packs?.length
                   ? { feature_packs: customPackage.feature_packs }
                   : {}),
+                ...(customPackage.feature_packs?.length
+                  ? {
+                      selected_feature_packs: customPackage.feature_packs.map((p) => p.code),
+                    }
+                  : {}),
+                ...(customPackage.dependency_modules?.length
+                  ? { required_modules: customPackage.dependency_modules }
+                  : {}),
                 ...(customPackage.tenant_limits
-                  ? { tenant_limits: customPackage.tenant_limits }
+                  ? {
+                      tenant_limits: customPackage.tenant_limits,
+                      user_limit: customPackage.tenant_limits.users,
+                      company_limit: customPackage.tenant_limits.companies,
+                      branch_limit: customPackage.tenant_limits.branches,
+                      warehouse_limit: customPackage.tenant_limits.warehouses,
+                    }
                   : {}),
                 ...(customPackage.discount_code || customPackage.money?.discount_code
                   ? {
@@ -990,7 +1021,6 @@ function SignUpForm({
         setRegistrationId(nextRegistrationId);
         setOtpStep(true);
         setSuccess(json.message || "Enter the verification code sent to your email.");
-        clearCustomErpPackage();
         setLoading(false);
         return;
       }
@@ -1058,6 +1088,45 @@ function SignUpForm({
 
       setUsername(json.data?.username || "");
       setTrialEndsAt(json.data?.trialEndsAt || "");
+      const paid =
+        Boolean(json.data?.payment_required) || json.data?.signup_mode === "paid";
+      const checkoutUrl =
+        json.data?.checkoutUrl ||
+        (json.data?.checkout_session_token
+          ? `/portal/checkout?session=${encodeURIComponent(json.data.checkout_session_token)}&mode=signup`
+          : "");
+
+      if (paid && checkoutUrl) {
+        setOtpStep(false);
+        setSuccess(json.message || "Email verified. Redirecting to checkout…");
+        setLoading(true);
+        clearSignupDraft();
+
+        const loginRes = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password }),
+        });
+        const loginJson = await loginRes.json().catch(() => ({}));
+        if (!loginJson.success) {
+          setError(
+            apiMessageFromJson(
+              loginJson,
+              "Account verified. Sign in to complete payment."
+            )
+          );
+          setLoading(false);
+          window.location.assign(
+            getPortalLoginPath({ email, next: checkoutUrl })
+          );
+          return;
+        }
+
+        window.location.assign(checkoutUrl);
+        return;
+      }
+
       setTrialReady(true);
       setOtpStep(false);
       setSuccess(json.message || "Trial activated.");
@@ -1193,7 +1262,9 @@ function SignUpForm({
               <p className="mt-3 text-muted-foreground leading-relaxed">
                 We sent a 6-digit code to{" "}
                 <span className="font-medium text-foreground">{maskedEmail}</span>. Enter it below
-                to activate your trial.
+                {isPaidSignup
+                  ? " to continue to secure checkout."
+                  : " to activate your trial."}
               </p>
               <form onSubmit={onVerifyOtp} className="mt-8 space-y-4 text-left">
                 <div className="space-y-2">
@@ -1225,6 +1296,8 @@ function SignUpForm({
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Verifying...
                     </>
+                  ) : isPaidSignup ? (
+                    "Verify & continue to checkout"
                   ) : (
                     "Verify & start trial"
                   )}
@@ -1272,25 +1345,36 @@ function SignUpForm({
         <div className="max-w-xl lg:sticky lg:top-24">
           <Badge variant="accent" className="mb-4">
             <Sparkles className="h-3 w-3 mr-1" />
-            {authConfig.trialDays}-day free trial · No card required
+            {isPaidSignup
+              ? "Paid plan · Secure checkout after verification"
+              : `${authConfig.trialDays}-day free trial · No card required`}
           </Badge>
           <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
-            Create your workspace in minutes
+            {isPaidSignup ? "Complete your purchase" : "Create your workspace in minutes"}
           </h1>
           <p className="mt-2 font-heading text-base sm:text-lg font-semibold tracking-tight text-primary">
-            No card. No payment. Direct signup.
+            {isPaidSignup ? "Verify email, then pay to activate." : "No card. No payment. Direct signup."}
           </p>
           <p className="mt-2 sm:mt-3 text-base sm:text-lg text-muted-foreground leading-relaxed">
-            Choose your product, plan, industry, and business category — then verify your email to
-            start your trial.
+            {isPaidSignup
+              ? "Review your package and pricing, create your account, verify your email, then complete checkout to activate WAAMTO ERP."
+              : "Choose your product, plan, industry, and business category — then verify your email to start your trial."}
           </p>
           <ul className="mt-6 sm:mt-8 space-y-3 text-sm text-muted-foreground">
-            {[
-              `No credit card or payment to start — ${authConfig.trialDays}-day free trial`,
-              "Product, plan, industry & category stay linked from this site",
-              "Responsive web on desktop, tablet & phone",
-              "Enterprise plans use Contact Sales — never fixed pricing",
-            ].map((item) => (
+            {(isPaidSignup
+              ? [
+                  "Custom ERP and Lifetime plans require payment before activation",
+                  "OTP email verification before checkout",
+                  "License and workspace activate after successful payment",
+                  "Enterprise plans use Contact Sales — never fixed pricing",
+                ]
+              : [
+                  `No credit card or payment to start — ${authConfig.trialDays}-day free trial`,
+                  "Product, plan, industry & category stay linked from this site",
+                  "Responsive web on desktop, tablet & phone",
+                  "Enterprise plans use Contact Sales — never fixed pricing",
+                ]
+            ).map((item) => (
               <li key={item} className="flex gap-2">
                 <span className="mt-2 h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
                 {item}

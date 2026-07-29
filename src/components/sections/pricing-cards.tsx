@@ -15,6 +15,7 @@ import {
   withPlanSelectionParams,
 } from "@/lib/commercial/mappers";
 import { savePlanSelection } from "@/lib/commercial/plan-selection";
+import { planAllowsFreeTrial } from "@/lib/signup/commercial-mode";
 import type { BillingCycle } from "@/lib/commercial/types";
 
 type PricingCardsProps = {
@@ -253,10 +254,19 @@ export function PricingCards({
                           isPopular ? "text-emerald-200" : "text-primary"
                         }`}
                       >
-                        No card required ·{" "}
-                        {plan.hasFreeTrial && plan.trialDays
-                          ? `${plan.trialDays}-day free trial`
-                          : "Start free trial"}
+                        {planAllowsFreeTrial({
+                          slug: plan.id,
+                          tier: plan.id,
+                          lifetime_price: plan.lifetimePrice ?? null,
+                          has_free_trial: plan.hasFreeTrial ?? false,
+                          name: plan.name,
+                        })
+                          ? `No card required · ${
+                              plan.hasFreeTrial && plan.trialDays
+                                ? `${plan.trialDays}-day free trial`
+                                : "Start free trial"
+                            }`
+                          : "Paid plan · Checkout after email verification"}
                       </p>
                       <p
                         className={`text-xs capitalize ${

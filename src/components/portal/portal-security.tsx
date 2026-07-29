@@ -570,109 +570,125 @@ export function PortalSecurityPanel({ sessions, onSessionsChanged }: Props) {
         )}
       </section>
 
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold text-[var(--portal-fg)]">Active sessions</h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-lg"
-            disabled={pending}
-            onClick={() =>
-              run(async () => {
-                const res = await fetch("/api/auth/logout", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  credentials: "include",
-                  body: JSON.stringify({ allDevices: true }),
-                });
-                const json = await res.json();
-                if (!json.success) {
-                  throw new Error(apiMessageFromJson(json, "Unable to sign out other devices."));
-                }
-                window.location.assign("/login");
-              })
-            }
-          >
-            Logout all devices
-          </Button>
-        </div>
-        {sessions.length ? (
-          <ul className="space-y-2">
-            {sessions.map((s, i) => (
-              <li
-                key={s.id || String(i)}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-[var(--portal-fg)]">
-                    {[s.browser, s.os].filter(Boolean).join(" · ") ||
-                      formatPortalDateTime(s.created_at) ||
-                      `Session ${i + 1}`}
-                    {s.is_current ? " · Current" : ""}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[var(--portal-muted)]">
-                    {[s.ip_address, s.country].filter(Boolean).join(" · ")}
-                    {s.last_activity_at
-                      ? ` · Last active ${formatPortalDateTime(s.last_activity_at)}`
-                      : s.expires_at
-                        ? ` · Expires ${formatPortalDate(s.expires_at)}`
-                        : ""}
-                  </p>
-                </div>
-                {s.id && !s.is_current ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-lg"
-                    disabled={pending}
-                    onClick={() =>
-                      run(
-                        async () => {
-                          await postAction({ action: "revoke-session", session_id: s.id });
-                          setFeedback("Session revoked.");
-                        },
-                        { refreshSessions: true }
-                      )
-                    }
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="portal-card flex h-[22rem] flex-col overflow-hidden rounded-2xl">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--portal-border)] px-5 py-4 sm:px-6">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-[var(--portal-fg)]">Active sessions</h2>
+              <p className="mt-1 text-sm text-[var(--portal-muted)]">
+                Devices currently signed in to your account.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              disabled={pending}
+              onClick={() =>
+                run(async () => {
+                  const res = await fetch("/api/auth/logout", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ allDevices: true }),
+                  });
+                  const json = await res.json();
+                  if (!json.success) {
+                    throw new Error(apiMessageFromJson(json, "Unable to sign out other devices."));
+                  }
+                  window.location.assign("/login");
+                })
+              }
+            >
+              Logout all devices
+            </Button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+            {sessions.length ? (
+              <ul className="space-y-2">
+                {sessions.map((s, i) => (
+                  <li
+                    key={s.id || String(i)}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm"
                   >
-                    Logout
-                  </Button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-[var(--portal-muted)]">No active sessions listed.</p>
-        )}
-      </section>
+                    <div className="min-w-0">
+                      <p className="font-medium text-[var(--portal-fg)]">
+                        {[s.browser, s.os].filter(Boolean).join(" · ") ||
+                          formatPortalDateTime(s.created_at) ||
+                          `Session ${i + 1}`}
+                        {s.is_current ? " · Current" : ""}
+                      </p>
+                      <p className="mt-0.5 text-xs text-[var(--portal-muted)]">
+                        {[s.ip_address, s.country].filter(Boolean).join(" · ")}
+                        {s.last_activity_at
+                          ? ` · Last active ${formatPortalDateTime(s.last_activity_at)}`
+                          : s.expires_at
+                            ? ` · Expires ${formatPortalDate(s.expires_at)}`
+                            : ""}
+                      </p>
+                    </div>
+                    {s.id && !s.is_current ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg"
+                        disabled={pending}
+                        onClick={() =>
+                          run(
+                            async () => {
+                              await postAction({ action: "revoke-session", session_id: s.id });
+                              setFeedback("Session revoked.");
+                            },
+                            { refreshSessions: true }
+                          )
+                        }
+                      >
+                        Logout
+                      </Button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-[var(--portal-muted)]">No active sessions listed.</p>
+            )}
+          </div>
+        </section>
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-[var(--portal-fg)]">Security activity</h3>
-        {events.length ? (
-          <ul className="space-y-2">
-            {events.map((ev) => (
-              <li
-                key={ev.id}
-                className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm"
-              >
-                <p className="font-medium text-[var(--portal-fg)]">
-                  {ev.event_type.replace(/_/g, " ")}
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--portal-muted)]">
-                  {[formatPortalDateTime(ev.created_at), ev.ip_address]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-[var(--portal-muted)]">No recent security events.</p>
-        )}
-      </section>
+        <section className="portal-card flex h-[22rem] flex-col overflow-hidden rounded-2xl">
+          <div className="shrink-0 border-b border-[var(--portal-border)] px-5 py-4 sm:px-6">
+            <h2 className="text-base font-semibold text-[var(--portal-fg)]">Security activity</h2>
+            <p className="mt-1 text-sm text-[var(--portal-muted)]">
+              Recent sign-in and security events.
+            </p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+            {events.length ? (
+              <ul className="space-y-2">
+                {events.map((ev) => (
+                  <li
+                    key={ev.id}
+                    className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm"
+                  >
+                    <p className="font-medium text-[var(--portal-fg)]">
+                      {ev.event_type.replace(/_/g, " ")}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--portal-muted)]">
+                      {[formatPortalDateTime(ev.created_at), ev.ip_address]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-[var(--portal-muted)]">No recent security events.</p>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

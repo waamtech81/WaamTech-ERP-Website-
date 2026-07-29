@@ -12,6 +12,7 @@ import type {
   CatalogPricing,
   CatalogProduct,
 } from "@/lib/commercial/types";
+import { planAllowsFreeTrial } from "@/lib/signup/commercial-mode";
 import { buildAppPath, buildSignupPath } from "@/lib/urls";
 
 const TIER_ORDER = ["starter", "business", "lifetime", "enterprise"] as const;
@@ -266,11 +267,10 @@ function ctaText(
   >
 ): string {
   if (plan.contact_sales) return "Contact sales";
-  if (plan.lifetime_price != null) return "Get lifetime access";
+  if (!planAllowsFreeTrial(plan)) return "Ready to Buy";
 
   const slug = String(plan.slug || plan.tier || plan.name || "").toLowerCase();
   const fromEngine = firstText(plan.cta?.text, plan.cta_button_text);
-  // Business card: always Start Free Trial (Engine may send "Get Started")
   if (slug.includes("business") || /^get\s*started$/i.test(fromEngine || "")) {
     return "Start Free Trial";
   }

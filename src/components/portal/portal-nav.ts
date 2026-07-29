@@ -36,6 +36,8 @@ export const PORTAL_NAV: PortalNavItem[] = [
   { href: "/portal/organization", label: "Organizations", icon: Building2, group: "workspace" },
   { href: "/portal/users", label: "Users", icon: Users, group: "workspace" },
   { href: "/portal/modules", label: "Modules", icon: Settings2, group: "workspace" },
+  { href: "/portal/feature-packs", label: "Feature Packs", icon: Puzzle, group: "workspace" },
+  { href: "/portal/limits", label: "Limits", icon: Gauge, group: "workspace" },
   {
     href: "/portal/business-profile",
     label: "Business Profile",

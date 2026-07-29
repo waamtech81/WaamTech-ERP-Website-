@@ -39,6 +39,7 @@ function purposeLabel(mode: string, purpose?: string | null) {
   if (raw === "upgrade") return "Plan upgrade";
   if (raw === "new_place") return "New business / place";
   if (raw === "trial-convert" || raw === "trial_convert") return "Trial activation";
+  if (raw === "signup") return "New account purchase";
   return raw.replace(/_/g, " ");
 }
 

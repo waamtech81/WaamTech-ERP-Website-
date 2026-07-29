@@ -18,6 +18,7 @@ import {
 } from "@/lib/security/guards";
 import { validateSignupCommercialSelection } from "@/lib/signup/validate-commercial";
 import { validateSignupCustomPackage } from "@/lib/signup/validate-custom-package";
+import { resolveSignupCommercialMode } from "@/lib/signup/commercial-mode";
 import type { BillingCycle } from "@/lib/commercial/types";
 
 function maskEmail(email: string): string {
@@ -152,6 +153,7 @@ export const POST = withApiHandler(
     }
 
     let license;
+    let signupMode: "trial" | "paid" = "trial";
     if (package_type === "custom") {
       if (!billing_cycle) {
         return apiFail("Choose a billing cycle for your Build your own custom ERP package.", {
@@ -193,6 +195,11 @@ export const POST = withApiHandler(
 
       const pkg = custom.data.package;
       const finalTotal = pkg.money?.grand_total ?? pkg.estimated_total;
+      signupMode = resolveSignupCommercialMode({
+        packageType: "custom",
+        plan: null,
+        billingCycle: pkg.billing_cycle,
+      });
       license = await startRegistrationOnLicenseServer({
         name,
         email,
@@ -219,6 +226,12 @@ export const POST = withApiHandler(
         discount_code: pkg.discount_code || discount_code || null,
         feature_packs: pkg.feature_packs,
         tenant_limits: pkg.tenant_limits,
+        selected_feature_packs: pkg.feature_packs?.map((p) => p.code).filter(Boolean),
+        required_modules: pkg.dependency_modules,
+        user_limit: pkg.tenant_limits?.users ?? null,
+        company_limit: pkg.tenant_limits?.companies ?? null,
+        branch_limit: pkg.tenant_limits?.branches ?? null,
+        warehouse_limit: pkg.tenant_limits?.warehouses ?? null,
         pricing_summary: {
           monthly: pkg.monthly_price,
           yearly: pkg.yearly_price,
@@ -237,6 +250,8 @@ export const POST = withApiHandler(
         },
         marketing_opt_in,
         captcha_token: captchaToken || undefined,
+        signup_mode: signupMode,
+        trial_days: signupMode === "paid" ? 0 : authConfig.trialDays,
       });
     } else {
       const commercial = await validateSignupCommercialSelection({
@@ -261,6 +276,12 @@ export const POST = withApiHandler(
         );
       }
 
+      signupMode = resolveSignupCommercialMode({
+        packageType: "predefined",
+        plan: commercial.data.plan,
+        billingCycle: billing_cycle,
+      });
+
       license = await startRegistrationOnLicenseServer({
         name,
         email,
@@ -276,6 +297,8 @@ export const POST = withApiHandler(
         marketing_opt_in,
         // License Engine is the sole verifier; reCAPTCHA tokens are single-use.
         captcha_token: captchaToken || undefined,
+        signup_mode: signupMode,
+        trial_days: signupMode === "paid" ? 0 : authConfig.trialDays,
       });
     }
 
@@ -294,7 +317,9 @@ export const POST = withApiHandler(
 
     return apiSuccess(
       license.message ||
-        `We sent a verification code to ${maskEmail(email)}. Enter it to activate your trial.`,
+        (signupMode === "paid"
+          ? `We sent a verification code to ${maskEmail(email)}. Enter it to continue to checkout.`
+          : `We sent a verification code to ${maskEmail(email)}. Enter it to activate your trial.`),
       {
         extra: {
           requiresOtp: true,

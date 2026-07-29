@@ -3061,7 +3061,7 @@ export function BuildYourOwnErpBuilder() {
                             disabled={!canContinueSignup}
                             onClick={continueToSignup}
                           >
-                            Build my ERP — continue to Signup
+                            Build my ERP — continue to checkout
                             <ArrowRight className="h-4 w-4" />
                           </Button>
                           <p className="text-xs text-muted-foreground sm:text-right">

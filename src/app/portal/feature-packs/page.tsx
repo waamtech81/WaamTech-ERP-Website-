@@ -1,16 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { PortalSkeleton } from "@/components/portal/portal-ui";
+import { createPortalJourneySectionLazy } from "@/components/portal/portal-journey-lazy";
 
-const CustomSection = dynamic(
-  () =>
-    import("@/components/portal/portal-custom-erp").then(
-      (m) => m.PortalCustomErpSectionView
-    ),
-  { loading: () => <PortalSkeleton rows={2} />, ssr: false }
-);
-
-export default function PortalFeaturePacksPage() {
-  return <CustomSection section="feature-packs" />;
-}
+export default createPortalJourneySectionLazy("feature-packs", "feature-packs");

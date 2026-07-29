@@ -33,18 +33,18 @@ export const EASYPAYSA_IBAN = "PK94TMFB0000000045745494";
 export const WISE_PAYMENT_ID = "atif.rehmani@gmail.com";
 export const PAYPAL_RECEIVE_EMAIL = "atifrehmani@gmail.com";
 
-/** Standard Chartered — override via NEXT_PUBLIC_SC_* env when details change. */
+/** Direct bank transfer — override via NEXT_PUBLIC_SC_* env when details change. */
 export function standardCharteredDetails() {
   return {
-    bankName: "Standard Chartered Bank",
+    bankName: process.env.NEXT_PUBLIC_SC_BANK_NAME?.trim() || "Askari Bank",
     accountTitle:
-      process.env.NEXT_PUBLIC_SC_ACCOUNT_TITLE?.trim() || "Atif Rehmani",
+      process.env.NEXT_PUBLIC_SC_ACCOUNT_TITLE?.trim() || "WAAMTECH",
     accountNumber:
-      process.env.NEXT_PUBLIC_SC_ACCOUNT_NUMBER?.trim() ||
-      "Configure NEXT_PUBLIC_SC_ACCOUNT_NUMBER",
-    iban: process.env.NEXT_PUBLIC_SC_IBAN?.trim() || "",
-    branch: process.env.NEXT_PUBLIC_SC_BRANCH?.trim() || "Pakistan",
-    swift: process.env.NEXT_PUBLIC_SC_SWIFT?.trim() || "",
+      process.env.NEXT_PUBLIC_SC_ACCOUNT_NUMBER?.trim() || "1150420000732",
+    iban: process.env.NEXT_PUBLIC_SC_IBAN?.trim() || "PK81ASCM0001150420000732",
+    branch:
+      process.env.NEXT_PUBLIC_SC_BRANCH?.trim() || "Kamran Center Branch, ISB-PK",
+    swift: process.env.NEXT_PUBLIC_SC_SWIFT?.trim() || "ASCMPKKA",
   };
 }
 

@@ -51,13 +51,49 @@ export function formatPortalStatus(status?: string | null): string {
   return raw.replace(/_/g, " ");
 }
 
-/** Hide raw UUIDs / internal ids in tables. */
+/** Hide raw UUIDs / internal ids in tables. Parse portal payment refs (method=…|txn=…). */
 export function formatPortalReference(value?: string | null): string {
   if (!value) return "—";
   const raw = String(value).trim();
   if (!raw) return "—";
   if (UUID_RE.test(raw)) return "—";
+
+  if (raw.includes("|") || raw.includes("=")) {
+    const parsed: Record<string, string> = {};
+    for (const part of raw.split("|")) {
+      const eq = part.indexOf("=");
+      if (eq <= 0) continue;
+      const key = part.slice(0, eq).trim().toLowerCase();
+      const val = part.slice(eq + 1).trim();
+      if (key && val) parsed[key] = val;
+    }
+    const txn = parsed.txn || parsed.transaction_id || parsed.reference;
+    if (txn) return txn;
+  }
+
   return raw;
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  bank: "Direct Bank Transfer",
+  jazzcash: "JazzCash",
+  easypaisa: "EasyPaisa",
+  paypal: "PayPal",
+  stripe: "Debit/Credit Card",
+  card: "Debit/Credit Card",
+  manual: "Bank transfer / wallet",
+  wise: "Wise",
+};
+
+/** Human-readable payment method for portal (not raw gateway codes). */
+export function formatPortalPaymentMethod(value?: string | null): string {
+  if (!value) return "—";
+  const key = String(value).trim().toLowerCase();
+  if (!key) return "—";
+  return (
+    PAYMENT_METHOD_LABELS[key] ||
+    key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
 }
 
 const FEATURE_PACK_LABELS: Record<string, string> = {

@@ -524,6 +524,25 @@ export async function fetchPublicPlanComparison(opts?: {
 /** Registry lists must not rely on Engine default pagination (historically 100). */
 const REGISTRY_PAGE_LIMIT = "500";
 
+export type PublicCurrency = {
+  code: string;
+  name: string;
+  symbol: string;
+  exchange_rate: number;
+  is_default: boolean;
+  display_order: number;
+};
+
+/** Enabled currencies from License Engine billing master data. */
+export async function fetchPublicCurrencies(): Promise<
+  CatalogFetchResult<PublicCurrency[]>
+> {
+  const result = await getPublic<PublicCurrency[]>("/v1/public/catalog/currencies", undefined, {
+    revalidate: 30,
+  });
+  return { ...result, data: asArray(result.data) };
+}
+
 export async function fetchPublicIndustries(): Promise<
   CatalogFetchResult<CatalogIndustry[]>
 > {

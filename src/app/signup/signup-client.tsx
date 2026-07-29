@@ -36,7 +36,6 @@ import {
 } from "@/lib/commercial/plan-selection";
 import type { BillingCycle, CatalogPlan, CatalogProduct } from "@/lib/commercial/types";
 import { cn } from "@/lib/utils";
-import { portalCheckoutHref } from "@/lib/portal/checkout-session";
 import {
   useCatalogBusinessCategories,
   useCatalogIndustries,
@@ -76,6 +75,7 @@ import {
   resolveSignupCommercialMode,
   signupModeCtaLabel,
 } from "@/lib/signup/commercial-mode";
+import { saveCheckoutSessionToken } from "@/lib/portal/checkout-session";
 
 export type SignUpClientProps = {
   /** Pre-resolved Engine UUIDs from server slug lookup (never from public URL). */
@@ -382,11 +382,16 @@ function SignUpForm({
   const [success, setSuccess] = useState("");
   const [otpStep, setOtpStep] = useState(false);
   const [trialReady, setTrialReady] = useState(false);
+  const [paidCheckoutReady, setPaidCheckoutReady] = useState(false);
+  const [postVerifyRedirect, setPostVerifyRedirect] = useState("");
   const [maskedEmail, setMaskedEmail] = useState("");
   const [registrationId, setRegistrationId] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [username, setUsername] = useState("");
   const [trialEndsAt, setTrialEndsAt] = useState("");
+  const [signupModeHint, setSignupModeHint] = useState<"trial" | "paid" | "">(
+    ""
+  );
   const [honeypot, setHoneypot] = useState("");
   const [formStartedAt] = useState(() => Date.now());
   const [draftHydrated, setDraftHydrated] = useState(false);
@@ -591,12 +596,24 @@ function SignUpForm({
       resolveSignupCommercialMode({
         packageType: isCustomPackage ? "custom" : "predefined",
         plan: selectedPlan,
-        billingCycle,
+        billingCycle: isCustomPackage
+          ? customPackage?.billing_cycle || billingCycle || null
+          : billingCycle || null,
       }),
-    [isCustomPackage, selectedPlan, billingCycle]
+    [
+      isCustomPackage,
+      selectedPlan,
+      billingCycle,
+      customPackage?.billing_cycle,
+    ]
   );
 
-  const isPaidSignup = signupMode === "paid";
+  const signupCtaLabel = useMemo(
+    () => signupModeCtaLabel(signupMode, selectedPlan),
+    [signupMode, selectedPlan]
+  );
+
+  const isPaidSignup = signupMode === "paid" || signupModeHint === "paid";
 
   const enginePricing = useMemo(() => {
     if (!selectedPlan) return null;
@@ -604,13 +621,6 @@ function SignUpForm({
     const yearly = billingCycle === "yearly";
     return resolveCyclePrice(mapped, yearly);
   }, [selectedPlan, billingCycle]);
-
-  const signupCtaLabel = useMemo(() => {
-    if (!selectedPlan && !isCustomPackage) return "Create account";
-    if (isPaidSignup) return "Create account";
-    if (!selectedPlan) return "Create account";
-    return signupModeCtaLabel("trial", selectedPlan);
-  }, [selectedPlan, isCustomPackage, isPaidSignup]);
 
   // License Engine SSOT — resolve plan_id from URL (never trust client prices)
   useEffect(() => {
@@ -1022,6 +1032,7 @@ function SignUpForm({
                 plan_id: planId,
                 industry_id: industryId,
                 category_id: categoryId,
+                ...(billingCycle ? { billing_cycle: billingCycle } : {}),
               }),
           marketing_opt_in: marketingOptIn,
           website: honeypot,
@@ -1046,8 +1057,20 @@ function SignUpForm({
         }
         setMaskedEmail(json.data?.email || email);
         setRegistrationId(nextRegistrationId);
+        setSignupModeHint(
+          json.data?.signup_mode === "paid"
+            ? "paid"
+            : json.data?.signup_mode === "trial"
+              ? "trial"
+              : signupMode
+        );
         setOtpStep(true);
-        setSuccess(json.message || "Enter the verification code sent to your email.");
+        setSuccess(
+          json.message ||
+            (signupMode === "paid"
+              ? "Enter the verification code sent to your email."
+              : "Enter the verification code sent to your email.")
+        );
         setLoading(false);
         return;
       }
@@ -1115,54 +1138,62 @@ function SignUpForm({
 
       setUsername(json.data?.username || "");
       setTrialEndsAt(json.data?.trialEndsAt || "");
-      const paid =
-        Boolean(json.data?.payment_required) || json.data?.signup_mode === "paid";
-      const checkoutToken = String(json.data?.checkout_session_token || "").trim();
+      setOtpStep(false);
+      clearSignupDraft();
+      clearCustomErpPackage();
 
-      if (paid) {
-        setOtpStep(false);
-        setSuccess(json.message || "Email verified. Opening your portal…");
-        setLoading(true);
-        clearSignupDraft();
-        clearCustomErpPackage();
+      const checkoutToken = String(
+        json.data?.checkout_session_token || ""
+      ).trim();
+      const isPaid =
+        json.data?.signup_mode === "paid" ||
+        json.data?.payment_required === true ||
+        Boolean(checkoutToken);
 
-        if (checkoutToken) {
-          portalCheckoutHref("signup", checkoutToken);
+      // Persist token in this tab before navigation (checkout page also accepts ?session=).
+      if (checkoutToken) saveCheckoutSessionToken(checkoutToken);
+
+      let redirectTo =
+        json.data?.redirectUrl ||
+        json.data?.loginUrl ||
+        getPortalLoginPath({ email, next: "/portal" });
+
+      // Guarantee session token is on the checkout URL even if the API omitted it.
+      if (isPaid && checkoutToken) {
+        try {
+          const parsed = new URL(redirectTo, window.location.origin);
+          if (
+            parsed.pathname.startsWith("/portal/checkout") &&
+            !parsed.searchParams.get("session")
+          ) {
+            parsed.searchParams.set("session", checkoutToken);
+            if (!parsed.searchParams.get("mode")) {
+              parsed.searchParams.set("mode", "signup");
+            }
+            redirectTo = `${parsed.pathname}?${parsed.searchParams.toString()}`;
+          } else if (!parsed.pathname.startsWith("/portal/checkout")) {
+            redirectTo = `/portal/checkout?session=${encodeURIComponent(checkoutToken)}&mode=signup`;
+          }
+        } catch {
+          redirectTo = `/portal/checkout?session=${encodeURIComponent(checkoutToken)}&mode=signup`;
         }
+      }
 
-        const loginRes = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ email, password }),
-        });
-        const loginJson = await loginRes.json().catch(() => ({}));
-        if (!loginJson.success) {
-          setError(
-            apiMessageFromJson(
-              loginJson,
-              "Account verified. Sign in to continue in the Customer Portal."
-            )
-          );
-          setLoading(false);
-          window.location.assign(getPortalLoginPath({ email, next: "/portal" }));
-          return;
-        }
+      setPostVerifyRedirect(redirectTo);
+      setLoading(false);
 
-        window.location.assign("/portal");
+      if (isPaid) {
+        setPaidCheckoutReady(true);
+        setSuccess(json.message || "Email verified. Opening checkout…");
+        // Session cookies are already set by verify-otp when Engine returned tokens.
+        window.setTimeout(() => {
+          window.location.assign(redirectTo);
+        }, 1200);
         return;
       }
 
       setTrialReady(true);
-      setOtpStep(false);
       setSuccess(json.message || "Trial activated.");
-      setLoading(false);
-      clearSignupDraft();
-
-      const redirectTo =
-        json.data?.redirectUrl ||
-        json.data?.loginUrl ||
-        getPortalLoginPath({ email, next: "/portal" });
       window.setTimeout(() => {
         window.location.assign(redirectTo);
       }, 3500);
@@ -1207,6 +1238,58 @@ function SignUpForm({
     } finally {
       setLoading(false);
     }
+  }
+
+  if (paidCheckoutReady) {
+    return (
+      <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
+        <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
+        <div className="container-site relative flex justify-center py-16 lg:py-24">
+          <Card className="w-full max-w-lg min-w-0 shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
+            <CardContent className="min-w-0 px-6 py-10 text-center sm:px-10">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                <Check className="h-7 w-7" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#0b1f3a]">
+                Account ready — complete payment
+              </h1>
+              <p className="mt-3 text-muted-foreground leading-relaxed">
+                Your portal account is created. Continue to secure checkout to activate your
+                license and ERP workspace.
+                {username ? (
+                  <>
+                    {" "}
+                    Username: <span className="font-medium text-foreground">{username}</span>.
+                  </>
+                ) : null}
+              </p>
+              <div className="mt-6 rounded-2xl border border-border bg-slate-50 px-4 py-4 text-left text-sm text-muted-foreground leading-relaxed">
+                <p className="font-medium text-[#0b1f3a] mb-2">What happens next</p>
+                <ul className="space-y-1.5 list-disc list-inside">
+                  <li>Pay with card, PayPal, or bank transfer</li>
+                  <li>Auto-approved payments activate license and ERP immediately</li>
+                  <li>Manual payments show as Pending Approval in your portal</li>
+                </ul>
+              </div>
+              <div className="mt-8 flex w-full min-w-0 flex-col gap-3">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-auto min-h-12 w-full min-w-0 whitespace-normal rounded-full px-5 text-center"
+                >
+                  <a href={postVerifyRedirect || "/portal/checkout?mode=signup"}>
+                    Continue to Checkout
+                  </a>
+                </Button>
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Redirecting to checkout…
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   if (trialReady) {
@@ -1289,7 +1372,7 @@ function SignUpForm({
                 We sent a 6-digit code to{" "}
                 <span className="font-medium text-foreground">{maskedEmail}</span>. Enter it below
                 {isPaidSignup
-                  ? " to finish creating your account."
+                  ? " to create your account and continue to checkout."
                   : " to activate your trial."}
               </p>
               <form onSubmit={onVerifyOtp} className="mt-8 space-y-4 text-left">
@@ -1323,7 +1406,7 @@ function SignUpForm({
                       Verifying...
                     </>
                   ) : isPaidSignup ? (
-                    "Verify & continue"
+                    "Verify & create account"
                   ) : (
                     "Verify & start trial"
                   )}
@@ -1372,20 +1455,26 @@ function SignUpForm({
           <Badge variant="accent" className="mb-4">
             <Sparkles className="h-3 w-3 mr-1" />
             {isPaidSignup
-              ? "Direct signup · Payment in Customer Portal"
+              ? isCustomPackage
+                ? "Custom ERP · Account first, then checkout"
+                : "Lifetime plan · Account first, then checkout"
               : `${authConfig.trialDays}-day free trial · No card required`}
           </Badge>
           <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
-            Create your workspace in minutes
+            {isPaidSignup
+              ? "Create your account to continue"
+              : "Create your workspace in minutes"}
           </h1>
           <p className="mt-2 font-heading text-base sm:text-lg font-semibold tracking-tight text-primary">
             {isPaidSignup
-              ? "Create your account first — checkout opens in the portal after verification."
+              ? "Verify your email, then complete payment."
               : "No card. No payment. Direct signup."}
           </p>
           <p className="mt-2 sm:mt-3 text-base sm:text-lg text-muted-foreground leading-relaxed">
             {isPaidSignup
-              ? "Review your package, create your account, and verify your email. After verification you will sign in to the Customer Portal to complete payment."
+              ? isCustomPackage
+                ? "Confirm your custom ERP package details, create your portal account, and continue to secure checkout."
+                : "Confirm your plan, industry, and business category — then create your account and continue to checkout."
               : "Choose your product, plan, industry, and business category — then verify your email to start your trial."}
           </p>
           <ul
@@ -1396,10 +1485,10 @@ function SignUpForm({
           >
             {(isPaidSignup
               ? [
-                  "Same simple signup form — payment happens in the Customer Portal",
-                  "OTP email verification before portal access",
-                  "Lifetime and Custom ERP checkout shows your selected amount in the portal",
-                  "Enterprise plans use Contact Sales — never fixed pricing",
+                  "Create your portal account after email verification",
+                  "Complete payment to activate license and ERP",
+                  "Auto-approved payments activate instantly; bank transfers may need review",
+                  "Your purchased configuration appears in the portal after payment",
                 ]
               : [
                   `No credit card or payment to start — ${authConfig.trialDays}-day free trial`,
@@ -1550,7 +1639,9 @@ function SignUpForm({
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl">Sign up</CardTitle>
             <CardDescription>
-              Start free · verify email · open your workspace
+              {isPaidSignup
+                ? "Create account · verify email · continue to checkout"
+                : "Start free · verify email · open your workspace"}
             </CardDescription>
           </CardHeader>
           <CardContent>

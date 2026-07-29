@@ -1,18 +1,29 @@
+import { NextResponse } from "next/server";
 import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess, upstreamFail } from "@/lib/api/response";
 import { authConfig, getPortalLoginPath } from "@/lib/auth/config";
+import { applySessionCookies } from "@/lib/auth/session";
 import {
   resendRegistrationOtp,
   verifyRegistrationOtp,
 } from "@/lib/license/client";
-import { portalCheckoutHref } from "@/lib/portal/checkout-session";
+import { normalizeIdentityLoginData } from "@/lib/license/identity";
 import {
   getClientIp,
   isSameOrigin,
   rateLimit,
   sanitizeText,
 } from "@/lib/security/guards";
+import { isValidSessionToken } from "@/lib/security/session-token";
+
+/** Server-safe checkout redirect — session token must stay in the URL (no sessionStorage). */
+function paidCheckoutRedirectPath(token: string, mode = "signup"): string {
+  const params = new URLSearchParams();
+  params.set("session", token);
+  if (mode) params.set("mode", mode);
+  return `/portal/checkout?${params.toString()}`;
+}
 
 export const POST = withApiHandler(
   async (req) => {
@@ -109,41 +120,100 @@ export const POST = withApiHandler(
       );
     }
 
-    const appUrl = result.data.appUrl || result.data.loginUrl || authConfig.appUrl;
-    const trialDays = result.data.trialDays || authConfig.trialDays;
-    const isPaid = Boolean(result.data.payment_required || result.data.signup_mode === "paid");
-    const checkoutToken = result.data.checkout_session_token;
-    const checkoutUrl =
-      result.data.checkoutUrl ||
-      (checkoutToken ? portalCheckoutHref("signup", checkoutToken) : undefined);
+    const data = result.data;
+    const appUrl = data.appUrl || data.loginUrl || authConfig.appUrl;
+    const trialDays = data.trialDays || authConfig.trialDays;
+    const signupMode =
+      data.signup_mode === "paid" || data.payment_required === true
+        ? ("paid" as const)
+        : ("trial" as const);
+
+    const checkoutToken = String(data.checkout_session_token || "").trim();
+    const paymentRequired =
+      Boolean(data.payment_required) || Boolean(checkoutToken);
+
+    const checkoutPath = checkoutToken
+      ? paidCheckoutRedirectPath(checkoutToken, "signup")
+      : null;
 
     const portalLogin = getPortalLoginPath({
-      email: result.data.email || email,
-      next: checkoutUrl || "/portal",
+      email: data.email || email,
+      next: checkoutPath || "/portal",
     });
 
-    return apiSuccess(
-      result.message ||
-        (isPaid
-          ? "Email verified. Sign in to the Customer Portal to complete payment."
-          : `Email verified. Your ${trialDays}-day trial is ready.`),
-      {
-        data: {
-          appUrl,
-          loginUrl: portalLogin,
-          trialDays: isPaid ? 0 : trialDays,
-          trialEndsAt: result.data.trialEndsAt || undefined,
-          username: result.data.username || undefined,
-          email: result.data.email || undefined,
-          payment_required: isPaid,
-          signup_mode: isPaid ? "paid" : "trial",
-          checkout_session_token: checkoutToken,
-          checkoutUrl,
-          redirectUrl: isPaid ? "/portal" : portalLogin,
-          erpLoginUrl: appUrl,
-        },
+    let redirectUrl = portalLogin;
+    if (paymentRequired && checkoutPath) {
+      redirectUrl = checkoutPath;
+    } else if (data.checkoutUrl && paymentRequired) {
+      try {
+        const parsed = new URL(String(data.checkoutUrl), "https://waamto.com");
+        const legacyToken = parsed.searchParams.get("session");
+        if (legacyToken) {
+          redirectUrl = paidCheckoutRedirectPath(
+            legacyToken,
+            parsed.searchParams.get("mode") || "signup"
+          );
+        } else if (parsed.pathname.startsWith("/portal/")) {
+          redirectUrl = `${parsed.pathname}${parsed.search}`;
+        }
+      } catch {
+        /* keep portal login */
       }
-    );
+    }
+
+    const payload = {
+      appUrl,
+      loginUrl: portalLogin,
+      trialDays: signupMode === "paid" ? 0 : trialDays,
+      trialEndsAt: data.trialEndsAt || undefined,
+      username: data.username || undefined,
+      email: data.email || undefined,
+      signup_mode: signupMode,
+      payment_required: paymentRequired,
+      checkout_session_token: checkoutToken || undefined,
+      checkoutUrl: data.checkoutUrl || checkoutPath || undefined,
+      redirectUrl,
+      erpLoginUrl: appUrl,
+      session_established: false as boolean,
+    };
+
+    const tokens = normalizeIdentityLoginData(data as Record<string, unknown>);
+    const accessToken =
+      tokens && typeof (tokens as { accessToken?: unknown }).accessToken === "string"
+        ? String((tokens as { accessToken: string }).accessToken)
+        : "";
+    const refreshToken =
+      tokens && typeof (tokens as { refreshToken?: unknown }).refreshToken === "string"
+        ? String((tokens as { refreshToken: string }).refreshToken)
+        : "";
+    const canApplySession =
+      isValidSessionToken(accessToken) && isValidSessionToken(refreshToken);
+
+    const message =
+      result.message ||
+      (signupMode === "paid" || paymentRequired
+        ? "Email verified. Continue to checkout to activate your account."
+        : `Email verified. Your ${trialDays}-day trial is ready.`);
+
+    if (canApplySession) {
+      payload.session_established = true;
+      // Prefer checkout when paid; otherwise land in portal already signed in.
+      if (!(paymentRequired && checkoutToken)) {
+        payload.redirectUrl = "/portal";
+      }
+      const res = NextResponse.json({
+        success: true,
+        message,
+        data: payload,
+      });
+      return applySessionCookies(res, {
+        accessToken,
+        refreshToken,
+        remember: false,
+      });
+    }
+
+    return apiSuccess(message, { data: payload });
   },
   { endpoint: "/api/auth/verify-otp" }
 );

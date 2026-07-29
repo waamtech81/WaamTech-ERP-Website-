@@ -58,7 +58,9 @@ export function PortalCheckoutView() {
   const { formatPrice, rates, country: visitorCountry } = useLocale();
   const { data: portal } = usePortalContext();
 
-  const [sessionToken, setSessionToken] = useState("");
+  const [sessionToken, setSessionToken] = useState(() =>
+    resolveCheckoutSessionToken(sessionFromUrl)
+  );
 
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
@@ -83,6 +85,7 @@ export function PortalCheckoutView() {
       if (planName) params.set("plan", planName);
       if (methodFromUrl) params.set("method", methodFromUrl);
       const qs = params.toString();
+      // Strip token from the address bar after persisting to sessionStorage.
       router.replace(qs ? `/portal/checkout?${qs}` : "/portal/checkout", { scroll: false });
     }
   }, [sessionFromUrl, mode, planName, methodFromUrl, router]);
@@ -114,11 +117,14 @@ export function PortalCheckoutView() {
   useEffect(() => {
     if (!sessionToken) {
       setLoading(false);
+      setCheckout(null);
       setError("Missing checkout session.");
       return;
     }
 
     let cancelled = false;
+    setLoading(true);
+    setError("");
     (async () => {
       try {
         const res = await fetch(
@@ -132,6 +138,7 @@ export function PortalCheckoutView() {
           setCheckout(null);
         } else {
           const data = json.data || null;
+          setError("");
           setCheckout(data);
           const urlMethod = PORTAL_PAYMENT_METHODS.some((m) => m.id === methodFromUrl)
             ? methodFromUrl
@@ -223,12 +230,24 @@ export function PortalCheckoutView() {
         setConfirming(false);
         return;
       }
-      clearCheckoutSessionToken();
+
+      const payload = json.data as
+        | { awaiting_approval?: boolean; payment_required?: boolean; message?: string }
+        | undefined;
+      const awaitingReview = Boolean(payload?.awaiting_approval);
+
+      if (!awaitingReview) {
+        clearCheckoutSessionToken();
+      }
+
       const qs = new URLSearchParams();
       if (mode) qs.set("mode", mode);
       const successPlan = planName || checkout?.plan_name || "";
       if (successPlan) qs.set("plan", successPlan);
-      router.replace(qs.toString() ? `/portal/checkout/success?${qs.toString()}` : "/portal/checkout/success");
+      if (awaitingReview) qs.set("review", "1");
+      router.replace(
+        qs.toString() ? `/portal/checkout/success?${qs.toString()}` : "/portal/checkout/success"
+      );
     } catch (err) {
       setError(friendlyNetworkError(err, "Payment could not be confirmed."));
       setConfirming(false);

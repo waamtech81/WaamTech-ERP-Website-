@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { PortalInvoice } from "@/lib/portal/dashboard";
+import { formatPortalReference } from "@/lib/portal/display-labels";
 import { cn } from "@/lib/utils";
 
 type InvoiceStatusFilter =
@@ -363,7 +364,9 @@ export function PortalInvoicesView() {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="font-medium">
-                            {payment.transaction_id || payment.reference_number || payment.id}
+                            {formatPortalReference(
+                              payment.transaction_id || payment.reference_number || payment.id
+                            )}
                           </span>
                           <PortalStatusBadge status={payment.status} />
                         </div>

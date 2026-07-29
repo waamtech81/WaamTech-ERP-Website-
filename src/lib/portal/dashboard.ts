@@ -203,6 +203,14 @@ export type PortalDashboard = {
   gateways: Array<{ id: string; label: string; configured: boolean; online: boolean }>;
   company: Record<string, unknown> | null;
   engineDashboard: Record<string, unknown> | null;
+  /** Open Engine checkout the customer can resume (signup / invoice). */
+  pendingCheckout: {
+    session_token: string;
+    status: string;
+    purpose: string;
+    amount: number;
+    currency: string;
+  } | null;
   unreadNotifications: number;
   /** Suspended / non-active license notice — still allows portal with clear status. */
   accessNotice?: PortalAccessNotice | null;
@@ -892,6 +900,26 @@ async function loadPortalDashboardUncached(
 
   const company = companyRes.ok ? companyRes.data : null;
   const engineDashboard = engineDashboardRes.ok ? engineDashboardRes.data : null;
+  const pendingCheckoutRaw =
+    engineDashboard &&
+    typeof engineDashboard === "object" &&
+    (engineDashboard as Record<string, unknown>).pending_checkout &&
+    typeof (engineDashboard as Record<string, unknown>).pending_checkout === "object"
+      ? ((engineDashboard as Record<string, unknown>).pending_checkout as Record<
+          string,
+          unknown
+        >)
+      : null;
+  const pendingCheckout =
+    pendingCheckoutRaw && String(pendingCheckoutRaw.session_token || "").trim()
+      ? {
+          session_token: String(pendingCheckoutRaw.session_token).trim(),
+          status: String(pendingCheckoutRaw.status || "pending"),
+          purpose: String(pendingCheckoutRaw.purpose || ""),
+          amount: Number(pendingCheckoutRaw.amount || 0),
+          currency: String(pendingCheckoutRaw.currency || "USD"),
+        }
+      : null;
   const gateways = gatewaysRes.ok ? gatewaysRes.data : [];
   const supportTickets = null;
   const supportCounts = null;
@@ -1332,9 +1360,24 @@ async function loadPortalDashboardUncached(
     gateways,
     company,
     engineDashboard,
+    pendingCheckout,
     unreadNotifications,
     accessNotice: (() => {
       const notice = licenseAccess.notice;
+      if (!notice && pendingCheckout && licenses.length === 0) {
+        const underReview =
+          String(pendingCheckout.status).toLowerCase() === "awaiting_confirmation";
+        return {
+          level: underReview ? ("warning" as const) : ("danger" as const),
+          status: underReview ? "payment under review" : "pending payment",
+          title: underReview ? "Payment under review" : "Payment required",
+          message: underReview
+            ? "We received your payment proof. License, modules, and ERP activate automatically after approval — no further action needed."
+            : "Your portal account is ready. Complete checkout to activate your license, entitlements, and ERP workspace.",
+          actionLabel: underReview ? "View checkout status" : "Continue to checkout",
+          actionHref: "/portal/checkout?mode=signup",
+        };
+      }
       if (!notice || !isCustomJourney) return notice;
       // Custom ERP: never send customers into predefined plan upgrade/renew UI.
       if (notice.actionHref && /\/portal\/plans/i.test(notice.actionHref)) {

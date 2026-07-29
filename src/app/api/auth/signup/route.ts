@@ -294,6 +294,7 @@ export const POST = withApiHandler(
         product_id: commercial.data.product.id,
         plan_id: commercial.data.plan.id,
         package_type: "predefined",
+        ...(billing_cycle ? { billing_cycle } : {}),
         marketing_opt_in,
         // License Engine is the sole verifier; reCAPTCHA tokens are single-use.
         captcha_token: captchaToken || undefined,
@@ -315,23 +316,26 @@ export const POST = withApiHandler(
       );
     }
 
-    return apiSuccess(
-      license.message ||
-        (signupMode === "paid"
-          ? `We sent a verification code to ${maskEmail(email)}. Enter it to finish creating your account.`
-          : `We sent a verification code to ${maskEmail(email)}. Enter it to activate your trial.`),
-      {
-        extra: {
-          requiresOtp: true,
-          data: {
-            registrationId: license.data.registrationId,
-            email: license.data.email || maskEmail(email),
-            trialDays: license.data.trialDays || authConfig.trialDays,
-            otpExpiresInMinutes: license.data.otpExpiresInMinutes || 10,
-          },
+    const otpHint =
+      signupMode === "paid"
+        ? `We sent a verification code to ${maskEmail(email)}. Enter it to continue to checkout.`
+        : `We sent a verification code to ${maskEmail(email)}. Enter it to activate your trial.`;
+
+    return apiSuccess(license.message || otpHint, {
+      extra: {
+        requiresOtp: true,
+        data: {
+          registrationId: license.data.registrationId,
+          email: license.data.email || maskEmail(email),
+          trialDays:
+            signupMode === "paid"
+              ? 0
+              : license.data.trialDays || authConfig.trialDays,
+          otpExpiresInMinutes: license.data.otpExpiresInMinutes || 10,
+          signup_mode: signupMode,
         },
-      }
-    );
+      },
+    });
   },
   {
     endpoint: "/api/auth/signup",

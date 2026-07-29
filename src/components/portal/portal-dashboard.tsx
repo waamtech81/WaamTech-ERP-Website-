@@ -291,11 +291,6 @@ export function PortalDashboardView() {
 
   const primary = licenses[0];
   const firstName = String(overview.customerName || "there").split(" ")[0] || "there";
-  const expiredOrExpiring = licenses.filter((l) => {
-    const status = String(l.effective_status || l.status || "").toLowerCase();
-    if (["expired", "suspended"].includes(status)) return true;
-    return typeof l.days_remaining === "number" && l.days_remaining <= 14;
-  });
   const renewSubId =
     data.subscriptions?.find((s) =>
       ["active", "trial", "trialing", "grace", "suspended", "expired"].includes(
@@ -375,70 +370,6 @@ export function PortalDashboardView() {
           </Button>
         }
       />
-
-      {data.accessNotice ? (
-        <div
-          role="status"
-          className={
-            data.accessNotice.level === "danger"
-              ? "rounded-2xl border border-rose-500/25 bg-rose-500/10 px-4 py-4 sm:px-5"
-              : data.accessNotice.level === "warning"
-                ? "rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 sm:px-5"
-                : "rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4 sm:px-5"
-          }
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold text-black">{data.accessNotice.title}</p>
-                <PortalStatusBadge status={data.accessNotice.status} />
-              </div>
-              <p className="text-sm text-black">{data.accessNotice.message}</p>
-            </div>
-            {data.accessNotice.actionHref ? (
-              <Button asChild size="sm" className="w-full shrink-0 rounded-xl sm:w-auto">
-                <Link href={data.accessNotice.actionHref}>
-                  {data.accessNotice.actionLabel || "Continue"}
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {expiredOrExpiring.length ? (
-        <div
-          role="alert"
-          className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-black sm:px-5"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="font-semibold text-black">License attention required</p>
-              <p className="mt-1 text-black">
-                {expiredOrExpiring.length} license
-                {expiredOrExpiring.length === 1 ? "" : "s"} expired or renewing soon. Check
-                notifications and renew to keep access.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <Button asChild size="sm" className="w-full rounded-xl sm:w-auto">
-                <Link
-                  href={
-                    renewSubId
-                      ? `/portal/plans?intent=renew&subscription_id=${encodeURIComponent(renewSubId)}`
-                      : "/portal/plans?intent=renew"
-                  }
-                >
-                  Renew now
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="w-full rounded-xl sm:w-auto">
-                <Link href="/portal/notifications">View alerts</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <div className="order-2 min-w-0 flex-1 space-y-6 lg:order-1">

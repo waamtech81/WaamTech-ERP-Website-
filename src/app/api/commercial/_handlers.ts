@@ -5,6 +5,7 @@ import {
   fetchPublicBusinessCategories,
   fetchPublicBusinessProfiles,
   fetchPublicBusinessTypes,
+  fetchPublicCurrencies,
   fetchPublicIndustries,
   fetchPublicIndustryDetail,
   fetchPublicBuilderRecommendations,
@@ -150,6 +151,12 @@ export async function GET_comparison(req: Request) {
     return jsonOk({ plans: [], comparison: [], limit_keys: [] });
   }
   return jsonOk(result.data);
+}
+
+export async function GET_currencies() {
+  const result = await fetchPublicCurrencies();
+  if (!result.ok && result.data.length === 0) return jsonFail(result.message, result.status);
+  return jsonOk(result.data, { cacheSeconds: 30 });
 }
 
 export async function GET_industries() {

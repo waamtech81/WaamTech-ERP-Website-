@@ -8,7 +8,10 @@ type PlanLike = Pick<
   "slug" | "tier" | "lifetime_price" | "has_free_trial" | "name"
 > | null;
 
-/** Starter + Business = free trial; Custom ERP + Lifetime = paid only. */
+/**
+ * Trial stays for Starter / Business.
+ * Lifetime, Enterprise, and Custom ERP go through paid signup → public checkout.
+ */
 export function resolveSignupCommercialMode(input: {
   packageType: SignupPackageType;
   plan?: PlanLike;
@@ -16,44 +19,54 @@ export function resolveSignupCommercialMode(input: {
 }): SignupCommercialMode {
   if (input.packageType === "custom") return "paid";
 
-  const slug = String(input.plan?.slug || input.plan?.tier || "").toLowerCase();
+  const cycle = String(input.billingCycle || "").toLowerCase();
+  if (cycle === "lifetime") return "paid";
+
+  const slug = String(input.plan?.slug || input.plan?.tier || input.plan?.name || "").toLowerCase();
   const tier = String(input.plan?.tier || "").toLowerCase();
-  const billing = String(input.billingCycle || "").toLowerCase();
 
   if (
     input.plan?.lifetime_price != null ||
     slug === "lifetime" ||
     tier === "lifetime" ||
-    billing === "lifetime"
+    slug.includes("lifetime")
   ) {
     return "paid";
   }
+
+  if (slug === "enterprise" || tier === "enterprise") return "paid";
 
   if (
     slug === "starter" ||
     slug === "business" ||
     tier === "starter" ||
-    tier === "business"
+    tier === "business" ||
+    slug.includes("starter") ||
+    slug.includes("business")
   ) {
     return "trial";
   }
 
-  if (input.plan?.has_free_trial) return "trial";
-  return "paid";
+  if (input.plan?.has_free_trial === false) return "paid";
+  return "trial";
 }
 
-export function signupModeCtaLabel(mode: SignupCommercialMode, plan?: PlanLike): string {
-  if (mode === "paid") return "Ready to Buy";
-  const slug = String(plan?.slug || plan?.tier || "").toLowerCase();
-  if (slug.includes("business")) return "Start Free Trial";
-  if (slug.includes("starter")) return "Start Free Trial";
+export function signupModeCtaLabel(mode: SignupCommercialMode, _plan?: PlanLike): string {
+  if (mode === "paid") return "Create Account";
   return "Start Free Trial";
 }
 
 export function planAllowsFreeTrial(plan?: PlanLike): boolean {
-  return resolveSignupCommercialMode({
-    packageType: "predefined",
-    plan,
-    billingCycle: plan?.lifetime_price != null ? "lifetime" : null,
-  }) === "trial";
+  const slug = String(plan?.slug || plan?.tier || "").toLowerCase();
+  const tier = String(plan?.tier || "").toLowerCase();
+  if (slug === "enterprise" || tier === "enterprise") return false;
+  if (
+    slug === "lifetime" ||
+    tier === "lifetime" ||
+    slug.includes("lifetime") ||
+    plan?.lifetime_price != null
+  ) {
+    return false;
+  }
+  return true;
 }

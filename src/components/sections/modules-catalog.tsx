@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Link2, Plus } from "lucide-react";
+import { ArrowRight, Link2, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
 import { useCatalogModules } from "@/hooks/use-commercial";
 import {
   CatalogEmptyState,
@@ -41,12 +40,6 @@ const CYCLES: { id: BillingCycle; label: string }[] = [
   { id: "yearly", label: "Yearly" },
   { id: "lifetime", label: "Lifetime" },
 ];
-
-const FLOW_TABS = [
-  { href: "/modules", label: "All ERP Modules", match: "/modules" },
-  { href: "/modules/category", label: "Modules by Category", match: "/modules/category" },
-  { href: "/modules/industry", label: "Modules by Industry", match: "/modules/industry" },
-] as const;
 
 function CatalogModuleCard({
   mod,
@@ -170,7 +163,6 @@ function CatalogModuleCard({
 
 export function ModulesCatalog({ groupBy = "none", initialFilter = null }: ModulesCatalogProps) {
   const { formatPrice } = useLocale();
-  const pathname = usePathname();
   const query = useCatalogModules("waamto-erp");
   const modules = query.data;
   const [filter, setFilter] = useState<string | null>(initialFilter);
@@ -240,30 +232,6 @@ export function ModulesCatalog({ groupBy = "none", initialFilter = null }: Modul
   return (
     <Section className="!pt-2">
       <Container>
-        <div className="mb-5 flex gap-2 overflow-x-auto scrollbar-none pb-1">
-          {FLOW_TABS.map((tab) => {
-            const active =
-              tab.match === "/modules"
-                ? pathname === "/modules"
-                : pathname?.startsWith(tab.match);
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-medium transition-colors sm:text-sm",
-                  active
-                    ? "border-[#0b1f3a] bg-[#0b1f3a] text-white"
-                    : "border-border bg-white text-[#0b1f3a] hover:border-primary/35"
-                )}
-              >
-                {active ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : null}
-                {tab.label}
-              </Link>
-            );
-          })}
-        </div>
-
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 flex-1 space-y-2">
             <p className="text-sm text-muted-foreground">{scopeNote}</p>

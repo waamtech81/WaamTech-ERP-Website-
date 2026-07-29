@@ -267,9 +267,16 @@ function ctaText(
   >
 ): string {
   if (plan.contact_sales) return "Contact sales";
+  const slug = String(plan.slug || plan.tier || plan.name || "").toLowerCase();
+  if (
+    plan.lifetime_price != null ||
+    slug === "lifetime" ||
+    slug.includes("lifetime")
+  ) {
+    return "Buy Lifetime";
+  }
   if (!planAllowsFreeTrial(plan)) return "Ready to Buy";
 
-  const slug = String(plan.slug || plan.tier || plan.name || "").toLowerCase();
   const fromEngine = firstText(plan.cta?.text, plan.cta_button_text);
   if (slug.includes("business") || /^get\s*started$/i.test(fromEngine || "")) {
     return "Start Free Trial";

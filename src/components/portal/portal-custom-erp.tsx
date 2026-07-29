@@ -239,44 +239,6 @@ export function PortalCustomErpDashboardView() {
         </div>
       </section>
 
-      {data.accessNotice ? (
-        <div
-          role="status"
-          className={
-            data.accessNotice.level === "danger"
-              ? "rounded-2xl border border-rose-500/25 bg-rose-500/10 px-5 py-4"
-              : data.accessNotice.level === "warning"
-                ? "rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4"
-                : "rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-5 py-4"
-          }
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold text-black">{data.accessNotice.title}</p>
-                <PortalStatusBadge status={data.accessNotice.status} />
-              </div>
-              <p className="text-sm text-black">{data.accessNotice.message}</p>
-            </div>
-            {data.accessNotice.actionHref ? (
-              <Button asChild size="sm" className="rounded-xl">
-                <Link
-                  href={
-                    /\/portal\/plans/i.test(data.accessNotice.actionHref)
-                      ? canRenew
-                        ? "/portal/billing"
-                        : "/portal/custom-erp"
-                      : data.accessNotice.actionHref
-                  }
-                >
-                  {data.accessNotice.actionLabel || "Continue"}
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <PortalStatCard
           label="License status"

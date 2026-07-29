@@ -188,8 +188,9 @@ export async function middleware(req: NextRequest) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";
-    // Only ever bounce back to a safe internal portal path
-    loginUrl.searchParams.set("next", safeInternalPath(pathname));
+    // Preserve query (e.g. checkout ?session=) so paid signup is not lost on auth bounce.
+    const returnPath = `${pathname}${req.nextUrl.search || ""}`;
+    loginUrl.searchParams.set("next", safeInternalPath(returnPath));
     return applyHeaders(NextResponse.redirect(loginUrl), pathname);
   }
 

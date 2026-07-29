@@ -79,8 +79,6 @@ export const otherMegaMenu: {
     category: "Resources",
     items: [
       { title: "Knowledge Base", href: "https://doc.waamto.com", description: "WAAMTO product documentation and guides.", icon: "FileText" },
-      { title: "Modules by Category", href: "/modules/category", description: "Browse ERP modules grouped by category.", icon: "Boxes" },
-      { title: "Modules by Industry", href: "/modules/industry", description: "Browse ERP modules for your industry.", icon: "Factory" },
       { title: "Support Center", href: "/support", description: "Email, live chat & portal tickets.", icon: "ShieldCheck" },
       { title: "FAQs", href: "/faqs", description: "Quick answers to common questions.", icon: "Sparkles" },
     ],

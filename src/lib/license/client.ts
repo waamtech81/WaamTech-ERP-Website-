@@ -85,6 +85,11 @@ export type RegistrationCompleteResult = {
   signup_mode?: "trial" | "paid";
   checkout_session_token?: string;
   checkoutUrl?: string;
+  /** Issued after paid OTP verify so Website can open portal checkout authenticated. */
+  accessToken?: string;
+  refreshToken?: string;
+  access_token?: string;
+  refresh_token?: string;
 };
 
 type LicenseApiResponse<T = Record<string, unknown>> = {
@@ -358,7 +363,7 @@ export async function startRegistrationOnLicenseServer(
   };
 }
 
-/** Verify email OTP — License Engine creates customer, trial, license, provisions ERP. */
+/** Verify email OTP — License Engine creates customer; paid mode returns checkout + optional session tokens. */
 export async function verifyRegistrationOtp(input: {
   registration_id: string;
   otp: string;
@@ -371,7 +376,7 @@ export async function verifyRegistrationOtp(input: {
   data?: RegistrationCompleteResult;
   status: number;
 }> {
-  return postLicense<RegistrationCompleteResult>(
+  const result = await postLicense<RegistrationCompleteResult>(
     [
       "/v1/registrations/otp/verify",
       "/v1/registrations/verify-otp",
@@ -385,6 +390,37 @@ export async function verifyRegistrationOtp(input: {
       ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
     }
   );
+
+  if (!result.ok || !result.data) return result;
+
+  const raw = result.data as RegistrationCompleteResult & Record<string, unknown>;
+  return {
+    ...result,
+    data: {
+      ...raw,
+      payment_required: Boolean(raw.payment_required),
+      signup_mode:
+        raw.signup_mode === "paid" || raw.payment_required
+          ? "paid"
+          : raw.signup_mode === "trial"
+            ? "trial"
+            : undefined,
+      checkout_session_token:
+        raw.checkout_session_token ||
+        (typeof raw.checkoutSessionToken === "string"
+          ? raw.checkoutSessionToken
+          : undefined),
+      checkoutUrl:
+        raw.checkoutUrl ||
+        (typeof raw.checkout_url === "string" ? raw.checkout_url : undefined),
+      accessToken:
+        raw.accessToken ||
+        (typeof raw.access_token === "string" ? raw.access_token : undefined),
+      refreshToken:
+        raw.refreshToken ||
+        (typeof raw.refresh_token === "string" ? raw.refresh_token : undefined),
+    },
+  };
 }
 
 export async function resendRegistrationOtp(input: {

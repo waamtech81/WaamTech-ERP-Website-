@@ -25,6 +25,7 @@ import {
   CURRENCIES,
   CURRENCY_CODES,
   DEFAULT_CURRENCY,
+  isCurrencyCode,
   normalizeCurrency,
   type CurrencyCode,
 } from "@/lib/currency/config";
@@ -98,9 +99,38 @@ export function LocaleProvider({
   const [rates, setRates] = useState<RateMap>(initialRates);
   const [ratesSource, setRatesSource] =
     useState<LocaleContextValue["ratesSource"]>("initial");
+  const [enabledCurrencyCodes, setEnabledCurrencyCodes] =
+    useState<CurrencyCode[]>(CURRENCY_CODES);
   const manualRef = useRef(false);
 
   const direction = directionForLanguage(language);
+
+  // Sync enabled currencies from License Engine billing master data.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let alive = true;
+    fetch("/api/commercial/currencies", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (!alive || !body) return;
+        const rows = Array.isArray(body?.data) ? body.data : Array.isArray(body) ? body : [];
+        const codes = rows
+          .map((row: { code?: string }) => String(row?.code || "").toUpperCase())
+          .filter((code: string): code is CurrencyCode => isCurrencyCode(code));
+        if (!codes.length) return;
+        const unique = Array.from(new Set(codes));
+        setEnabledCurrencyCodes(unique);
+        setCurrencyState((prev) =>
+          unique.includes(prev) ? prev : normalizeCurrency(unique[0] || DEFAULT_CURRENCY)
+        );
+      })
+      .catch(() => {
+        /* keep local fallback list */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Keep <html lang/dir> + storage aligned (SSR already set these; idempotent).
   // Arabic → RTL layout; other languages stay LTR.
@@ -293,11 +323,12 @@ export function LocaleProvider({
   const setCurrency = useCallback(
     (code: CurrencyCode) => {
       const cur = normalizeCurrency(code);
+      if (!enabledCurrencyCodes.includes(cur)) return;
       setCurrencyState(cur);
       writeCookie(LOCALE_STORAGE.currencyCookie, cur);
       persistManual();
     },
-    [persistManual]
+    [persistManual, enabledCurrencyCodes]
   );
 
   const value = useMemo<LocaleContextValue>(
@@ -310,7 +341,7 @@ export function LocaleProvider({
       ratesSource,
       supportedLanguages: SUPPORTED_LANGUAGES,
       currencies: CURRENCIES,
-      currencyCodes: CURRENCY_CODES,
+      currencyCodes: enabledCurrencyCodes,
       t: (key, fallbackOrOpts, vars) =>
         translate(language, key, fallbackOrOpts as never, vars),
       setLanguage,
@@ -318,7 +349,17 @@ export function LocaleProvider({
       convert: (usd) => convertUsd(usd, currency, rates),
       formatPrice: (usd, opts) => formatUsdAs(usd, currency, rates, opts),
     }),
-    [language, direction, currency, country, rates, ratesSource, setLanguage, setCurrency]
+    [
+      language,
+      direction,
+      currency,
+      country,
+      rates,
+      ratesSource,
+      enabledCurrencyCodes,
+      setLanguage,
+      setCurrency,
+    ]
   );
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;

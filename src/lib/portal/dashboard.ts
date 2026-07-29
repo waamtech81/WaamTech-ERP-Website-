@@ -9,6 +9,7 @@ import {
   type IdentitySession,
 } from "@/lib/license/identity";
 import { maskLicenseKey } from "@/lib/auth/session";
+import { formatFeaturePackLabel } from "@/lib/portal/display-labels";
 import { authConfig, normalizeApiBase } from "@/lib/auth/config";
 import {
   fetchBillingCompany,
@@ -19,6 +20,7 @@ import {
   fetchMyPayments,
   fetchMyRenewals,
   fetchMySubscriptions,
+  fetchPublicCommercialOverview,
   fetchPublicModules,
   portalInvoiceDocumentPath,
   portalInvoicePdfPath,
@@ -233,7 +235,8 @@ export type PortalNotification = {
 
 function toPortalLicense(
   lic: IdentityLicense,
-  moduleLabels?: Map<string, string>
+  moduleLabels?: Map<string, string>,
+  featurePackLabels?: Map<string, string>
 ): PortalLicense {
   const codes = Array.from(
     new Set([
@@ -263,7 +266,9 @@ function toPortalLicense(
     package_type: lic.package_type || null,
     billing_cycle: lic.billing_cycle || null,
     modules,
-    feature_packs: extractFeaturePackNames(lic.feature_packs),
+    feature_packs: extractFeaturePackNames(lic.feature_packs).map((code) =>
+      formatFeaturePackLabel(code, featurePackLabels)
+    ),
     tenant_limits: lic.tenant_limits
       ? {
           users: lic.tenant_limits.users ?? lic.max_users ?? null,
@@ -315,18 +320,30 @@ function extractFeaturePackNames(source: unknown): string[] {
       if (typeof item === "string") return item.trim();
       if (item && typeof item === "object") {
         const row = item as Record<string, unknown>;
-        return String(row.name || row.label || row.code || "").trim();
+        return String(row.code || row.slug || row.name || row.label || "").trim();
       }
       return "";
     })
     .filter(Boolean);
 }
 
-function extractCommercialSnapshot(company: Record<string, unknown> | null) {
-  const commercial = company?.commercial;
-  return commercial && typeof commercial === "object"
-    ? (commercial as Record<string, unknown>)
-    : null;
+function normalizeCommercialRenewal(raw: Record<string, unknown>): CommercialRenewal {
+  const renewalDate =
+    raw.renewal_date || raw.payment_date || raw.completed_at || raw.created_at || null;
+  return {
+    id: String(raw.id || ""),
+    subscription_id: raw.subscription_id ? String(raw.subscription_id) : undefined,
+    license_id: raw.license_id ? String(raw.license_id) : null,
+    status: raw.status ? String(raw.status) : undefined,
+    renewal_date: renewalDate ? String(renewalDate).slice(0, 10) : null,
+    previous_expiry:
+      raw.previous_expiry || raw.old_expiry
+        ? String(raw.previous_expiry || raw.old_expiry).slice(0, 10)
+        : null,
+    new_expiry: raw.new_expiry ? String(raw.new_expiry).slice(0, 10) : null,
+    amount: raw.amount != null ? Number(raw.amount) : null,
+    currency: raw.currency ? String(raw.currency) : null,
+  };
 }
 
 function extractModuleLabels(
@@ -387,10 +404,35 @@ function mapWorkspaceUsers(
   return mapped;
 }
 
+function pickPortalDisplayName(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return null;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)) {
+      return null;
+    }
+    return raw;
+  }
+  if (typeof value === "object") {
+    const row = value as Record<string, unknown>;
+    return (
+      pickPortalDisplayName(row.name) ||
+      pickPortalDisplayName(row.label) ||
+      pickPortalDisplayName(row.title)
+    );
+  }
+  return null;
+}
+
 function resolveCompanyNames(
   company: Record<string, unknown> | null,
   customer: CustomerProfile | null
 ) {
+  const commercial =
+    company?.commercial && typeof company.commercial === "object"
+      ? (company.commercial as Record<string, unknown>)
+      : null;
   return {
     businessName:
       String(
@@ -406,13 +448,15 @@ function resolveCompanyNames(
       String(company?.workspace_name || company?.company_name || "").trim() ||
       null,
     industry:
-      String(
-        company?.industry_name || customer?.industry_name || ""
-      ).trim() || null,
+      pickPortalDisplayName(company?.industry_name) ||
+      pickPortalDisplayName(commercial?.industry) ||
+      pickPortalDisplayName(customer?.industry_name) ||
+      null,
     category:
-      String(
-        company?.business_category_name || customer?.business_category_name || ""
-      ).trim() || null,
+      pickPortalDisplayName(company?.business_category_name) ||
+      pickPortalDisplayName(commercial?.category) ||
+      pickPortalDisplayName(customer?.business_category_name) ||
+      null,
     businessProfile:
       String(
         company?.business_profile_name || customer?.business_profile_name || ""
@@ -798,13 +842,14 @@ async function loadPortalDashboardUncached(
     (Array.isArray(licensesRes.data) && licensesRes.data[0]?.product_slug) ||
     "waamto-erp";
 
-  const [invoicesRes, paymentsRes, renewalsRes, engineDashboardRes, modulesCatalogRes, notificationsRes] =
+  const [invoicesRes, paymentsRes, renewalsRes, engineDashboardRes, modulesCatalogRes, commercialOverviewRes, notificationsRes] =
     await Promise.all([
       fetchMyInvoices(token, { limit: 50 }),
       fetchMyPayments(token, { limit: 50 }),
       fetchMyRenewals(token),
       fetchBillingDashboard(token),
       fetchPublicModules(String(productSlugHint)),
+      fetchPublicCommercialOverview({ product: String(productSlugHint) }),
       fetchMyNotifications(token, { limit: 20 }),
     ]);
 
@@ -831,8 +876,15 @@ async function loadPortalDashboardUncached(
   for (const mod of modulesCatalogRes.data || []) {
     if (mod?.code) moduleLabels.set(mod.code, mod.name || mod.code);
   }
+  const featurePackLabels = new Map<string, string>();
+  for (const pack of commercialOverviewRes.data?.feature_packs || []) {
+    const code = String(pack.code || pack.slug || "").trim();
+    if (code) featurePackLabels.set(code, pack.name || code);
+  }
 
-  const licenses = rawLicenses.map((lic) => toPortalLicense(lic, moduleLabels));
+  const licenses = rawLicenses.map((lic) =>
+    toPortalLicense(lic, moduleLabels, featurePackLabels)
+  );
   const sessions = Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
   const primary = primaryLicense(rawLicenses);
   const trial = trialFromLicenses(rawLicenses);
@@ -845,6 +897,21 @@ async function loadPortalDashboardUncached(
   const supportCounts = null;
   const companyNames = resolveCompanyNames(company, customer);
   const workspaceUsers = mapWorkspaceUsers(usageRes.ok ? usageRes.data : null);
+  if (!workspaceUsers.length && identity?.id) {
+    workspaceUsers.push({
+      id: identity.id,
+      email: identity.email || null,
+      username: identity.username || null,
+      full_name: identity.full_name || null,
+      phone: identity.phone || null,
+      photo_url: identity.photo_url || null,
+      status: identity.status || null,
+      email_verified_at: identity.email_verified_at || null,
+      last_login_at: identity.last_login_at || null,
+      created_at: customer?.created_at || null,
+      source: "license_engine",
+    });
+  }
 
   const licenseModules = Array.from(
     new Set(licenses.flatMap((l) => l.modules).filter(Boolean))
@@ -865,14 +932,8 @@ async function loadPortalDashboardUncached(
     status: customer?.status || identity.status || null,
     customerSince: customer?.created_at || null,
     lastLogin: identity.last_login_at || null,
-    industry:
-      companyNames.industry ||
-      (customer?.industry_id ? String(customer.industry_id) : null),
-    businessCategory:
-      companyNames.category ||
-      (customer?.business_category_id
-        ? String(customer.business_category_id)
-        : null),
+    industry: companyNames.industry,
+    businessCategory: companyNames.category,
   };
 
   const subscription =
@@ -934,7 +995,11 @@ async function loadPortalDashboardUncached(
   const commercialSubs = subsRes.ok ? subsRes.data.data : [];
   const commercialInvoices = invoicesRes.ok ? invoicesRes.data.data : [];
   const commercialPayments = paymentsRes.ok ? paymentsRes.data.data : [];
-  const commercialRenewals = renewalsRes.ok ? renewalsRes.data : [];
+  const commercialRenewals = renewalsRes.ok
+    ? (renewalsRes.data || []).map((row) =>
+        normalizeCommercialRenewal(row as unknown as Record<string, unknown>)
+      )
+    : [];
 
   // Backfill billing cycle / package type from commercial subscription when Engine
   // license row omits them.
@@ -951,20 +1016,6 @@ async function loadPortalDashboardUncached(
       lic.billing_cycle = linked.billing_cycle;
     }
   }
-
-  const commercialSnapshot = extractCommercialSnapshot(company);
-
-  const companyModuleLabels = Array.from(
-    new Set([
-      ...extractModuleLabels(company?.selected_modules, moduleLabels),
-      ...extractModuleLabels(company?.modules, moduleLabels),
-      ...extractModuleLabels(company?.enabled_modules, moduleLabels),
-      ...extractModuleLabels(commercialSnapshot?.effective_modules, moduleLabels),
-      ...extractModuleLabels(commercialSnapshot?.modules, moduleLabels),
-      ...extractModuleLabels(commercialSnapshot?.selected_modules, moduleLabels),
-      ...extractModuleLabels(commercialSnapshot?.dependency_modules, moduleLabels),
-    ])
-  );
 
   const commercialBillingOk =
     subsRes.ok || invoicesRes.ok || paymentsRes.ok || renewalsRes.ok;
@@ -1052,26 +1103,10 @@ async function loadPortalDashboardUncached(
       ? notificationsRes.unread_count
       : (notifications || []).filter((n) => !n.read).length;
 
-  const companyFeaturePacks = extractFeaturePackNames(company?.feature_packs);
-  const snapshotFeaturePacks = extractFeaturePackNames(commercialSnapshot?.feature_packs);
-  const customerFeaturePacks = extractFeaturePackNames(customer?.feature_packs);
   const licenseFeaturePacks = Array.from(
     new Set(licenses.flatMap((l) => l.feature_packs).filter(Boolean))
   );
-  const erpFeaturePacks = Array.isArray(erpCounts.feature_packs)
-    ? (erpCounts.feature_packs as string[])
-    : Array.isArray(erpCounts.featurePacks)
-      ? (erpCounts.featurePacks as string[])
-      : [];
-  const featurePacks = Array.from(
-    new Set([
-      ...licenseFeaturePacks,
-      ...snapshotFeaturePacks,
-      ...companyFeaturePacks,
-      ...customerFeaturePacks,
-      ...erpFeaturePacks,
-    ])
-  );
+  const featurePacks = licenseFeaturePacks;
 
   const businesses = buildBusinessCards(
     rawLicenses,
@@ -1086,31 +1121,8 @@ async function loadPortalDashboardUncached(
     commercialInvoices
   );
 
-  const erpModulesRaw = Array.isArray(erpCounts.modules)
-    ? erpCounts.modules
-    : Array.isArray(erpCounts.active_modules)
-      ? erpCounts.active_modules
-      : [];
-  const erpModules = erpModulesRaw
-    .map((item) => {
-      if (typeof item === "string") {
-        const code = item.trim();
-        return moduleLabels.get(code) || code;
-      }
-      if (item && typeof item === "object") {
-        const row = item as Record<string, unknown>;
-        const code = String(row.code || row.slug || "").trim();
-        const name = String(row.name || "").trim();
-        if (name) return name;
-        if (code) return moduleLabels.get(code) || code;
-      }
-      return "";
-    })
-    .filter(Boolean);
-
-  const modules = Array.from(
-    new Set([...licenseModules, ...companyModuleLabels, ...erpModules])
-  );
+  // Prefer license plan entitlements; do not union full ERP/catalog dumps into portal Modules.
+  const modules = licenseModules.length > 0 ? licenseModules : [];
 
   const commercialJourney = resolveJourneyFromLicenses(licenses);
   const isCustomJourney = commercialJourney === "custom";

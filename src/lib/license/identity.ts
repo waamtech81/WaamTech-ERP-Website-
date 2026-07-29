@@ -514,7 +514,10 @@ export function normalizeIdentityLicense(raw: unknown): IdentityLicense | null {
   );
   const deps = asStringList(row.dependency_modules || row.required_modules);
   const modulesFromEngine = asStringList(
-    row.modules || row.enabled_modules || row.active_modules
+    row.modules ||
+      row.modules_included ||
+      row.enabled_modules ||
+      row.active_modules
   );
   const modules = modulesFromEngine.length
     ? modulesFromEngine

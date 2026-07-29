@@ -698,7 +698,7 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                 ? [
                     {
                       label: "Auto renewal",
-                      value: sub?.auto_renewal ? "Enabled" : "Off",
+                      value: sub?.auto_renewal ? "On" : "Off",
                     },
                   ]
                 : []),

@@ -82,18 +82,19 @@ export function PortalStatCard({
         {Icon ? (
           <span
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-xl",
+              "inline-flex items-center justify-center rounded-xl",
+              compact ? "h-7 w-7" : "h-9 w-9",
               tones[tone]
             )}
           >
-            <Icon className="h-4 w-4" aria-hidden />
+            <Icon className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden />
           </span>
         ) : null}
       </div>
       <p
         className={cn(
-          "mt-4 font-semibold tracking-tight text-[var(--portal-fg)]",
-          compact ? "text-lg" : "text-2xl"
+          "font-semibold tracking-tight text-[var(--portal-fg)]",
+          compact ? "mt-2 text-base" : "mt-4 text-2xl"
         )}
       >
         {value}
@@ -104,7 +105,7 @@ export function PortalStatCard({
 
   const cardClassName = cn(
     "portal-card portal-card-hover block rounded-2xl h-full",
-    compact ? "p-4" : "p-5",
+    compact ? "p-3" : "p-5",
     highlight &&
       "border border-emerald-500/35 bg-emerald-50/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]",
     href && "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--portal-primary)]",

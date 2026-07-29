@@ -87,7 +87,7 @@ function DashboardSummarySection({
             href={item.href}
             highlight={item.highlight}
             compact={compact}
-            className={compact ? "min-h-[7rem]" : "min-h-[8.5rem]"}
+            className={compact ? "min-h-[4.75rem]" : "min-h-[8.5rem]"}
           />
         ))}
       </div>
@@ -748,7 +748,7 @@ export function PortalDashboardView() {
           {(licenseSummary.length || workspaceSummary.length) ? (
             <div
               className={cn(
-                "grid gap-4",
+                "grid gap-3",
                 licenseSummary.length && workspaceSummary.length ? "grid-cols-2" : "grid-cols-1"
               )}
             >

@@ -237,6 +237,15 @@ export function PortalPlansView() {
   );
   const profiles = profilesQuery.data || [];
 
+  const industryDisplayName =
+    industries.find((i) => i.id === industryId)?.name ||
+    portal?.overview?.industry ||
+    "—";
+  const categoryDisplayName =
+    categories.find((c) => c.id === categoryId)?.name ||
+    portal?.overview?.businessCategory ||
+    "—";
+
   function goNextFromMode(next: FlowMode) {
     setMode(next);
     setError("");
@@ -602,6 +611,17 @@ export function PortalPlansView() {
 
       {step === "plan" ? (
         <div className="space-y-5">
+          {(mode === "renew" || mode === "upgrade") &&
+          (industryDisplayName !== "—" || categoryDisplayName !== "—") ? (
+            <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
+                Industry / category
+              </p>
+              <p className="mt-1 font-medium text-[var(--portal-fg)]">
+                {industryDisplayName} · {categoryDisplayName}
+              </p>
+            </div>
+          ) : null}
           {mode === "upgrade" && recommendedUpgrade && !recommendedUpgrade.isCurrent ? (
             <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 sm:p-5">
               <div className="flex flex-wrap items-start gap-3">
@@ -795,9 +815,7 @@ export function PortalPlansView() {
                 Industry / category
               </p>
               <p className="mt-1 font-medium">
-                {(industries.find((i) => i.id === industryId)?.name || "—") +
-                  " · " +
-                  (categories.find((c) => c.id === categoryId)?.name || "—")}
+                {industryDisplayName + " · " + categoryDisplayName}
               </p>
             </div>
             <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm">

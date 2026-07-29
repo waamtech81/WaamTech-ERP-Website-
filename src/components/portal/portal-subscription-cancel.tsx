@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { formatPortalDate } from "@/components/portal/use-portal-data";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import type { CommercialSubscription } from "@/lib/commercial/types";
@@ -17,11 +17,12 @@ export function subscriptionCancelEligible(sub: CommercialSubscription): boolean
   return ["active", "trial", "trialing", "suspended", "grace"].includes(status) && cycle !== "lifetime";
 }
 
-/** Auto-renewal off while subscription is still active until period end. */
+/** Auto-renewal off with a scheduled period-end date (not merely default-off). */
 export function subscriptionCancelScheduled(sub: CommercialSubscription): boolean {
   const status = String(sub.status || "").toLowerCase();
   if (["cancelled", "expired", "terminated"].includes(status)) return false;
   if (sub.auto_renewal !== false) return false;
+  if (!sub.cancellation_date) return false;
   return ["active", "trial", "trialing", "grace", "suspended"].includes(status);
 }
 
@@ -51,17 +52,17 @@ export function subscriptionAccessUntil(sub: CommercialSubscription): string | n
 export function formatAutoRenewLabel(sub: CommercialSubscription): string {
   if (subscriptionCancelScheduled(sub)) {
     const when = subscriptionAccessUntil(sub);
-    return when ? `Cancels ${when}` : "Cancel scheduled";
+    return when ? `Off · access until ${when}` : "Off";
   }
-  return sub.auto_renewal ? "Enabled" : "Off";
+  return sub.auto_renewal ? "On" : "Off";
 }
 
 export function subscriptionScheduledMessage(sub: CommercialSubscription): string | null {
   if (!subscriptionCancelScheduled(sub)) return null;
   const when = subscriptionAccessUntil(sub);
   return when
-    ? `Auto-renewal cancelled. Your subscription remains active until ${when}.`
-    : "Auto-renewal cancelled. Your subscription remains active until the end of the current billing period.";
+    ? `Auto-renewal is off. Access continues until ${when}.`
+    : "Auto-renewal is off. Access continues until the end of the current billing period.";
 }
 
 function notifyPortalRefresh() {
@@ -70,11 +71,9 @@ function notifyPortalRefresh() {
   }
 }
 
-function CancelSubscriptionModal({
+function AutoRenewOffConfirmModal({
   open,
   periodEnd,
-  cancelReason,
-  onCancelReason,
   pending,
   error,
   onClose,
@@ -82,8 +81,6 @@ function CancelSubscriptionModal({
 }: {
   open: boolean;
   periodEnd: string | null;
-  cancelReason: string;
-  onCancelReason: (value: string) => void;
   pending: boolean;
   error: string;
   onClose: () => void;
@@ -101,11 +98,11 @@ function CancelSubscriptionModal({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <button
         type="button"
-        className="fixed inset-0 z-[120] bg-black/45 backdrop-blur-[1px]"
-        aria-label="Close cancel subscription dialog"
+        className="absolute inset-0 bg-slate-900/40"
+        aria-label="Close dialog"
         onClick={() => {
           if (!pending) onClose();
         }}
@@ -113,26 +110,26 @@ function CancelSubscriptionModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="portal-cancel-subscription-title"
-        className="fixed left-1/2 top-1/2 z-[121] w-[min(100%-2rem,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-5 shadow-[var(--portal-shadow)] sm:p-6"
+        aria-labelledby="portal-auto-renew-off-title"
+        className="relative z-[1] w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2
-              id="portal-cancel-subscription-title"
-              className="text-lg font-semibold text-[var(--portal-fg)]"
+              id="portal-auto-renew-off-title"
+              className="text-lg font-semibold text-slate-900"
             >
-              Cancel at period end?
+              Turn off auto-renewal?
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--portal-muted)]">
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
               Access continues until{" "}
-              {periodEnd || "the end of your current billing period"}. Auto-renewal stops and no
-              refund is issued for the current period.
+              {periodEnd || "the end of your current billing period"}. Automatic renewal and
+              auto-payment stop. No refund is issued for the current period.
             </p>
           </div>
           <button
             type="button"
-            className="rounded-lg p-1.5 text-[var(--portal-muted)] hover:bg-[var(--portal-soft)]"
+            className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
             aria-label="Close"
             disabled={pending}
             onClick={onClose}
@@ -140,20 +137,6 @@ function CancelSubscriptionModal({
             <X className="h-4 w-4" />
           </button>
         </div>
-
-        <label className="mt-4 block">
-          <span className="text-sm font-medium text-[var(--portal-fg)]">
-            Why are you cancelling?
-          </span>
-          <Textarea
-            value={cancelReason}
-            onChange={(e) => onCancelReason(e.target.value)}
-            placeholder="Tell us what we could improve…"
-            rows={4}
-            maxLength={500}
-            className="mt-2 min-h-[96px] resize-none"
-          />
-        </label>
 
         {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
 
@@ -166,31 +149,32 @@ function CancelSubscriptionModal({
             disabled={pending}
             onClick={onClose}
           >
-            Keep subscription
+            Keep on
           </Button>
           <Button
             type="button"
             size="sm"
-            className="rounded-xl bg-rose-600 hover:bg-rose-700"
+            className="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
             disabled={pending}
             onClick={onConfirm}
           >
             {pending ? (
               <>
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                Submitting…
+                Updating…
               </>
             ) : (
-              "Submit cancellation"
+              "Turn off"
             )}
           </Button>
         </div>
       </div>
-    </>,
+    </div>,
     document.body
   );
 }
 
+/** Portal self-service auto-renewal toggle (also controls auto-payment via Engine). */
 export function PortalSubscriptionCancelActions({
   subscription,
   size = "sm",
@@ -201,33 +185,26 @@ export function PortalSubscriptionCancelActions({
   className?: string;
 }) {
   const router = useRouter();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
+  const [confirmOff, setConfirmOff] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
 
   if (!subscriptionCancelEligible(subscription)) return null;
 
-  const scheduled = subscriptionCancelScheduled(subscription);
+  const enabled = Boolean(subscription.auto_renewal);
   const periodEnd = subscriptionAccessUntil(subscription);
   const scheduledMessage = subscriptionScheduledMessage(subscription);
 
-  function run(action: "cancel" | "resume") {
+  function applyRenewal(nextEnabled: boolean) {
     setError("");
     setMessage("");
-    const reason = cancelReason.trim();
-    if (action === "cancel" && reason.length < 3) {
-      setError("Please tell us why you are cancelling (at least a few words).");
-      return;
-    }
 
     startTransition(async () => {
       try {
-        const endpoint =
-          action === "cancel"
-            ? "/api/portal/billing/cancel"
-            : "/api/portal/billing/resume-renewal";
+        const endpoint = nextEnabled
+          ? "/api/portal/billing/resume-renewal"
+          : "/api/portal/billing/cancel";
         const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -235,23 +212,24 @@ export function PortalSubscriptionCancelActions({
           cache: "no-store",
           body: JSON.stringify({
             subscription_id: subscription.id,
-            ...(action === "cancel" ? { notes: reason.slice(0, 500) } : {}),
+            ...(nextEnabled
+              ? {}
+              : { notes: "Auto-renewal disabled by customer" }),
           }),
         });
         const json = await res.json();
         if (!json.success) {
-          setError(apiMessageFromJson(json, "Unable to update subscription."));
+          setError(apiMessageFromJson(json, "Unable to update auto-renewal."));
           return;
         }
-        setModalOpen(false);
-        setCancelReason("");
+        setConfirmOff(false);
         setMessage(
           String(
             json.message ||
-              (action === "cancel"
-                ? scheduledMessage ||
-                  "Auto-renewal cancelled. Your subscription remains active until the end of the current billing period."
-                : "Auto-renewal has been re-enabled for this subscription.")
+              (nextEnabled
+                ? "Auto-renewal is on. Your subscription and license will renew automatically."
+                : scheduledMessage ||
+                  "Auto-renewal is off. Access continues until the end of the current billing period.")
           )
         );
         notifyPortalRefresh();
@@ -263,64 +241,54 @@ export function PortalSubscriptionCancelActions({
   }
 
   return (
-    <div className={cn("inline-flex flex-col items-start gap-1", className)}>
-      {scheduled ? (
-        <Button
-          type="button"
-          size={size}
-          variant="outline"
-          className="h-8 rounded-lg border-emerald-200 text-emerald-800 hover:bg-emerald-50"
+    <div className={cn("inline-flex flex-col items-start gap-1.5", className)}>
+      <div className="flex items-center gap-2 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-panel)] px-2.5 py-1.5">
+        <Switch
+          id={`auto-renew-${subscription.id}`}
+          checked={enabled}
           disabled={pending}
-          onClick={() => run("resume")}
-        >
-          {pending ? (
-            <>
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              Updating…
-            </>
-          ) : (
-            "Keep subscription"
+          onCheckedChange={(checked) => {
+            setError("");
+            setMessage("");
+            if (checked) {
+              applyRenewal(true);
+              return;
+            }
+            setConfirmOff(true);
+          }}
+          className="data-[state=checked]:bg-[var(--portal-primary,#0549a4)]"
+          aria-label="Auto-renewal"
+        />
+        <label
+          htmlFor={`auto-renew-${subscription.id}`}
+          className={cn(
+            "cursor-pointer select-none text-xs font-medium text-[var(--portal-fg)]",
+            size === "default" && "text-sm"
           )}
-        </Button>
-      ) : (
-        <>
-          <Button
-            type="button"
-            size={size}
-            variant="outline"
-            className="h-8 rounded-lg border-rose-200 text-rose-700 hover:bg-rose-50"
-            onClick={() => {
-              setError("");
-              setMessage("");
-              setCancelReason("");
-              setModalOpen(true);
-            }}
-          >
-            Cancel subscription
-          </Button>
-          <CancelSubscriptionModal
-            open={modalOpen}
-            periodEnd={periodEnd}
-            cancelReason={cancelReason}
-            onCancelReason={setCancelReason}
-            pending={pending}
-            error={error}
-            onClose={() => {
-              if (!pending) {
-                setModalOpen(false);
-                setCancelReason("");
-                setError("");
-              }
-            }}
-            onConfirm={() => run("cancel")}
-          />
-        </>
-      )}
-      {scheduledMessage && scheduled ? (
+        >
+          {pending ? "Updating…" : enabled ? "Auto-renewal on" : "Auto-renewal off"}
+        </label>
+      </div>
+
+      <AutoRenewOffConfirmModal
+        open={confirmOff}
+        periodEnd={periodEnd}
+        pending={pending}
+        error={error}
+        onClose={() => {
+          if (!pending) {
+            setConfirmOff(false);
+            setError("");
+          }
+        }}
+        onConfirm={() => applyRenewal(false)}
+      />
+
+      {scheduledMessage ? (
         <p className="max-w-xs text-xs leading-relaxed text-teal-700">{scheduledMessage}</p>
       ) : null}
       {message ? <p className="max-w-xs text-xs text-emerald-700">{message}</p> : null}
-      {!modalOpen && error && !scheduled ? (
+      {!confirmOff && error ? (
         <p className="max-w-xs text-xs text-rose-600">{error}</p>
       ) : null}
     </div>

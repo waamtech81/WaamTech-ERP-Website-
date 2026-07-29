@@ -29,13 +29,11 @@ import { PortalNotificationsView } from "@/components/portal/portal-notification
 import { PortalSettingsView } from "@/components/portal/portal-settings";
 import { PortalCustomErpRenewButton } from "@/components/portal/portal-custom-erp-renew";
 import {
-  extractSubscriptionCancelReason,
   formatAutoRenewLabel,
   PortalSubscriptionCancelActions,
   subscriptionAccessUntil,
   subscriptionActionsLocked,
   subscriptionCancelScheduled,
-  subscriptionScheduledMessage,
 } from "@/components/portal/portal-subscription-cancel";
 import {
   primaryPortalLicense,
@@ -287,7 +285,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                     disabled={actionsLocked}
                     title={
                       actionsLocked
-                        ? "Keep subscription to manage modules again."
+                        ? "Turn auto-renewal on to manage modules again."
                         : undefined
                     }
                   >
@@ -305,7 +303,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                     disabled={actionsLocked}
                     title={
                       actionsLocked
-                        ? "Keep subscription to modify configuration again."
+                        ? "Turn auto-renewal on to modify configuration again."
                         : undefined
                     }
                   >
@@ -325,7 +323,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                     className="rounded-xl"
                     disabled={actionsLocked}
                     title={
-                      actionsLocked ? "Keep subscription to upgrade again." : undefined
+                      actionsLocked ? "Turn auto-renewal on to upgrade again." : undefined
                     }
                   >
                     {actionsLocked ? (
@@ -371,16 +369,13 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 <th scope="col">Type</th>
                 <th scope="col">Status</th>
                 <th scope="col">Access until</th>
-                <th scope="col">Reason</th>
+                <th scope="col">Auto-renewal</th>
                 <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
               {commercial.map((sub) => {
                 const actionsLocked = subscriptionActionsLocked(sub);
-                const cancelReason =
-                  extractSubscriptionCancelReason(sub.notes) ||
-                  (subscriptionCancelScheduled(sub) ? "Cancel scheduled" : null);
                 const accessUntil = subscriptionAccessUntil(sub) || "—";
                 return (
                 <tr key={sub.id}>
@@ -393,15 +388,15 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                     <div className="flex flex-wrap gap-1">
                       <PortalStatusBadge status={sub.status} />
                       {subscriptionCancelScheduled(sub) ? (
-                        <PortalStatusBadge status="Cancel scheduled" />
+                        <PortalStatusBadge status="Renewal off" />
                       ) : null}
                     </div>
                   </td>
                   <td>{accessUntil}</td>
-                  <td className="max-w-[12rem] text-sm text-[var(--portal-muted)]">
-                    {cancelReason || "—"}
+                  <td className="portal-table-renewal">
+                    <PortalSubscriptionCancelActions subscription={sub} />
                   </td>
-                  <td>
+                  <td className="portal-table-actions">
                     <div className="flex flex-wrap gap-1.5">
                       {canRenew ? (
                         isCustomJourney ? (
@@ -426,7 +421,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                           disabled={actionsLocked}
                           title={
                             actionsLocked
-                              ? "Keep subscription to modify package again."
+                              ? "Turn auto-renewal on to modify package again."
                               : undefined
                           }
                         >
@@ -445,7 +440,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                             className="rounded-lg h-8"
                             disabled={actionsLocked}
                             title={
-                              actionsLocked ? "Keep subscription to upgrade again." : undefined
+                              actionsLocked ? "Turn auto-renewal on to upgrade again." : undefined
                             }
                           >
                             {actionsLocked ? (
@@ -459,13 +454,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                           </Button>
                         </>
                       )}
-                      <PortalSubscriptionCancelActions subscription={sub} />
                     </div>
-                    {subscriptionScheduledMessage(sub) ? (
-                      <p className="mt-2 max-w-md text-xs leading-relaxed text-teal-700">
-                        {subscriptionScheduledMessage(sub)}
-                      </p>
-                    ) : null}
                   </td>
                 </tr>
                 );
@@ -502,8 +491,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                       ? formatAutoRenewLabel(activeSub)
                       : typeof erp.auto_renewal === "boolean"
                         ? erp.auto_renewal
-                          ? "Enabled"
-                          : "Disabled"
+                          ? "On"
+                          : "Off"
                         : null,
                   },
                 ]
@@ -603,12 +592,12 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               value:
                 typeof data.subscriptions?.[0]?.auto_renewal === "boolean"
                   ? data.subscriptions[0].auto_renewal
-                    ? "Enabled"
-                    : "Disabled"
+                    ? "On"
+                    : "Off"
                   : typeof erp.auto_renewal === "boolean"
                     ? erp.auto_renewal
-                      ? "Enabled"
-                      : "Disabled"
+                      ? "On"
+                      : "Off"
                     : null,
             },
           ]
@@ -880,12 +869,15 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
 
   if (section === "modules") {
     const primary = primaryPortalLicense(data.licenses);
+    // License Engine entitlements only (plan / custom package) — never catalog/ERP union.
     const moduleItems = Array.from(
-      new Set([
-        ...(primary?.modules || []),
-        ...data.licenses.flatMap((l) => l.modules),
-        ...data.modules.filter(Boolean),
-      ])
+      new Set(
+        (
+          primary?.modules?.length
+            ? primary.modules
+            : data.licenses.flatMap((l) => l.modules)
+        ).filter(Boolean)
+      )
     );
     body = moduleItems.length ? (
       <div className="space-y-6">
@@ -930,11 +922,13 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   if (section === "feature-packs") {
     const primary = primaryPortalLicense(data.licenses);
     const packs = Array.from(
-      new Set([
-        ...(primary?.feature_packs || []),
-        ...data.licenses.flatMap((l) => l.feature_packs),
-        ...data.featurePacks.filter(Boolean),
-      ])
+      new Set(
+        (
+          primary?.feature_packs?.length
+            ? primary.feature_packs
+            : data.licenses.flatMap((l) => l.feature_packs)
+        ).filter(Boolean)
+      )
     );
     body = packs.length ? (
       <div className="space-y-6">

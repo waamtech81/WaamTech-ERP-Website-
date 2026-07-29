@@ -4,15 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Bell,
-  ChevronDown,
-  LogOut,
-  Menu,
-  Search,
-  X,
-} from "lucide-react";
+import { Bell, ChevronDown, ExternalLink, LogOut, Menu, Search, X } from "lucide-react";
 import { BrandLogo } from "@/components/shared/brand-logo";
+import { siteConfig } from "@/lib/data/site";
 import { cn } from "@/lib/utils";
 import { getAccessibleNav } from "@/components/portal/portal-access";
 import { isNavActive, PORTAL_NAV_GROUPS } from "@/components/portal/portal-nav";
@@ -139,7 +133,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         aria-label="Customer portal navigation"
       >
         <div className="flex h-16 items-center justify-between gap-3 border-b border-[var(--portal-border)] px-5">
-          <BrandLogo hideTagline height={26} />
+          <BrandLogo height={26} />
           <button
             type="button"
             className="portal-focus-ring rounded-lg p-2 text-[var(--portal-muted)] hover:bg-[var(--portal-soft)] lg:hidden"
@@ -161,6 +155,14 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
                 <PortalStatusBadge status={plan} />
               </div>
             ) : null}
+            <a
+              href={siteConfig.appUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="portal-focus-ring mt-3 flex w-full items-center justify-center rounded-lg border border-[var(--portal-primary)]/30 bg-[var(--portal-primary-soft)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-primary)] transition hover:border-[var(--portal-primary)] hover:bg-[var(--portal-primary)] hover:text-white"
+            >
+              WAAMTO ERP Login
+            </a>
           </div>
         </div>
 

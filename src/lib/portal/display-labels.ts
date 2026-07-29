@@ -60,12 +60,46 @@ export function formatPortalReference(value?: string | null): string {
   return raw;
 }
 
+const FEATURE_PACK_LABELS: Record<string, string> = {
+  CORE_OPS: "Core Operations",
+  CORE_ALL_MODULES: "All Core Modules",
+  BUILDER_STARTER: "Builder Starter",
+  BUILDER_GROWTH: "Builder Growth",
+  BUILDER_ENTERPRISE: "Builder Enterprise",
+};
+
+/** Human-readable feature pack name for portal (catalog map overrides static labels). */
+export function formatFeaturePackLabel(
+  code?: string | null,
+  catalog?: Map<string, string> | Record<string, string>
+): string {
+  const raw = String(code || "").trim();
+  if (!raw) return "Feature pack";
+  const map =
+    catalog instanceof Map
+      ? catalog
+      : catalog
+        ? new Map(Object.entries(catalog))
+        : null;
+  const fromCatalog = map?.get(raw);
+  if (fromCatalog) return fromCatalog;
+  if (FEATURE_PACK_LABELS[raw]) return FEATURE_PACK_LABELS[raw];
+  return raw
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /** Renewal row label instead of internal id. */
 export function formatPortalRenewalLabel(input: {
   id?: string | null;
   renewal_date?: string | null;
+  payment_date?: string | null;
+  completed_at?: string | null;
 }): string {
-  const date = input.renewal_date ? String(input.renewal_date).slice(0, 10) : "";
+  const date = [input.renewal_date, input.payment_date, input.completed_at]
+    .map((v) => (v ? String(v).slice(0, 10) : ""))
+    .find(Boolean) || "";
   if (date) {
     try {
       const formatted = new Intl.DateTimeFormat(undefined, {

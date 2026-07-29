@@ -852,13 +852,24 @@ html.portal-dark {
   color: var(--portal-muted);
   border-bottom: 1px solid var(--portal-border);
   white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .portal-table td {
   padding: 0.875rem 1rem;
   border-bottom: 1px solid var(--portal-border);
-  vertical-align: middle;
+  vertical-align: top;
   color: var(--portal-fg);
+}
+
+.portal-table-renewal {
+  min-width: 11rem;
+  max-width: 16rem;
+}
+
+.portal-table-actions {
+  min-width: 12rem;
+  max-width: 22rem;
 }
 
 .portal-table tbody tr:last-child td {

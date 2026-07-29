@@ -140,7 +140,7 @@ export function PortalBusinessProfileView({ embedded = false }: { embedded?: boo
             </p>
           </div>
           <Button asChild size="sm" className="rounded-xl">
-            <Link href="/portal/create-business">
+            <Link href="/portal/plans?intent=new_place" className="inline-flex items-center gap-2">
               <Plus className="h-4 w-4" />
               Add another business
             </Link>
@@ -155,7 +155,10 @@ export function PortalBusinessProfileView({ embedded = false }: { embedded?: boo
             </p>
           </div>
           <Button asChild size="sm" variant="outline" className="rounded-xl h-8">
-            <Link href="/portal/create-business">Add business</Link>
+            <Link href="/portal/plans?intent=new_place" className="inline-flex items-center gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              Add business
+            </Link>
           </Button>
         </div>
       )}

@@ -510,10 +510,10 @@ export function getCategoryAccessHints(
 
 export const mobileAppPage = {
   hero: {
-    eyebrow: "Access anywhere",
-    title: "One platform — responsive web + native mobile app",
+    eyebrow: "Mobile ERP access",
+    title: "WAAMTO mobile ERP — responsive web + native Android app",
     description:
-      "WaamTech runs as a full responsive web app on desktop, tablet, and phone. For businesses that work in the field, we also provide a native mobile app — included based on your business profile.",
+      "Run your business from any browser on desktop, tablet, or phone. For distribution, warehouse, field service, and delivery teams, the native WAAMTO Android app is included based on your business profile at signup.",
     image:
       "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fm=webp&fit=crop&w=1600&q=70",
     imageAlt: "Person using business mobile app on smartphone",
@@ -580,23 +580,33 @@ export const mobileAppPage = {
         text: "1 user · full responsive web on all devices. Native app available when your profile recommends it.",
       },
       {
-        plan: "Professional",
-        text: "5 users included (extra on demand) · responsive web + native mobile for recommended field profiles.",
-      },
-      {
-        plan: "Business & above",
-        text: "10+ users (extra on demand) · responsive web + native mobile for all field roles, with Maps & WhatsApp where enabled.",
+        plan: "Business",
+        text: "Multi-user cloud ERP · responsive web on every device. Native Android app included when your business profile recommends field access.",
       },
       {
         plan: "Lifetime",
-        text: "25 users included (extra on demand) · full modules, AI Workspace, and mobile for field roles.",
+        text: "One-time purchase · full modules, AI workspace, and mobile access for field roles — based on your selected business profile.",
       },
       {
         plan: "By business profile",
-        text: "If you pick Distribution, Water delivery, Field service, Warehouse, or Property — mobile app is marked required and included in onboarding.",
+        text: "Distribution, water delivery, field service, warehouse, and property management mark mobile app as required. Retail, pharmacy, and office-first profiles use responsive web; native app is optional or not required.",
       },
     ],
   },
+  faqs: [
+    {
+      q: "Is the WAAMTO mobile app included in every plan?",
+      a: "Every plan includes the full responsive web app on desktop, tablet, and phone. The native Android mobile app is included when your business profile requires or recommends field work.",
+    },
+    {
+      q: "Which business profiles require the native mobile app?",
+      a: "Distribution, water delivery, field service, warehouse operations, and property maintenance typically require the native app for drivers, technicians, and floor teams.",
+    },
+    {
+      q: "Can I use WAAMTO on my phone without installing an app?",
+      a: "Yes. Sign in from any mobile browser for approvals, dashboards, and alerts. The native app adds barcode scanning and offline-friendly field workflows where your profile needs them.",
+    },
+  ],
 };
 
 export const mobileAppRequiredIds = Object.entries(industryMobileApp)
@@ -606,3 +616,134 @@ export const mobileAppRequiredIds = Object.entries(industryMobileApp)
 export const mobileAppRecommendedIds = Object.entries(industryMobileApp)
   .filter(([, v]) => v.level === "recommended")
   .map(([id]) => id);
+
+export type MobileProfileCard = {
+  id: string;
+  name: string;
+  info: IndustryMobileApp;
+};
+
+export type MobileProfileSectionKey =
+  | "required"
+  | "recommended"
+  | "optional"
+  | "not_required";
+
+export const mobileProfileSectionMeta: Record<
+  MobileProfileSectionKey,
+  { title: string; badgeClass: string; panelClass: string }
+> = {
+  required: {
+    title: "Mobile app required",
+    badgeClass: "bg-rose-600 text-white hover:bg-rose-600",
+    panelClass: "border-rose-200 bg-rose-50/60",
+  },
+  recommended: {
+    title: "Mobile app recommended",
+    badgeClass: "bg-amber-600 text-white hover:bg-amber-600",
+    panelClass: "border-amber-200 bg-amber-50/50",
+  },
+  optional: {
+    title: "Optional / responsive web",
+    badgeClass: "bg-sky-600 text-white hover:bg-sky-600",
+    panelClass: "border-sky-200 bg-sky-50/50",
+  },
+  not_required: {
+    title: "Mobile app not required",
+    badgeClass: "bg-slate-600 text-white hover:bg-slate-600",
+    panelClass: "border-slate-200 bg-slate-50/70",
+  },
+};
+
+function sectionKeyForLevel(level: MobileAppLevel): MobileProfileSectionKey {
+  if (level === "required") return "required";
+  if (level === "recommended") return "recommended";
+  if (level === "not_included") return "not_required";
+  return "optional";
+}
+
+/** Group business profiles/categories for mobile-app page rows. Engine mobile_requirement wins. */
+export function groupMobileProfileCards(
+  items: Array<{
+    id: string;
+    name: string;
+    code?: string | null;
+    mobileRequirement?: string | null;
+  }>
+): Record<MobileProfileSectionKey, MobileProfileCard[]> {
+  const grouped: Record<MobileProfileSectionKey, MobileProfileCard[]> = {
+    required: [],
+    recommended: [],
+    optional: [],
+    not_required: [],
+  };
+
+  const seen = new Set<string>();
+  for (const item of items) {
+    const key = normalizeMobileCatalogKey(item.code || item.id);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const info = getIndustryMobileApp(item.code || item.id, item.mobileRequirement);
+    grouped[sectionKeyForLevel(info.level)].push({
+      id: item.id,
+      name: item.name,
+      info,
+    });
+  }
+
+  for (const section of Object.keys(grouped) as MobileProfileSectionKey[]) {
+    grouped[section].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  return grouped;
+}
+
+export function buildMobilePlanPricingCards(
+  plans: Array<{
+    name?: string | null;
+    slug?: string | null;
+    tier?: string | null;
+    mobile_app_included?: boolean | null;
+    ios_app_ready?: boolean | null;
+  }>
+): Array<{ plan: string; badge?: string; text: string }> {
+  const bySlug = new Map(
+    plans.map((p) => [String(p.slug || p.tier || "").toLowerCase(), p])
+  );
+  const starter = bySlug.get("starter");
+  const business = bySlug.get("business");
+  const lifetime = bySlug.get("lifetime");
+
+  const cards: Array<{ plan: string; badge?: string; text: string }> = [];
+
+  if (starter) {
+    cards.push({
+      plan: starter.name || "Starter",
+      badge: starter.mobile_app_included ? "Mobile ready" : "Web + mobile browser",
+      text: "Essential cloud ERP for small teams. Full responsive web on desktop, tablet, and phone. Native app when your profile recommends field access.",
+    });
+  }
+  if (business) {
+    cards.push({
+      plan: business.name || "Business",
+      badge: business.mobile_app_included ? "Mobile included" : "Multi-user",
+      text: "Growing businesses with more users and modules. Responsive web everywhere; native Android app for recommended field profiles.",
+    });
+  }
+  if (lifetime) {
+    cards.push({
+      plan: lifetime.name || "Lifetime",
+      badge: "One-time",
+      text: "Pay once, run long-term. Full modules and mobile access for field roles based on your business profile at signup.",
+    });
+  }
+
+  cards.push({
+    plan: "By business profile",
+    badge: "Smart match",
+    text: mobileAppPage.pricingNote.items.find((i) => i.plan === "By business profile")?.text ||
+      "Required for distribution & field ops; optional or not required for desk-first retail and office profiles.",
+  });
+
+  return cards.length ? cards : mobileAppPage.pricingNote.items;
+}

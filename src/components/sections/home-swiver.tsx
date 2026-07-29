@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useMemo, useState, useTransition } from "react";
 import { ArrowRight, Star } from "lucide-react";
 import { coreCapabilities } from "@/lib/data/core";
 import {
@@ -16,6 +17,9 @@ import { Price } from "@/components/shared/price";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { useLocale } from "@/components/providers/locale-provider";
 import { testimonials, siteConfig } from "@/lib/data/site";
 import { authConfig } from "@/lib/auth/config";
 import { PricingCards } from "@/components/sections/pricing-cards";
@@ -327,15 +331,31 @@ export function SocialProofSection() {
 }
 
 export function PricingTeaser() {
+  const [yearly, setYearly] = useState(true);
+  const [, startTransition] = useTransition();
+  const { t, formatPrice } = useLocale();
   const catalog = useCatalogBundle();
   const plans = catalog.data.popularPlans?.length
     ? catalog.data.popularPlans
     : (catalog.data.cardPlans || []).slice(0, 3);
   const enterprise = catalog.data.enterprise;
   const prices = plans
-    .map((p) => p.yearlyPrice ?? p.monthlyPrice)
+    .map((p) => (yearly ? p.yearlyPrice : p.monthlyPrice) ?? p.yearlyPrice ?? p.monthlyPrice)
     .filter((v): v is number => typeof v === "number" && v > 0);
   const fromUsd = prices.length ? Math.min(...prices) : null;
+  const yearlySavingsHint = useMemo(() => {
+    const withSavings = plans
+      .map((p) => p.yearlySavingsAmount)
+      .filter((n): n is number => n != null && n > 0);
+    if (!withSavings.length) return null;
+    return Math.max(...withSavings);
+  }, [plans]);
+
+  function onBillingChange(nextYearly: boolean) {
+    startTransition(() => {
+      setYearly(nextYearly);
+    });
+  }
 
   return (
     <Section muted>
@@ -373,7 +393,29 @@ export function PricingTeaser() {
           <CatalogEmptyState message="No public plans are available yet." />
         ) : null}
         {!catalog.loading && plans.length > 0 ? (
-          <PricingCards plans={plans} yearly={true} compact columns="sm:grid-cols-2 xl:grid-cols-3" />
+          <>
+            <div className="mb-4 flex min-h-9 flex-wrap items-center justify-center gap-3 notranslate" translate="no">
+              <Label
+                htmlFor="home-billing"
+                className={!yearly ? "text-foreground" : "text-muted-foreground"}
+              >
+                {t("pricing.monthly", "Monthly")}
+              </Label>
+              <Switch id="home-billing" checked={yearly} onCheckedChange={onBillingChange} />
+              <Label
+                htmlFor="home-billing"
+                className={yearly ? "text-foreground" : "text-muted-foreground"}
+              >
+                {t("pricing.yearly", "Yearly")}
+              </Label>
+              {yearly && yearlySavingsHint ? (
+                <Badge variant="accent">
+                  Save up to <span translate="no">{formatPrice(yearlySavingsHint)}</span>/yr
+                </Badge>
+              ) : null}
+            </div>
+            <PricingCards plans={plans} yearly={yearly} compact columns="sm:grid-cols-2 xl:grid-cols-3" />
+          </>
         ) : null}
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary to-[#0b1f3a] px-6 py-6 text-white flex flex-col">
@@ -424,7 +466,7 @@ export function PricingTeaser() {
         </div>
         <div className="mt-8 md:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Button asChild variant="link">
-            <Link href="/pricing">Compare all plans →</Link>
+            <Link href="/pricing#compare">Compare all plans →</Link>
           </Button>
           <Button asChild variant="outline" className="rounded-full" size="sm">
             <Link href="/servers">Servers & deployment</Link>

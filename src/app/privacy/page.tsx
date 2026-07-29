@@ -15,16 +15,17 @@ export default function PrivacyPage() {
       <Container className="max-w-3xl">
         <Breadcrumbs items={[{ label: "Privacy Policy" }]} />
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Privacy Policy</h1>
-        <p className="mt-4 text-muted-foreground">Last updated: July 18, 2026</p>
+        <p className="mt-4 text-muted-foreground">Last updated: July 29, 2026</p>
         <div className="mt-10 space-y-8 text-muted-foreground leading-relaxed">
           <p>
             {siteConfig.companyName} (&ldquo;WaamTech,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
-            &ldquo;our&rdquo;) operates {siteConfig.fullName}, an Enterprise ERP platform, along with
-            our marketing website ({siteConfig.url}), cloud application ({siteConfig.appUrl}),
-            license and customer portal services ({siteConfig.licensePortalUrl}), and related support
-            channels. This Privacy Policy explains how we collect, use, share, and protect personal
-            information when you visit our sites, create an account, start a trial, subscribe, or
-            contact us.
+            &ldquo;our&rdquo;) operates {siteConfig.fullName}, a modular Enterprise ERP platform, together with
+            our marketing website ({siteConfig.url}), cloud ERP application ({siteConfig.appUrl}),
+            customer portal ({siteConfig.url}/portal), License Engine and billing services (
+            {siteConfig.licensePortalUrl}), the Build Your Own ERP configurator, mobile apps, documentation
+            at doc.waamto.com, and related support channels. This Privacy Policy explains how we collect,
+            use, share, and protect personal information when you visit our sites, create an account, configure
+            a custom package, start a trial, subscribe, pay invoices, or contact us.
           </p>
           <p>
             Privacy is part of how WAAMTO is built: least-privilege access, clear tenant boundaries,
@@ -66,10 +67,13 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-semibold text-foreground">2. Information we collect</h2>
             <h3 className="text-base font-semibold text-foreground">Account &amp; workspace information</h3>
             <p>
-              When you sign up or manage a subscription we may collect name, business name, email,
-              phone, password (stored securely), industry / business category selections, plan
-              choices, billing details, license identifiers, and role assignments for invited users.
-              Login and sensitive actions may use OTP verification codes sent to your email.
+              When you sign up, use the customer portal, or manage a subscription we may collect name,
+              business name, email, phone, password (stored securely), industry and business category
+              selections, plan or custom ERP configuration (modules, feature packs, limits), billing and
+              payment details, license identifiers, invoice history, and role assignments for invited
+              users. Login, signup, and sensitive account changes may use email OTP verification codes.
+              Starter, Business, Lifetime, and custom ERP plans may include different user-seat limits and
+              optional extra-user purchases as shown at checkout.
             </p>
             <h3 className="text-base font-semibold text-foreground">Customer Data in the ERP</h3>
             <p>
@@ -84,6 +88,15 @@ export default function PrivacyPage() {
               We may collect IP address, browser and device type, pages viewed, referring URLs,
               approximate location derived from IP, session diagnostics, feature usage, and audit /
               activity logs needed for security, licensing validation, and product improvement.
+            </p>
+            <h3 className="text-base font-semibold text-foreground">Billing &amp; payment information</h3>
+            <p>
+              When you pay through our customer portal or checkout we may receive billing address,
+              transaction references, invoice history, and payment status from processors such as card,
+              Stripe, PayPal, or Wise where enabled. Approved online payments may be processed
+              automatically; manual or bank-transfer methods may require review before access is
+              extended. We do not store full payment card numbers on WAAMTO servers when processing
+              is handled by the gateway.
             </p>
             <h3 className="text-base font-semibold text-foreground">Communications</h3>
             <p>
@@ -104,8 +117,8 @@ export default function PrivacyPage() {
             <ul className="list-disc space-y-2 pl-5">
               <li>provide, host, maintain, and secure WAAMTO and related portals;</li>
               <li>create and administer workspaces, users, roles, trials, licenses, and subscriptions;</li>
-              <li>process payments, invoices, renewals, upgrades, and plan changes;</li>
-              <li>send transactional messages (OTP codes, password resets, trial notices, billing alerts);</li>
+              <li>process payments, invoices, renewals, upgrades, downgrades, extra seats, and custom ERP purchases;</li>
+              <li>send transactional messages (OTP codes, password resets, trial notices, billing alerts, invoice PDFs to your registered email);</li>
               <li>deliver support, onboarding, and customer success;</li>
               <li>operate AI Workspace features on your stack for eligible plans, with activity auditing;</li>
               <li>monitor reliability, prevent abuse, enforce Terms, and investigate security incidents;</li>

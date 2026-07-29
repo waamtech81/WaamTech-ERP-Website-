@@ -224,7 +224,32 @@ function FancySelect({
 }
 
 /** Shown on predefined / direct signup — link to Custom ERP Builder. */
-function CustomErpSignupPrompt({ className }: { className?: string }) {
+function CustomErpSignupPrompt({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col gap-2 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 to-sky-50/80 px-3 py-3 sm:flex-row sm:items-center sm:justify-between",
+          className
+        )}
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[#0b1f3a]">Need your own custom ERP?</p>
+          <p className="text-xs text-muted-foreground">Choose modules only — live pricing.</p>
+        </div>
+        <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full border-primary/30">
+          <Link href="/build-your-own-erp">Build your own ERP →</Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -1341,8 +1366,8 @@ function SignUpForm({
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
       <RecaptchaV3 />
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
-      <div className="container-site relative grid gap-8 py-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-10 lg:py-16">
-        <div className="max-w-xl lg:sticky lg:top-24">
+      <div className="container-site relative grid gap-6 py-8 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:items-start lg:gap-8 lg:py-10">
+        <div className="max-w-xl lg:sticky lg:top-20 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:pr-1">
           <Badge variant="accent" className="mb-4">
             <Sparkles className="h-3 w-3 mr-1" />
             {isPaidSignup
@@ -1360,7 +1385,12 @@ function SignUpForm({
               ? "Review your package and pricing, create your account, verify your email, then complete checkout to activate WAAMTO ERP."
               : "Choose your product, plan, industry, and business category — then verify your email to start your trial."}
           </p>
-          <ul className="mt-6 sm:mt-8 space-y-3 text-sm text-muted-foreground">
+          <ul
+            className={cn(
+              "mt-5 sm:mt-6 space-y-2.5 text-sm text-muted-foreground",
+              !isCustomPackage && selectedIndustry && selectedCategory ? "lg:hidden" : ""
+            )}
+          >
             {(isPaidSignup
               ? [
                   "Custom ERP and Lifetime plans require payment before activation",
@@ -1431,82 +1461,84 @@ function SignUpForm({
           ) : (
             <>
               {selectedIndustry && selectedCategory ? (
-            <div className="mt-6 sm:mt-8 space-y-4 hidden lg:block">
-              {selectedProduct && selectedPlan ? (
-                <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Your selection
-                  </p>
-                  <p className="mt-1 font-semibold text-[#0b1f3a] text-sm leading-relaxed">
-                    {selectedProduct.name} · {selectedPlan.name}
-                    {billingCycle ? ` · ${billingCycle}` : ""}
-                  </p>
-                  {enginePricing?.price != null ? (
-                    <p className="mt-2 text-sm text-[#0b1f3a]">
-                      {enginePricing.originalPrice != null &&
-                      enginePricing.originalPrice > enginePricing.price ? (
-                        <span className="mr-2 text-muted-foreground line-through">
-                          {formatPrice(enginePricing.originalPrice)}
-                        </span>
-                      ) : null}
-                      <span className="font-semibold">{formatPrice(enginePricing.price)}</span>
-                      <span className="text-muted-foreground">
-                        {" "}
-                        {enginePricing.unitLabel}
-                      </span>
-                      {enginePricing.savings != null && enginePricing.savings > 0 ? (
-                        <span className="ml-2 text-emerald-700">
-                          Save {formatPrice(enginePricing.savings)}
-                        </span>
-                      ) : enginePricing.discountPercent ? (
-                        <span className="ml-2 text-emerald-700">
-                          {enginePricing.discountPercent}% off
-                        </span>
-                      ) : null}
+            <div className="mt-4 sm:mt-5 hidden lg:block">
+              <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+                {selectedProduct && selectedPlan ? (
+                  <div className="border-b border-border px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Your selection
                     </p>
-                  ) : null}
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {selectedIndustry.name} → {selectedCategory.name}
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Selected category
-                  </p>
-                  <p className="mt-1 font-semibold text-[#0b1f3a]">
-                    {selectedIndustry.name}
-                    <span className="mx-2 text-muted-foreground font-normal">→</span>
-                    {selectedCategory.name}
-                  </p>
-                  {selectedIndustry.description ? (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {selectedIndustry.description}
+                    <p className="mt-0.5 text-sm font-semibold text-[#0b1f3a] leading-snug">
+                      {selectedProduct.name} · {selectedPlan.name}
+                      {billingCycle ? ` · ${billingCycle}` : ""}
                     </p>
-                  ) : null}
+                    {enginePricing?.price != null ? (
+                      <p className="mt-1.5 text-xs text-[#0b1f3a]">
+                        {enginePricing.originalPrice != null &&
+                        enginePricing.originalPrice > enginePricing.price ? (
+                          <span className="mr-1.5 text-muted-foreground line-through">
+                            {formatPrice(enginePricing.originalPrice)}
+                          </span>
+                        ) : null}
+                        <span className="font-semibold">{formatPrice(enginePricing.price)}</span>
+                        <span className="text-muted-foreground"> {enginePricing.unitLabel}</span>
+                        {enginePricing.savings != null && enginePricing.savings > 0 ? (
+                          <span className="ml-1.5 text-emerald-700">
+                            Save {formatPrice(enginePricing.savings)}
+                          </span>
+                        ) : enginePricing.discountPercent ? (
+                          <span className="ml-1.5 text-emerald-700">
+                            {enginePricing.discountPercent}% off
+                          </span>
+                        ) : null}
+                      </p>
+                    ) : null}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {selectedIndustry.name} → {selectedCategory.name}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border-b border-border px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Selected category
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold text-[#0b1f3a]">
+                      {selectedIndustry.name}
+                      <span className="mx-1.5 text-muted-foreground font-normal">→</span>
+                      {selectedCategory.name}
+                    </p>
+                  </div>
+                )}
+                <div className="space-y-2 bg-muted/20 p-3">
+                  <PosProfileCallout
+                    compact
+                    categoryName={selectedCategory.name}
+                    posRequirement={
+                      selectedCategory.pos_requirement ?? selectedCategory.pos_mode
+                    }
+                    className="rounded-xl p-3 md:p-3"
+                  />
+                  <MobileAppProfileCallout
+                    compact
+                    categoryCode={selectedCategory.code}
+                    categorySlug={selectedCategory.slug}
+                    industryCode={selectedIndustry.code}
+                    industrySlug={selectedIndustry.slug}
+                    industryName={selectedCategory.name}
+                    mobileRequirement={
+                      selectedCategory.mobile_requirement ?? selectedCategory.mobile_mode
+                    }
+                    className="rounded-xl p-3 md:p-3"
+                  />
                 </div>
-              )}
-              <div className="space-y-3">
-                <PosProfileCallout
-                  categoryName={selectedCategory.name}
-                  posRequirement={
-                    selectedCategory.pos_requirement ?? selectedCategory.pos_mode
-                  }
-                />
-                <MobileAppProfileCallout
-                  categoryCode={selectedCategory.code}
-                  categorySlug={selectedCategory.slug}
-                  industryCode={selectedIndustry.code}
-                  industrySlug={selectedIndustry.slug}
-                  industryName={selectedCategory.name}
-                  mobileRequirement={
-                    selectedCategory.mobile_requirement ?? selectedCategory.mobile_mode
-                  }
-                />
+                <div className="border-t border-border bg-white p-3">
+                  <CustomErpSignupPrompt compact />
+                </div>
               </div>
             </div>
-              ) : null}
-              <CustomErpSignupPrompt className="mt-6 sm:mt-8 hidden lg:block" />
+              ) : (
+                <CustomErpSignupPrompt className="mt-4 sm:mt-5 hidden lg:block" />
+              )}
             </>
           )}
         </div>
@@ -2255,9 +2287,16 @@ function SignUpForm({
                   checked={marketingOptIn}
                   onCheckedChange={(v) => setMarketingOptIn(v === true)}
                 />
-                <Label htmlFor="marketing" className="text-sm font-normal text-muted-foreground leading-relaxed">
-                  Send me product updates and marketing emails (optional).
-                </Label>
+                <div className="space-y-1">
+                  <Label htmlFor="marketing" className="text-sm font-normal text-muted-foreground leading-relaxed">
+                    Send me product updates and marketing emails (optional).
+                  </Label>
+                  {marketingOptIn && email.trim() ? (
+                    <p className="text-xs text-emerald-700">
+                      Updates will be sent to {email.trim().toLowerCase()} after signup.
+                    </p>
+                  ) : null}
+                </div>
               </div>
 
               {error ? (

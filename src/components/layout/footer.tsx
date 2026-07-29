@@ -159,18 +159,18 @@ export function Footer() {
               </Link>
               <a
                 href={siteConfig.social.linkedin}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.05] text-slate-400 transition-colors hover:border-white/10 hover:text-white"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#0A66C2] text-white transition-opacity hover:opacity-90"
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 aria-label="LinkedIn"
               >
                 <LinkedInIcon className="h-4 w-4" />
               </a>
               <a
                 href={siteConfig.social.youtube}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.05] text-slate-400 transition-colors hover:border-white/10 hover:text-white"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#FF0000] text-white transition-opacity hover:opacity-90"
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 aria-label="YouTube"
               >
                 <YouTubeIcon className="h-4 w-4" />

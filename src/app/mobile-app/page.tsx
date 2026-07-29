@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Check, Smartphone } from "lucide-react";
 import {
-  getIndustryMobileApp,
+  buildMobilePlanPricingCards,
+  groupMobileProfileCards,
   mobileAppLevelCopy,
   mobileAppPage,
-  mobileAppRecommendedIds,
-  mobileAppRequiredIds,
+  mobileProfileSectionMeta,
+  type MobileProfileSectionKey,
 } from "@/lib/data/mobile-app";
 import { industriesServing } from "@/lib/data/industries";
 import { getIcon } from "@/lib/icons";
@@ -15,33 +15,142 @@ import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { CTASection } from "@/components/shared/cta-section";
+import { JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  fetchPublicBusinessCategories,
+  fetchPublicPlans,
+} from "@/lib/commercial/client";
+import { buildAbsoluteSiteUrl } from "@/lib/urls";
+import { siteConfig } from "@/lib/data/site";
 
-export const metadata: Metadata = {
-  title: "Mobile App & Responsive Web Access",
-  description:
-    "Use WaamTech on desktop, tablet, and phone — full responsive web app anytime. Native mobile app included for field businesses based on your business profile.",
-};
+const SECTION_ORDER: MobileProfileSectionKey[] = [
+  "required",
+  "recommended",
+  "optional",
+  "not_required",
+];
 
-export default function MobileAppPage() {
-  const requiredProfiles = industriesServing.filter((i) =>
-    mobileAppRequiredIds.includes(i.id)
+function ProfileCardRow({
+  sectionKey,
+  items,
+}: {
+  sectionKey: MobileProfileSectionKey;
+  items: Array<{ id: string; name: string; info: { badge: string; note: string; level: string } }>;
+}) {
+  if (!items.length) return null;
+  const meta = mobileProfileSectionMeta[sectionKey];
+  const copy = mobileAppLevelCopy[
+    sectionKey === "not_required"
+      ? "not_included"
+      : sectionKey === "optional"
+        ? "optional"
+        : sectionKey
+  ];
+
+  return (
+    <div className={`rounded-2xl border p-4 md:p-6 ${meta.panelClass}`}>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Badge className={meta.badgeClass}>{meta.title}</Badge>
+        <p className="text-sm text-muted-foreground max-w-3xl">{copy.description}</p>
+      </div>
+      <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-thin">
+        {items.map((item) => (
+          <Link
+            key={item.id}
+            href={`/industries/${item.id}`}
+            className="min-w-[11.5rem] max-w-[14rem] shrink-0 snap-start rounded-xl border border-white/80 bg-white px-3 py-3 shadow-sm transition-colors hover:border-primary/30"
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">
+              {item.info.badge}
+            </p>
+            <p className="mt-1 font-medium text-[#0b1f3a] text-sm leading-snug">{item.name}</p>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground line-clamp-3">
+              {item.info.note}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
-  const recommendedProfiles = industriesServing.filter((i) =>
-    mobileAppRecommendedIds.includes(i.id)
+}
+
+export default async function MobileAppPage() {
+  const [categoriesRes, plansRes] = await Promise.all([
+    fetchPublicBusinessCategories(),
+    fetchPublicPlans("waamto-erp"),
+  ]);
+
+  const catalogCategories = (categoriesRes.data || []).filter(
+    (c) => c.is_public !== false && String(c.status || "active") === "active"
   );
+
+  const profileSource =
+    catalogCategories.length > 0
+      ? catalogCategories.map((c) => ({
+          id: c.slug || c.code,
+          name: c.name,
+          code: c.code,
+          mobileRequirement: c.mobile_requirement ?? c.mobile_mode ?? null,
+        }))
+      : industriesServing.map((p) => ({
+          id: p.id,
+          name: p.name,
+          code: p.id,
+          mobileRequirement: null as string | null,
+        }));
+
+  const groupedProfiles = groupMobileProfileCards(profileSource);
+  const pricingCards = buildMobilePlanPricingCards(plansRes.data || []);
+
+  const pageUrl = buildAbsoluteSiteUrl("/mobile-app");
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        name: "WAAMTO Mobile ERP App — Android & Responsive Web",
+        description:
+          "Native Android ERP app and responsive web access for WAAMTO. Mobile requirements vary by business profile.",
+        url: pageUrl,
+        isPartOf: { "@type": "WebSite", name: siteConfig.name, url: buildAbsoluteSiteUrl("/") },
+      },
+      {
+        "@type": "SoftwareApplication",
+        name: "WAAMTO ERP Mobile",
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Android, Web",
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+          description: "Included with WAAMTO ERP plans based on business profile",
+        },
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: mobileAppPage.faqs.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      },
+    ],
+  };
 
   return (
     <>
+      <JsonLd data={jsonLd} />
+
       <Section className="!pb-0 !pt-12 md:!pt-16 overflow-hidden">
         <Container>
           <Breadcrumbs items={[{ label: "Mobile App" }]} />
           <div className="grid gap-10 lg:grid-cols-2 lg:items-center pb-16">
             <AnimateIn>
               <Badge variant="accent" className="mb-4">
-                <Smartphone className="h-3 w-3 mr-1" />
+                <Smartphone className="h-3 w-3 mr-1" aria-hidden />
                 {mobileAppPage.hero.eyebrow}
               </Badge>
               <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
@@ -54,11 +163,11 @@ export default function MobileAppPage() {
                 <Button asChild size="lg" className="rounded-full">
                   <Link href="/signup">
                     Start free trial
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-4 w-4" aria-hidden />
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="rounded-full">
-                  <Link href="/pricing">See plans & mobile access</Link>
+                  <Link href="/pricing">See plans &amp; mobile access</Link>
                 </Button>
               </div>
             </AnimateIn>
@@ -69,6 +178,7 @@ export default function MobileAppPage() {
                   alt={mobileAppPage.hero.imageAlt}
                   fill
                   priority
+                  quality={70}
                   className="object-cover"
                   sizes="(max-width: 1024px) 100vw, 50vw"
                 />
@@ -95,7 +205,7 @@ export default function MobileAppPage() {
                   <Card className="h-full text-center">
                     <CardHeader>
                       <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/8 text-primary">
-                        <Icon className="h-5 w-5" />
+                        <Icon className="h-5 w-5" aria-hidden />
                       </div>
                       <CardTitle className="text-lg">{d.title}</CardTitle>
                     </CardHeader>
@@ -115,7 +225,7 @@ export default function MobileAppPage() {
           <SectionHeader
             eyebrow="Two ways to work"
             title="Responsive web for everyone. Native app where the field needs it."
-            description="These are different products working on the same data — pick what your team actually uses day to day."
+            description="Same live ERP data — choose browser access, native Android, or both depending on how your team works."
           />
           <div className="grid gap-8 lg:grid-cols-2">
             {mobileAppPage.dual.map((block, i) => (
@@ -126,6 +236,7 @@ export default function MobileAppPage() {
                       src={block.image}
                       alt={block.title}
                       fill
+                      quality={70}
                       className="object-cover"
                       sizes="(max-width: 1024px) 100vw, 50vw"
                     />
@@ -141,7 +252,7 @@ export default function MobileAppPage() {
                     <ul className="space-y-2.5">
                       {block.points.map((p) => (
                         <li key={p} className="flex gap-2 text-sm text-muted-foreground">
-                          <Check className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                          <Check className="h-4 w-4 text-accent shrink-0 mt-0.5" aria-hidden />
                           {p}
                         </li>
                       ))}
@@ -158,59 +269,22 @@ export default function MobileAppPage() {
         <Container>
           <SectionHeader
             eyebrow="By business profile"
-            title="Mobile app depends on how you work"
-            description="When you select a business type at signup, we show whether the native mobile app is required, recommended, or available — so there are no surprises."
+            title="Mobile app requirement by industry"
+            description={
+              catalogCategories.length > 0
+                ? "Live from WaamTech commercial catalog — each business category shows whether the native mobile app is required, recommended, optional, or not required."
+                : "When you select a business type at signup, we show whether the native mobile app is required, recommended, or optional."
+            }
           />
 
-          <div className="mb-10 rounded-2xl border border-rose-200 bg-rose-50/60 p-6 md:p-8">
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <Badge className="bg-rose-600 text-white hover:bg-rose-600">
-                {mobileAppLevelCopy.required.title}
-              </Badge>
-              <p className="text-sm text-rose-900/80">{mobileAppLevelCopy.required.description}</p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {requiredProfiles.map((ind) => {
-                const info = getIndustryMobileApp(ind.id);
-                return (
-                  <Link
-                    key={ind.id}
-                    href={`/industries/${ind.id}`}
-                    className="rounded-xl border border-rose-100 bg-white px-4 py-3 hover:border-rose-300 transition-colors"
-                  >
-                    <p className="font-medium text-[#0b1f3a]">{ind.name}</p>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{info.note}</p>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-6 md:p-8">
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <Badge className="bg-amber-600 text-white hover:bg-amber-600">
-                {mobileAppLevelCopy.recommended.title}
-              </Badge>
-              <p className="text-sm text-amber-950/80">{mobileAppLevelCopy.recommended.description}</p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {recommendedProfiles.map((ind) => (
-                <Link
-                  key={ind.id}
-                  href={`/industries/${ind.id}`}
-                  className="rounded-xl border border-amber-100 bg-white px-4 py-3 hover:border-amber-300 transition-colors"
-                >
-                  <p className="font-medium text-[#0b1f3a]">{ind.name}</p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                    {getIndustryMobileApp(ind.id).note}
-                  </p>
-                </Link>
-              ))}
-            </div>
+          <div className="space-y-6">
+            {SECTION_ORDER.map((key) => (
+              <ProfileCardRow key={key} sectionKey={key} items={groupedProfiles[key]} />
+            ))}
           </div>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            All other profiles get full <strong>responsive web</strong> on every device. Native app can still be enabled when you need field access.{" "}
+            Every profile includes full <strong>responsive web</strong> on desktop, tablet, and phone.{" "}
             <Link href="/industries" className="text-primary hover:underline">
               Browse all industries →
             </Link>
@@ -222,15 +296,22 @@ export default function MobileAppPage() {
         <Container>
           <SectionHeader
             eyebrow="Pricing"
-            title={mobileAppPage.pricingNote.title}
-            description="Mobile access is part of how you subscribe — not a surprise add-on after go-live."
+            title="Mobile access on every WAAMTO plan"
+            description="Responsive web is always included. Native Android app follows your business profile — not a hidden add-on."
           />
-          <div className="grid gap-4 md:grid-cols-2">
-            {mobileAppPage.pricingNote.items.map((item, i) => (
-              <AnimateIn key={item.plan} delay={i * 0.05}>
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{item.plan}</CardTitle>
+          <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-4">
+            {pricingCards.map((item, i) => (
+              <AnimateIn key={item.plan} delay={i * 0.04}>
+                <Card className="h-full min-w-[13rem] shrink-0 snap-start md:min-w-0">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-base">{item.plan}</CardTitle>
+                      {item.badge ? (
+                        <Badge variant="muted" className="shrink-0 text-[10px]">
+                          {item.badge}
+                        </Badge>
+                      ) : null}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
@@ -241,8 +322,31 @@ export default function MobileAppPage() {
           </div>
           <div className="mt-8 text-center">
             <Button asChild className="rounded-full">
-              <Link href="/pricing">Compare pricing plans</Link>
+              <Link href="/pricing">Compare live pricing plans</Link>
             </Button>
+          </div>
+        </Container>
+      </Section>
+
+      <Section muted>
+        <Container className="max-w-3xl">
+          <SectionHeader
+            eyebrow="FAQ"
+            title="Mobile ERP app questions"
+            description="Quick answers about WAAMTO responsive web and native Android access."
+          />
+          <div className="space-y-3">
+            {mobileAppPage.faqs.map((faq) => (
+              <details
+                key={faq.q}
+                className="group rounded-xl border border-border bg-card px-4 py-3 open:shadow-sm"
+              >
+                <summary className="cursor-pointer list-none font-medium text-[#0b1f3a] marker:content-none [&::-webkit-details-marker]:hidden">
+                  {faq.q}
+                </summary>
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+              </details>
+            ))}
           </div>
         </Container>
       </Section>

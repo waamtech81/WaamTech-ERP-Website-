@@ -69,14 +69,15 @@ export default async function BlogPostPage({ params }: Props) {
         <p className="mt-4 text-lg leading-relaxed text-muted-foreground">{post.excerpt}</p>
         <p className="mt-6 text-sm text-muted-foreground">By {post.author}</p>
 
-        <div className="relative mt-8 aspect-[16/9] max-h-[360px] overflow-hidden rounded-xl bg-muted">
+        <div className="relative mt-8 max-h-[360px] overflow-hidden rounded-xl bg-muted">
           <Image
             src={optimizeImageUrl(post.image, { width: 1200 })}
             alt={post.title}
-            fill
+            width={1200}
+            height={675}
             sizes="(max-width: 768px) 100vw, 768px"
             quality={70}
-            className="object-cover"
+            className="h-auto w-full max-h-[360px] object-cover"
             priority
           />
         </div>

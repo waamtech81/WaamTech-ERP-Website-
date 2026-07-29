@@ -15,15 +15,16 @@ export default function TermsPage() {
       <Container className="max-w-3xl">
         <Breadcrumbs items={[{ label: "Terms of Service" }]} />
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Terms of Service</h1>
-        <p className="mt-4 text-muted-foreground">Last updated: July 18, 2026</p>
+        <p className="mt-4 text-muted-foreground">Last updated: July 29, 2026</p>
         <div className="mt-10 space-y-8 text-muted-foreground leading-relaxed">
           <p>
             These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of the{" "}
-            {siteConfig.fullName} website ({siteConfig.url}), customer portal, License Engine
-            services, cloud application ({siteConfig.appUrl}), and related products operated by{" "}
+            {siteConfig.fullName} website ({siteConfig.url}), customer portal ({siteConfig.url}/portal),
+            Build Your Own ERP configurator, License Engine services ({siteConfig.licensePortalUrl}),
+            cloud ERP application ({siteConfig.appUrl}), mobile apps, and related products operated by{" "}
             {siteConfig.companyName} (&ldquo;WaamTech,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
             &ldquo;our&rdquo;). By creating an account, starting a trial, purchasing a subscription
-            or license, or otherwise using WAAMTO, you agree to these Terms.
+            or license, configuring a custom ERP package, or otherwise using WAAMTO, you agree to these Terms.
           </p>
           <p>
             If you accept these Terms on behalf of a company or other legal entity, you represent
@@ -61,9 +62,11 @@ export default function TermsPage() {
               </li>
             </ul>
             <p>
-              Feature availability, user seats, multi-company / multi-branch support, API access,
-              support channels, and SLAs depend on your selected plan (for example Starter,
-              Business, Lifetime, or Enterprise) and any written order or enterprise agreement.
+              Feature availability, included user seats, modules, feature packs, tenant limits,
+              multi-company / multi-branch support, API access, support channels, and SLAs depend on
+              your selected plan (Starter, Business, Lifetime, Enterprise, or a custom ERP package
+              built through our configurator) and any written order or enterprise agreement shown at
+              checkout or in the customer portal.
             </p>
           </section>
 
@@ -89,33 +92,54 @@ export default function TermsPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">3. Free trials</h2>
             <p>
-              New Cloud SaaS workspaces may begin with a free trial (typically 14 days, as shown at
-              signup). A credit card is not required to start a trial. When the trial ends, continued
+              Eligible Cloud SaaS plans may include a free trial period shown at signup or on the
+              pricing page. A credit card is not required to start every trial. Trial length, included
+              modules, and seat limits depend on the plan you select. When the trial ends, continued
               access requires an active paid subscription or license unless we agree otherwise in
-              writing. Trial features, limits, and duration may change; the signup and pricing pages
-              control what applies at the time you register.
+              writing. Trial terms at the time of registration control what applies to your workspace.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">4. Subscriptions, licenses &amp; billing</h2>
             <p>
-              Paid plans renew according to the billing cycle you select (for example monthly or
-              yearly) unless canceled or changed through the customer portal or as otherwise agreed.
-              You may upgrade or downgrade where the commercial catalog allows; changes are typically
-              prorated and reflected on the next billing cycle.
+              Paid plans renew according to the billing cycle you select (monthly, yearly, or lifetime
+              where offered) unless canceled or changed through the customer portal or as otherwise
+              agreed. Plan upgrades and downgrades generally take effect at the next billing cycle.
+              Adding modules, feature packs, extra users, or other billable items may require immediate
+              payment; removing items may apply as a credit on a future cycle as shown in the portal.
             </p>
             <p>
-              Lifetime licenses, Enterprise pricing, own-cloud, on-premise, and whitelabel
-              arrangements may be subject to separate quotes, invoices, or contracts. License and
-              subscription status are validated by our License Engine so product access stays aligned
-              with your entitlements. Taxes, currency display preferences, and payment processor
-              terms may apply in addition to these Terms.
+              Included seats vary by plan (for example Starter includes one user; Business and Lifetime
+              include higher seat counts with optional extra users where enabled). Starter plans do not
+              support extra-user purchases. Business and Lifetime extra-user pricing is shown at checkout
+              and in the portal before you pay.
             </p>
             <p>
-              Unless a written enterprise agreement states otherwise, fees are non-refundable once
-              a billing period has started, except where required by applicable law. Launch discounts
-              and promotions are time-limited and may have additional conditions shown at purchase.
+              Custom ERP packages configured through Build Your Own ERP are priced from your selected
+              modules, feature packs, tenant limits, and billing cycle. Checkout totals, taxes, and
+              provisioning follow the quote shown before payment.
+            </p>
+            <p>
+              You may add additional businesses on the same customer account where the product allows.
+              Each business may have its own subscription, license, and billing record.
+            </p>
+            <p>
+              Lifetime licenses, Enterprise pricing, own-cloud, on-premise, and whitelabel arrangements
+              may be subject to separate quotes, invoices, or contracts. License and subscription status
+              are validated by our License Engine so product access stays aligned with your entitlements.
+            </p>
+            <p>
+              You may cancel subscription renewal from the customer portal. Cancellation typically takes
+              effect at the end of the current paid billing period unless stated otherwise at checkout.
+              Fees already paid for the current period are non-refundable except where required by
+              applicable law. Launch discounts and promotions are time-limited and may have additional
+              conditions shown at purchase.
+            </p>
+            <p>
+              Transactional emails — including OTP verification, welcome messages, trial reminders,
+              billing alerts, and paid invoice PDFs — are sent to the email address registered on your
+              account unless you update it in the portal or contact support.
             </p>
           </section>
 
@@ -239,11 +263,13 @@ export default function TermsPage() {
             <h2 className="text-xl font-semibold text-foreground">14. Term &amp; termination</h2>
             <p>
               These Terms apply while you use the Service. You may stop using WAAMTO and cancel
-              renewals through the customer portal or by contacting us. We may terminate or suspend
-              the Service for breach, non-payment, or legal risk. Upon termination, your right to
-              access the Cloud SaaS Service ends. We may retain or delete Customer Data according to
-              our Privacy Policy, backup cycles, and any written agreement for own-cloud or
-              on-premise deployments.
+              subscription renewal through the customer portal or by contacting us. Cancellation
+              generally remains effective through the end of the current paid period; we do not
+              provide refunds for unused time in that period unless required by law or stated in
+              writing. We may terminate or suspend the Service for breach, non-payment, or legal
+              risk. Upon termination, your right to access the Cloud SaaS Service ends. We may
+              retain or delete Customer Data according to our Privacy Policy, backup cycles, and
+              any written agreement for own-cloud or on-premise deployments.
             </p>
           </section>
 

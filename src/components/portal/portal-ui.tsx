@@ -52,6 +52,9 @@ export function PortalStatCard({
   icon: Icon,
   tone = "default",
   href,
+  highlight = false,
+  compact = false,
+  className,
 }: {
   label: string;
   value: React.ReactNode;
@@ -59,6 +62,9 @@ export function PortalStatCard({
   icon?: LucideIcon;
   tone?: "default" | "success" | "warning" | "danger";
   href?: string;
+  highlight?: boolean;
+  compact?: boolean;
+  className?: string;
 }) {
   const tones = {
     default: "text-[var(--portal-primary)] bg-[var(--portal-primary-soft)]",
@@ -84,30 +90,40 @@ export function PortalStatCard({
           </span>
         ) : null}
       </div>
-      <p className="mt-4 text-2xl font-semibold tracking-tight text-[var(--portal-fg)]">
+      <p
+        className={cn(
+          "mt-4 font-semibold tracking-tight text-[var(--portal-fg)]",
+          compact ? "text-lg" : "text-2xl"
+        )}
+      >
         {value}
       </p>
       {hint ? <p className="mt-1.5 text-xs text-[var(--portal-muted)]">{hint}</p> : null}
     </>
   );
 
-  const className = cn(
-    "portal-card portal-card-hover block rounded-2xl p-5",
-    href && "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--portal-primary)]"
+  const cardClassName = cn(
+    "portal-card portal-card-hover block rounded-2xl h-full",
+    compact ? "p-4" : "p-5",
+    highlight &&
+      "border border-emerald-500/35 bg-emerald-50/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]",
+    href && "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--portal-primary)]",
+    className
   );
 
   return (
     <motion.div
+      className="h-full"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
       {href ? (
-        <Link href={href} className={className}>
+        <Link href={href} className={cardClassName}>
           {content}
         </Link>
       ) : (
-        <div className={className}>{content}</div>
+        <div className={cardClassName}>{content}</div>
       )}
     </motion.div>
   );

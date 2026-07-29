@@ -56,17 +56,20 @@ export function BlogBody({ blocks }: { blocks: BlogBlock[] }) {
           case "image":
             return (
               <figure key={i} className="my-8 overflow-hidden rounded-xl border border-border bg-muted">
-                <div className="relative aspect-[16/10] w-full max-h-[280px]">
-                  <Image
-                    src={optimizeImageUrl(block.src, { width: 800, quality: 70 })}
-                    alt={block.alt}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 800px"
-                    quality={70}
-                    loading="lazy"
-                    className="object-cover"
-                  />
-                </div>
+                <Image
+                  src={
+                    block.src.startsWith("http")
+                      ? block.src
+                      : optimizeImageUrl(block.src, { width: 800, quality: 70 })
+                  }
+                  alt={block.alt}
+                  width={800}
+                  height={500}
+                  sizes="(max-width: 768px) 100vw, 800px"
+                  quality={70}
+                  loading="lazy"
+                  className="h-auto w-full max-h-[280px] object-cover"
+                />
                 {block.caption ? (
                   <figcaption className="px-4 py-2.5 text-center text-xs text-muted-foreground">
                     {block.caption}

@@ -173,8 +173,8 @@ function BuilderSelectCard({
     selected
       ? "cursor-pointer border-primary bg-sky-50 shadow-sm ring-2 ring-primary/25"
       : warnBorder
-        ? "cursor-pointer border-amber-300 bg-amber-50/40 hover:border-amber-400 hover:bg-amber-50/70 hover:shadow-md"
-        : "cursor-pointer border-border bg-white hover:border-primary/35 hover:bg-slate-50 hover:shadow-sm",
+        ? "cursor-pointer border-amber-300 bg-amber-50/40 hover:border-primary hover:bg-sky-50 hover:shadow-sm hover:ring-2 hover:ring-primary/25"
+        : "cursor-pointer border-border bg-white hover:border-primary hover:bg-sky-50 hover:shadow-sm hover:ring-2 hover:ring-primary/25",
     disabled && selected && "cursor-default"
   );
 
@@ -182,20 +182,24 @@ function BuilderSelectCard({
     <>
       <span
         className={cn(
-          "pointer-events-none absolute -right-1 bottom-0 top-0 flex w-[36%] items-end justify-center pb-3",
-          selected ? "bg-sky-100/70" : warnBorder ? "bg-amber-50/80" : "bg-slate-50/80"
+          "pointer-events-none absolute -right-1 bottom-0 top-0 flex w-[36%] items-end justify-center pb-3 transition-colors duration-200",
+          selected
+            ? "bg-sky-100/70"
+            : warnBorder
+              ? "bg-amber-50/80 group-hover:bg-sky-100/70"
+              : "bg-slate-50/80 group-hover:bg-sky-100/70"
         )}
         aria-hidden
       >
         <Icon
           className={cn(
-            "h-16 w-16 transition-transform duration-300 group-hover:scale-105",
+            "h-16 w-16 transition-all duration-300 group-hover:scale-105",
             watermarkIconClassName ??
               (selected
                 ? "text-primary/12"
                 : warnBorder
-                  ? "text-amber-500/12"
-                  : "text-slate-400/15")
+                  ? "text-amber-500/12 group-hover:text-primary/12"
+                  : "text-slate-400/15 group-hover:text-primary/12")
           )}
           strokeWidth={1.15}
         />
@@ -232,18 +236,18 @@ function BuilderSelectCard({
       >
         <span
           className={cn(
-            "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1",
+            "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 transition-colors duration-200",
             iconBadgeClassName ??
               (selected
                 ? "bg-primary text-white ring-primary/20"
-                : "bg-[#0b1f3a]/[0.06] text-[#0b1f3a] ring-[#0b1f3a]/10")
+                : "bg-[#0b1f3a]/[0.06] text-[#0b1f3a] ring-[#0b1f3a]/10 group-hover:bg-primary group-hover:text-white group-hover:ring-primary/20")
           )}
         >
           <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
           <h3
-            className="text-base font-semibold leading-snug tracking-tight text-[#0b1f3a]"
+            className="text-base font-semibold leading-snug tracking-tight text-[#0b1f3a] transition-colors duration-200 group-hover:text-primary"
             title={title}
           >
             {title}
@@ -281,8 +285,8 @@ function BuilderSelectCard({
           <div className="flex items-baseline justify-between gap-2 border-t border-border/70 pt-2.5">
             <div
               className={cn(
-                "text-lg font-bold tabular-nums tracking-tight",
-                selected ? "text-primary" : "text-[#0b1f3a]"
+                "text-lg font-bold tabular-nums tracking-tight transition-colors duration-200",
+                selected ? "text-primary" : "text-[#0b1f3a] group-hover:text-primary"
               )}
             >
               {footerLeft}

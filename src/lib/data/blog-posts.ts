@@ -510,7 +510,7 @@ export const blogPosts: BlogPost[] = [
     author: "WaamTech Editorial",
     date: "2026-07-10",
     readTime: "12 min",
-    image: cover("photo-1523050854058-8df90110c9f1"),
+    image: cover("photo-1524178232363-1fb2b075b655"),
     tags: ["Education","ERP","Operations"],
     blocks: [
       { type: "p", text: "If you run a education business, you already know the messy middle: numbers that look fine on paper, a counter that moves faster than the books, and at least one spreadsheet someone still calls “the real system.” That gap is where margin disappears — quietly, every week." },

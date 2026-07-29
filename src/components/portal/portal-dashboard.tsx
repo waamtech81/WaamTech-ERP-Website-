@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import {
+import type { ReactNode } from "react";
+import Link from "next/link";import {
   ArrowUpRight,
   Bell,
   Building2,
@@ -32,41 +32,60 @@ import {
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
 import { TrustBadgeStrip } from "@/components/trust-badges";
 import { PortalDashboardPayBanner } from "@/components/portal/portal-dashboard-pay-banner";
+import { cn } from "@/lib/utils";
 
 type DashboardSummaryItem = {
   label: string;
-  value: string | number | null;
+  value: ReactNode;
   hint?: string | null;
   icon: typeof KeyRound;
   tone?: "default" | "success" | "warning";
   href: string;
+  highlight?: boolean;
 };
 
-function DashboardSummaryGroup({
+function DashboardSummarySection({
   title,
   items,
+  columns = 4,
+  compact = false,
 }: {
   title: string;
   items: DashboardSummaryItem[];
+  columns?: 1 | 2 | 3 | 4;
+  compact?: boolean;
 }) {
   if (!items.length) return null;
+
+  const columnClass =
+    columns === 1
+      ? "grid-cols-1"
+      : columns === 2
+        ? "grid-cols-2"
+        : columns === 3
+          ? "grid-cols-2 md:grid-cols-3"
+          : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+
   return (
-    <section>
-      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--portal-muted)]">
+    <section className="space-y-3">
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--portal-muted)]">
         {title}
       </h2>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className={cn("grid auto-rows-fr gap-3", columnClass)}>
         {items.map((item) => (
           <PortalStatCard
             key={item.label}
             label={item.label}
             value={
-              typeof item.value === "number" ? <Counter value={item.value} /> : String(item.value)
+              typeof item.value === "number" ? <Counter value={item.value} /> : item.value
             }
             hint={item.hint}
             icon={item.icon}
             tone={item.tone}
             href={item.href}
+            highlight={item.highlight}
+            compact={compact}
+            className={compact ? "min-h-[7rem]" : "min-h-[8.5rem]"}
           />
         ))}
       </div>
@@ -135,15 +154,36 @@ export function PortalDashboardView() {
 
   const filterSummary = (items: SummaryItem[]) =>
     items.filter(
-      (item) => item.value !== null && item.value !== undefined && item.value !== ""
+      (item) =>
+        item.value !== null &&
+        item.value !== undefined &&
+        item.value !== "" &&
+        item.value !== "—"
     );
+
+  const planName = subscription?.currentPlan || null;
+  const subStatus = String(subscription?.status || "").toLowerCase();
+  const isActivePlan = ["active", "trial", "trialing", "grace"].includes(subStatus);
+
+  const currentPlanValue = planName ? (
+    <span className="block leading-tight">
+      {isActivePlan ? (
+        <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-600">
+          Active
+        </span>
+      ) : null}
+      <span>{planName}</span>
+    </span>
+  ) : null;
 
   const subscriptionSummary = filterSummary([
     {
       label: "Current plan",
-      value: subscription?.currentPlan || subscription?.status || null,
-      hint: subscription?.status,
+      value: currentPlanValue,
+      hint: isActivePlan ? null : subscription?.status,
       icon: Package,
+      tone: "success" as const,
+      highlight: true,
       href: "/portal/subscriptions",
     },
     {
@@ -394,13 +434,13 @@ export function PortalDashboardView() {
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <div className="order-2 min-w-0 flex-1 space-y-6 lg:order-1">
-          {hasSummary ? (
-            <div className="space-y-6">
-              <DashboardSummaryGroup title="Subscription & billing" items={subscriptionSummary} />
-              <DashboardSummaryGroup title="Licenses & entitlements" items={licenseSummary} />
-              <DashboardSummaryGroup title="Workspace & alerts" items={workspaceSummary} />
-            </div>
-          ) : (
+          {subscriptionSummary.length ? (
+            <DashboardSummarySection
+              title="Subscription & billing"
+              items={subscriptionSummary}
+              columns={4}
+            />
+          ) : hasSummary ? null : (
             <PortalEmptyState
               title="Overview will appear here"
               description="Summary cards populate from your licenses, subscription, and optional workspace stats."
@@ -681,7 +721,33 @@ export function PortalDashboardView() {
           </PortalPanel>
         </div>
 
-        <aside className="order-1 w-full shrink-0 space-y-4 lg:order-2 lg:sticky lg:top-4 lg:w-[min(100%,18.5rem)] lg:self-start xl:w-80">
+        <aside className="order-1 w-full shrink-0 space-y-4 lg:order-2 lg:sticky lg:top-4 lg:w-[min(100%,22rem)] lg:self-start xl:w-[26rem]">
+          {(licenseSummary.length || workspaceSummary.length) ? (
+            <div
+              className={cn(
+                "grid gap-4",
+                licenseSummary.length && workspaceSummary.length ? "grid-cols-2" : "grid-cols-1"
+              )}
+            >
+              {licenseSummary.length ? (
+                <DashboardSummarySection
+                  title="Licenses & entitlements"
+                  items={licenseSummary}
+                  columns={1}
+                  compact
+                />
+              ) : null}
+              {workspaceSummary.length ? (
+                <DashboardSummarySection
+                  title="Workspace & alerts"
+                  items={workspaceSummary}
+                  columns={1}
+                  compact
+                />
+              ) : null}
+            </div>
+          ) : null}
+
           <section
             aria-label="Portal actions"
             className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-4 sm:p-5"

@@ -2,7 +2,8 @@ import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { logApiError } from "@/lib/api/logger";
 import { apiFail, apiSuccess } from "@/lib/api/response";
-import { sendNewsletterSubscriptionNotice } from "@/lib/auth/email";
+import { sendNewsletterThankYouEmail } from "@/lib/auth/email";
+import { subscribeNewsletterOnLicenseServer } from "@/lib/license/newsletter";
 import {
   getClientIp,
   isSameOrigin,
@@ -62,16 +63,14 @@ export const POST = withApiHandler(
       });
     }
 
-    const result = await sendNewsletterSubscriptionNotice({
-      subscriberEmail: email,
-    });
+    const stored = await subscribeNewsletterOnLicenseServer(email);
 
-    if (!result.sent) {
-      logApiError(new Error(result.error || "Newsletter subscribe failed"), {
+    if (!stored.ok) {
+      logApiError(new Error(stored.message || "Newsletter subscribe failed"), {
         endpoint: "/api/newsletter",
         userEmail: email,
         httpStatus: 502,
-        technicalMessage: result.error || "Newsletter subscribe failed",
+        technicalMessage: stored.message || "Newsletter subscribe failed",
       });
       return apiFail("Could not complete subscription. Please try again.", {
         status: 502,
@@ -79,7 +78,19 @@ export const POST = withApiHandler(
       });
     }
 
-    return apiSuccess("Thanks — you are subscribed to product updates.");
+    const thankYou = await sendNewsletterThankYouEmail({ to: email });
+    if (!thankYou.sent) {
+      logApiError(new Error(thankYou.error || "Newsletter thank-you email failed"), {
+        endpoint: "/api/newsletter",
+        userEmail: email,
+        httpStatus: 502,
+        technicalMessage: thankYou.error || "Newsletter thank-you email failed",
+      });
+    }
+
+    return apiSuccess(
+      stored.message || "Thanks — you are subscribed to product updates."
+    );
   },
   { endpoint: "/api/newsletter" }
 );

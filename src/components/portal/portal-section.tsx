@@ -29,6 +29,10 @@ import { PortalNotificationsView } from "@/components/portal/portal-notification
 import { PortalSettingsView } from "@/components/portal/portal-settings";
 import { PortalCustomErpRenewButton } from "@/components/portal/portal-custom-erp-renew";
 import {
+  formatAutoRenewLabel,
+  PortalSubscriptionCancelActions,
+} from "@/components/portal/portal-subscription-cancel";
+import {
   primaryPortalLicense,
   resolvePrimaryBillingCycle,
   showRenewalUi,
@@ -187,6 +191,10 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
         String(s.status || "").toLowerCase()
       )
     )?.id || data.subscriptions?.[0]?.id || null;
+  const activeSub =
+    data.subscriptions?.find((s) => s.id === activeSubId) ||
+    data.subscriptions?.[0] ||
+    null;
   let body: React.ReactNode = null;
   let flush = false;
 
@@ -326,7 +334,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   {canRenew ? (
                     <td>{formatPortalDate(sub.renewal_date || sub.expiry_date) || "—"}</td>
                   ) : null}
-                  {canRenew ? <td>{sub.auto_renewal ? "Enabled" : "Off"}</td> : null}
+                  {canRenew ? <td>{formatAutoRenewLabel(sub)}</td> : null}
                   <td>
                     <div className="flex flex-wrap gap-1.5">
                       {canRenew ? (
@@ -357,6 +365,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                           </Button>
                         </>
                       )}
+                      <PortalSubscriptionCancelActions subscription={sub} />
                     </div>
                   </td>
                 </tr>
@@ -389,8 +398,9 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               ? [
                   {
                     label: "Auto renewal",
-                    value:
-                      typeof erp.auto_renewal === "boolean"
+                    value: activeSub
+                      ? formatAutoRenewLabel(activeSub)
+                      : typeof erp.auto_renewal === "boolean"
                         ? erp.auto_renewal
                           ? "Enabled"
                           : "Disabled"
@@ -429,6 +439,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   <Link href={plansHref("upgrade", data.subscriptions?.[0]?.id, journey)}>Upgrade</Link>
                 </Button>
               )}
+            {activeSub ? <PortalSubscriptionCancelActions subscription={activeSub} /> : null}
           </div>
           <p className="text-xs text-[var(--portal-muted)]">
             Subscriptions load from License Engine public billing APIs.
@@ -617,6 +628,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               <Link href="/portal/custom-erp">Modify package</Link>
             </Button>
           )}
+          {activeSub ? <PortalSubscriptionCancelActions subscription={activeSub} /> : null}
         </div>
       </div>
     ) : (

@@ -9,16 +9,11 @@ import { cn } from "@/lib/utils";
 
 function GooglePlayIcon({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden
-      className={className}
-      fill="currentColor"
-    >
-      <path d="M3.6 1.8c-.3.2-.6.6-.6 1.1v18.2c0 .5.3.9.6 1.1l.1.1 10.2-10.2v-.2L3.7 1.7l-.1.1z" />
-      <path d="M16.2 8.3 5.5 1.9l10.2 10.2 2.1-2.1c.6-.6.6-1.5 0-2.1l-1.6-1.6z" />
-      <path d="m5.5 22.1 10.7-6.4-2.1-2.1-8.6 8.5z" />
-      <path d="M19.9 11.8c.5-.3.8-.8.8-1.3s-.3-1-.8-1.3l-2.1-1.2-2.4 2.4 2.4 2.4 2.1-1.2z" />
+    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+      <path fill="#00D9FF" d="M3.6 1.8c-.3.2-.6.6-.6 1.1v18.2c0 .5.3.9.6 1.1l.1.1 10.2-10.2v-.2L3.7 1.7l-.1.1z" />
+      <path fill="#00F076" d="M16.2 8.3 5.5 1.9l10.2 10.2 2.1-2.1c.6-.6.6-1.5 0-2.1l-1.6-1.6z" />
+      <path fill="#FF3A44" d="m5.5 22.1 10.7-6.4-2.1-2.1-8.6 8.5z" />
+      <path fill="#FFB900" d="M19.9 11.8c.5-.3.8-.8.8-1.3s-.3-1-.8-1.3l-2.1-1.2-2.4 2.4 2.4 2.4 2.1-1.2z" />
     </svg>
   );
 }
@@ -32,10 +27,10 @@ function AppleIcon({ className }: { className?: string }) {
 }
 
 const badgeClassLight =
-  "inline-flex h-12 min-w-[10.5rem] items-center gap-3 rounded-xl border border-border bg-[#0b1f3a] px-3.5 text-white shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "inline-flex h-[52px] min-w-[11rem] items-center gap-3 rounded-xl border border-[#1e3a5f] bg-[#0b1f3a] px-3.5 text-white shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const badgeClassDark =
-  "inline-flex h-12 min-w-[10.5rem] items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.05] px-3.5 text-white shadow-sm transition-colors hover:border-white/10 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/20";
+  "inline-flex h-[52px] min-w-[11rem] items-center gap-3 rounded-xl border border-white/[0.08] bg-[#0b1f3a] px-3.5 text-white shadow-sm transition-colors hover:border-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/20";
 
 function StoreBadge({
   href,
@@ -59,10 +54,10 @@ function StoreBadge({
         {icon}
       </span>
       <span className="min-w-0 text-left leading-tight">
-        <span className="block text-[10px] font-medium uppercase tracking-wide text-white/70">
+        <span className="block text-[9px] font-medium uppercase tracking-[0.05em] text-white/70">
           {subtitle}
         </span>
-        <span className="block truncate text-sm font-semibold">{title}</span>
+        <span className="block truncate text-[15px] font-semibold">{title}</span>
       </span>
     </>
   );

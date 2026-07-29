@@ -18,12 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { FaqAccordionList } from "@/components/sections/faq-accordion-list";
 import { TrustBadgesBand } from "@/components/sections/trust-badges-band";
 import { useCatalogBundle } from "@/hooks/use-commercial";
 import {
@@ -45,7 +40,6 @@ export default function PricingPage() {
   const [, startTransition] = useTransition();
   const { t, formatPrice } = useLocale();
   const catalog = useCatalogBundle();
-  const billingFaqs = faqs.filter((f) => f.category === "Billing" || f.category === "Product").slice(0, 6);
 
   const pricingPlans = useMemo(
     () => publicMarketingPlans(catalog.data.pricingPlans || []),
@@ -264,7 +258,7 @@ export default function PricingPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section id="compare">
         <Container>
           <SectionHeader
             eyebrow="Compare plans"
@@ -285,15 +279,11 @@ export default function PricingPage() {
 
       <Section muted>
         <Container>
-          <SectionHeader eyebrow="FAQ" title="Billing questions" />
-          <Accordion type="single" collapsible className="mx-auto max-w-3xl">
-            {billingFaqs.map((faq) => (
-              <AccordionItem key={faq.id} value={faq.id}>
-                <AccordionTrigger>{faq.question}</AccordionTrigger>
-                <AccordionContent>{faq.answer}</AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <SectionHeader eyebrow="FAQ" title="Frequently asked questions" />
+          <FaqAccordionList
+            items={faqs}
+            className="mx-auto max-w-3xl rounded-2xl border border-border bg-white px-5"
+          />
         </Container>
       </Section>
 

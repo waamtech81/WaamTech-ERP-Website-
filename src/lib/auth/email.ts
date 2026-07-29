@@ -200,6 +200,40 @@ function newsletterNotifyHtml(subscriberEmail: string) {
 </html>`;
 }
 
+function newsletterThankYouHtml() {
+  const homeUrl = buildAbsoluteSiteUrl("/");
+  return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f7fb;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+          <tr>
+            <td style="background:#0b1f3a;padding:24px 28px;">
+              <div style="color:#ffffff;font-size:22px;font-weight:700;">${siteConfig.name}</div>
+              <div style="color:#93c5fd;font-size:13px;margin-top:4px;">Product updates</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px;">
+              <h1 style="margin:0 0 12px;font-size:20px;color:#0b1f3a;">Thank you for subscribing</h1>
+              <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.6;">
+                You will receive occasional emails about new features, improvements, and product news from ${siteConfig.name}.
+              </p>
+              <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6;">
+                Visit us anytime at <a href="${homeUrl}" style="color:#2563eb;text-decoration:none;">${homeUrl.replace(/^https?:\/\//, "")}</a>.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 async function sendEmail(input: SendEmailInput): Promise<SendResult> {
   const resendKey = process.env.RESEND_API_KEY;
   const from =
@@ -283,6 +317,18 @@ export async function sendPasswordResetEmail(opts: {
     subject: `Reset your ${siteConfig.name} password`,
     html: passwordResetHtml(resetUrl),
     text: `Reset your ${siteConfig.name} password:\n${resetUrl}\n\nThis link expires in 15 minutes. If you did not request this reset, you can ignore this email.`,
+  });
+}
+
+export async function sendNewsletterThankYouEmail(opts: {
+  to: string;
+}): Promise<SendResult> {
+  const to = opts.to.trim().toLowerCase();
+  return sendEmail({
+    to,
+    subject: `Thank you for subscribing to ${siteConfig.name} updates`,
+    html: newsletterThankYouHtml(),
+    text: `Thank you for subscribing to ${siteConfig.name} product updates.\n\nYou will receive occasional emails about new features, improvements, and product news.`,
   });
 }
 

@@ -757,6 +757,31 @@ export async function requestSubscriptionRenewal(
   );
 }
 
+/** Schedule cancel at end of current billing period (portal self-service). */
+export async function requestSubscriptionCancel(
+  accessToken: string,
+  subscriptionId: string,
+  body?: { notes?: string }
+) {
+  return postPublic<CommercialSubscription>(
+    `/v1/public/billing/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`,
+    { notes: body?.notes },
+    accessToken
+  );
+}
+
+/** Re-enable auto-renewal before a scheduled cancel takes effect. */
+export async function requestSubscriptionResumeRenewal(
+  accessToken: string,
+  subscriptionId: string
+) {
+  return postPublic<CommercialSubscription>(
+    `/v1/public/billing/subscriptions/${encodeURIComponent(subscriptionId)}/resume-renewal`,
+    {},
+    accessToken
+  );
+}
+
 /** Request plan upgrade (Engine rejects downgrades when filtered client-side). */
 export async function requestPlanChange(
   accessToken: string,

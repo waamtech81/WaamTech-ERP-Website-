@@ -5,12 +5,7 @@ import { Search } from "lucide-react";
 import { faqs } from "@/lib/data/site";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { FaqAccordionList } from "@/components/sections/faq-accordion-list";
 
 const categories = ["All", ...Array.from(new Set(faqs.map((f) => f.category)))];
 
@@ -55,27 +50,10 @@ export function FaqBrowser() {
             No FAQs match your search.
           </div>
         ) : (
-          <Accordion
-            type="single"
-            collapsible
-            className="w-full rounded-2xl border border-border bg-white px-5"
-          >
-            {filtered.map((faq) => (
-              <AccordionItem key={faq.id} value={faq.id}>
-                <AccordionTrigger>
-                  <span className="pr-4">
-                    <span className="mr-2 inline-block">
-                      <Badge variant="muted" className="align-middle">
-                        {faq.category}
-                      </Badge>
-                    </span>
-                    {faq.question}
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent>{faq.answer}</AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <FaqAccordionList
+            items={filtered}
+            className="rounded-2xl border border-border bg-white px-5"
+          />
         )}
       </div>
     </>

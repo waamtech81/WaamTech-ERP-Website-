@@ -155,17 +155,33 @@ export function evaluatePortalLicenseAccess(input: {
     const action =
       licenseActionLabel(primary as IdentityLicense & Record<string, unknown>) || null;
     const statusLabel = primaryStatus || "restricted";
+    const trialExpired =
+      String(primary.plan_type || "").toLowerCase() === "trial" ||
+      statusLabel.includes("trial") ||
+      (typeof primary.days_remaining === "number" && primary.days_remaining < 0);
+    const expiredPaid =
+      !trialExpired &&
+      (statusLabel.includes("expir") || statusLabel.includes("suspend"));
     return {
       ok: true,
       notice: {
-        level: statusLabel.includes("expir") ? "danger" : "info",
-        status: statusLabel,
-        title: `License ${statusLabel}`,
+        level: statusLabel.includes("expir") || statusLabel.includes("suspend") ? "danger" : "info",
+        status: trialExpired ? "trial expired" : statusLabel,
+        title: trialExpired
+          ? "Trial ended"
+          : expiredPaid
+            ? "Subscription payment required"
+            : `License ${statusLabel}`,
         message:
           action ||
-          `Your license status is “${statusLabel}”. Resolve this from billing or contact support to restore full access.`,
-        actionLabel: "View billing",
-        actionHref: "/portal/billing",
+          (trialExpired
+            ? "Your trial has ended. Complete checkout to keep the same license active on WAAMTO ERP Cloud."
+            : expiredPaid
+              ? "Your subscription period ended without renewal. Pay in checkout to restore ERP access. Portal billing stays available here."
+              : `Your license status is “${statusLabel}”. Resolve this from billing or contact support to restore full access.`),
+        actionLabel: trialExpired || expiredPaid ? "Continue to checkout" : "View billing",
+        actionHref:
+          trialExpired || expiredPaid ? "/portal/checkout" : "/portal/billing",
       },
     };
   }

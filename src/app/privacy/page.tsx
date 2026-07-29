@@ -41,7 +41,7 @@ export default function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">1. Who we are</h2>
             <p>
-              WaamTech has delivered software, ERP, and digital solutions since 2012. Product and
+              WaamTech has delivered software, ERP, and digital solutions since 2010. Product and
               support contacts:
             </p>
             <ul className="list-disc space-y-2 pl-5">

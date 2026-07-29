@@ -55,7 +55,7 @@ export function BrandLogo({
           {!hideTagline ? (
             <span
               className={cn(
-                "mt-0.5 hidden text-[10px] font-medium sm:block",
+                "mt-0.5 block text-[9px] sm:text-[10px] font-medium leading-tight line-clamp-2",
                 dark ? "text-slate-400" : "text-primary/70"
               )}
             >

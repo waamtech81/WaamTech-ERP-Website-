@@ -27,7 +27,7 @@ async function resolveSubscriptionId(
   const rows = Array.isArray(subs.data?.data) ? subs.data.data : [];
   const preferred =
     rows.find((s) =>
-      ["trial", "trialing", "active", "grace", "pending", "suspended"].includes(
+      ["trial", "trialing", "active", "grace", "pending", "suspended", "expired"].includes(
         String(s.status || "").toLowerCase()
       )
     ) || rows[0];
@@ -53,6 +53,7 @@ export const POST = withApiHandler(
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     let mode = sanitizeText(body.mode || body.intent || "upgrade", 40);
     let subscriptionId = sanitizeText(body.subscription_id, 80);
+    const licenseId = sanitizeText(body.license_id, 80);
     const toPlanId = sanitizeText(body.to_plan_id || body.plan_id, 80);
     const industryId = sanitizeText(body.industry_id, 80);
     const categoryId = sanitizeText(
@@ -82,7 +83,7 @@ export const POST = withApiHandler(
       sanitizeText(body.gateway || body.payment_method, 40) || null
     );
     const origin = getSiteOrigin();
-    const successUrl = `${origin}/portal/checkout/success`;
+    const successUrl = `${origin}/portal/checkout/success?mode=${encodeURIComponent(mode)}`;
     const cancelUrl = `${origin}/portal/checkout/cancel`;
 
     if (
@@ -130,7 +131,7 @@ export const POST = withApiHandler(
         { gateway, success_url: successUrl, cancel_url: cancelUrl }
       );
     } else if (mode === "trial-convert" || mode === "trial_convert") {
-      if (!subscriptionId) {
+      if (!subscriptionId && !licenseId) {
         return apiFail(
           "No trial subscription found. Choose industry, category, and a plan to activate your trial.",
           {
@@ -140,7 +141,8 @@ export const POST = withApiHandler(
         );
       }
       result = await requestTrialConvert(resolved.access.accessToken, {
-        subscription_id: subscriptionId,
+        subscription_id: subscriptionId || undefined,
+        license_id: licenseId || undefined,
         billing_cycle: billingCycle || "yearly",
         plan_id: toPlanId || undefined,
         gateway,

@@ -30,9 +30,11 @@ export async function resolvePortalAccess(): Promise<
   let refreshed: PortalAccess["refreshed"];
 
   if (token) {
-    const me = await identityMe(token);
+    const [me, licensesRes] = await Promise.all([
+      identityMe(token),
+      identityListLicenses(token),
+    ]);
     if (me.ok && me.data?.identity) {
-      const licensesRes = await identityListLicenses(token);
       const licenses = Array.isArray(licensesRes.data) ? licensesRes.data : [];
       const access = evaluatePortalLicenseAccess({
         identity: me.data.identity,
@@ -69,9 +71,11 @@ export async function resolvePortalAccess(): Promise<
         accessToken: refreshedTokens.data.accessToken,
         refreshToken: refreshedTokens.data.refreshToken || refreshToken,
       };
-      const me = await identityMe(token);
+      const [me, licensesRes] = await Promise.all([
+        identityMe(token),
+        identityListLicenses(token),
+      ]);
       if (me.ok && me.data?.identity) {
-        const licensesRes = await identityListLicenses(token);
         const licenses = Array.isArray(licensesRes.data) ? licensesRes.data : [];
         const access = evaluatePortalLicenseAccess({
           identity: me.data.identity,

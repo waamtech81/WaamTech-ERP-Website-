@@ -428,6 +428,7 @@ export type CommercialSubscription = {
   company_name?: string | null;
   product_name?: string | null;
   plan_name?: string | null;
+  notes?: string | null;
 };
 
 export type CommercialInvoice = {

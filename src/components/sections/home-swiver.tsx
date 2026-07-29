@@ -39,7 +39,7 @@ export function StatsBand() {
   const catalog = useCatalogBundle();
   const industryCount = catalog.data.industries?.length || 0;
   const stats = [
-    { label: "Working since", value: 2012, suffix: "" },
+    { label: "Working since", value: 2010, suffix: "" },
     { label: "Industries", value: industryCount || 0, suffix: "" },
     { label: "Catalog products", value: catalog.data.products?.length || 0, suffix: "" },
     { label: "Public plans", value: catalog.data.pricingPlans?.length || 0, suffix: "" },
@@ -488,10 +488,14 @@ export function SoftCTA() {
               <h2 className="font-heading text-3xl md:text-4xl font-semibold tracking-tight text-balance">
                 Ready to run your business on {siteConfig.name}?
               </h2>
-              <p className="mt-4 whitespace-nowrap font-heading text-base sm:text-lg md:text-xl lg:text-2xl font-bold tracking-tight">
-                No card. No payment.{" "}
-                <span className="text-sky-300">{authConfig.trialDays}-day free trial signup</span>
-                {" — "}start instantly
+              <p className="mt-4 font-heading text-base sm:text-lg md:text-xl font-bold tracking-tight text-white">
+                <span className="block sm:inline">No card. No payment.</span>{" "}
+                <span className="block sm:inline text-sky-300">
+                  {authConfig.trialDays}-day free trial signup
+                </span>
+              </p>
+              <p className="mt-1 font-heading text-base sm:text-lg md:text-xl font-bold tracking-tight text-white/95">
+                — start instantly
               </p>
               <p className="mt-2 text-white/70 text-base md:text-lg max-w-xl mx-auto">
                 Pick product, plan, industry, and profile in minutes.

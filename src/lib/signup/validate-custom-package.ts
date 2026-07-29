@@ -118,7 +118,10 @@ export async function validateSignupCustomPackage(input: {
     };
   }
 
-  const products = await fetchPublicProducts();
+  const [products, modulesPrefetch] = await Promise.all([
+    fetchPublicProducts(),
+    fetchPublicModules(productSlug),
+  ]);
   if (!products.ok && !products.data.length) {
     return {
       ok: false,
@@ -141,7 +144,10 @@ export async function validateSignupCustomPackage(input: {
     };
   }
 
-  const modulesResult = await fetchPublicModules(product.slug);
+  let modulesResult = modulesPrefetch;
+  if (product.slug !== productSlug) {
+    modulesResult = await fetchPublicModules(product.slug);
+  }
   if (!modulesResult.ok && !modulesResult.data.length) {
     return {
       ok: false,

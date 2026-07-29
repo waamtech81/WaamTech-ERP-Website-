@@ -539,7 +539,7 @@ export async function fetchPublicIndustryDetail(
   const result = await getPublic<CatalogIndustryDetail>(
     `/v1/public/catalog/industries/${encodeURIComponent(idOrSlug)}`,
     undefined,
-    { revalidate: 60 }
+    { revalidate: CATALOG_REVALIDATE_SECONDS }
   );
   return { ...result, data: result.data ?? null };
 }
@@ -1097,7 +1097,8 @@ export async function fetchBillingUsage(accessToken: string) {
 export async function requestTrialConvert(
   accessToken: string,
   body: {
-    subscription_id: string;
+    subscription_id?: string;
+    license_id?: string;
     billing_cycle: string;
     plan_id?: string;
     gateway?: string;
@@ -1109,6 +1110,7 @@ export async function requestTrialConvert(
     "/v1/public/billing/trial-convert",
     {
       subscription_id: body.subscription_id,
+      license_id: body.license_id,
       billing_cycle: body.billing_cycle,
       plan_id: body.plan_id,
       gateway: body.gateway,
@@ -1145,24 +1147,61 @@ export function resolvePrimaryProductSlug(
 
 /** Aggregate public catalog for home / pricing pages. */
 export async function fetchPublicCatalogBundle(productSlug?: string) {
-  const products = await fetchPublicProducts();
-  const preferredSlug =
-    productSlug || resolvePrimaryProductSlug(products.data) || undefined;
+  const knownSlug = productSlug?.trim() || undefined;
 
-  let plans = await fetchPublicPlans(preferredSlug);
-  let pricing = await fetchPublicPricing(preferredSlug);
-  let comparison = await fetchPublicPlanComparison({ product: preferredSlug });
+  // When the caller already knows the product, overlap products with catalog GETs.
+  let products: Awaited<ReturnType<typeof fetchPublicProducts>>;
+  let preferredSlug: string | undefined;
+  let plans: Awaited<ReturnType<typeof fetchPublicPlans>>;
+  let pricing: Awaited<ReturnType<typeof fetchPublicPricing>>;
+  let comparison: Awaited<ReturnType<typeof fetchPublicPlanComparison>>;
+  let industries: Awaited<ReturnType<typeof fetchPublicIndustries>>;
+
+  if (knownSlug) {
+    preferredSlug = knownSlug;
+    [products, plans, pricing, comparison, industries] = await Promise.all([
+      fetchPublicProducts(),
+      fetchPublicPlans(preferredSlug),
+      fetchPublicPricing(preferredSlug),
+      fetchPublicPlanComparison({ product: preferredSlug }),
+      fetchPublicIndustries(),
+    ]);
+  } else {
+    products = await fetchPublicProducts();
+    preferredSlug = resolvePrimaryProductSlug(products.data) || undefined;
+    [plans, pricing, comparison, industries] = await Promise.all([
+      fetchPublicPlans(preferredSlug),
+      fetchPublicPricing(preferredSlug),
+      fetchPublicPlanComparison({ product: preferredSlug }),
+      fetchPublicIndustries(),
+    ]);
+  }
   let resolvedSlug = preferredSlug || null;
 
   // Fall back to full catalog if the preferred product filter returns nothing
-  // (Engine down for filtered route, or slug mismatch).
-  if (
-    preferredSlug &&
+  // (Engine down for filtered route, or slug mismatch). Parallelize needed fallbacks.
+  const needPlansFallback =
+    Boolean(preferredSlug) &&
     ((plans.ok && plans.data.length === 0) ||
-      (!plans.ok && plans.data.length === 0))
-  ) {
-    const allPlans = await fetchPublicPlans();
-    if (allPlans.data.length > 0) {
+      (!plans.ok && plans.data.length === 0));
+  const needPricingFallback =
+    Boolean(preferredSlug) &&
+    ((pricing.ok && pricing.data.length === 0) ||
+      (!pricing.ok && pricing.data.length === 0));
+  const needComparisonFallback =
+    Boolean(preferredSlug) &&
+    (!comparison.ok || comparison.data.comparison.length === 0);
+
+  if (needPlansFallback || needPricingFallback || needComparisonFallback) {
+    const [allPlans, allPricing, allComparison] = await Promise.all([
+      needPlansFallback ? fetchPublicPlans() : Promise.resolve(null),
+      needPricingFallback ? fetchPublicPricing() : Promise.resolve(null),
+      needComparisonFallback
+        ? fetchPublicPlanComparison()
+        : Promise.resolve(null),
+    ]);
+
+    if (allPlans && allPlans.data.length > 0) {
       const filtered = allPlans.data.filter(
         (p) => p.product_slug === preferredSlug
       );
@@ -1173,15 +1212,8 @@ export async function fetchPublicCatalogBundle(productSlug?: string) {
       };
       if (filtered.length === 0) resolvedSlug = null;
     }
-  }
 
-  if (
-    preferredSlug &&
-    ((pricing.ok && pricing.data.length === 0) ||
-      (!pricing.ok && pricing.data.length === 0))
-  ) {
-    const allPricing = await fetchPublicPricing();
-    if (allPricing.data.length > 0) {
+    if (allPricing && allPricing.data.length > 0) {
       const filtered = allPricing.data.filter(
         (p) => p.product_slug === preferredSlug
       );
@@ -1191,14 +1223,8 @@ export async function fetchPublicCatalogBundle(productSlug?: string) {
         ok: allPricing.ok || filtered.length > 0,
       };
     }
-  }
 
-  if (
-    preferredSlug &&
-    (!comparison.ok || comparison.data.comparison.length === 0)
-  ) {
-    const allComparison = await fetchPublicPlanComparison();
-    if (allComparison.data.comparison.length > 0) {
+    if (allComparison && allComparison.data.comparison.length > 0) {
       const filtered = allComparison.data.comparison.filter(
         (row) => row.plan.product_slug === preferredSlug
       );
@@ -1216,8 +1242,6 @@ export async function fetchPublicCatalogBundle(productSlug?: string) {
       };
     }
   }
-
-  const industries = await fetchPublicIndustries();
 
   const ok =
     (products.ok && products.data.length > 0) ||

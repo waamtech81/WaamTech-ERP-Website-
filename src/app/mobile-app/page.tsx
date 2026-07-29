@@ -4,9 +4,7 @@ import { ArrowRight, Check, Smartphone } from "lucide-react";
 import {
   buildMobilePlanPricingCards,
   groupMobileProfileCards,
-  mobileAppLevelCopy,
   mobileAppPage,
-  mobileProfileSectionMeta,
   type MobileProfileSectionKey,
 } from "@/lib/data/mobile-app";
 import { industriesServing } from "@/lib/data/industries";
@@ -25,6 +23,9 @@ import {
 } from "@/lib/commercial/client";
 import { buildAbsoluteSiteUrl } from "@/lib/urls";
 import { siteConfig } from "@/lib/data/site";
+import { MobileProfileCardRow } from "@/components/sections/mobile-profile-carousel";
+import { AutoCarousel } from "@/components/shared/auto-carousel";
+import { FaqAccordionList } from "@/components/sections/faq-accordion-list";
 
 const SECTION_ORDER: MobileProfileSectionKey[] = [
   "required",
@@ -32,50 +33,6 @@ const SECTION_ORDER: MobileProfileSectionKey[] = [
   "optional",
   "not_required",
 ];
-
-function ProfileCardRow({
-  sectionKey,
-  items,
-}: {
-  sectionKey: MobileProfileSectionKey;
-  items: Array<{ id: string; name: string; info: { badge: string; note: string; level: string } }>;
-}) {
-  if (!items.length) return null;
-  const meta = mobileProfileSectionMeta[sectionKey];
-  const copy = mobileAppLevelCopy[
-    sectionKey === "not_required"
-      ? "not_included"
-      : sectionKey === "optional"
-        ? "optional"
-        : sectionKey
-  ];
-
-  return (
-    <div className={`rounded-2xl border p-4 md:p-6 ${meta.panelClass}`}>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Badge className={meta.badgeClass}>{meta.title}</Badge>
-        <p className="text-sm text-muted-foreground max-w-3xl">{copy.description}</p>
-      </div>
-      <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-thin">
-        {items.map((item) => (
-          <Link
-            key={item.id}
-            href={`/industries/${item.id}`}
-            className="min-w-[11.5rem] max-w-[14rem] shrink-0 snap-start rounded-xl border border-white/80 bg-white px-3 py-3 shadow-sm transition-colors hover:border-primary/30"
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">
-              {item.info.badge}
-            </p>
-            <p className="mt-1 font-medium text-[#0b1f3a] text-sm leading-snug">{item.name}</p>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground line-clamp-3">
-              {item.info.note}
-            </p>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default async function MobileAppPage() {
   const [categoriesRes, plansRes] = await Promise.all([
@@ -237,6 +194,7 @@ export default async function MobileAppPage() {
                       alt={block.title}
                       fill
                       quality={70}
+                      loading="lazy"
                       className="object-cover"
                       sizes="(max-width: 1024px) 100vw, 50vw"
                     />
@@ -279,7 +237,11 @@ export default async function MobileAppPage() {
 
           <div className="space-y-6">
             {SECTION_ORDER.map((key) => (
-              <ProfileCardRow key={key} sectionKey={key} items={groupedProfiles[key]} />
+              <MobileProfileCardRow
+                key={key}
+                sectionKey={key}
+                items={groupedProfiles[key]}
+              />
             ))}
           </div>
 
@@ -299,10 +261,10 @@ export default async function MobileAppPage() {
             title="Mobile access on every WAAMTO plan"
             description="Responsive web is always included. Native Android app follows your business profile — not a hidden add-on."
           />
-          <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-4">
+          <div className="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-4">
             {pricingCards.map((item, i) => (
               <AnimateIn key={item.plan} delay={i * 0.04}>
-                <Card className="h-full min-w-[13rem] shrink-0 snap-start md:min-w-0">
+                <Card className="h-full">
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-base">{item.plan}</CardTitle>
@@ -320,6 +282,27 @@ export default async function MobileAppPage() {
               </AnimateIn>
             ))}
           </div>
+          <div className="md:hidden">
+            <AutoCarousel ariaLabel="Mobile plan cards">
+              {pricingCards.map((item) => (
+                <Card key={item.plan} className="h-full min-w-[13rem] shrink-0 snap-start">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-base">{item.plan}</CardTitle>
+                      {item.badge ? (
+                        <Badge variant="muted" className="shrink-0 text-[10px]">
+                          {item.badge}
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </AutoCarousel>
+          </div>
           <div className="mt-8 text-center">
             <Button asChild className="rounded-full">
               <Link href="/pricing">Compare live pricing plans</Link>
@@ -335,19 +318,15 @@ export default async function MobileAppPage() {
             title="Mobile ERP app questions"
             description="Quick answers about WAAMTO responsive web and native Android access."
           />
-          <div className="space-y-3">
-            {mobileAppPage.faqs.map((faq) => (
-              <details
-                key={faq.q}
-                className="group rounded-xl border border-border bg-card px-4 py-3 open:shadow-sm"
-              >
-                <summary className="cursor-pointer list-none font-medium text-[#0b1f3a] marker:content-none [&::-webkit-details-marker]:hidden">
-                  {faq.q}
-                </summary>
-                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
-              </details>
-            ))}
-          </div>
+          <FaqAccordionList
+            items={mobileAppPage.faqs.map((faq, i) => ({
+              id: `mobile-faq-${i}`,
+              question: faq.q,
+              answer: faq.a,
+              category: "Mobile",
+            }))}
+            className="mx-auto rounded-2xl border border-border bg-white px-5"
+          />
         </Container>
       </Section>
 

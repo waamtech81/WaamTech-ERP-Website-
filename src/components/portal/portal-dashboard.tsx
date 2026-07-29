@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";import {
+import Link from "next/link";
+import {
   ArrowUpRight,
   Bell,
   Building2,
@@ -32,6 +33,7 @@ import {
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
 import { TrustBadgeStrip } from "@/components/trust-badges";
 import { PortalDashboardPayBanner } from "@/components/portal/portal-dashboard-pay-banner";
+import { subscriptionActionsLocked } from "@/components/portal/portal-subscription-cancel";
 import { cn } from "@/lib/utils";
 
 type DashboardSummaryItem = {
@@ -300,6 +302,9 @@ export function PortalDashboardView() {
         String(s.status || "").toLowerCase()
       )
     )?.id || data.subscriptions?.[0]?.id;
+  const activeSubscription =
+    data.subscriptions?.find((s) => s.id === renewSubId) || data.subscriptions?.[0] || null;
+  const subscriptionActionsBlocked = subscriptionActionsLocked(activeSubscription);
 
   const accountActionItems =
     data.commercialJourney === "custom"
@@ -331,7 +336,10 @@ export function PortalDashboardView() {
               ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
               : "/portal/plans?intent=upgrade",
             label: "Upgrade plan",
-            hint: "Industry · category · plan · price",
+            hint: subscriptionActionsBlocked
+              ? "Keep subscription to unlock upgrades"
+              : "Industry · category · plan · price",
+            disabled: subscriptionActionsBlocked,
           },
           {
             href: "/portal/plans?intent=new_place",
@@ -533,16 +541,31 @@ export function PortalDashboardView() {
                       </>
                     ) : (
                       <>
-                        <Button asChild size="sm" variant="outline" className="rounded-xl">
-                          <Link
-                            href={
-                              renewSubId
-                                ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
-                                : "/portal/plans?intent=upgrade"
-                            }
-                          >
-                            Upgrade
-                          </Link>
+                        <Button
+                          asChild={!subscriptionActionsBlocked}
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl"
+                          disabled={subscriptionActionsBlocked}
+                          title={
+                            subscriptionActionsBlocked
+                              ? "Keep subscription to upgrade again."
+                              : undefined
+                          }
+                        >
+                          {subscriptionActionsBlocked ? (
+                            <span>Upgrade</span>
+                          ) : (
+                            <Link
+                              href={
+                                renewSubId
+                                  ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
+                                  : "/portal/plans?intent=upgrade"
+                              }
+                            >
+                              Upgrade
+                            </Link>
+                          )}
                         </Button>
                         <Button asChild size="sm" variant="outline" className="rounded-xl">
                           <Link href="/portal/plans?intent=new_place">Create New Business</Link>
@@ -761,16 +784,27 @@ export function PortalDashboardView() {
                 : "Upgrade, new business, billing, and security."}
             </p>
             <div className="mt-3 space-y-2">
-              {accountActionItems.map((item) => (
-                <Link
-                  key={item.href + item.label}
-                  href={item.href}
-                  className="portal-focus-ring block rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 transition hover:border-[var(--portal-primary)]/40 hover:bg-[var(--portal-primary-soft)]"
-                >
-                  <p className="text-sm font-semibold text-[var(--portal-fg)]">{item.label}</p>
-                  <p className="mt-1 text-xs text-[var(--portal-muted)]">{item.hint}</p>
-                </Link>
-              ))}
+              {accountActionItems.map((item) =>
+                "disabled" in item && item.disabled ? (
+                  <div
+                    key={item.href + item.label}
+                    className="block rounded-xl border border-dashed border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 opacity-70"
+                    aria-disabled="true"
+                  >
+                    <p className="text-sm font-semibold text-[var(--portal-fg)]">{item.label}</p>
+                    <p className="mt-1 text-xs text-[var(--portal-muted)]">{item.hint}</p>
+                  </div>
+                ) : (
+                  <Link
+                    key={item.href + item.label}
+                    href={item.href}
+                    className="portal-focus-ring block rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 transition hover:border-[var(--portal-primary)]/40 hover:bg-[var(--portal-primary-soft)]"
+                  >
+                    <p className="text-sm font-semibold text-[var(--portal-fg)]">{item.label}</p>
+                    <p className="mt-1 text-xs text-[var(--portal-muted)]">{item.hint}</p>
+                  </Link>
+                )
+              )}
             </div>
           </section>
 

@@ -9,7 +9,7 @@ import { getIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { AnimateIn } from "@/components/shared/animate-in";
 import {
-  useCatalogBusinessCategories,
+  useCatalogAllBusinessCategories,
   useCatalogBusinessProfiles,
   useCatalogIndustries,
 } from "@/hooks/use-commercial";
@@ -19,7 +19,7 @@ import {
   CatalogSkeleton,
 } from "@/components/commercial/catalog-states";
 import { industryDisplayIcon } from "@/lib/commercial/mappers";
-import type { CatalogIndustry } from "@/lib/commercial/types";
+import type { CatalogBusinessCategory, CatalogIndustry } from "@/lib/commercial/types";
 import { normalizePermalinkSlug } from "@/lib/signup/permalinks";
 
 type Filter = "featured" | "all";
@@ -30,14 +30,17 @@ function IndustryCard({
   onToggle,
   featured,
   large,
+  categories,
+  categoriesLoading,
 }: {
   industry: CatalogIndustry;
   expanded: boolean;
   onToggle: () => void;
   featured?: boolean;
   large?: boolean;
+  categories: CatalogBusinessCategory[];
+  categoriesLoading?: boolean;
 }) {
-  const categories = useCatalogBusinessCategories(expanded ? industry.id : null);
   const Icon = getIcon(industryDisplayIcon(industry));
   const media = getIndustryMedia(
     industry.code || industry.slug || industry.id,
@@ -69,6 +72,7 @@ function IndustryCard({
             alt={media.imageAlt}
             fill
             quality={70}
+            loading="lazy"
             sizes={
               large
                 ? "(max-width: 768px) 100vw, 66vw"
@@ -139,21 +143,14 @@ function IndustryCard({
 
       {expanded ? (
         <div className="border-t border-white/10 bg-slate-50 px-4 py-4 sm:px-5">
-          {categories.loading ? (
+          {categoriesLoading ? (
             <p className="text-sm text-muted-foreground">Loading categories…</p>
           ) : null}
-          {categories.error ? (
-            <CatalogErrorState
-              message={categories.error}
-              onRetry={categories.retry}
-              offline={categories.offline}
-            />
-          ) : null}
-          {!categories.loading && !categories.error && categories.data.length === 0 ? (
+          {!categoriesLoading && categories.length === 0 ? (
             <p className="text-sm text-muted-foreground">No public categories for this industry.</p>
           ) : null}
           <div className="grid gap-2">
-            {categories.data.map((cat) => (
+            {categories.map((cat) => (
               <CategoryRow
                 key={cat.id}
                 categoryId={cat.id}
@@ -241,12 +238,30 @@ export function IndustriesGallery() {
   const [filter, setFilter] = useState<Filter>("featured");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const industriesQuery = useCatalogIndustries();
+  const allCategoriesQuery = useCatalogAllBusinessCategories();
 
   const all = industriesQuery.data;
   const featured = useMemo(() => all.slice(0, 8), [all]);
   const items = filter === "featured" ? featured : all;
   const lead = items[0];
   const rest = items.slice(1);
+
+  const categoriesByIndustry = useMemo(() => {
+    const map = new Map<string, CatalogBusinessCategory[]>();
+    for (const cat of allCategoriesQuery.data) {
+      const key = String(cat.industry_id || "").trim();
+      if (!key) continue;
+      const list = map.get(key) || [];
+      list.push(cat);
+      map.set(key, list);
+    }
+    return map;
+  }, [allCategoriesQuery.data]);
+
+  const categoriesFor = (industry: CatalogIndustry) =>
+    categoriesByIndustry.get(String(industry.id)) ||
+    categoriesByIndustry.get(String(industry.slug || "")) ||
+    [];
 
   if (industriesQuery.loading) return <CatalogSkeleton rows={6} />;
   if (industriesQuery.error) {
@@ -305,6 +320,8 @@ export function IndustriesGallery() {
             onToggle={() =>
               setExpandedId((prev) => (prev === lead.id ? null : lead.id))
             }
+            categories={categoriesFor(lead)}
+            categoriesLoading={allCategoriesQuery.loading && !allCategoriesQuery.data.length}
           />
         </AnimateIn>
       ) : null}
@@ -319,6 +336,8 @@ export function IndustriesGallery() {
               onToggle={() =>
                 setExpandedId((prev) => (prev === industry.id ? null : industry.id))
               }
+              categories={categoriesFor(industry)}
+              categoriesLoading={allCategoriesQuery.loading && !allCategoriesQuery.data.length}
             />
           </AnimateIn>
         ))}

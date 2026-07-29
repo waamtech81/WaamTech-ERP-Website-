@@ -256,8 +256,8 @@ export function Header() {
             : "border-transparent bg-white"
         )}
       >
-        <div className="container-site flex h-16 md:h-[4.25rem] items-center justify-between gap-3 lg:gap-4">
-          <BrandLogo priority height={36} />
+        <div className="container-site flex h-[3.75rem] md:h-[4.25rem] items-center justify-between gap-2 sm:gap-3 lg:gap-4">
+          <BrandLogo priority height={34} className="min-w-0 max-w-[min(52vw,11rem)] sm:max-w-none" />
 
           <nav className="hidden xl:flex items-center gap-0.5">
             {/* Full-width Products mega menu */}

@@ -38,12 +38,28 @@ function BusinessCard({ business }: { business: PortalBusinessCard }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {business.licenseStatus ? (
-            <PortalStatusBadge status={business.licenseStatus} />
-          ) : null}
-          {business.subscriptionStatus ? (
-            <PortalStatusBadge status={business.subscriptionStatus} />
-          ) : null}
+          {(() => {
+            const licenseStatus = String(business.licenseStatus || "").trim().toLowerCase();
+            const subscriptionStatus = String(business.subscriptionStatus || "").trim().toLowerCase();
+            const sameStatus =
+              licenseStatus &&
+              subscriptionStatus &&
+              licenseStatus === subscriptionStatus;
+            if (sameStatus) {
+              return <PortalStatusBadge status={business.licenseStatus} />;
+            }
+            return (
+              <>
+                {business.licenseStatus ? (
+                  <PortalStatusBadge status={business.licenseStatus} />
+                ) : null}
+                {business.subscriptionStatus &&
+                business.subscriptionStatus !== business.licenseStatus ? (
+                  <PortalStatusBadge status={business.subscriptionStatus} />
+                ) : null}
+              </>
+            );
+          })()}
         </div>
       </div>
 

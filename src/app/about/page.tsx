@@ -13,11 +13,11 @@ import { TrustBadgeGrid } from "@/components/trust-badges";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "WaamTech Technologies — delivering software, ERP, and digital solutions since 2012.",
+  description: "WaamTech Technologies — delivering software, ERP, and digital solutions since 2010.",
 };
 
 const timeline = [
-  { year: "2012", title: "WaamTech journey begins", text: "Started building web, software, and digital solutions for businesses — helping clients grow their online presence and operations." },
+  { year: "2010", title: "WaamTech journey begins", text: "Started building web, software, and digital solutions for businesses — helping clients grow their online presence and operations." },
   { year: "2015", title: "SaaS & enterprise apps", text: "Expanded into custom application development and SaaS products for mid to large organizations across the globe." },
   { year: "2018", title: "ERP platform vision", text: "Began unified ERP development — inventory, finance, sales, and operations in one modular platform." },
   { year: "2022", title: "WaamTech SaaS Core", text: "Launched modular SaaS Core with Industry → Business Category hierarchy, installable modules, and industry-specific feature packs." },
@@ -26,14 +26,14 @@ const timeline = [
 ];
 
 const stats = [
-  { value: "2012", label: "Working since" },
+  { value: "2010", label: "Working since" },
   { value: "17", label: "Industries" },
   { value: "100+", label: "Business categories" },
   { value: "24/7", label: "Support available" },
 ];
 
 const leaders = [
-  { name: "WaamTech Leadership", role: "Founding Team", bio: "Experienced technology leaders focused on enterprise clarity, modular design, and customer success since 2012." },
+  { name: "WaamTech Leadership", role: "Founding Team", bio: "Experienced technology leaders focused on enterprise clarity, modular design, and customer success since 2010." },
   { name: "Product & Engineering", role: "Core Team", bio: "Building secure, scalable SaaS Core platforms that teams actually love using every day." },
   { name: "Customer Success", role: "Support Team", bio: "24×7 availability to answer queries, onboard clients, and maintain high satisfaction levels." },
 ];
@@ -47,13 +47,13 @@ export default function AboutPage() {
           <div className="grid gap-10 lg:grid-cols-2 lg:items-center pb-16">
             <AnimateIn>
               <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">
-                Since 2012
+                Since 2010
               </Badge>
               <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
                 {siteConfig.fullName}
               </h1>
               <p className="mt-5 text-lg text-muted-foreground leading-relaxed max-w-xl">
-                We have been building software, ERP systems, web solutions, and cloud infrastructure for businesses worldwide since <strong>2012</strong>. From responsive websites to full enterprise platforms — WaamTech delivers results-driven technology.
+                We have been building software, ERP systems, web solutions, and cloud infrastructure for businesses worldwide since <strong>2010</strong>. From responsive websites to full enterprise platforms — WaamTech delivers results-driven technology.
               </p>
               <p className="mt-4 text-muted-foreground leading-relaxed max-w-xl">
                 Our passion is helping businesses through innovative technologies — modular ERP, managed hosting via{" "}
@@ -73,11 +73,12 @@ export default function AboutPage() {
             <AnimateIn delay={0.1}>
               <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] border border-border shadow-[0_24px_80px_rgba(15,23,42,0.1)]">
                 <Image
-                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fm=webp&fit=crop&w=1600&q=70"
+                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fm=webp&fit=crop&w=1400&q=70"
                   alt="WaamTech team collaboration"
                   fill
                   className="object-cover"
                   priority
+                  quality={70}
                   sizes="(max-width: 1024px) 100vw, 50vw"
                 />
               </div>
@@ -136,18 +137,45 @@ export default function AboutPage() {
 
       <Section muted>
         <Container>
-          <SectionHeader eyebrow="Our journey" title="Building since 2012" />
-          <div className="relative mx-auto max-w-3xl space-y-6 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-border">
-            {timeline.map((item, i) => (
-              <AnimateIn key={item.year} delay={i * 0.05}>
-                <div className="relative pl-10">
-                  <span className="absolute left-0 top-2 h-3.5 w-3.5 rounded-full border-2 border-primary bg-white" />
-                  <p className="text-sm font-medium text-primary">{item.year}</p>
-                  <h3 className="mt-1 text-lg font-semibold">{item.title}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{item.text}</p>
-                </div>
-              </AnimateIn>
-            ))}
+          <SectionHeader eyebrow="Our journey" title="Building since 2010" />
+          <div className="relative mx-auto max-w-3xl">
+            <div
+              className="absolute left-[1.15rem] top-3 bottom-3 w-px bg-gradient-to-b from-primary/40 via-border to-border md:left-1/2 md:-translate-x-px"
+              aria-hidden
+            />
+            <ol className="space-y-8">
+              {timeline.map((item, i) => {
+                const right = i % 2 === 1;
+                return (
+                  <AnimateIn key={item.year} delay={i * 0.05}>
+                    <li
+                      className={`relative grid gap-3 pl-12 md:grid-cols-2 md:gap-10 md:pl-0 ${
+                        right ? "" : ""
+                      }`}
+                    >
+                      <span className="absolute left-3 top-1.5 z-[1] flex h-6 w-6 items-center justify-center rounded-full border-2 border-primary bg-white text-[10px] font-bold text-primary shadow-sm md:left-1/2 md:-translate-x-1/2">
+                        {String(item.year).slice(2)}
+                      </span>
+                      <div
+                        className={`rounded-2xl border border-border bg-white p-4 shadow-sm md:p-5 ${
+                          right
+                            ? "md:col-start-2"
+                            : "md:col-start-1 md:text-right"
+                        }`}
+                      >
+                        <p className="text-sm font-semibold text-primary">{item.year}</p>
+                        <h3 className="mt-1 text-lg font-semibold text-[#0b1f3a]">
+                          {item.title}
+                        </h3>
+                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                          {item.text}
+                        </p>
+                      </div>
+                    </li>
+                  </AnimateIn>
+                );
+              })}
+            </ol>
           </div>
         </Container>
       </Section>

@@ -270,7 +270,7 @@ export const coreCapabilities = [
 ] as const;
 
 export const homeStats = [
-  { label: "Working since", value: 2012, suffix: "" },
+  { label: "Working since", value: 2010, suffix: "" },
   { label: "Industries", value: 17, suffix: "" },
   { label: "Business categories", value: 100, suffix: "+" },
   { label: "Free trial", value: 14, suffix: " days" },

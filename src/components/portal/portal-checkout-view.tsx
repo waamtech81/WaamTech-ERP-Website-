@@ -22,6 +22,10 @@ import {
 } from "@/lib/portal/payment-methods";
 import { formatPortalStatus } from "@/lib/portal/display-labels";
 import { cn } from "@/lib/utils";
+import {
+  clearCheckoutSessionToken,
+  resolveCheckoutSessionToken,
+} from "@/lib/portal/checkout-session";
 
 type CheckoutSession = {
   session_token?: string;
@@ -46,12 +50,15 @@ function purposeLabel(mode: string, purpose?: string | null) {
 export function PortalCheckoutView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const session = String(searchParams.get("session") || "").trim();
+  const sessionFromUrl = searchParams.get("session");
   const mode = String(searchParams.get("mode") || "").trim();
+  const checkoutReason = String(searchParams.get("reason") || "").trim();
   const planName = String(searchParams.get("plan") || "").trim();
   const methodFromUrl = String(searchParams.get("method") || "").trim().toLowerCase();
   const { formatPrice, rates, country: visitorCountry } = useLocale();
   const { data: portal } = usePortalContext();
+
+  const [sessionToken, setSessionToken] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
@@ -66,6 +73,19 @@ export function PortalCheckoutView() {
   const [transactionId, setTransactionId] = useState("");
   const [checkout, setCheckout] = useState<CheckoutSession | null>(null);
   const [geoCountry, setGeoCountry] = useState<string | null>(visitorCountry);
+
+  useEffect(() => {
+    const token = resolveCheckoutSessionToken(sessionFromUrl);
+    setSessionToken(token);
+    if (sessionFromUrl) {
+      const params = new URLSearchParams();
+      if (mode) params.set("mode", mode);
+      if (planName) params.set("plan", planName);
+      if (methodFromUrl) params.set("method", methodFromUrl);
+      const qs = params.toString();
+      router.replace(qs ? `/portal/checkout?${qs}` : "/portal/checkout", { scroll: false });
+    }
+  }, [sessionFromUrl, mode, planName, methodFromUrl, router]);
 
   // Payment methods follow visitor geolocation (IP), not billing profile country.
   useEffect(() => {
@@ -92,7 +112,7 @@ export function PortalCheckoutView() {
   );
 
   useEffect(() => {
-    if (!session) {
+    if (!sessionToken) {
       setLoading(false);
       setError("Missing checkout session.");
       return;
@@ -102,7 +122,7 @@ export function PortalCheckoutView() {
     (async () => {
       try {
         const res = await fetch(
-          `/api/portal/billing/checkout/${encodeURIComponent(session)}`,
+          `/api/portal/billing/checkout/${encodeURIComponent(sessionToken)}`,
           { cache: "no-store", credentials: "include" }
         );
         const json = await res.json();
@@ -140,7 +160,7 @@ export function PortalCheckoutView() {
     return () => {
       cancelled = true;
     };
-  }, [session, methodFromUrl]);
+  }, [sessionToken, methodFromUrl]);
 
   useEffect(() => {
     if (!methodReady || methodFromUrl || !methods.length) return;
@@ -165,7 +185,7 @@ export function PortalCheckoutView() {
     usdAmount != null ? formatUsdAs(usdAmount, "USD", rates, { showCode: true }) : "—";
 
   async function confirmPayment() {
-    if (!session || confirming) return;
+    if (!sessionToken || confirming) return;
     if (needsTxn && !transactionId.trim()) {
       setError("Enter the transaction ID after you complete the transfer.");
       return;
@@ -183,7 +203,7 @@ export function PortalCheckoutView() {
         : selectedMethod || undefined;
 
       const res = await fetch(
-        `/api/portal/billing/checkout/${encodeURIComponent(session)}`,
+        `/api/portal/billing/checkout/${encodeURIComponent(sessionToken)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -203,10 +223,12 @@ export function PortalCheckoutView() {
         setConfirming(false);
         return;
       }
-      const qs = new URLSearchParams({ session });
+      clearCheckoutSessionToken();
+      const qs = new URLSearchParams();
       if (mode) qs.set("mode", mode);
-      if (planName) qs.set("plan", planName);
-      router.replace(`/portal/checkout/success?${qs.toString()}`);
+      const successPlan = planName || checkout?.plan_name || "";
+      if (successPlan) qs.set("plan", successPlan);
+      router.replace(qs.toString() ? `/portal/checkout/success?${qs.toString()}` : "/portal/checkout/success");
     } catch (err) {
       setError(friendlyNetworkError(err, "Payment could not be confirmed."));
       setConfirming(false);
@@ -239,6 +261,33 @@ export function PortalCheckoutView() {
 
       {error ? (
         <PortalFlash tone="error">{error}</PortalFlash>
+      ) : null}
+
+      {mode === "trial-convert" ||
+      mode === "trial_convert" ||
+      checkoutReason === "trial_expired" ||
+      checkout?.purpose === "trial_convert" ? (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-black"
+        >
+          <p className="font-semibold text-black">Your trial has ended</p>
+          <p className="mt-1 text-black">
+            Pay below to continue with the same license and plan. After payment, WAAMTO ERP Cloud
+            access is restored and a paid invoice is emailed to you.
+          </p>
+        </div>
+      ) : checkoutReason === "subscription_expired" || checkoutReason === "subscription_suspended" ? (
+        <div
+          role="status"
+          className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-black"
+        >
+          <p className="font-semibold text-black">Subscription renewal required</p>
+          <p className="mt-1 text-black">
+            Your billing period ended without payment. Complete checkout to restore app access at
+            app.waamto.com. This portal stays available for account management.
+          </p>
+        </div>
       ) : null}
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(520px,680px)] xl:items-start">
@@ -398,7 +447,7 @@ export function PortalCheckoutView() {
                     <div className="mt-5 space-y-3 border-t border-[var(--portal-border)] pt-5">
                       {selectedMethod === "paypal" && usdAmount != null ? (
                         <PayPalCheckout
-                          sessionToken={session}
+                          sessionToken={sessionToken}
                           amount={usdAmount}
                           currency="USD"
                           mode={mode}
@@ -409,7 +458,7 @@ export function PortalCheckoutView() {
                         <Button
                           type="button"
                           className="h-11 w-full rounded-xl text-base"
-                          disabled={!session || confirming || Boolean(error && !checkout)}
+                          disabled={!sessionToken || confirming || Boolean(error && !checkout)}
                           onClick={() => void confirmPayment()}
                         >
                           {confirming ? (

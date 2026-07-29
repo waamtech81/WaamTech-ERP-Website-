@@ -268,35 +268,57 @@ export function ModulesCatalog({ groupBy = "none", initialFilter = null }: Modul
           <div className="min-w-0 flex-1 space-y-2">
             <p className="text-sm text-muted-foreground">{scopeNote}</p>
             {filters.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFilter(null)}
-                  className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                    !filter
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border bg-white text-muted-foreground hover:border-primary/30"
-                  )}
-                >
-                  All
-                </button>
-                {filters.map((label) => (
+              <>
+                <div className="lg:hidden">
+                  <label htmlFor="modules-catalog-filter" className="sr-only">
+                    {groupBy === "industry" ? "Filter by industry" : "Filter by category"}
+                  </label>
+                  <select
+                    id="modules-catalog-filter"
+                    value={filter || ""}
+                    onChange={(e) => setFilter(e.target.value || null)}
+                    className="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm text-[#0b1f3a] shadow-sm outline-none focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/20"
+                  >
+                    <option value="">
+                      {groupBy === "industry" ? "All industries" : "All categories"}
+                    </option>
+                    {filters.map((label) => (
+                      <option key={label} value={label}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="hidden flex-wrap gap-2 lg:flex">
                   <button
-                    key={label}
                     type="button"
-                    onClick={() => setFilter(label)}
+                    onClick={() => setFilter(null)}
                     className={cn(
                       "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                      filter === label
+                      !filter
                         ? "border-primary bg-primary/5 text-primary"
                         : "border-border bg-white text-muted-foreground hover:border-primary/30"
                     )}
                   >
-                    {label}
+                    All
                   </button>
-                ))}
-              </div>
+                  {filters.map((label) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setFilter(label)}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                        filter === label
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border bg-white text-muted-foreground hover:border-primary/30"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
             ) : null}
           </div>
 

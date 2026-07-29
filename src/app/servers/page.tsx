@@ -74,7 +74,7 @@ export default function ServersPage() {
           <SectionHeader
             eyebrow="Our offerings"
             title="Everything your business needs to run online"
-            description="From shared cloud hosting to dedicated ERP on your own server — WaamTech has delivered infrastructure solutions since 2012."
+            description="From shared cloud hosting to dedicated ERP on your own server — WaamTech has delivered infrastructure solutions since 2010."
           />
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {serverOfferings.map((item, i) => {
@@ -87,6 +87,8 @@ export default function ServersPage() {
                         src={item.image}
                         alt={item.name}
                         fill
+                        quality={70}
+                        loading="lazy"
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                         sizes="(max-width: 768px) 100vw, 33vw"
                       />
@@ -217,7 +219,7 @@ export default function ServersPage() {
 
       <CTASection
         title="Ready to get started?"
-        description="Cloud hosting, ERP deployment, or a complete digital solution — we've been delivering since 2012."
+        description="Cloud hosting, ERP deployment, or a complete digital solution — we've been delivering since 2010."
         primaryLabel="Contact us"
         primaryHref="/contact"
         secondaryLabel="View ERP pricing"

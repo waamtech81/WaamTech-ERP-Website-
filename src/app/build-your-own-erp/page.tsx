@@ -46,17 +46,17 @@ export default function BuildYourOwnErpPage() {
                 feature packs, tune seats and billing, and continue to Signup — with live pricing
                 the whole way.
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button asChild size="lg" className="rounded-full">
+              <div className="mt-6 flex flex-nowrap items-stretch gap-2 overflow-x-auto pb-0.5 scrollbar-thin sm:flex-wrap sm:overflow-visible sm:gap-3">
+                <Button asChild size="sm" className="h-9 shrink-0 rounded-full px-3 text-xs whitespace-nowrap sm:h-11 sm:px-6 sm:text-sm">
                   <Link href="#builder">
                     Start building
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-full">
-                  <Link href="/modules">Browse all modules</Link>
+                <Button asChild size="sm" variant="outline" className="h-9 shrink-0 rounded-full px-3 text-xs whitespace-nowrap sm:h-11 sm:px-6 sm:text-sm">
+                  <Link href="/modules">Browse modules</Link>
                 </Button>
-                <Button asChild size="lg" variant="ghost" className="rounded-full">
+                <Button asChild size="sm" variant="ghost" className="h-9 shrink-0 rounded-full px-3 text-xs whitespace-nowrap sm:h-11 sm:px-6 sm:text-sm">
                   <Link href="/pricing">View fixed plans</Link>
                 </Button>
               </div>

@@ -2005,7 +2005,7 @@ export function BuildYourOwnErpBuilder() {
     });
     clearCustomErpPackage();
     router.push(
-      `/signup?plan_id=${encodeURIComponent(offer.matched_plan_id)}&billing_cycle=${encodeURIComponent(cycle)}`
+      `/signup?plan=${encodeURIComponent(planSlug)}&billing_cycle=${encodeURIComponent(cycle)}`
     );
   }
 

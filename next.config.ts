@@ -18,13 +18,13 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.googletagmanager.com https://www.google-analytics.com https://translate.google.com https://translate.googleapis.com https://www.paypal.com https://www.paypalobjects.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.googletagmanager.com https://www.google-analytics.com https://translate.google.com https://translate.googleapis.com https://www.paypal.com https://www.paypalobjects.com https://static.cloudflareinsights.com",
       "style-src 'self' 'unsafe-inline' https://www.gstatic.com https://translate.googleapis.com https://www.paypalobjects.com",
       "img-src 'self' data: blob: https://images.unsplash.com https://www.gstatic.com https://translate.googleapis.com https://translate.google.com https://www.google.com https://fonts.gstatic.com https://www.google-analytics.com https://www.googletagmanager.com https://www.paypal.com https://www.paypalobjects.com https://checkout.paypal.com",
       "font-src 'self' data: https://fonts.gstatic.com https://www.paypalobjects.com",
       // Same-origin only for XHR/fetch — Control Center identity is server-side via /api/auth/*.
       // No localhost in connect-src: prevents Chrome Apps-on-device (loopback-network) prompts.
-      "connect-src 'self' https://www.google.com https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com https://www.googletagmanager.com https://translate.googleapis.com https://translate.google.com https://translate-pa.googleapis.com https://www.gstatic.com https://clients5.google.com https://translation.googleapis.com https://www.paypal.com https://api-m.paypal.com https://api-m.sandbox.paypal.com https://www.sandbox.paypal.com https://sandbox.paypal.com",
+      "connect-src 'self' https://www.google.com https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com https://www.googletagmanager.com https://translate.googleapis.com https://translate.google.com https://translate-pa.googleapis.com https://www.gstatic.com https://clients5.google.com https://translation.googleapis.com https://www.paypal.com https://api-m.paypal.com https://api-m.sandbox.paypal.com https://www.sandbox.paypal.com https://sandbox.paypal.com https://cloudflareinsights.com",
       "frame-src https://www.google.com https://recaptcha.google.com https://www.gstatic.com https://translate.google.com https://maps.google.com https://www.paypal.com https://www.sandbox.paypal.com https://sandbox.paypal.com https://checkout.paypal.com https://c.paypal.com https://www.paypalobjects.com",
       "worker-src 'self' blob:",
       "frame-ancestors 'none'",
@@ -46,7 +46,7 @@ const nextConfig: NextConfig = {
     formats: ["image/webp", "image/avif"],
     qualities: [70, 75],
     minimumCacheTTL: 60 * 60 * 24 * 30,
-    deviceSizes: [640, 750, 828, 1080, 1200, 1400, 1920],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1400],
     imageSizes: [96, 128, 256, 320, 384, 640],
     remotePatterns: [
       {

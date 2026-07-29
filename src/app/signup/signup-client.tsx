@@ -36,6 +36,7 @@ import {
 } from "@/lib/commercial/plan-selection";
 import type { BillingCycle, CatalogPlan, CatalogProduct } from "@/lib/commercial/types";
 import { cn } from "@/lib/utils";
+import { portalCheckoutHref } from "@/lib/portal/checkout-session";
 import {
   useCatalogBusinessCategories,
   useCatalogIndustries,
@@ -1118,7 +1119,7 @@ function SignUpForm({
       const checkoutUrl =
         json.data?.checkoutUrl ||
         (json.data?.checkout_session_token
-          ? `/portal/checkout?session=${encodeURIComponent(json.data.checkout_session_token)}&mode=signup`
+          ? portalCheckoutHref("signup", json.data.checkout_session_token)
           : "");
 
       if (paid && checkoutUrl) {

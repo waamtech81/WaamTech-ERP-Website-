@@ -69,7 +69,13 @@ export async function validateSignupCommercialSelection(input: {
     };
   }
 
-  const planResult = await fetchPublicPlanById(planId);
+  const [planResult, products, industries, categories] = await Promise.all([
+    fetchPublicPlanById(planId),
+    fetchPublicProducts(),
+    fetchPublicIndustries(),
+    fetchPublicBusinessCategories(industryId),
+  ]);
+
   if (!planResult.ok || !planResult.data) {
     return {
       ok: false,
@@ -98,7 +104,6 @@ export async function validateSignupCommercialSelection(input: {
     };
   }
 
-  const products = await fetchPublicProducts();
   const product =
     products.data.find(
       (p) => p.id === plan.product_id || p.slug === plan.product_slug
@@ -122,7 +127,6 @@ export async function validateSignupCommercialSelection(input: {
     };
   }
 
-  const industries = await fetchPublicIndustries();
   if (!industries.ok) {
     return {
       ok: false,
@@ -142,7 +146,6 @@ export async function validateSignupCommercialSelection(input: {
     };
   }
 
-  const categories = await fetchPublicBusinessCategories(industry.id);
   if (!categories.ok) {
     return {
       ok: false,

@@ -1,12 +1,15 @@
 import type { ServerOffering } from "@/types";
+import { heroImageUrl, optimizeImageUrl } from "@/lib/images";
 
 export const serverHero = {
   eyebrow: "Infrastructure & Hosting",
   title: "Servers, cloud hosting & deployment",
   description:
     "From managed cloud hosting to dedicated ERP deployment — WaamTech and WaamHost deliver the infrastructure your business runs on.",
-  image:
+  image: heroImageUrl(
     "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fm=webp&fit=crop&w=1600&q=70",
+    1400
+  ),
 };
 
 export const serverOfferings: ServerOffering[] = [
@@ -17,8 +20,10 @@ export const serverOfferings: ServerOffering[] = [
     description:
       "Premium SSD cloud hosting with LiteSpeed, free SSL, daily backups, and 24/7 support — trusted by 100+ domains worldwide.",
     icon: "Cloud",
-    image:
-      "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fm=webp&fit=crop&w=1600&q=70",
+    image: optimizeImageUrl(
+      "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fm=webp&fit=crop&w=1200&q=70",
+      { width: 900 }
+    ),
     priceFrom: 5.99,
     originalPrice: 6.99,
     features: [
@@ -38,8 +43,10 @@ export const serverOfferings: ServerOffering[] = [
     description:
       "Run WaamTech ERP on our secure multi-tenant cloud — automatic updates, backups, and 14-day free trial included.",
     icon: "Boxes",
-    image:
-      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fm=webp&fit=crop&w=1600&q=70",
+    image: optimizeImageUrl(
+      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fm=webp&fit=crop&w=1200&q=70",
+      { width: 900 }
+    ),
     priceFrom: 9,
     originalPrice: 19,
     features: [
@@ -58,8 +65,10 @@ export const serverOfferings: ServerOffering[] = [
     description:
       "Deploy WaamTech on your own cloud instance — AWS, Azure, DigitalOcean, or WaamHost VPS with full data control.",
     icon: "Server",
-    image:
-      "https://images.unsplash.com/photo-1544197150-b99a580bb7a0?auto=format&fm=webp&fit=crop&w=1600&q=70",
+    image: optimizeImageUrl(
+      "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fm=webp&fit=crop&w=1200&q=70",
+      { width: 900 }
+    ),
     priceFrom: 0,
     features: [
       "Dedicated server resources",
@@ -77,8 +86,10 @@ export const serverOfferings: ServerOffering[] = [
     description:
       "Need ERP on a local server without internet dependency? We install, configure, and support on-premise deployments.",
     icon: "HardDrive",
-    image:
-      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fm=webp&fit=crop&w=1600&q=70",
+    image: optimizeImageUrl(
+      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fm=webp&fit=crop&w=1200&q=70",
+      { width: 900 }
+    ),
     priceFrom: 0,
     features: [
       "No internet required for daily ops",
@@ -96,8 +107,10 @@ export const serverOfferings: ServerOffering[] = [
     description:
       "Resell or deploy WaamTech under your own brand — custom domain, logo, colors, and client-facing portal.",
     icon: "Sparkles",
-    image:
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fm=webp&fit=crop&w=1600&q=70",
+    image: optimizeImageUrl(
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fm=webp&fit=crop&w=1200&q=70",
+      { width: 900 }
+    ),
     priceFrom: 0,
     features: [
       "Custom branding & domain",
@@ -115,8 +128,10 @@ export const serverOfferings: ServerOffering[] = [
     description:
       "Domain registration, responsive web design, CMS, mobile apps, SEO, and ongoing support from the WaamTech team.",
     icon: "Globe",
-    image:
-      "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fm=webp&fit=crop&w=1600&q=70",
+    image: optimizeImageUrl(
+      "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fm=webp&fit=crop&w=1200&q=70",
+      { width: 900 }
+    ),
     priceFrom: 14.99,
     features: [
       "Domain registration (.com from $14.99)",

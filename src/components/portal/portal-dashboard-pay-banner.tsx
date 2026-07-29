@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { PortalDashboard } from "@/lib/portal/dashboard";
 import { showRenewalUi } from "@/lib/portal/package-type";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
+import { portalCheckoutHref } from "@/lib/portal/checkout-session";
 import { cn } from "@/lib/utils";
 
 function checkoutHrefFromPayload(data: unknown): string | null {
@@ -17,12 +18,15 @@ function checkoutHrefFromPayload(data: unknown): string | null {
       ? (row.checkout as Record<string, unknown>)
       : row;
   const token = String(checkout.session_token || "").trim();
-  if (token) return `/portal/checkout?session=${encodeURIComponent(token)}`;
+  if (token) return portalCheckoutHref("renew", token);
   const url = String(checkout.checkout_url || "").trim();
   if (url.startsWith("/portal/")) return url;
   if (url.includes("/portal/checkout")) {
     try {
       const parsed = new URL(url, window.location.origin);
+      const legacyToken = parsed.searchParams.get("session");
+      const legacyMode = parsed.searchParams.get("mode") || "renew";
+      if (legacyToken) return portalCheckoutHref(legacyMode, legacyToken);
       return `${parsed.pathname}${parsed.search}`;
     } catch {
       /* ignore */

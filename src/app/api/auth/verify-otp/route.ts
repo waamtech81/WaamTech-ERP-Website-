@@ -114,9 +114,7 @@ export const POST = withApiHandler(
     const checkoutToken = result.data.checkout_session_token;
     const checkoutUrl =
       result.data.checkoutUrl ||
-      (checkoutToken
-        ? `/portal/checkout?session=${encodeURIComponent(checkoutToken)}&mode=signup`
-        : undefined);
+      (checkoutToken ? `/portal/checkout?mode=signup` : undefined);
 
     const portalLogin = getPortalLoginPath({
       email: result.data.email || email,

@@ -35,7 +35,7 @@ import {
 } from "@/lib/commercial/mappers";
 
 function jsonOk(data: unknown, init?: { status?: number; cacheSeconds?: number }) {
-  const cacheSeconds = init?.cacheSeconds ?? 60;
+  const cacheSeconds = init?.cacheSeconds ?? 300;
   const res = apiSuccess("OK", {
     data,
     status: init?.status ?? 200,

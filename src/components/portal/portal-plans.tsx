@@ -29,6 +29,7 @@ import { useLocale } from "@/components/providers/locale-provider";
 import { formatUsdAs } from "@/lib/currency/format";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import { cn } from "@/lib/utils";
+import { portalCheckoutHref } from "@/lib/portal/checkout-session";
 import type { PricingPlan } from "@/types";
 import type { BillingCycle } from "@/lib/commercial/types";
 
@@ -61,12 +62,15 @@ function checkoutHrefFromPayload(data: unknown): string | null {
       ? (row.checkout as Record<string, unknown>)
       : row;
   const token = String(checkout.session_token || "").trim();
-  if (token) return `/portal/checkout?session=${encodeURIComponent(token)}`;
+  if (token) return portalCheckoutHref("upgrade", token);
   const url = String(checkout.checkout_url || "").trim();
   if (url.startsWith("/portal/")) return url;
   if (url.includes("/portal/checkout")) {
     try {
       const parsed = new URL(url, window.location.origin);
+      const legacyToken = parsed.searchParams.get("session");
+      const legacyMode = parsed.searchParams.get("mode") || "upgrade";
+      if (legacyToken) return portalCheckoutHref(legacyMode, legacyToken);
       return `${parsed.pathname}${parsed.search}`;
     } catch {
       /* ignore */
@@ -119,7 +123,7 @@ export function PortalPlansView() {
       ? subscriptions.find((s) => s.id === requestedSubId)
       : null) ||
     subscriptions.find((s) =>
-      ["active", "trial", "trialing", "grace", "suspended", "pending"].includes(
+      ["active", "trial", "trialing", "grace", "suspended", "pending", "expired"].includes(
         String(s.status || "").toLowerCase()
       )
     ) ||

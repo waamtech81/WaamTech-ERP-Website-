@@ -29,8 +29,13 @@ import { PortalNotificationsView } from "@/components/portal/portal-notification
 import { PortalSettingsView } from "@/components/portal/portal-settings";
 import { PortalCustomErpRenewButton } from "@/components/portal/portal-custom-erp-renew";
 import {
+  extractSubscriptionCancelReason,
   formatAutoRenewLabel,
   PortalSubscriptionCancelActions,
+  subscriptionAccessUntil,
+  subscriptionActionsLocked,
+  subscriptionCancelScheduled,
+  subscriptionScheduledMessage,
 } from "@/components/portal/portal-subscription-cancel";
 import {
   primaryPortalLicense,
@@ -213,6 +218,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             data.subscriptions?.[0] ||
             null;
           const linkedSubId = linkedSub?.id || primarySubId;
+          const actionsLocked = subscriptionActionsLocked(linkedSub);
           const planTitle =
             lic.plan_name ||
             (String(lic.package_type || "").toLowerCase() === "custom"
@@ -235,6 +241,9 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 </p>
               </div>
               <PortalStatusBadge status={lic.effective_status || lic.status} />
+              {linkedSub && subscriptionCancelScheduled(linkedSub) ? (
+                <PortalStatusBadge status="Cancel scheduled" />
+              ) : null}
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {[
@@ -270,23 +279,67 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               ) : null}
               {isCustomJourney ? (
                 <>
-                  <Button asChild size="sm" variant="outline" className="rounded-xl">
-                    <Link href="/portal/modules">Manage modules</Link>
+                  <Button
+                    asChild={!actionsLocked}
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl"
+                    disabled={actionsLocked}
+                    title={
+                      actionsLocked
+                        ? "Keep subscription to manage modules again."
+                        : undefined
+                    }
+                  >
+                    {actionsLocked ? (
+                      <span>Manage modules</span>
+                    ) : (
+                      <Link href="/portal/modules">Manage modules</Link>
+                    )}
                   </Button>
-                  <Button asChild size="sm" variant="outline" className="rounded-xl">
-                    <Link href="/portal/custom-erp">Modify configuration</Link>
+                  <Button
+                    asChild={!actionsLocked}
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl"
+                    disabled={actionsLocked}
+                    title={
+                      actionsLocked
+                        ? "Keep subscription to modify configuration again."
+                        : undefined
+                    }
+                  >
+                    {actionsLocked ? (
+                      <span>Modify configuration</span>
+                    ) : (
+                      <Link href="/portal/custom-erp">Modify configuration</Link>
+                    )}
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button asChild size="sm" variant="outline" className="rounded-xl">
-                    <Link href={plansHref("upgrade", linkedSubId, journey)}>Upgrade</Link>
+                  <Button
+                    asChild={!actionsLocked}
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl"
+                    disabled={actionsLocked}
+                    title={
+                      actionsLocked ? "Keep subscription to upgrade again." : undefined
+                    }
+                  >
+                    {actionsLocked ? (
+                      <span>Upgrade</span>
+                    ) : (
+                      <Link href={plansHref("upgrade", linkedSubId, journey)}>Upgrade</Link>
+                    )}
                   </Button>
                   <Button asChild size="sm" variant="outline" className="rounded-xl">
                     <Link href={plansHref("new_place", null, journey)}>Create New Business</Link>
                   </Button>
                 </>
               )}
+              {linkedSub ? <PortalSubscriptionCancelActions subscription={linkedSub} /> : null}
               <Button size="sm" variant="outline" className="rounded-xl" disabled title="Available when License Engine exposes downloadable license files">
                 <Download className="h-4 w-4" />
                 Download license
@@ -304,6 +357,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
 
   if (section === "subscriptions") {
     const commercial = data.subscriptions || [];
+    const customerLabel =
+      data.overview?.company || data.overview?.customerName || "Customer";
     if (commercial.length) {
       flush = true;
       body = (
@@ -311,30 +366,41 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           <table className="portal-table">
             <thead>
               <tr>
-                <th scope="col">Subscription</th>
+                <th scope="col">Customer</th>
                 {!isCustomJourney ? <th scope="col">Plan</th> : null}
+                <th scope="col">Type</th>
                 <th scope="col">Status</th>
-                <th scope="col">Billing cycle</th>
-                {canRenew ? <th scope="col">Renewal</th> : null}
-                {canRenew ? <th scope="col">Auto renew</th> : null}
+                <th scope="col">Access until</th>
+                <th scope="col">Reason</th>
                 <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {commercial.map((sub) => (
+              {commercial.map((sub) => {
+                const actionsLocked = subscriptionActionsLocked(sub);
+                const cancelReason =
+                  extractSubscriptionCancelReason(sub.notes) ||
+                  (subscriptionCancelScheduled(sub) ? "Cancel scheduled" : null);
+                const accessUntil = subscriptionAccessUntil(sub) || "—";
+                return (
                 <tr key={sub.id}>
                   <td className="font-medium">
-                    {sub.subscription_number || sub.product_name || sub.id}
+                    {sub.company_name || customerLabel}
                   </td>
                   {!isCustomJourney ? <td>{sub.plan_name || "—"}</td> : null}
+                  <td className="capitalize">{sub.billing_cycle || sub.product_name || "—"}</td>
                   <td>
-                    <PortalStatusBadge status={sub.status} />
+                    <div className="flex flex-wrap gap-1">
+                      <PortalStatusBadge status={sub.status} />
+                      {subscriptionCancelScheduled(sub) ? (
+                        <PortalStatusBadge status="Cancel scheduled" />
+                      ) : null}
+                    </div>
                   </td>
-                  <td>{sub.billing_cycle || "—"}</td>
-                  {canRenew ? (
-                    <td>{formatPortalDate(sub.renewal_date || sub.expiry_date) || "—"}</td>
-                  ) : null}
-                  {canRenew ? <td>{formatAutoRenewLabel(sub)}</td> : null}
+                  <td>{accessUntil}</td>
+                  <td className="max-w-[12rem] text-sm text-[var(--portal-muted)]">
+                    {cancelReason || "—"}
+                  </td>
                   <td>
                     <div className="flex flex-wrap gap-1.5">
                       {canRenew ? (
@@ -352,13 +418,41 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                         )
                       ) : null}
                       {isCustomJourney ? (
-                        <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
-                          <Link href="/portal/custom-erp">Modify package</Link>
+                        <Button
+                          asChild={!actionsLocked}
+                          size="sm"
+                          variant="outline"
+                          className="rounded-lg h-8"
+                          disabled={actionsLocked}
+                          title={
+                            actionsLocked
+                              ? "Keep subscription to modify package again."
+                              : undefined
+                          }
+                        >
+                          {actionsLocked ? (
+                            <span>Modify package</span>
+                          ) : (
+                            <Link href="/portal/custom-erp">Modify package</Link>
+                          )}
                         </Button>
                       ) : (
                         <>
-                          <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
-                            <Link href={plansHref("upgrade", sub.id, journey)}>Upgrade</Link>
+                          <Button
+                            asChild={!actionsLocked}
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg h-8"
+                            disabled={actionsLocked}
+                            title={
+                              actionsLocked ? "Keep subscription to upgrade again." : undefined
+                            }
+                          >
+                            {actionsLocked ? (
+                              <span>Upgrade</span>
+                            ) : (
+                              <Link href={plansHref("upgrade", sub.id, journey)}>Upgrade</Link>
+                            )}
                           </Button>
                           <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
                             <Link href={plansHref("new_place", null, journey)}>Create New Business</Link>
@@ -367,9 +461,15 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                       )}
                       <PortalSubscriptionCancelActions subscription={sub} />
                     </div>
+                    {subscriptionScheduledMessage(sub) ? (
+                      <p className="mt-2 max-w-md text-xs leading-relaxed text-teal-700">
+                        {subscriptionScheduledMessage(sub)}
+                      </p>
+                    ) : null}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -431,12 +531,34 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               )
             ) : null}
               {isCustomJourney ? (
-                <Button asChild size="sm" variant="outline" className="rounded-xl">
-                  <Link href="/portal/custom-erp">Modify package</Link>
+                <Button
+                  asChild={!subscriptionActionsLocked(activeSub)}
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl"
+                  disabled={subscriptionActionsLocked(activeSub)}
+                >
+                  {subscriptionActionsLocked(activeSub) ? (
+                    <span>Modify package</span>
+                  ) : (
+                    <Link href="/portal/custom-erp">Modify package</Link>
+                  )}
                 </Button>
               ) : (
-                <Button asChild size="sm" variant="outline" className="rounded-xl">
-                  <Link href={plansHref("upgrade", data.subscriptions?.[0]?.id, journey)}>Upgrade</Link>
+                <Button
+                  asChild={!subscriptionActionsLocked(activeSub)}
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl"
+                  disabled={subscriptionActionsLocked(activeSub)}
+                >
+                  {subscriptionActionsLocked(activeSub) ? (
+                    <span>Upgrade</span>
+                  ) : (
+                    <Link href={plansHref("upgrade", data.subscriptions?.[0]?.id, journey)}>
+                      Upgrade
+                    </Link>
+                  )}
                 </Button>
               )}
             {activeSub ? <PortalSubscriptionCancelActions subscription={activeSub} /> : null}
@@ -758,8 +880,13 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
 
   if (section === "modules") {
     const primary = primaryPortalLicense(data.licenses);
-    const moduleItems =
-      primary?.modules?.length ? primary.modules : data.modules.filter(Boolean);
+    const moduleItems = Array.from(
+      new Set([
+        ...(primary?.modules || []),
+        ...data.licenses.flatMap((l) => l.modules),
+        ...data.modules.filter(Boolean),
+      ])
+    );
     body = moduleItems.length ? (
       <div className="space-y-6">
         <div>
@@ -802,8 +929,13 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
 
   if (section === "feature-packs") {
     const primary = primaryPortalLicense(data.licenses);
-    const packs =
-      primary?.feature_packs?.length ? primary.feature_packs : data.featurePacks.filter(Boolean);
+    const packs = Array.from(
+      new Set([
+        ...(primary?.feature_packs || []),
+        ...data.licenses.flatMap((l) => l.feature_packs),
+        ...data.featurePacks.filter(Boolean),
+      ])
+    );
     body = packs.length ? (
       <div className="space-y-6">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { formatPortalDateTime } from "@/components/portal/use-portal-data";
@@ -26,6 +26,18 @@ const CATEGORY_LABELS: Record<string, string> = {
   announcements: "Announcement",
 };
 
+const FILTER_OPTIONS = [
+  { id: "all", label: "All" },
+  { id: "unread", label: "Unread" },
+  { id: "license", label: "License" },
+  { id: "subscription", label: "Subscription" },
+  { id: "payment", label: "Payment" },
+  { id: "invoice", label: "Invoice" },
+  { id: "system", label: "System" },
+] as const;
+
+type FilterId = (typeof FILTER_OPTIONS)[number]["id"];
+
 function categoryTone(category: string) {
   const c = category.toLowerCase();
   if (c === "payment" || c === "invoice") return "text-amber-700 bg-amber-500/10 border-amber-500/20";
@@ -35,9 +47,27 @@ function categoryTone(category: string) {
   return "text-[var(--portal-muted)] bg-[var(--portal-muted-soft)] border-[var(--portal-border)]";
 }
 
+function mapNotificationRows(rows: Record<string, unknown>[]): PortalNotification[] {
+  return rows.map((row) => ({
+    id: String(row.id),
+    title: String(row.title || ""),
+    body:
+      row.message != null
+        ? String(row.message)
+        : row.body != null
+          ? String(row.body)
+          : null,
+    category: String(row.type || row.category || "system"),
+    read: Boolean(row.is_read ?? row.read),
+    created_at: row.created_at != null ? String(row.created_at) : undefined,
+  }));
+}
+
 export function PortalNotificationsView() {
   const { data } = usePortalContext();
   const [items, setItems] = useState<PortalNotification[]>(data?.notifications ?? []);
+  const [filter, setFilter] = useState<FilterId>("all");
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -47,39 +77,40 @@ export function PortalNotificationsView() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch("/api/portal/notifications", {
+      const params = new URLSearchParams({ limit: "100" });
+      if (filter === "unread") params.set("unread", "1");
+      else if (filter !== "all") params.set("category", filter);
+
+      const res = await fetch(`/api/portal/notifications?${params.toString()}`, {
         cache: "no-store",
         credentials: "include",
       });
       const json = await res.json();
       if (!json.success) return;
       const rows = Array.isArray(json.data) ? json.data : [];
-      setItems(
-        rows.map((row: Record<string, unknown>) => ({
-          id: String(row.id),
-          title: String(row.title || ""),
-          body:
-            row.message != null
-              ? String(row.message)
-              : row.body != null
-                ? String(row.body)
-                : null,
-          category: String(row.type || row.category || "system"),
-          read: Boolean(row.is_read ?? row.read),
-          created_at: row.created_at != null ? String(row.created_at) : undefined,
-        }))
-      );
+      setItems(mapNotificationRows(rows as Record<string, unknown>[]));
     } catch {
       /* polling failures are silent */
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [filter]);
 
   useEffect(() => {
+    setLoading(true);
     void fetchNotifications();
-    const timer = window.setInterval(() => {
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    const refresh = () => {
       void fetchNotifications();
-    }, 90_000);
-    return () => window.clearInterval(timer);
+    };
+    window.addEventListener("portal-notifications-refresh", refresh);
+    const timer = window.setInterval(refresh, 90_000);
+    return () => {
+      window.removeEventListener("portal-notifications-refresh", refresh);
+      window.clearInterval(timer);
+    };
   }, [fetchNotifications]);
 
   const postAction = async (payload: Record<string, unknown>) => {
@@ -102,7 +133,6 @@ export function PortalNotificationsView() {
       try {
         await postAction({ action: "read", id });
         setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-        // Avoid full dashboard reload (fans out many Engine calls → rate limits).
       } catch (err) {
         setError(friendlyNetworkError(err, "Unable to mark notification as read."));
       }
@@ -121,7 +151,26 @@ export function PortalNotificationsView() {
     });
   };
 
+  const filteredItems = useMemo(() => {
+    if (filter === "all") return items;
+    if (filter === "unread") return items.filter((n) => !n.read);
+    return items.filter((n) => {
+      const category = String(n.category || "system").toLowerCase();
+      if (filter === "payment") return category === "payment" || category === "billing";
+      return category === filter;
+    });
+  }, [filter, items]);
+
   const unreadCount = items.filter((n) => !n.read).length;
+
+  if (loading && !items.length) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-[var(--portal-muted)]">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading notifications…
+      </div>
+    );
+  }
 
   if (!items.length) {
     return (
@@ -138,6 +187,9 @@ export function PortalNotificationsView() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-[var(--portal-muted)]">
           {unreadCount ? `${unreadCount} unread` : "All notifications read"}
+          {filteredItems.length !== items.length
+            ? ` · Showing ${filteredItems.length} of ${items.length}`
+            : ` · ${items.length} total`}
         </p>
         {unreadCount ? (
           <Button
@@ -158,91 +210,114 @@ export function PortalNotificationsView() {
         ) : null}
       </div>
 
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Notification filters">
+        {FILTER_OPTIONS.map((option) => (
+          <Button
+            key={option.id}
+            type="button"
+            size="sm"
+            variant={filter === option.id ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setFilter(option.id)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+
       {error ? <PortalFlash tone="error">{error}</PortalFlash> : null}
 
-      <ul className="space-y-2" aria-label="Notifications">
-        {items.map((n) => {
-          const category = (n.category || "system").toLowerCase();
-          const label = CATEGORY_LABELS[category] || category;
-          return (
-            <li key={n.id}>
-              <article
-                className={cn(
-                  "flex items-start justify-between gap-3 rounded-xl border px-4 py-3.5 transition",
-                  n.read
-                    ? "border-[var(--portal-border)] bg-[var(--portal-soft)] opacity-80"
-                    : "border-[var(--portal-primary)]/25 bg-[var(--portal-primary-soft)]/30"
-                )}
-              >
-                <div className="flex min-w-0 items-start gap-3">
-                  <span
-                    className={cn(
-                      "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                      n.read
-                        ? "bg-[var(--portal-muted-soft)] text-[var(--portal-muted)]"
-                        : "bg-[var(--portal-primary-soft)] text-[var(--portal-primary)]"
-                    )}
-                  >
-                    <Bell className="h-4 w-4" aria-hidden />
-                  </span>
-                  <div className="min-w-0">
-                    <p
+      {filteredItems.length ? (
+        <ul className="space-y-2" aria-label="Notifications">
+          {filteredItems.map((n) => {
+            const category = (n.category || "system").toLowerCase();
+            const label = CATEGORY_LABELS[category] || category;
+            return (
+              <li key={n.id}>
+                <article
+                  className={cn(
+                    "flex items-start justify-between gap-3 rounded-xl border px-4 py-3.5 transition",
+                    n.read
+                      ? "border-[var(--portal-border)] bg-[var(--portal-soft)] opacity-80"
+                      : "border-[var(--portal-primary)]/25 bg-[var(--portal-primary-soft)]/30"
+                  )}
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span
                       className={cn(
-                        "text-sm",
+                        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
                         n.read
-                          ? "font-medium text-[var(--portal-fg)]"
-                          : "font-semibold text-[var(--portal-fg)]"
+                          ? "bg-[var(--portal-muted-soft)] text-[var(--portal-muted)]"
+                          : "bg-[var(--portal-primary-soft)] text-[var(--portal-primary)]"
                       )}
                     >
-                      {n.title}
-                    </p>
-                    {n.body ? (
-                      <p className="mt-1 text-sm text-[var(--portal-muted)]">{n.body}</p>
-                    ) : null}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span
+                      <Bell className="h-4 w-4" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p
                         className={cn(
-                          "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
-                          categoryTone(category)
+                          "text-sm",
+                          n.read
+                            ? "font-medium text-[var(--portal-fg)]"
+                            : "font-semibold text-[var(--portal-fg)]"
                         )}
                       >
-                        {label}
-                      </span>
-                      {n.created_at ? (
-                        <time
-                          className="text-xs text-[var(--portal-muted)]"
-                          dateTime={n.created_at}
-                        >
-                          {formatPortalDateTime(n.created_at)}
-                        </time>
+                        {n.title}
+                      </p>
+                      {n.body ? (
+                        <p className="mt-1 text-sm text-[var(--portal-muted)]">{n.body}</p>
                       ) : null}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                            categoryTone(category)
+                          )}
+                        >
+                          {label}
+                        </span>
+                        {n.created_at ? (
+                          <time
+                            className="text-xs text-[var(--portal-muted)]"
+                            dateTime={n.created_at}
+                          >
+                            {formatPortalDateTime(n.created_at)}
+                          </time>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  {!n.read ? (
-                    <>
-                      <PortalStatusBadge status="Unread" />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 rounded-lg px-2 text-xs"
-                        disabled={pending}
-                        onClick={() => markRead(n.id)}
-                      >
-                        Mark read
-                      </Button>
-                    </>
-                  ) : (
-                    <PortalStatusBadge status="Read" />
-                  )}
-                </div>
-              </article>
-            </li>
-          );
-        })}
-      </ul>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    {!n.read ? (
+                      <>
+                        <PortalStatusBadge status="Unread" />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 rounded-lg px-2 text-xs"
+                          disabled={pending}
+                          onClick={() => markRead(n.id)}
+                        >
+                          Mark read
+                        </Button>
+                      </>
+                    ) : (
+                      <PortalStatusBadge status="Read" />
+                    )}
+                  </div>
+                </article>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <PortalEmptyState
+          title="No notifications in this filter"
+          description="Try another category or switch back to All."
+          icon={Bell}
+        />
+      )}
     </div>
   );
 }

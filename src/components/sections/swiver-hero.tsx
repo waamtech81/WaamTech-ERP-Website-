@@ -56,13 +56,15 @@ export function SwiverHero() {
           </Button>
         </div>
 
-        <div className="mx-auto mt-6 max-w-full overflow-x-auto">
-          <p className="whitespace-nowrap font-heading text-base sm:text-lg md:text-xl lg:text-2xl font-bold tracking-tight leading-snug">
-            <span className="text-[#0b1f3a]">No card. No payment.</span>{" "}
-            <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+        <div className="mx-auto mt-6 max-w-lg px-2 text-center">
+          <p className="font-heading text-base sm:text-lg md:text-xl font-bold tracking-tight leading-snug text-[#0b1f3a]">
+            <span className="block sm:inline">No card. No payment.</span>{" "}
+            <span className="block sm:inline bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
               {authConfig.trialDays}-day free trial signup
             </span>
-            <span className="text-[#0b1f3a]"> — start instantly</span>
+          </p>
+          <p className="mt-1 font-heading text-base sm:text-lg md:text-xl font-bold tracking-tight text-[#0b1f3a]">
+            — start instantly
           </p>
         </div>
       </Container>

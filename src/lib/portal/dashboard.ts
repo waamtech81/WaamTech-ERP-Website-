@@ -24,6 +24,7 @@ import {
   portalInvoicePdfPath,
 } from "@/lib/commercial/client";
 import {
+  fetchMyNotifications,
   type PortalCustomerNotification,
 } from "@/lib/portal/support";
 import {
@@ -319,6 +320,13 @@ function extractFeaturePackNames(source: unknown): string[] {
       return "";
     })
     .filter(Boolean);
+}
+
+function extractCommercialSnapshot(company: Record<string, unknown> | null) {
+  const commercial = company?.commercial;
+  return commercial && typeof commercial === "object"
+    ? (commercial as Record<string, unknown>)
+    : null;
 }
 
 function extractModuleLabels(
@@ -641,20 +649,29 @@ async function tryFetchErpStats(email: string): Promise<Record<string, unknown> 
       `/v1/public/customer-stats?email=${encodeURIComponent(email)}`,
       `/v1/portal/stats?email=${encodeURIComponent(email)}`,
     ];
-    for (const path of paths) {
-      const res = await fetch(`${base}${path}`, {
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      });
-      if (!res.ok) continue;
-      const json = (await res.json()) as {
-        success?: boolean;
-        data?: Record<string, unknown>;
-      };
-      if (json.success && json.data && Object.keys(json.data).length) {
-        return json.data;
-      }
-    }
+    // Prefer first path that succeeds — probe in parallel to cut failover latency.
+    const results = await Promise.all(
+      paths.map(async (path) => {
+        try {
+          const res = await fetch(`${base}${path}`, {
+            headers: { Accept: "application/json" },
+            cache: "no-store",
+          });
+          if (!res.ok) return null;
+          const json = (await res.json()) as {
+            success?: boolean;
+            data?: Record<string, unknown>;
+          };
+          if (json.success && json.data && Object.keys(json.data).length) {
+            return json.data;
+          }
+        } catch {
+          /* optional ERP data */
+        }
+        return null;
+      })
+    );
+    return results.find((row) => row != null) ?? null;
   } catch {
     /* optional ERP data */
   }
@@ -763,6 +780,9 @@ async function loadPortalDashboardUncached(
   }
 
   // Two waves instead of one 12-way fan-out — cuts License Engine rate-limit spikes.
+  // ERP stats only need identity email — overlap with wave 1.
+  const erpPromise = tryFetchErpStats(me.data.identity.email);
+
   const [licensesRes, sessionsRes, subsRes, companyRes, gatewaysRes, usageRes] =
     await Promise.all([
       identityListLicenses(token),
@@ -778,22 +798,15 @@ async function loadPortalDashboardUncached(
     (Array.isArray(licensesRes.data) && licensesRes.data[0]?.product_slug) ||
     "waamto-erp";
 
-  const [invoicesRes, paymentsRes, renewalsRes, engineDashboardRes, modulesCatalogRes] =
+  const [invoicesRes, paymentsRes, renewalsRes, engineDashboardRes, modulesCatalogRes, notificationsRes] =
     await Promise.all([
       fetchMyInvoices(token, { limit: 50 }),
       fetchMyPayments(token, { limit: 50 }),
       fetchMyRenewals(token),
       fetchBillingDashboard(token),
       fetchPublicModules(String(productSlugHint)),
+      fetchMyNotifications(token, { limit: 20 }),
     ]);
-
-  // Notifications loaded via /api/portal/notifications — skip here to avoid Engine
-  // migration 500s burning the public billing rate limit on every dashboard refresh.
-  const notificationsRes = {
-    ok: true as const,
-    data: [] as PortalCustomerNotification[],
-    unread_count: 0,
-  };
 
   const identity = me.data.identity;
   const customer = me.data.customer;
@@ -823,7 +836,7 @@ async function loadPortalDashboardUncached(
   const sessions = Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
   const primary = primaryLicense(rawLicenses);
   const trial = trialFromLicenses(rawLicenses);
-  const erp = sanitizeErpPayload(await tryFetchErpStats(identity.email));
+  const erp = sanitizeErpPayload(await erpPromise);
 
   const company = companyRes.ok ? companyRes.data : null;
   const engineDashboard = engineDashboardRes.ok ? engineDashboardRes.data : null;
@@ -939,11 +952,17 @@ async function loadPortalDashboardUncached(
     }
   }
 
+  const commercialSnapshot = extractCommercialSnapshot(company);
+
   const companyModuleLabels = Array.from(
     new Set([
       ...extractModuleLabels(company?.selected_modules, moduleLabels),
       ...extractModuleLabels(company?.modules, moduleLabels),
       ...extractModuleLabels(company?.enabled_modules, moduleLabels),
+      ...extractModuleLabels(commercialSnapshot?.effective_modules, moduleLabels),
+      ...extractModuleLabels(commercialSnapshot?.modules, moduleLabels),
+      ...extractModuleLabels(commercialSnapshot?.selected_modules, moduleLabels),
+      ...extractModuleLabels(commercialSnapshot?.dependency_modules, moduleLabels),
     ])
   );
 
@@ -1034,6 +1053,7 @@ async function loadPortalDashboardUncached(
       : (notifications || []).filter((n) => !n.read).length;
 
   const companyFeaturePacks = extractFeaturePackNames(company?.feature_packs);
+  const snapshotFeaturePacks = extractFeaturePackNames(commercialSnapshot?.feature_packs);
   const customerFeaturePacks = extractFeaturePackNames(customer?.feature_packs);
   const licenseFeaturePacks = Array.from(
     new Set(licenses.flatMap((l) => l.feature_packs).filter(Boolean))
@@ -1046,6 +1066,7 @@ async function loadPortalDashboardUncached(
   const featurePacks = Array.from(
     new Set([
       ...licenseFeaturePacks,
+      ...snapshotFeaturePacks,
       ...companyFeaturePacks,
       ...customerFeaturePacks,
       ...erpFeaturePacks,

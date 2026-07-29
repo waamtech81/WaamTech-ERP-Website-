@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Headphones, Mail, MessageCircle, Ticket } from "lucide-react";
+import { Mail, MessageCircle, Ticket } from "lucide-react";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { OpenLiveChatButton } from "@/components/support/open-live-chat-button";
 
 export const metadata: Metadata = {
   title: "Support",
   description:
-    "Get help from WAAMTO — secure contact form, live chat coming soon, and support tickets in the Customer Portal.",
+    "Get help from WAAMTO — secure contact form, live chat, and support tickets in the Customer Portal.",
 };
 
 export default function SupportPage() {
@@ -24,7 +24,7 @@ export default function SupportPage() {
             align="left"
             eyebrow="Support"
             title="Help when your operations need it"
-            description="Email our team, prepare for live chat, or sign in to open support tickets from your Customer Portal."
+            description="Email our team, open live chat, or sign in to open support tickets from your Customer Portal."
             className="mb-0 max-w-3xl"
           />
         </Container>
@@ -56,33 +56,25 @@ export default function SupportPage() {
             </AnimateIn>
 
             <AnimateIn delay={0.05}>
-              <Card className="h-full flex flex-col" data-live-chat-provider="pending">
+              <Card className="h-full flex flex-col" data-live-chat-provider="crisp">
                 <CardHeader>
                   <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary">
                     <MessageCircle className="h-5 w-5" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-lg">Live chat</CardTitle>
-                    <Badge variant="muted">Soon</Badge>
-                  </div>
+                  <CardTitle className="text-lg">Live chat</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-1 flex-col">
                   <p className="text-sm text-muted-foreground leading-relaxed flex-1">
-                    Live Chat Coming Soon. This slot is reserved for a future chat provider
-                    (Intercom, Crisp, Zendesk, etc.) without changing the page layout.
+                    Chat with WAAMTO support in real time. If the chat bubble is hidden, use the
+                    button below to open Crisp.
                   </p>
                   <div
                     id="waamto-live-chat-mount"
-                    className="mt-6 rounded-2xl border border-dashed border-border bg-muted/40 px-4 py-5 text-center"
-                    data-chat-status="coming-soon"
+                    className="mt-4"
+                    data-chat-status="ready"
                     aria-live="polite"
                   >
-                    <Headphones className="mx-auto h-5 w-5 text-muted-foreground" />
-                    <p className="mt-2 text-sm font-medium">Live Chat Coming Soon</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Provider widget mounts at{" "}
-                      <code className="text-[11px]">#waamto-live-chat-mount</code>
-                    </p>
+                    <OpenLiveChatButton />
                   </div>
                 </CardContent>
               </Card>

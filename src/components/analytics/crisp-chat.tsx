@@ -53,6 +53,18 @@ function segmentsForPath(pathname: string): string[] {
   return ["general", "department:sales"];
 }
 
+/** Open Crisp chatbox (safe if script still loading). */
+export function openCrispChat() {
+  if (typeof window === "undefined") return;
+  window.$crisp = window.$crisp || [];
+  try {
+    window.$crisp.push(["do", "chat:show"]);
+    window.$crisp.push(["do", "chat:open"]);
+  } catch {
+    // Crisp queue accepts pushes before client is ready.
+  }
+}
+
 /**
  * Crisp live chat for WAAMTO marketing site + customer portal.
  * Free-plan only: segments for Sales / Technical Support / Billing soft routing.
@@ -80,6 +92,7 @@ export function CrispChat() {
           ],
         ],
       ]);
+      window.$crisp.push(["do", "chat:show"]);
     } catch {
       // Crisp may not be ready yet; client script will apply later pushes.
     }
@@ -91,6 +104,7 @@ export function CrispChat() {
     <Script id="crisp-chat" strategy="afterInteractive">{`
       window.$crisp=window.$crisp||[];
       window.CRISP_WEBSITE_ID=${JSON.stringify(CRISP_WEBSITE_ID)};
+      window.$crisp.push(["do", "chat:show"]);
       (function(){
         d=document;
         s=d.createElement("script");

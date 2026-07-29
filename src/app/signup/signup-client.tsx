@@ -606,7 +606,8 @@ function SignUpForm({
   }, [selectedPlan, billingCycle]);
 
   const signupCtaLabel = useMemo(() => {
-    if (isCustomPackage || isPaidSignup) return "Ready to Buy";
+    if (!selectedPlan && !isCustomPackage) return "Create account";
+    if (isPaidSignup) return "Create account";
     if (!selectedPlan) return "Create account";
     return signupModeCtaLabel("trial", selectedPlan);
   }, [selectedPlan, isCustomPackage, isPaidSignup]);
@@ -1116,17 +1117,18 @@ function SignUpForm({
       setTrialEndsAt(json.data?.trialEndsAt || "");
       const paid =
         Boolean(json.data?.payment_required) || json.data?.signup_mode === "paid";
-      const checkoutUrl =
-        json.data?.checkoutUrl ||
-        (json.data?.checkout_session_token
-          ? portalCheckoutHref("signup", json.data.checkout_session_token)
-          : "");
+      const checkoutToken = String(json.data?.checkout_session_token || "").trim();
 
-      if (paid && checkoutUrl) {
+      if (paid) {
         setOtpStep(false);
-        setSuccess(json.message || "Email verified. Redirecting to checkout…");
+        setSuccess(json.message || "Email verified. Opening your portal…");
         setLoading(true);
         clearSignupDraft();
+        clearCustomErpPackage();
+
+        if (checkoutToken) {
+          portalCheckoutHref("signup", checkoutToken);
+        }
 
         const loginRes = await fetch("/api/auth/login", {
           method: "POST",
@@ -1139,17 +1141,15 @@ function SignUpForm({
           setError(
             apiMessageFromJson(
               loginJson,
-              "Account verified. Sign in to complete payment."
+              "Account verified. Sign in to continue in the Customer Portal."
             )
           );
           setLoading(false);
-          window.location.assign(
-            getPortalLoginPath({ email, next: checkoutUrl })
-          );
+          window.location.assign(getPortalLoginPath({ email, next: "/portal" }));
           return;
         }
 
-        window.location.assign(checkoutUrl);
+        window.location.assign("/portal");
         return;
       }
 
@@ -1289,7 +1289,7 @@ function SignUpForm({
                 We sent a 6-digit code to{" "}
                 <span className="font-medium text-foreground">{maskedEmail}</span>. Enter it below
                 {isPaidSignup
-                  ? " to continue to secure checkout."
+                  ? " to finish creating your account."
                   : " to activate your trial."}
               </p>
               <form onSubmit={onVerifyOtp} className="mt-8 space-y-4 text-left">
@@ -1323,7 +1323,7 @@ function SignUpForm({
                       Verifying...
                     </>
                   ) : isPaidSignup ? (
-                    "Verify & continue to checkout"
+                    "Verify & continue"
                   ) : (
                     "Verify & start trial"
                   )}
@@ -1372,18 +1372,20 @@ function SignUpForm({
           <Badge variant="accent" className="mb-4">
             <Sparkles className="h-3 w-3 mr-1" />
             {isPaidSignup
-              ? "Paid plan · Secure checkout after verification"
+              ? "Direct signup · Payment in Customer Portal"
               : `${authConfig.trialDays}-day free trial · No card required`}
           </Badge>
           <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
-            {isPaidSignup ? "Complete your purchase" : "Create your workspace in minutes"}
+            Create your workspace in minutes
           </h1>
           <p className="mt-2 font-heading text-base sm:text-lg font-semibold tracking-tight text-primary">
-            {isPaidSignup ? "Verify email, then pay to activate." : "No card. No payment. Direct signup."}
+            {isPaidSignup
+              ? "Create your account first — checkout opens in the portal after verification."
+              : "No card. No payment. Direct signup."}
           </p>
           <p className="mt-2 sm:mt-3 text-base sm:text-lg text-muted-foreground leading-relaxed">
             {isPaidSignup
-              ? "Review your package and pricing, create your account, verify your email, then complete checkout to activate WAAMTO ERP."
+              ? "Review your package, create your account, and verify your email. After verification you will sign in to the Customer Portal to complete payment."
               : "Choose your product, plan, industry, and business category — then verify your email to start your trial."}
           </p>
           <ul
@@ -1394,9 +1396,9 @@ function SignUpForm({
           >
             {(isPaidSignup
               ? [
-                  "Custom ERP and Lifetime plans require payment before activation",
-                  "OTP email verification before checkout",
-                  "License and workspace activate after successful payment",
+                  "Same simple signup form — payment happens in the Customer Portal",
+                  "OTP email verification before portal access",
+                  "Lifetime and Custom ERP checkout shows your selected amount in the portal",
                   "Enterprise plans use Contact Sales — never fixed pricing",
                 ]
               : [

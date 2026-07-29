@@ -318,7 +318,7 @@ export const POST = withApiHandler(
     return apiSuccess(
       license.message ||
         (signupMode === "paid"
-          ? `We sent a verification code to ${maskEmail(email)}. Enter it to continue to checkout.`
+          ? `We sent a verification code to ${maskEmail(email)}. Enter it to finish creating your account.`
           : `We sent a verification code to ${maskEmail(email)}. Enter it to activate your trial.`),
       {
         extra: {

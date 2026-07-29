@@ -14,6 +14,7 @@ import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { formatPortalDateTime } from "@/components/portal/use-portal-data";
 import { PortalStatusBadge } from "@/components/portal/portal-ui";
 import { PortalBillingGate } from "@/components/portal/portal-billing-gate";
+import { PortalSignupCheckoutGate } from "@/components/portal/portal-signup-checkout-gate";
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -479,6 +480,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+      <PortalSignupCheckoutGate />
       <PortalBillingGate />
     </div>
   );

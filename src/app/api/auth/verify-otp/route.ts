@@ -125,7 +125,7 @@ export const POST = withApiHandler(
     return apiSuccess(
       result.message ||
         (isPaid
-          ? "Email verified. Complete payment to activate your account."
+          ? "Email verified. Sign in to the Customer Portal to complete payment."
           : `Email verified. Your ${trialDays}-day trial is ready.`),
       {
         data: {
@@ -139,7 +139,7 @@ export const POST = withApiHandler(
           signup_mode: isPaid ? "paid" : "trial",
           checkout_session_token: checkoutToken,
           checkoutUrl,
-          redirectUrl: isPaid && checkoutUrl ? checkoutUrl : portalLogin,
+          redirectUrl: isPaid ? "/portal" : portalLogin,
           erpLoginUrl: appUrl,
         },
       }

@@ -1,0 +1,193 @@
+﻿---
+description: WAAMTO Enterprise Git & Release Rules v3.0
+alwaysApply: true
+---
+# WAAMTO Enterprise Git & Release Rules v3.0
+
+> Mandatory Git, version control and release management rules for all WAAMTO ecosystem projects.
+
+---
+
+# Purpose
+
+Protect repository integrity while delivering safe, traceable and production-ready changes.
+
+---
+
+# Core Principles
+
+Always:
+
+- Keep commits focused.
+- Make the smallest safe change.
+- Preserve project history.
+- Protect production stability.
+
+Never:
+
+- Rewrite history without approval.
+- Force push protected branches.
+- Mix unrelated work in one commit.
+
+---
+
+# Scope
+
+Each commit should represent one logical change.
+
+Do not combine:
+
+- bug fixes
+- refactoring
+- new features
+- formatting
+- documentation
+
+into one commit unless they are directly related.
+
+---
+
+# Branch Rules
+
+Respect the existing project branching strategy.
+
+Do not create, rename or delete branches unless instructed.
+
+Never merge without completing the requested validation.
+
+---
+
+# Commit Quality
+
+Before committing verify:
+
+- Code compiles (where applicable)
+- Validation completed
+- No debug code remains
+- No temporary files remain
+- No secrets are included
+
+---
+
+# Commit Messages
+
+Use clear, concise messages.
+
+Examples:
+
+- fix(auth): resolve session timeout issue
+- feat(inventory): add stock adjustment approval
+- refactor(api): simplify customer validation
+- docs: update deployment guide
+
+Avoid vague messages such as:
+
+- update
+- fixes
+- changes
+- work
+
+---
+
+# Pull Requests
+
+When preparing a PR include:
+
+- Summary
+- Scope
+- Files changed
+- Validation performed
+- Risks
+- Breaking changes (if any)
+
+Keep descriptions concise and factual.
+
+---
+
+# Release Safety
+
+Before release verify:
+
+- Requested work completed
+- Relevant validation passed
+- No critical defects remain
+- No unfinished debug code
+- No secrets committed
+- Configuration verified
+
+---
+
+# Versioning
+
+Respect the project's existing versioning strategy.
+
+Do not change version numbers unless instructed.
+
+---
+
+# Rollback Awareness
+
+Before making significant changes consider:
+
+- Can this change be reverted?
+- Will rollback affect data?
+- Does it introduce compatibility issues?
+
+Prefer reversible implementations.
+
+---
+
+# Production Deployments
+
+Never assume production deployment is required.
+
+Deployment must be explicitly requested.
+
+---
+
+# Repository Hygiene
+
+Never commit:
+
+- .env files
+- API keys
+- passwords
+- tokens
+- certificates
+- local configuration
+- temporary files
+- IDE-specific files (unless already tracked)
+
+---
+
+# Reporting
+
+When Git work is complete report:
+
+- Branch
+- Files changed
+- Commit summary
+- Validation completed
+- Release readiness
+
+Keep reports brief.
+
+---
+
+# Completion Checklist
+
+âœ“ Scope respected
+
+âœ“ Clean changes
+
+âœ“ Clear commit message
+
+âœ“ No secrets committed
+
+âœ“ Validation completed
+
+âœ“ Release safe
+
+If complete:
+
+STOP.

@@ -1,0 +1,173 @@
+﻿---
+description: WAAMTO Enterprise Performance & Token Rules v3.0
+alwaysApply: true
+---
+# WAAMTO Enterprise Performance & Token Rules v3.0
+
+> Mandatory performance and token optimization rules for all WAAMTO ecosystem projects.
+
+---
+
+# Purpose
+
+Optimize AI efficiency without reducing development quality, correctness, testing or security.
+
+Performance optimization must never create incomplete implementations.
+
+---
+
+# Core Principle
+
+Read everything reasonably required.
+
+Never read unrelated code.
+
+Optimize for intelligent analysis, not minimal analysis.
+
+---
+
+# Token Strategy
+
+Always:
+
+- Understand the task first.
+- Identify affected modules.
+- Read required dependencies.
+- Ignore unrelated areas.
+- Reuse previous context whenever possible.
+
+---
+
+# Repository Navigation
+
+Prefer targeted navigation.
+
+Avoid repository-wide exploration unless explicitly requested.
+
+If multiple implementations exist, inspect only the most relevant ones.
+
+---
+
+# File Reading
+
+Read:
+
+- affected files
+- direct dependencies
+- shared utilities when required
+- middleware when required
+- services when required
+- database layer when required
+- API contracts when required
+
+Avoid unrelated folders.
+
+---
+
+# Context Reuse
+
+Never repeat analysis already completed during the same task.
+
+Reuse previous understanding whenever safe.
+
+---
+
+# Search Strategy
+
+Prefer:
+
+- exact filename
+- exact component
+- exact function
+- exact API
+- exact class
+
+Avoid broad keyword searches unless necessary.
+
+---
+
+# Code Generation
+
+Generate only code required for the requested task.
+
+Avoid unnecessary boilerplate.
+
+Reuse existing patterns.
+
+---
+
+# Performance
+
+Prefer:
+
+- existing components
+- shared libraries
+- existing utilities
+
+Avoid duplicate implementations.
+
+---
+
+# Testing
+
+Run only validation reasonably required by the current task.
+
+Do not skip dependency validation.
+
+Do not run unrelated system-wide testing.
+
+---
+
+# Browser Usage
+
+Use browser only for:
+
+- UI validation
+- production verification
+- external integrations
+- user-requested checks
+
+---
+
+# Terminal Usage
+
+Run only commands that provide value for the requested task.
+
+Avoid unnecessary installs, builds and long-running processes.
+
+---
+
+# Communication
+
+Keep reports concise.
+
+Focus on:
+
+- work completed
+- files changed
+- validation
+- remaining issues
+
+Avoid repeating analysis.
+
+---
+
+# Completion Checklist
+
+âœ“ Task understood
+
+âœ“ Correct scope identified
+
+âœ“ Required files inspected
+
+âœ“ Unrelated files avoided
+
+âœ“ Existing code reused
+
+âœ“ Validation completed
+
+âœ“ No unnecessary token usage
+
+If complete:
+
+STOP.

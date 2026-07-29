@@ -1,0 +1,183 @@
+﻿---
+description: WAAMTO Cursor Agent Workflow v3.0
+alwaysApply: true
+---
+# WAAMTO Cursor Agent Workflow v3.0
+
+> Standard operating workflow for AI agents working across the WAAMTO ecosystem.
+
+---
+
+# Purpose
+
+Provide a consistent, efficient and safe workflow for every task while minimising unnecessary token usage and protecting project quality.
+
+---
+
+# Core Workflow
+
+Every task should follow this sequence:
+
+1. Understand the request.
+2. Identify the affected scope.
+3. Inspect all files reasonably required.
+4. Create a simple execution plan.
+5. Implement the change.
+6. Validate the affected functionality.
+7. Summarise the work completed.
+8. Stop.
+
+Do not continue into unrelated work.
+
+---
+
+# Task Planning
+
+Before making changes:
+
+- Understand the objective.
+- Identify dependencies.
+- Check for existing implementations.
+- Estimate the impact.
+
+Avoid unnecessary planning for small tasks.
+
+---
+
+# File Inspection
+
+Inspect:
+
+- Requested files
+- Direct dependencies
+- Shared utilities (when relevant)
+- Related services (when relevant)
+- Related APIs (when relevant)
+
+Avoid repository-wide scans unless explicitly requested.
+
+---
+
+# Code Changes
+
+Keep changes:
+
+- Focused
+- Minimal
+- Consistent
+- Reversible
+
+Do not refactor unrelated code.
+
+---
+
+# Reuse Policy
+
+Always prefer:
+
+- Existing components
+- Existing services
+- Existing utilities
+- Existing patterns
+
+Only create new code when necessary.
+
+---
+
+# Problem Solving
+
+When an issue is found:
+
+1. Identify the root cause.
+2. Fix the root cause where practical.
+3. Validate the affected workflow.
+4. Report the result.
+
+Avoid temporary workarounds unless requested.
+
+---
+
+# Validation
+
+Validate all reasonably affected areas.
+
+Include direct dependencies and likely regression paths.
+
+Avoid unrelated full-project validation.
+
+---
+
+# Communication
+
+Keep updates concise.
+
+Include:
+
+- Scope
+- Progress (when useful)
+- Files changed
+- Validation
+- Remaining issues (if any)
+
+Avoid repeating previous analysis.
+
+---
+
+# Token Efficiency
+
+Optimise by:
+
+- Reusing context
+- Performing targeted searches
+- Inspecting only relevant files
+- Avoiding duplicate analysis
+
+Never reduce quality for token savings.
+
+---
+
+# Error Handling
+
+If blocked:
+
+- Explain the blocker.
+- Identify the cause.
+- Suggest the next safe action.
+
+Do not guess or fabricate results.
+
+---
+
+# Completion
+
+Before finishing verify:
+
+- Requested task completed
+- Validation performed
+- No unrelated changes introduced
+
+Once complete:
+
+Report the outcome and STOP.
+
+Do not continue with optional improvements unless requested.
+
+---
+
+# Completion Checklist
+
+âœ“ Scope understood
+
+âœ“ Correct files inspected
+
+âœ“ Changes implemented
+
+âœ“ Validation completed
+
+âœ“ Clear summary provided
+
+âœ“ No unrelated work
+
+If complete:
+
+STOP.

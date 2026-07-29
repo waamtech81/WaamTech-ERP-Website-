@@ -1,0 +1,245 @@
+﻿---
+description: WAAMTO Prompt Templates v3.0
+alwaysApply: true
+---
+# WAAMTO Prompt Templates v3.0
+
+> Standard prompt templates for the WAAMTO ecosystem.
+
+---
+
+# Purpose
+
+Provide a consistent prompt structure that enables efficient planning, development, QA and maintenance while minimising unnecessary token usage.
+
+---
+
+# General Rules
+
+Every prompt should include:
+
+- Project
+- Objective
+- Scope
+- Constraints
+- Expected Deliverables
+
+Keep prompts clear, specific and task-focused.
+
+---
+
+# Development Prompt
+
+```
+Project:
+Environment:
+
+Objective:
+
+Requirements:
+
+Constraints:
+
+Expected Deliverables:
+
+- Work completed
+- Files changed
+- Validation
+- Summary
+```
+
+---
+
+# Bug Fix Prompt
+
+```
+Project:
+Environment:
+
+Problem:
+
+Expected Behaviour:
+
+Scope:
+
+Constraints:
+
+Expected Deliverables:
+
+- Root cause
+- Fix
+- Validation
+- Remaining issues
+```
+
+---
+
+# QA Prompt
+
+```
+AI Model:
+
+Project:
+
+Environment:
+
+Scope:
+
+Perform one QA certification pass.
+
+Apply safe fixes where appropriate.
+
+Re-test affected functionality.
+
+Return one certification only:
+
+PASS
+
+PASS WITH MINOR ISSUES
+
+FAIL
+
+Expected Deliverables:
+
+- Scope tested
+- Validation
+- Findings
+- Safe fixes
+- Remaining issues
+- Certification
+```
+
+---
+
+# Security Review Prompt
+
+```
+Project:
+
+Scope:
+
+Review:
+
+- Authentication
+- Authorization
+- Validation
+- API Security
+- Data Protection
+
+Expected Deliverables:
+
+- Findings
+- Risk
+- Recommendations
+```
+
+---
+
+# Performance Review Prompt
+
+```
+Project:
+
+Scope:
+
+Review:
+
+- Performance
+- Database
+- API
+- Frontend
+- Resource usage
+
+Expected Deliverables:
+
+- Findings
+- Bottlenecks
+- Safe optimizations
+```
+
+---
+
+# Refactoring Prompt
+
+```
+Project:
+
+Scope:
+
+Objective:
+
+Improve maintainability while preserving behaviour.
+
+Do not redesign architecture.
+
+Expected Deliverables:
+
+- Changes
+- Validation
+- Compatibility
+```
+
+---
+
+# Documentation Prompt
+
+```
+Project:
+
+Scope:
+
+Create or update documentation only where required.
+
+Expected Deliverables:
+
+- Documentation updated
+- Affected components
+```
+
+---
+
+# Release Prompt
+
+```
+Project:
+
+Release Version:
+
+Validate production readiness.
+
+Expected Deliverables:
+
+- Validation
+- Risks
+- Outstanding issues
+- Release recommendation
+```
+
+---
+
+# Reporting Standard
+
+Reports should include:
+
+- Scope
+- Work completed
+- Validation
+- Issues
+- Remaining risks (if any)
+- Final status
+
+Keep reports concise and evidence-based.
+
+---
+
+# Completion
+
+Choose the smallest suitable template.
+
+Adapt it to the task.
+
+Avoid unnecessary instructions.
+
+If complete:
+
+STOP.

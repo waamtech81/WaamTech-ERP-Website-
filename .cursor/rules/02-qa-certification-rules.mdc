@@ -1,0 +1,323 @@
+﻿---
+description: WAAMTO Enterprise QA & Certification Rules v3.0
+alwaysApply: true
+---
+# WAAMTO Enterprise QA & Certification Rules v3.0
+
+> Mandatory QA workflow for all WAAMTO ecosystem projects.
+
+---
+
+# Purpose
+
+The purpose of QA is to certify production readiness while minimising unnecessary work, repository scanning and token usage.
+
+QA is evidence-based.
+
+Never guess.
+
+---
+
+# QA Objectives
+
+Always:
+
+- Verify correctness.
+- Validate requested functionality.
+- Protect architecture.
+- Detect regressions.
+- Minimise risk.
+- Produce a certification decision.
+
+---
+
+# QA Principles
+
+QA is not development.
+
+QA should identify issues first.
+
+Only perform safe fixes when explicitly allowed.
+
+---
+
+# QA Workflow
+
+Follow this sequence.
+
+1. Understand scope.
+2. Identify affected modules.
+3. Read only required files.
+4. Execute relevant validation.
+5. Record findings.
+6. Apply safe fixes (if permitted).
+7. Re-test affected functionality.
+8. Produce certification.
+9. Stop.
+
+Never continue into unrelated testing.
+
+---
+
+# Scope Rules
+
+Never test the entire application unless requested.
+
+Test only:
+
+- affected feature
+- affected module
+- affected API
+- affected UI
+- affected workflow
+
+---
+
+# Repository Rules
+
+Never scan the complete repository during QA.
+
+Never inspect unrelated modules.
+
+Never generate project-wide audits unless requested.
+
+---
+
+# Safe Fix Policy
+
+Safe fixes include:
+
+- obvious bug fixes
+- missing validation
+- incorrect imports
+- configuration mistakes
+- broken references
+- small UI issues
+
+Never perform:
+
+- architecture redesign
+- major refactoring
+- dependency replacement
+- database redesign
+
+during QA.
+
+---
+
+# Regression Testing
+
+Test only areas that could reasonably be affected.
+
+Avoid unrelated regression testing.
+
+---
+
+# Test Priority
+
+Priority order:
+
+1. Critical functionality
+2. Security
+3. Data integrity
+4. Business logic
+5. API behaviour
+6. UI behaviour
+7. Performance
+
+---
+
+# Validation Areas
+
+When applicable validate:
+
+- functionality
+- business rules
+- API responses
+- permissions
+- authentication
+- authorisation
+- validation
+- error handling
+- logging
+- database behaviour
+- UI rendering
+- responsiveness
+
+Only validate what is relevant.
+
+---
+
+# Evidence
+
+Every finding must include evidence.
+
+Examples:
+
+- failing endpoint
+- error message
+- failing test
+- console error
+- screenshot
+- code reference
+
+Never report assumptions.
+
+---
+
+# Certification Levels
+
+Only use one of the following.
+
+PASS
+
+Requirements:
+
+- requested functionality works
+- no critical issues
+- no high-risk defects
+
+---
+
+PASS WITH MINOR ISSUES
+
+Requirements:
+
+- functionality works
+- only low-risk issues remain
+- production acceptable
+
+List remaining minor issues.
+
+---
+
+FAIL
+
+Requirements:
+
+- critical functionality broken
+- data integrity risk
+- security issue
+- production risk
+- blocking defects
+
+Clearly explain why.
+
+---
+
+# Reporting Format
+
+Always include:
+
+## Scope
+
+What was tested.
+
+## Validation
+
+Checks performed.
+
+## Findings
+
+Issues discovered.
+
+## Fixes
+
+Safe fixes applied (if any).
+
+## Remaining Issues
+
+Only if applicable.
+
+## Certification
+
+PASS
+
+or
+
+PASS WITH MINOR ISSUES
+
+or
+
+FAIL
+
+---
+
+# Performance
+
+Do not run heavy performance testing unless requested.
+
+Run only relevant performance validation.
+
+---
+
+# Security
+
+Always verify relevant:
+
+- authentication
+- authorisation
+- permissions
+- validation
+- input handling
+
+Never bypass security checks.
+
+---
+
+# Database
+
+Never modify schema during QA.
+
+Never generate migrations during QA.
+
+---
+
+# Token Optimisation
+
+Use minimum:
+
+- searches
+- file reads
+- tests
+- analysis
+
+Reuse previous context whenever possible.
+
+---
+
+# Completion Rules
+
+QA ends immediately after:
+
+- certification completed
+- report generated
+- requested scope validated
+
+Do not continue searching for optional improvements.
+
+---
+
+# Final Checklist
+
+Before completing QA verify:
+
+âœ“ Scope respected
+
+âœ“ Only required files analysed
+
+âœ“ Relevant validation completed
+
+âœ“ Safe fixes only
+
+âœ“ Re-test completed
+
+âœ“ Certification assigned
+
+âœ“ No unrelated changes introduced
+
+If all checks pass:
+
+STOP.
+
+QA is complete.

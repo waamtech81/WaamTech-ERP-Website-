@@ -1,0 +1,211 @@
+﻿---
+description: WAAMTO Shared Architecture Rules v3.0
+alwaysApply: true
+---
+# WAAMTO Shared Architecture Rules v3.0
+
+> Shared architecture standards for the entire WAAMTO ecosystem.
+
+---
+
+# Purpose
+
+Maintain a consistent, scalable and maintainable architecture across all WAAMTO projects while protecting long-term compatibility.
+
+---
+
+# Scope
+
+These rules apply to all shared projects including:
+
+- ERP
+- License Engine
+- Monitoring
+- Website
+- Documentation
+- Shared Packages
+- Future WAAMTO products
+
+---
+
+# Architecture First
+
+Always understand the existing architecture before making changes.
+
+Extend the architecture where appropriate.
+
+Avoid changing established architecture unless explicitly requested.
+
+---
+
+# Reuse First
+
+Before creating new code, check for existing:
+
+- Components
+- Services
+- Utilities
+- Hooks
+- Middleware
+- Types
+- Interfaces
+- Shared libraries
+
+Reuse whenever practical.
+
+---
+
+# Separation of Responsibilities
+
+Keep responsibilities clearly separated.
+
+Business logic belongs in business modules.
+
+Platform services belong in shared platform components.
+
+Avoid mixing unrelated responsibilities.
+
+---
+
+# Shared Components
+
+When functionality benefits multiple projects, prefer extending shared components instead of duplicating code.
+
+Do not move project-specific logic into shared libraries.
+
+---
+
+# APIs
+
+Maintain consistent API design across projects.
+
+Preserve existing request and response conventions unless a breaking change is approved.
+
+---
+
+# Database
+
+Maintain consistent data models and naming conventions.
+
+Avoid duplicate entities or conflicting structures.
+
+Protect data integrity.
+
+---
+
+# Configuration
+
+Centralise shared configuration where appropriate.
+
+Avoid duplicate configuration values across projects.
+
+Never hardcode environment-specific values.
+
+---
+
+# Naming
+
+Follow existing naming conventions for:
+
+- Files
+- Folders
+- APIs
+- Components
+- Services
+- Database objects
+
+Avoid inconsistent naming.
+
+---
+
+# Dependencies
+
+Reuse approved dependencies.
+
+Introduce new packages only when there is a clear technical benefit.
+
+Avoid unnecessary dependency duplication.
+
+---
+
+# Security
+
+Shared architecture must preserve:
+
+- Authentication
+- Authorization
+- Validation
+- Tenant isolation (where applicable)
+- Secure defaults
+
+Never weaken security for convenience.
+
+---
+
+# Performance
+
+Design shared solutions that scale.
+
+Consider:
+
+- Performance
+- Maintainability
+- Reusability
+- Backward compatibility
+
+Avoid premature optimisation.
+
+---
+
+# Documentation
+
+Update architecture documentation only when architectural behaviour changes.
+
+Avoid unnecessary documentation updates.
+
+---
+
+# Validation
+
+When architecture is affected, validate:
+
+- Compatibility
+- Shared integrations
+- Existing consumers
+- Regression risks
+
+Test all reasonably affected areas.
+
+---
+
+# Reporting
+
+Summarise:
+
+- Architecture impact
+- Shared components affected
+- Compatibility
+- Validation performed
+- Remaining risks
+
+Keep reports concise.
+
+---
+
+# Completion Checklist
+
+âœ“ Architecture preserved
+
+âœ“ Shared components reused
+
+âœ“ Responsibilities maintained
+
+âœ“ Compatibility verified
+
+âœ“ Security preserved
+
+âœ“ Validation completed
+
+If complete:
+
+STOP.

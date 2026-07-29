@@ -1,0 +1,175 @@
+﻿---
+description: WAAMTO License Engine Rules v3.0
+alwaysApply: true
+---
+# WAAMTO License Engine Rules v3.0
+
+> License Engine-specific development rules.
+
+---
+
+# Purpose
+
+Maintain a secure, reliable and independent License Engine that serves all WAAMTO products without compromising stability or security.
+
+---
+
+# Architecture
+
+The License Engine is an independent platform.
+
+Do not tightly couple it to any individual product.
+
+Shared functionality should remain generic and reusable.
+
+---
+
+# Responsibilities
+
+The License Engine is responsible for:
+
+- Licensing
+- Activation
+- Subscription management
+- Billing integration
+- Customer identity
+- Authentication (where applicable)
+- Product registration
+- Device management
+- Update eligibility
+- Customer portal services
+
+Do not move unrelated business logic into the License Engine.
+
+---
+
+# API Design
+
+Maintain stable public APIs.
+
+Preserve backward compatibility unless a breaking change is explicitly approved.
+
+Reuse existing endpoints where practical.
+
+---
+
+# Security
+
+Always verify:
+
+- authentication
+- authorization
+- license ownership
+- request validation
+- rate limiting (where applicable)
+
+Never bypass license validation or security checks.
+
+---
+
+# Billing
+
+Protect billing integrity.
+
+Never allow license activation, renewal or upgrade to bypass approved payment and entitlement rules unless explicitly designed (e.g. free plans or trials).
+
+---
+
+# Identity
+
+Reuse existing identity, MFA and session management mechanisms.
+
+Do not create duplicate authentication systems.
+
+---
+
+# Data Integrity
+
+Maintain consistency between:
+
+- customers
+- licenses
+- subscriptions
+- invoices
+- products
+- devices
+
+Protect transactional integrity during updates.
+
+---
+
+# Integrations
+
+Preserve compatibility with:
+
+- ERP
+- Website
+- Monitoring
+- Documentation
+- Customer Portal
+- Approved third-party services
+
+Avoid breaking integration contracts.
+
+---
+
+# Performance
+
+Optimise:
+
+- license validation
+- API response time
+- database access
+- background jobs
+
+Only where justified by the task.
+
+---
+
+# Testing
+
+Validate all reasonably affected areas, including:
+
+- licensing workflow
+- activation
+- renewal
+- billing flow
+- authentication
+- authorization
+- API behaviour
+- integration points
+- regression risks
+
+---
+
+# Reporting
+
+Summarise:
+
+- scope
+- components changed
+- validation performed
+- remaining issues
+- production readiness
+
+Keep reports concise.
+
+---
+
+# Completion Checklist
+
+âœ“ Architecture preserved
+
+âœ“ Security maintained
+
+âœ“ Billing integrity verified
+
+âœ“ API compatibility preserved
+
+âœ“ Integrations verified
+
+âœ“ Validation completed
+
+If complete:
+
+STOP.

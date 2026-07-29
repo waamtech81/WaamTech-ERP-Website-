@@ -1,0 +1,152 @@
+﻿---
+description: WAAMTO ERP Rules v3.0
+alwaysApply: true
+---
+# WAAMTO ERP Rules v3.0
+
+> ERP-specific development rules.
+
+---
+
+# Purpose
+
+Maintain a modular, scalable and production-ready ERP while preserving the approved architecture.
+
+---
+
+# Architecture
+
+Always follow the approved ERP architecture.
+
+Never move business logic into the platform/core unless explicitly designed for shared platform functionality.
+
+---
+
+# Module Development
+
+Every feature must belong to the correct module.
+
+Avoid duplicate functionality across modules.
+
+Prefer extending existing modules over creating new ones.
+
+---
+
+# Business Logic
+
+Keep business rules inside the owning module.
+
+Reuse shared services where appropriate.
+
+---
+
+# Database
+
+Maintain data integrity.
+
+Reuse existing tables and relationships when suitable.
+
+Avoid unnecessary schema changes.
+
+---
+
+# APIs
+
+Maintain backward compatibility unless a breaking change is approved.
+
+Reuse existing endpoints when practical.
+
+---
+
+# UI
+
+Follow the existing design system.
+
+Reuse layouts, tables, forms, dialogs and shared components.
+
+Do not redesign screens unless requested.
+
+---
+
+# Performance
+
+Consider the impact on:
+
+- database queries
+- API performance
+- page load
+- large datasets
+
+Optimise when justified.
+
+---
+
+# Security
+
+Respect:
+
+- authentication
+- RBAC
+- tenant isolation
+- input validation
+
+Never bypass security controls.
+
+---
+
+# Multi-Tenancy
+
+Ensure tenant isolation is preserved.
+
+Do not expose cross-tenant data.
+
+Verify company, branch and warehouse scope where applicable.
+
+---
+
+# Integrations
+
+Preserve compatibility with approved ERP integrations.
+
+Do not break existing workflows.
+
+---
+
+# Testing
+
+Validate:
+
+- business workflow
+- affected APIs
+- UI behaviour
+- permissions
+- data integrity
+- likely regression areas
+
+Test everything reasonably affected by the change.
+
+---
+
+# Documentation
+
+Update documentation only when user-facing behaviour, APIs or configuration changes.
+
+---
+
+# Completion Checklist
+
+âœ“ Architecture preserved
+
+âœ“ Correct module used
+
+âœ“ Business logic maintained
+
+âœ“ Security preserved
+
+âœ“ Multi-tenancy verified
+
+âœ“ Validation completed
+
+If complete:
+
+STOP.

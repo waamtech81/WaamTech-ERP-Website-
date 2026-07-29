@@ -1,0 +1,204 @@
+﻿---
+description: WAAMTO Website Rules v3.0
+alwaysApply: true
+---
+# WAAMTO Website Rules v3.0
+
+> Website-specific development rules for all WAAMTO web properties.
+
+---
+
+# Purpose
+
+Build fast, secure, SEO-friendly and consistent websites while protecting the approved WAAMTO brand and architecture.
+
+---
+
+# Scope
+
+Applies to:
+
+- Marketing Website
+- Product Website
+- Customer Portal (Frontend)
+- Documentation Website
+- Landing Pages
+
+Modify only the areas relevant to the requested task.
+
+---
+
+# Design
+
+Always:
+
+- Follow the approved design system.
+- Reuse existing components.
+- Maintain responsive layouts.
+- Keep UI clean and consistent.
+
+Do not redesign pages unless requested.
+
+---
+
+# Branding
+
+Preserve:
+
+- Logo
+- Colours
+- Typography
+- Icons
+- Brand language
+
+Never introduce inconsistent branding.
+
+---
+
+# Content
+
+Keep content:
+
+- Accurate
+- Professional
+- Consistent
+- SEO-friendly
+
+Do not change business messaging unless requested.
+
+---
+
+# Performance
+
+Optimise where appropriate:
+
+- Images
+- Fonts
+- Bundle size
+- Lazy loading
+- Rendering
+- Core Web Vitals
+
+Avoid unnecessary JavaScript.
+
+---
+
+# SEO
+
+Preserve or improve:
+
+- Page titles
+- Meta descriptions
+- Heading hierarchy
+- Structured data
+- Canonical URLs
+- Sitemap
+- Internal links
+
+Do not reduce search visibility.
+
+---
+
+# Accessibility
+
+Verify when affected:
+
+- Semantic HTML
+- Keyboard navigation
+- Colour contrast
+- Alt text
+- Form labels
+
+---
+
+# Forms
+
+Ensure forms include:
+
+- Validation
+- Error handling
+- Spam protection
+- Secure submission
+
+Never trust client-side validation alone.
+
+---
+
+# Integrations
+
+Maintain compatibility with:
+
+- License Engine
+- ERP
+- Monitoring
+- Analytics
+- Contact forms
+- Payment services
+
+Verify affected integrations after changes.
+
+---
+
+# Security
+
+Protect:
+
+- User input
+- Authentication flows
+- Uploaded files
+- Sensitive information
+
+Reuse existing security mechanisms.
+
+---
+
+# Testing
+
+Validate reasonably affected areas:
+
+- UI
+- Responsive behaviour
+- Navigation
+- Forms
+- SEO-critical elements
+- Performance
+- Accessibility
+- Integration points
+
+Test likely regression paths.
+
+---
+
+# Reporting
+
+Include:
+
+- Scope
+- Pages changed
+- Validation completed
+- Issues found
+- Production readiness
+
+Keep reports concise.
+
+---
+
+# Completion Checklist
+
+âœ“ Branding preserved
+
+âœ“ Design consistent
+
+âœ“ Responsive
+
+âœ“ SEO maintained
+
+âœ“ Accessibility verified
+
+âœ“ Integrations working
+
+âœ“ Validation completed
+
+If complete:
+
+STOP.

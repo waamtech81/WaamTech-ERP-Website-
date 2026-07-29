@@ -1,0 +1,193 @@
+﻿---
+description: WAAMTO Enterprise Security Rules v3.0
+alwaysApply: true
+---
+# WAAMTO Enterprise Security Rules v3.0
+
+> Mandatory security standards for all WAAMTO ecosystem projects.
+
+---
+
+# Purpose
+
+Security is mandatory.
+
+Never sacrifice security for convenience, speed or token optimisation.
+
+Token optimisation must never reduce security validation.
+
+---
+
+# Security Principles
+
+Always:
+
+- Preserve confidentiality
+- Preserve integrity
+- Preserve availability
+- Follow least-privilege principles
+- Reuse existing security implementations
+- Maintain backward compatibility where appropriate
+
+---
+
+# Scope
+
+Inspect every security-related dependency reasonably required for the task.
+
+This may include:
+
+- Authentication
+- Authorization
+- Middleware
+- Session handling
+- Validation
+- API permissions
+- Database access
+- Shared security libraries
+- Environment configuration
+
+Do not inspect unrelated modules.
+
+---
+
+# Authentication
+
+Never:
+
+- bypass authentication
+- remove authentication
+- weaken authentication
+- hardcode credentials
+- expose secrets
+
+Reuse existing authentication mechanisms.
+
+---
+
+# Authorization
+
+Verify that every protected action enforces the correct permissions.
+
+Never bypass RBAC or permission checks.
+
+---
+
+# Input Validation
+
+Validate all external input.
+
+Reuse existing validation libraries whenever possible.
+
+Never trust client input.
+
+---
+
+# Secrets
+
+Never:
+
+- commit secrets
+- expose API keys
+- expose passwords
+- expose tokens
+- log sensitive values
+
+Always use environment variables or approved secret management.
+
+---
+
+# Database Security
+
+Never:
+
+- concatenate SQL
+- bypass ORM protections
+- disable transaction safety
+
+Use parameterized queries and existing data-access patterns.
+
+---
+
+# API Security
+
+Verify:
+
+- authentication
+- authorization
+- input validation
+- error handling
+- rate limiting (where applicable)
+
+Maintain existing API contracts unless explicitly requested.
+
+---
+
+# File & Storage Security
+
+Validate file type, size, and permissions.
+
+Never allow unrestricted uploads or arbitrary file execution.
+
+---
+
+# Logging
+
+Log operational events only.
+
+Never log:
+
+- passwords
+- tokens
+- secrets
+- personal data unless explicitly required and protected
+
+---
+
+# Dependencies
+
+Do not introduce new packages unless necessary.
+
+Prefer trusted, existing project dependencies.
+
+---
+
+# Security Testing
+
+Validate all security-sensitive paths affected by the task.
+
+Focus on impacted authentication, authorization, validation and data access.
+
+Avoid unrelated full-system security audits unless requested.
+
+---
+
+# Reporting
+
+If a security issue is found, report:
+
+- Risk
+- Impact
+- Affected component
+- Recommended fix
+- Whether it blocks production
+
+---
+
+# Completion Checklist
+
+âœ“ Authentication preserved
+
+âœ“ Authorization verified
+
+âœ“ Input validated
+
+âœ“ Secrets protected
+
+âœ“ Existing security reused
+
+âœ“ No security regression introduced
+
+If complete:
+
+STOP.

@@ -1,0 +1,284 @@
+﻿---
+description: WAAMTO Enterprise Development Rules v3.0
+alwaysApply: true
+---
+# WAAMTO Enterprise Development Rules v3.0
+
+> Mandatory development workflow for all WAAMTO ecosystem projects.
+
+---
+
+# Purpose
+
+These rules define how AI must develop features, fix bugs, and modify code while protecting the architecture and minimising token usage.
+
+---
+
+# Development Principles
+
+Always:
+
+- Understand the task before coding.
+- Keep changes as small as possible.
+- Reuse existing code.
+- Preserve architecture.
+- Preserve naming conventions.
+- Follow existing coding style.
+- Prefer maintainability over cleverness.
+
+Never:
+
+- Rewrite working code.
+- Redesign architecture.
+- Add unnecessary complexity.
+- Duplicate functionality.
+
+---
+
+# Development Workflow
+
+Follow this sequence:
+
+1. Understand the request.
+2. Identify the smallest affected scope.
+3. Read only required files.
+4. Reuse existing implementations.
+5. Plan the minimal change.
+6. Implement.
+7. Validate affected functionality.
+8. Report.
+9. Stop.
+
+Never skip steps.
+
+---
+
+# Feature Development
+
+Before creating anything new, verify whether an equivalent implementation already exists.
+
+Always prefer:
+
+Reuse
+
+over
+
+New implementation.
+
+Only create new:
+
+- Components
+- Services
+- Hooks
+- Utilities
+- APIs
+- Database objects
+
+when no suitable implementation exists.
+
+---
+
+# Bug Fix Workflow
+
+1. Reproduce mentally or using available evidence.
+2. Locate root cause.
+3. Fix root cause.
+4. Avoid symptom-only fixes.
+5. Validate affected flow.
+6. Stop.
+
+Never introduce unrelated improvements while fixing a bug.
+
+---
+
+# File Modification Rules
+
+Modify only files directly related to the task.
+
+Do not edit unrelated files for formatting, cleanup, or style.
+
+---
+
+# Code Reuse Policy
+
+Always check for existing:
+
+- Components
+- Services
+- Utilities
+- Hooks
+- Middleware
+- Validation
+- Constants
+- Types
+- Shared functions
+
+Reuse before creating new code.
+
+---
+
+# Naming Rules
+
+Respect existing naming conventions.
+
+Never rename:
+
+- Public APIs
+- Modules
+- Services
+- Shared interfaces
+
+unless explicitly instructed.
+
+---
+
+# Frontend Development
+
+Reuse existing:
+
+- Layouts
+- UI components
+- Design system
+- Styling conventions
+- State management
+- Routing patterns
+
+Never redesign UI unless requested.
+
+---
+
+# Backend Development
+
+Reuse existing:
+
+- Business services
+- Repositories
+- Middleware
+- Validation
+- Authentication
+- Error handling
+- Logging
+
+Avoid duplicate business logic.
+
+---
+
+# Database Development
+
+Never modify schema unless instructed.
+
+Never create unnecessary migrations.
+
+Never duplicate database logic already handled elsewhere.
+
+---
+
+# API Development
+
+Prefer extending existing APIs over creating new ones.
+
+Maintain:
+
+- Request compatibility
+- Response compatibility
+- Error format
+- Authentication model
+
+---
+
+# Shared Code
+
+If functionality belongs in a shared library, extend the shared library instead of duplicating code across projects.
+
+---
+
+# Performance
+
+Optimise only the affected implementation.
+
+Never optimise unrelated modules.
+
+Avoid premature optimisation.
+
+---
+
+# Error Handling
+
+Follow existing project error handling patterns.
+
+Do not introduce new error formats without approval.
+
+---
+
+# Logging
+
+Reuse existing logging utilities.
+
+Avoid excessive logging.
+
+Never log sensitive information.
+
+---
+
+# Security
+
+Never:
+
+- expose secrets
+- bypass authentication
+- bypass authorisation
+- disable validation
+- disable security middleware
+
+---
+
+# Dependencies
+
+Do not install packages unless absolutely required.
+
+Always justify new dependencies.
+
+---
+
+# Testing
+
+Validate only affected functionality unless broader testing is requested.
+
+Avoid unnecessary full-project test execution.
+
+---
+
+# Documentation
+
+Update documentation only if the change affects:
+
+- APIs
+- Configuration
+- User workflow
+- Architecture
+
+Do not generate unnecessary documentation.
+
+---
+
+# Completion Checklist
+
+Before finishing, verify:
+
+âœ“ Task completed
+
+âœ“ Minimal files changed
+
+âœ“ Existing code reused
+
+âœ“ Architecture preserved
+
+âœ“ No unrelated edits
+
+âœ“ Validation completed
+
+If all checks pass:
+
+STOP.
+
+Do not continue making optional improvements.

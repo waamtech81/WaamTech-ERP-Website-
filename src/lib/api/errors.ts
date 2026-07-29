@@ -108,6 +108,12 @@ export function isTechnicalMessage(raw: string): boolean {
   }
 
   if (
+    lower.includes("invalid enum value") ||
+    (lower.includes("expected") && lower.includes("received")) ||
+    lower.includes("invalid input") ||
+    lower.includes("invalid_type") ||
+    lower.includes("required field") ||
+    lower.includes("zod") ||
     lower.includes("prisma") ||
     lower.includes("sequelize") ||
     lower.includes("mongoose") ||

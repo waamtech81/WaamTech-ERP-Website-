@@ -1,30 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Apple, Play } from "lucide-react";
 import {
   getAppStoreUrl,
   getGooglePlayUrl,
   isExternalStoreUrl,
 } from "@/lib/app-stores";
 import { cn } from "@/lib/utils";
-
-function GooglePlayIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className={className}>
-      <path fill="#00D9FF" d="M3.6 1.8c-.3.2-.6.6-.6 1.1v18.2c0 .5.3.9.6 1.1l.1.1 10.2-10.2v-.2L3.7 1.7l-.1.1z" />
-      <path fill="#00F076" d="M16.2 8.3 5.5 1.9l10.2 10.2 2.1-2.1c.6-.6.6-1.5 0-2.1l-1.6-1.6z" />
-      <path fill="#FF3A44" d="m5.5 22.1 10.7-6.4-2.1-2.1-8.6 8.5z" />
-      <path fill="#FFB900" d="M19.9 11.8c.5-.3.8-.8.8-1.3s-.3-1-.8-1.3l-2.1-1.2-2.4 2.4 2.4 2.4 2.1-1.2z" />
-    </svg>
-  );
-}
-
-function AppleIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className={className} fill="currentColor">
-      <path d="M16.7 13.1c-.1-2.5 2-3.7 2.1-3.8-1.1-1.7-2.9-1.9-3.5-2-1.5-.2-2.9.9-3.7.9-.8 0-2-.9-3.3-.8-1.7 0-3.2 1-4.1 2.5-1.7 3-.5 7.5 1.2 9.9.8 1.2 1.8 2.5 3.1 2.5 1.2 0 1.7-.8 3.2-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.1-1.2 2.9-2.4.9-1.3 1.3-2.6 1.3-2.7-.1 0-2.5-1-2.5-3.9zM14.5 4.2c.7-.9 1.2-2.1 1.1-3.3-1.1 0-2.4.7-3.1 1.6-.6.8-1.2 2-1 3.2 1.2.1 2.4-.6 3-1.5z" />
-    </svg>
-  );
-}
 
 const badgeClassLight =
   "inline-flex h-[52px] min-w-[11rem] items-center gap-3 rounded-xl border border-[#1e3a5f] bg-[#0b1f3a] px-3.5 text-white shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -104,7 +86,7 @@ export function AppStoreBadges({
           external={isExternalStoreUrl(googlePlayUrl)}
           subtitle="Get it on"
           title="Google Play"
-          icon={<GooglePlayIcon className="h-5 w-5" />}
+          icon={<Play className="h-5 w-5 fill-current" strokeWidth={1.5} aria-hidden />}
           dark={dark}
         />
         <StoreBadge
@@ -112,7 +94,7 @@ export function AppStoreBadges({
           external={isExternalStoreUrl(appStoreUrl)}
           subtitle="Download on the"
           title="App Store"
-          icon={<AppleIcon className="h-5 w-5" />}
+          icon={<Apple className="h-5 w-5" aria-hidden />}
           dark={dark}
         />
       </div>

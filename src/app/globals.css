@@ -523,41 +523,6 @@ select {
   background: transparent;
 }
 
-/* ── Google Website Translator: hide default chrome, keep layout stable ──
-   Do NOT use display:none / 0×0 on #google_translate_element — that prevents
-   the widget from initializing (no .goog-te-combo → language never applies).
-   Keep a 1×1 off-screen host so the select can mount and receive change events. */
-.wt-google-translate {
-  position: absolute !important;
-  left: -9999px !important;
-  top: 0 !important;
-  width: 1px !important;
-  height: 1px !important;
-  overflow: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  z-index: -1 !important;
-}
-
-/* Google may set display:none on the gadget; that blocks .goog-te-combo init.
-   Keep it laid out (off-screen via parent) so the select can mount + fire. */
-.wt-google-translate .goog-te-gadget,
-.wt-google-translate .skiptranslate {
-  display: block !important;
-}
-
-.goog-te-banner-frame,
-.goog-te-balloon-frame,
-#goog-gt-tt,
-.goog-te-spinner-pos,
-.skiptranslate iframe.skiptranslate {
-  display: none !important;
-}
-
-body {
-  top: 0 !important;
-}
-
 .goog-tooltip,
 .goog-tooltip:hover {
   display: none !important;

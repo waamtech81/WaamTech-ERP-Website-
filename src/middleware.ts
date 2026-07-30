@@ -2,10 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isBlockedPath, rateLimit, safeInternalPath } from "@/lib/security/guards";
 import { resolvePortalAliasPath } from "@/lib/security/safe-redirect";
 import { isValidSessionToken } from "@/lib/security/session-token";
-import { detectLanguage, countryFromHeaders } from "@/lib/geo";
+import { countryFromHeaders } from "@/lib/geo";
 import { clientIpFromHeaders } from "@/lib/client-ip";
 import { countryFromIp, currencyForDetectedCountry } from "@/lib/geo-ip";
-import { normalizeLanguage, LOCALE_STORAGE } from "@/i18n";
+import { LOCALE_STORAGE } from "@/i18n";
 import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency/config";
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -209,10 +209,8 @@ export async function middleware(req: NextRequest) {
     return applyHeaders(NextResponse.next(), pathname);
   }
 
-  const cookieLang = req.cookies.get(LOCALE_STORAGE.langCookie)?.value;
   const cookieCurrency = req.cookies.get(LOCALE_STORAGE.currencyCookie)?.value;
   const cookieCountry = req.cookies.get(LOCALE_STORAGE.countryCookie)?.value || "";
-  const queryLang = searchParams.get("lang");
   const queryCurrency = searchParams.get("currency");
   const manualLocale = req.cookies.get("wt_locale_manual")?.value === "1";
   const ip = clientIp(req);
@@ -238,12 +236,6 @@ export async function middleware(req: NextRequest) {
   const geoCurrency = country ? currencyForDetectedCountry(country) : null;
 
   // Priority: ?currency= → manual choice → live geo → USD default
-  const language = queryLang
-    ? normalizeLanguage(queryLang)
-    : cookieLang
-      ? normalizeLanguage(cookieLang)
-      : detectLanguage(req.headers);
-
   const currency = queryCurrency
     ? normalizeCurrency(queryCurrency)
     : manualLocale && cookieCurrency
@@ -254,7 +246,6 @@ export async function middleware(req: NextRequest) {
 
   // Forward detection to the server layout so first paint is correct (no flicker).
   const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-wt-lang", language);
   requestHeaders.set("x-wt-currency", currency);
   requestHeaders.set("x-wt-pathname", pathname);
   if (country) requestHeaders.set("x-wt-country", country);
@@ -262,13 +253,6 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next({ request: { headers: requestHeaders } });
 
   // Persist detection/selection so preference survives sessions.
-  if (cookieLang !== language || queryLang) {
-    res.cookies.set(LOCALE_STORAGE.langCookie, language, {
-      path: "/",
-      maxAge: COOKIE_MAX_AGE,
-      sameSite: "lax",
-    });
-  }
   // Persist currency when user chose it, or when geo resolved a real currency
   // (do not lock a bare USD fallback that blocks later geo).
   const shouldPersistCurrency =

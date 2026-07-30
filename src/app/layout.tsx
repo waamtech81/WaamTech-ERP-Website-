@@ -20,27 +20,19 @@ import {
   seoThemeColor,
   seoTitleDefault,
 } from "@/lib/seo";
-import {
-  directionForLanguage,
-  normalizeLanguage,
-  LOCALE_CODE_BY_LANG,
-  LOCALE_STORAGE,
-} from "@/i18n";
+import { LOCALE_STORAGE } from "@/i18n";
 import { normalizeCurrency } from "@/lib/currency/config";
 import { fallbackTable } from "@/lib/currency/exchange";
 import "./globals.css";
 
 async function resolveLocale() {
   const [h, c] = await Promise.all([headers(), cookies()]);
-  const language = normalizeLanguage(
-    h.get("x-wt-lang") || c.get(LOCALE_STORAGE.langCookie)?.value || "en"
-  );
   const currency = normalizeCurrency(
     h.get("x-wt-currency") || c.get(LOCALE_STORAGE.currencyCookie)?.value || "USD"
   );
   const country =
     h.get("x-wt-country") || c.get(LOCALE_STORAGE.countryCookie)?.value || null;
-  return { language, currency, country, direction: directionForLanguage(language) };
+  return { currency, country };
 }
 
 export const viewport: Viewport = {
@@ -52,8 +44,6 @@ export const viewport: Viewport = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { language } = await resolveLocale();
-  const ogLocale = (LOCALE_CODE_BY_LANG[language] || "en-US").replace("-", "_");
   const origin = getSiteOrigin();
   return {
     metadataBase: new URL(origin),
@@ -86,18 +76,10 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     alternates: {
       canonical: origin,
-      languages: {
-        "x-default": origin,
-        en: `${origin}?lang=en`,
-        ar: `${origin}?lang=ar`,
-        fr: `${origin}?lang=fr`,
-        de: `${origin}?lang=de`,
-        es: `${origin}?lang=es`,
-      },
     },
     openGraph: {
       type: "website",
-      locale: ogLocale,
+      locale: "en_US",
       url: origin,
       siteName: seoSiteName,
       title: seoTitleDefault,
@@ -150,7 +132,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { language, currency, country, direction } = await resolveLocale();
+  const { currency, country } = await resolveLocale();
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_GOOGLE_CAPTCHA_SITE_KEY?.trim() || "";
   // Don't block HTML on live exchange rates — client refreshes via /api/exchange-rates.
   const table = fallbackTable();
@@ -163,23 +145,13 @@ export default async function RootLayout({
     : await buildSiteSearchIndexFromEngine();
 
   return (
-    <html
-      lang="en"
-      dir={direction}
-      data-locale={language}
-      data-dir={direction}
-      className={`${fontVariablesClassName} h-full antialiased`}
-    >
-      <body
-        dir={direction}
-        className="min-h-full flex flex-col bg-background text-foreground font-sans"
-      >
+    <html lang="en" dir="ltr" className={`${fontVariablesClassName} h-full antialiased`}>
+      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <Script id="waamto-recaptcha-site-key" strategy="beforeInteractive">
           {`window.__WAAMTO_RECAPTCHA_SITE_KEY__ = ${JSON.stringify(recaptchaSiteKey)};`}
         </Script>
         <AuthRecaptchaBootstrap enabled={isAuthSurface} siteKey={recaptchaSiteKey} />
         <LocaleProvider
-          initialLanguage={language}
           initialCurrency={currency}
           initialCountry={country}
           initialRates={table.rates}
@@ -188,7 +160,7 @@ export default async function RootLayout({
             <SiteJsonLd />
             <GoogleAnalytics />
             <TawkChat />
-            <SiteShell language={language}>{children}</SiteShell>
+            <SiteShell>{children}</SiteShell>
           </SearchIndexProvider>
         </LocaleProvider>
       </body>

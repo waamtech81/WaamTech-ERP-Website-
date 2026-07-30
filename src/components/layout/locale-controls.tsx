@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Check, ChevronDown, Globe } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { useLocale } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
-import type { UiLanguage } from "@/i18n";
 import type { CurrencyCode } from "@/lib/currency/config";
 
 type Option = {
@@ -25,9 +24,7 @@ function SimpleDropdown({
   panelClassName,
   listClassName,
   tone = "light",
-  /** Keep panel LTR even when the page is RTL (language codes stay readable). */
   forceLtr = false,
-  /** Symbol-only rows (footer currency) — no secondary label stretch. */
   compact = false,
 }: {
   trigger: React.ReactNode;
@@ -36,7 +33,6 @@ function SimpleDropdown({
   value: string;
   onSelect: (value: string) => void;
   align?: "start" | "end";
-  /** Footer currency opens upward; header language opens downward. */
   placement?: "top" | "bottom";
   panelClassName?: string;
   listClassName?: string;
@@ -95,10 +91,9 @@ function SimpleDropdown({
 
   return (
     <div
-      className="relative notranslate"
+      className="relative"
       ref={rootRef}
       onKeyDown={onKeyDown}
-      translate="no"
       dir={forceLtr ? "ltr" : undefined}
     >
       <button
@@ -125,7 +120,6 @@ function SimpleDropdown({
             "absolute z-[60] overflow-hidden rounded-xl border",
             panelTone,
             placement === "top" ? "bottom-full mb-2" : "top-full mt-2",
-            // Logical inset so RTL pages still anchor the panel to the control edge
             align === "end" ? "end-0" : "start-0",
             panelClassName ?? "w-auto min-w-max"
           )}
@@ -136,7 +130,6 @@ function SimpleDropdown({
             aria-label={ariaLabel}
             className={cn(
               "py-1",
-              // Currency list is short — never scroll. Language list may scroll.
               compact ? "overflow-visible" : "max-h-72 overflow-y-auto",
               listClassName
             )}
@@ -214,44 +207,9 @@ function SimpleDropdown({
   );
 }
 
-/** Header language control — EN / AR / FR / DE / ES (default English). */
-export function LanguageSwitcher({ align = "end" }: { align?: "start" | "end" }) {
-  const { language, supportedLanguages, setLanguage, t } = useLocale();
-  const current = supportedLanguages.find((l) => l.code === language);
-
-  const options: Option[] = supportedLanguages.map((l) => ({
-    value: l.code,
-    primary: l.short,
-    secondary: l.nativeLabel,
-    dir: l.direction,
-  }));
-
-  return (
-    <SimpleDropdown
-      forceLtr
-      trigger={
-        <>
-          <Globe className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-          <span className="min-w-[1.5rem] text-center tabular-nums" dir="ltr">
-            {current?.short ?? "EN"}
-          </span>
-        </>
-      }
-      ariaLabel={t("localization.selectLanguage", "Select language")}
-      options={options}
-      value={language}
-      onSelect={(v) => setLanguage(v as UiLanguage)}
-      align={align}
-      placement="bottom"
-      panelClassName="w-[11.5rem]"
-    />
-  );
-}
-
 /**
  * Footer currency control — symbols only ($, €, AED, SAR, Rs, CA$, A$).
  * Master billing currency remains USD; this only changes display.
- * Explicit allowlist — no JP/CN or country/currency names.
  */
 const FOOTER_CURRENCY_CODES: CurrencyCode[] = [
   "USD",
@@ -297,7 +255,6 @@ export function CurrencySwitcher({
       trigger={
         <>
           <span
-            translate="no"
             className={cn(
               "min-w-[1.75rem] text-center font-semibold tabular-nums",
               tone === "dark" ? "text-slate-200" : "text-foreground/80"
@@ -323,9 +280,4 @@ export function CurrencySwitcher({
       panelClassName="w-max"
     />
   );
-}
-
-/** Header locale strip — language only (currency lives in the footer). */
-export function LocaleControls() {
-  return <LanguageSwitcher />;
 }

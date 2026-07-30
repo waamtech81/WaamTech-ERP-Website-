@@ -27,7 +27,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/layout/global-search";
-import { LocaleControls } from "@/components/layout/locale-controls";
 import { useLocale } from "@/components/providers/locale-provider";
 import {
   useCatalogAllBusinessCategories,
@@ -688,9 +687,6 @@ export function Header() {
             >
               <Search className="h-4 w-4" />
             </Button>
-            <div className="hidden lg:block">
-              <LocaleControls />
-            </div>
             <Button
               asChild
               variant="ghost"
@@ -844,13 +840,6 @@ export function Header() {
                   </Link>
                 ))}
               </MobileAccordion>
-
-              <div className="rounded-xl border border-border/70 bg-muted/30 p-3 notranslate" translate="no">
-                <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t("localization.language", "Language")}
-                </p>
-                <LocaleControls />
-              </div>
 
               <div className="flex flex-col gap-2 pt-2 notranslate" translate="no">
                 <Button asChild variant="outline" className="w-full rounded-full">

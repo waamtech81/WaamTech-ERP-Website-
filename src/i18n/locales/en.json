@@ -26,14 +26,10 @@
   "header.viewAllIndustries": "View all industries",
   "header.browseAll": "Browse all",
 
-  "localization.language": "Language",
   "localization.currency": "Currency",
-  "localization.selectLanguage": "Select language",
   "localization.selectCurrency": "Select currency",
-  "localization.searchLanguages": "Search languages",
   "localization.searchCurrencies": "Search currencies",
   "localization.noResults": "No results",
-  "localization.regionSettings": "Region & language",
 
   "pricing.monthly": "Monthly",
   "pricing.yearly": "Yearly",

@@ -52,7 +52,6 @@ import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import {
   executeRecaptcha,
   hasRecaptchaV3SiteKey,
-  RecaptchaV3,
 } from "@/components/security/recaptcha-v3";
 import {
   industryDisplayIcon,
@@ -1381,7 +1380,6 @@ function SignUpForm({
   if (otpStep) {
     return (
       <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
-        <RecaptchaV3 />
         <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
         <div className="container-site relative flex justify-center py-16 lg:py-24">
           <Card className="w-full max-w-lg shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
@@ -1472,7 +1470,6 @@ function SignUpForm({
   // Form continues below
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
-      <RecaptchaV3 />
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <div className="container-site relative grid gap-6 py-8 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:items-start lg:gap-8 lg:py-10">
         <div className="max-w-xl lg:sticky lg:top-20 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:pr-1">

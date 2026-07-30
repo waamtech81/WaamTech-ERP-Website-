@@ -25,7 +25,6 @@ import { wouldTriggerLoopbackPermission } from "@/lib/network/address-space";
 import {
   executeRecaptcha,
   hasRecaptchaV3SiteKey,
-  RecaptchaV3,
 } from "@/components/security/recaptcha-v3";
 
 type LoginStep = "credentials" | "otp" | "totp";
@@ -530,7 +529,6 @@ function LoginForm() {
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
-      <RecaptchaV3 />
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <div className="container-site relative flex min-h-[calc(100vh-4rem)] items-center justify-center py-14 sm:py-20 lg:py-24">
         <div className="w-full max-w-5xl">

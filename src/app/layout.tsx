@@ -7,6 +7,7 @@ import { SearchIndexProvider } from "@/components/providers/search-index-provide
 import { SiteJsonLd } from "@/components/seo/json-ld";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { TawkChat } from "@/components/analytics/tawk-to-chat";
+import { AuthRecaptchaBootstrap } from "@/components/security/auth-recaptcha-bootstrap";
 import { siteConfig } from "@/lib/data/site";
 import { fontVariablesClassName } from "@/lib/fonts";
 import { getSiteOrigin } from "@/lib/urls";
@@ -176,6 +177,7 @@ export default async function RootLayout({
         <Script id="waamto-recaptcha-site-key" strategy="beforeInteractive">
           {`window.__WAAMTO_RECAPTCHA_SITE_KEY__ = ${JSON.stringify(recaptchaSiteKey)};`}
         </Script>
+        <AuthRecaptchaBootstrap enabled={isAuthSurface} siteKey={recaptchaSiteKey} />
         <LocaleProvider
           initialLanguage={language}
           initialCurrency={currency}

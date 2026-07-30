@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import type { UiLanguage } from "@/i18n";
 import { OfflineBanner } from "@/components/layout/offline-banner";
 import { GoogleTranslateBoot } from "@/components/providers/google-translate";
+import { isAuthSurfacePath } from "@/lib/routing/auth-surfaces";
 
 /**
  * Client pathname gate so soft navigations into /portal drop marketing chrome
@@ -24,11 +25,15 @@ export function SiteShellClient({
 }) {
   const pathname = usePathname() || "";
   const isPortal = pathname === "/portal" || pathname.startsWith("/portal/");
+  const isAuthSurface = isAuthSurfacePath(pathname);
+  const translateBoot = !isAuthSurface ? (
+    <GoogleTranslateBoot language={language} />
+  ) : null;
 
   if (isPortal) {
     return (
       <>
-        <GoogleTranslateBoot language={language} />
+        {translateBoot}
         <OfflineBanner />
         {children}
       </>
@@ -37,7 +42,7 @@ export function SiteShellClient({
 
   return (
     <>
-      <GoogleTranslateBoot language={language} />
+      {translateBoot}
       <OfflineBanner />
       {header}
       <main className="relative z-[1] flex-1 overflow-x-clip bg-background">{children}</main>

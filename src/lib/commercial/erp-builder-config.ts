@@ -478,9 +478,8 @@ export function buildBuilderFeaturePacksForConfiguration(
   rec: CatalogBuilderRecommendations,
   overview: PublicCommercialOverview | null | undefined,
   _modules: CatalogModule[],
-  selectedModuleCodes: string[]
+  _selectedModuleCodes: string[]
 ): BuilderFeaturePack[] {
-  const selected = selectedModuleSet(selectedModuleCodes);
   const recRows = resolveBuilderRecommendationPackRows(rec);
   const recByKey = new Map(recRows.map((row) => [normPackKey(row.code), row]));
   const recKeys = new Set(recRows.map((row) => normPackKey(row.code)));
@@ -489,9 +488,11 @@ export function buildBuilderFeaturePacksForConfiguration(
 
   const codes = new Set<string>();
   for (const row of recRows) codes.add(row.code);
+  // Include full Product Catalog packs (Custom ERP) — not only BUILDER_* rows.
+  // Recommended packs stay marked via recKeys; the rest appear as optional add-ons.
   for (const row of catalog) {
-    if (!isBuilderRecommendationPack(row.code) || isPackExcludedFromBuilder(row.code)) continue;
-    if (!featurePackMatchesSelectedModules(row, selected)) continue;
+    if (isPackExcludedFromBuilder(row.code)) continue;
+    if (isNonPurchasableCustomErpPack(row.code, row.name)) continue;
     codes.add(row.code);
   }
 
@@ -518,12 +519,16 @@ export function filterFeaturePacksForBuilder(
     commercialOverview?: PublicCommercialOverview | null;
   }
 ): BuilderFeaturePack[] {
-  const eligible = new Set(opts.recommendedPackCodes.map(normPackKey));
-  const selected = selectedModuleSet(opts.selectedModuleCodes);
+  // Show all purchasable packs after modules (recommended + optional catalog).
+  // Do not restrict the list to recommendation-eligible codes only.
+  void opts.recommendedPackCodes;
+  void opts.selectedModuleCodes;
+  void opts.modules;
+  void opts.commercialOverview;
   return packs.filter((pack) => {
     if (isPackExcludedFromBuilder(pack.code)) return false;
-    if (!featurePackMatchesSelectedModules(pack, selected)) return false;
-    return eligible.has(normPackKey(pack.code)) || isBuilderRecommendationPack(pack.code);
+    if (isNonPurchasableCustomErpPack(pack.code, pack.name)) return false;
+    return true;
   });
 }
 

@@ -1090,6 +1090,62 @@ function isPurchasableCatalogPack(
   return cycleUnitPrice(pack, cycle) > 0;
 }
 
+type PackDefaultUnit = {
+  monthly?: number;
+  yearly?: number;
+  lifetime?: number;
+};
+
+/** Apply Custom ERP catalog defaults (typically $1) when Engine omits pack unit prices. */
+function withPackDefaultPrices(
+  pack: UpgradeCatalogPack,
+  defaults: PackDefaultUnit | null | undefined
+): UpgradeCatalogPack {
+  const pick = (
+    current: number | null | undefined,
+    fallback: number | null | undefined
+  ): number | null => {
+    if (typeof current === "number" && Number.isFinite(current) && current >= 0) {
+      return current;
+    }
+    if (typeof fallback === "number" && Number.isFinite(fallback) && fallback >= 0) {
+      return fallback;
+    }
+    return current ?? null;
+  };
+  return {
+    ...pack,
+    monthly_price: pick(pack.monthly_price, defaults?.monthly),
+    yearly_price: pick(pack.yearly_price, defaults?.yearly),
+    lifetime_price: pick(pack.lifetime_price, defaults?.lifetime),
+    cycle_price:
+      typeof pack.cycle_price === "number" && Number.isFinite(pack.cycle_price)
+        ? pack.cycle_price
+        : pack.cycle_price ?? null,
+  };
+}
+
+function resolvePackRequiredModules(
+  pack: {
+    required_module_codes?: string[] | null;
+    dependency_modules?: string[] | null;
+    modules?: string[] | null;
+  },
+  fallback?: string[] | null
+): string[] | undefined {
+  if (Array.isArray(pack.required_module_codes) && pack.required_module_codes.length) {
+    return pack.required_module_codes.map(String);
+  }
+  if (Array.isArray(pack.dependency_modules) && pack.dependency_modules.length) {
+    return pack.dependency_modules.map(String);
+  }
+  if (Array.isArray(pack.modules) && pack.modules.length) {
+    return pack.modules.map(String);
+  }
+  if (Array.isArray(fallback) && fallback.length) return fallback.map(String);
+  return undefined;
+}
+
 function resolveOwnedCodes(input: {
   codes?: string[] | null;
   labels?: string[] | null;
@@ -1221,7 +1277,13 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     }
     if (serverPacks.length > 0) {
       setCatalogPacks(
-        serverPacks.filter((p) => isPurchasableCatalogPack(p, billingCycle) || ownedPackCodes.has(normCode(p.code)))
+        serverPacks.filter(
+          (p) =>
+            !isNonPurchasableCustomErpPack(p.code, p.name) &&
+            (ownedPackCodes.has(normCode(p.code)) ||
+              isPurchasableCatalogPack(p, billingCycle) ||
+              (p.required_module_codes || []).length > 0)
+        )
       );
     }
     const productSlug = primary?.product_slug || "waamto-erp";
@@ -1257,13 +1319,16 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
           if (rows.length) setCatalogModules(rows);
         }
         if (overviewRes?.ok && Array.isArray(overviewRes.data?.feature_packs)) {
+          const packDefaults =
+            overviewRes.data?.custom_builder?.feature_pack_default_unit || null;
           const byCode = new Map<string, UpgradeCatalogPack>();
           for (const row of serverPacks) {
+            const priced = withPackDefaultPrices(row, packDefaults);
             if (
-              isPurchasableCatalogPack(row, cycle) ||
+              isPurchasableCatalogPack(priced, cycle) ||
               ownedPackCodes.has(normCode(row.code))
             ) {
-              byCode.set(normCode(row.code), row);
+              byCode.set(normCode(row.code), priced);
             }
           }
           for (const pack of overviewRes.data.feature_packs) {
@@ -1272,36 +1337,37 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
             if (isNonPurchasableCustomErpPack(code, pack.name)) continue;
             const key = normCode(code);
             const prev = byCode.get(key);
-            const required =
-              Array.isArray(pack.required_module_codes) && pack.required_module_codes.length
-                ? pack.required_module_codes.map(String)
-                : Array.isArray(pack.dependency_modules) && pack.dependency_modules.length
-                  ? pack.dependency_modules.map(String)
-                  : prev?.required_module_codes;
-            const next: UpgradeCatalogPack = {
-              code,
-              name: pack.name || prev?.name || code,
-              description: pack.description ?? prev?.description ?? null,
-              required_module_codes: required,
-              monthly_price:
-                typeof pack.monthly_price === "number"
-                  ? pack.monthly_price
-                  : prev?.monthly_price ?? null,
-              yearly_price:
-                typeof pack.yearly_price === "number"
-                  ? pack.yearly_price
-                  : prev?.yearly_price ?? null,
-              lifetime_price:
-                typeof pack.lifetime_price === "number"
-                  ? pack.lifetime_price
-                  : prev?.lifetime_price ?? null,
-              cycle_price:
-                typeof pack.cycle_price === "number"
-                  ? pack.cycle_price
-                  : prev?.cycle_price ?? null,
-              price_display: pack.price_display ?? prev?.price_display,
-              is_included: pack.is_included ?? prev?.is_included,
-            };
+            const required = resolvePackRequiredModules(
+              pack,
+              prev?.required_module_codes
+            );
+            const next = withPackDefaultPrices(
+              {
+                code,
+                name: pack.name || prev?.name || code,
+                description: pack.description ?? prev?.description ?? null,
+                required_module_codes: required,
+                monthly_price:
+                  typeof pack.monthly_price === "number"
+                    ? pack.monthly_price
+                    : prev?.monthly_price ?? null,
+                yearly_price:
+                  typeof pack.yearly_price === "number"
+                    ? pack.yearly_price
+                    : prev?.yearly_price ?? null,
+                lifetime_price:
+                  typeof pack.lifetime_price === "number"
+                    ? pack.lifetime_price
+                    : prev?.lifetime_price ?? null,
+                cycle_price:
+                  typeof pack.cycle_price === "number"
+                    ? pack.cycle_price
+                    : prev?.cycle_price ?? null,
+                price_display: pack.price_display ?? prev?.price_display,
+                is_included: pack.is_included ?? prev?.is_included,
+              },
+              packDefaults
+            );
             if (
               isPurchasableCatalogPack(next, cycle) ||
               ownedPackCodes.has(key)
@@ -1328,8 +1394,20 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
   const purchasablePacks = catalogPacks.filter((pack) => {
     const code = normCode(pack.code);
     if (ownedPackCodes.has(code) || selectedPacks.has(code)) return true;
-    if (!isPurchasableCatalogPack(pack, billingCycle)) return false;
-    return featurePackMatchesSelectedModules(pack, selectedModules);
+    return isPurchasableCatalogPack(pack, billingCycle);
+  });
+
+  /** Packs tied to currently selected modules (show first under Feature packs). */
+  const packsForSelectedModules = purchasablePacks.filter((pack) =>
+    featurePackMatchesSelectedModules(pack, selectedModules)
+  );
+  /** Optional packs not tied to current selection — user can still add them. */
+  const otherAvailablePacks = purchasablePacks.filter((pack) => {
+    const code = normCode(pack.code);
+    if (featurePackMatchesSelectedModules(pack, selectedModules)) return false;
+    // Keep owned/selected visible even when not module-linked.
+    if (ownedPackCodes.has(code) || selectedPacks.has(code)) return true;
+    return isPurchasableCatalogPack(pack, billingCycle);
   });
 
   const selectedModuleList = [...selectedModules];
@@ -1340,7 +1418,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
   /** Which selected module(s) each pack depends on — for highlight chips. */
   const packSupportedBy = new Map<string, string[]>();
-  for (const pack of purchasablePacks) {
+  for (const pack of packsForSelectedModules) {
     const code = normCode(pack.code);
     const required = (pack.required_module_codes || []).map(normCode).filter(Boolean);
     const supporters = required.filter((m) => selectedModules.has(m));
@@ -1353,7 +1431,12 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     const hay = `${m.name} ${m.code} ${m.description || ""}`.toLowerCase();
     return hay.includes(filterNorm);
   });
-  const filteredPacks = purchasablePacks.filter((p) => {
+  const filteredPacksForModules = packsForSelectedModules.filter((p) => {
+    if (!filterNorm) return true;
+    const hay = `${p.name} ${p.code} ${p.description || ""}`.toLowerCase();
+    return hay.includes(filterNorm);
+  });
+  const filteredOtherPacks = otherAvailablePacks.filter((p) => {
     if (!filterNorm) return true;
     const hay = `${p.name} ${p.code} ${p.description || ""}`.toLowerCase();
     return hay.includes(filterNorm);
@@ -1627,7 +1710,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     const isRequiredHint = requiredModuleHint === code;
     const colorIdx = moduleColorIndex.get(code);
     const moduleColor = colorIdx != null ? MODULE_PACK_COLORS[colorIdx] : null;
-    const linkedPacks = purchasablePacks.filter((p) =>
+    const linkedPacks = packsForSelectedModules.filter((p) =>
       (p.required_module_codes || []).map(normCode).includes(code)
     );
     return (
@@ -1655,34 +1738,36 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
           {isSelected && <Check className="h-3 w-3" />}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium">{m.name}</span>
-            {!isOwned && isSelected ? <NewSelectionBadge /> : null}
-            {isOwned && isSelected ? (
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                Already purchased
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">{m.name}</span>
+              {!isOwned && isSelected ? <NewSelectionBadge /> : null}
+              {isOwned && isSelected ? (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                  Already purchased
+                </span>
+              ) : null}
+              {isOwned && !isSelected ? (
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                  Will remove
+                </span>
+              ) : null}
+            </span>
+            {showPrice ? (
+              <span className="shrink-0 text-xs font-semibold tabular-nums text-[var(--portal-ink)]">
+                {formatItemPrice(price, formatPrice)}
               </span>
-            ) : null}
-            {isOwned && !isSelected ? (
-              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                Will remove
+            ) : (
+              <span className="shrink-0 text-xs text-[var(--portal-muted)]">
+                On license
               </span>
-            ) : null}
+            )}
           </span>
           {m.description ? (
             <span className="mt-0.5 block text-xs text-[var(--portal-muted)] line-clamp-1">
               {m.description}
             </span>
           ) : null}
-          {showPrice ? (
-            <span className="mt-1 block text-xs font-semibold text-[var(--portal-ink)]">
-              {formatItemPrice(price, formatPrice)}
-            </span>
-          ) : (
-            <span className="mt-1 block text-xs text-[var(--portal-muted)]">
-              Already on license
-            </span>
-          )}
           {isSelected && linkedPacks.length > 0 ? (
             <span className={cn("mt-1 block text-[10px]", moduleColor?.text || "text-[var(--portal-muted)]")}>
               Supports {linkedPacks.length} feature pack{linkedPacks.length !== 1 ? "s" : ""}
@@ -1735,19 +1820,30 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
           {isSelected && <Check className="h-3 w-3" />}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium">{pack.name}</span>
-            {!isOwned && isSelected ? <NewSelectionBadge /> : null}
-            {isOwned && isSelected ? (
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                Already purchased
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">{pack.name}</span>
+              {!isOwned && isSelected ? <NewSelectionBadge /> : null}
+              {isOwned && isSelected ? (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                  Already purchased
+                </span>
+              ) : null}
+              {isOwned && !isSelected ? (
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                  Will remove
+                </span>
+              ) : null}
+            </span>
+            {showPrice ? (
+              <span className="shrink-0 text-xs font-semibold tabular-nums text-[var(--portal-ink)]">
+                {formatItemPrice(price, formatPrice)}
               </span>
-            ) : null}
-            {isOwned && !isSelected ? (
-              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                Will remove
+            ) : (
+              <span className="shrink-0 text-xs text-[var(--portal-muted)]">
+                On license
               </span>
-            ) : null}
+            )}
           </span>
           {pack.description ? (
             <span className="mt-0.5 block text-xs text-[var(--portal-muted)] line-clamp-2">
@@ -1788,15 +1884,6 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
               })}
             </span>
           ) : null}
-          {showPrice ? (
-            <span className="mt-1 block text-xs font-semibold text-[var(--portal-ink)]">
-              {formatItemPrice(price, formatPrice)}
-            </span>
-          ) : (
-            <span className="mt-1 block text-xs text-[var(--portal-muted)]">
-              Already on license
-            </span>
-          )}
         </span>
       </button>
     );
@@ -1830,7 +1917,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
             {packNotice}
           </p>
         ) : null}
-        {selectedModuleList.length > 0 && purchasablePacks.some((p) => (p.required_module_codes || []).length) ? (
+        {selectedModuleList.length > 0 && packsForSelectedModules.some((p) => (p.required_module_codes || []).length) ? (
           <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
             <span className="text-[var(--portal-muted)]">Module → pack highlight:</span>
             {selectedModuleList.slice(0, MODULE_PACK_COLORS.length).map((modCode, idx) => {
@@ -1886,22 +1973,58 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
           <PortalPanel
             title="Feature packs"
-            description={`${purchasablePacks.length} purchasable pack${purchasablePacks.length !== 1 ? "s" : ""} for your selected modules. Internal / plan entitlement packs are hidden.`}
+            description="Packs linked to your selected modules appear first. Other purchasable packs stay available below so you can add extras. Catalog default unit pricing (Custom ERP) is applied when a pack has no own price."
           >
-            {purchasablePacks.length ? (
-              filteredPacks.length === 0 ? (
-                <p className="text-sm text-[var(--portal-muted)]">
-                  No feature packs match your search.
-                </p>
-              ) : (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {filteredPacks.map(renderPackCard)}
-                </div>
-              )
-            ) : (
+            {selectedModuleList.length === 0 ? (
               <p className="text-sm text-[var(--portal-muted)]">
-                Select modules to see matching purchasable feature packs.
+                Select modules above to see matching feature packs.
               </p>
+            ) : (
+              <div className="space-y-5">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
+                    For your selected modules
+                    {packsForSelectedModules.length
+                      ? ` · ${packsForSelectedModules.length}`
+                      : ""}
+                  </p>
+                  {packsForSelectedModules.length === 0 ? (
+                    <p className="text-sm text-[var(--portal-muted)]">
+                      No feature packs are linked to the modules you selected yet.
+                    </p>
+                  ) : filteredPacksForModules.length === 0 ? (
+                    <p className="text-sm text-[var(--portal-muted)]">
+                      No linked feature packs match your search.
+                    </p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {filteredPacksForModules.map(renderPackCard)}
+                    </div>
+                  )}
+                </div>
+
+                {otherAvailablePacks.length > 0 ? (
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
+                      More feature packs · optional
+                      {` · ${otherAvailablePacks.length}`}
+                    </p>
+                    <p className="mb-2 text-xs text-[var(--portal-muted)]">
+                      Add any extra pack you need. If a pack requires a module you have not
+                      selected, choose that module first.
+                    </p>
+                    {filteredOtherPacks.length === 0 ? (
+                      <p className="text-sm text-[var(--portal-muted)]">
+                        No other packs match your search.
+                      </p>
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {filteredOtherPacks.map(renderPackCard)}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
             )}
           </PortalPanel>
 
@@ -2010,11 +2133,20 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
               {newlySelected.length > 0 ? (
                 <div>
                   <p className="font-medium">New modules</p>
-                  <ul className="mt-1 space-y-1 text-[var(--portal-muted)]">
+                  <ul className="mt-1 space-y-1.5 text-[var(--portal-muted)]">
                     {newlySelected.map((code) => {
                       const mod = moduleByCode.get(code);
+                      const unit = cycleUnitPrice(mod || {}, billingCycle);
                       return (
-                        <li key={code}>{mod?.name || titleCaseCode(code)}</li>
+                        <li
+                          key={code}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <span className="min-w-0">{mod?.name || titleCaseCode(code)}</span>
+                          <span className="shrink-0 font-medium tabular-nums text-[var(--portal-ink)]">
+                            {formatItemPrice(unit, formatPrice)}
+                          </span>
+                        </li>
                       );
                     })}
                   </ul>
@@ -2024,11 +2156,22 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
               {newlySelectedPacks.length > 0 ? (
                 <div>
                   <p className="font-medium">New feature packs</p>
-                  <ul className="mt-1 space-y-1 text-[var(--portal-muted)]">
+                  <ul className="mt-1 space-y-1.5 text-[var(--portal-muted)]">
                     {newlySelectedPacks.map((code) => {
                       const pack = packByCode.get(code);
+                      const unit = cycleUnitPrice(pack || {}, billingCycle);
                       return (
-                        <li key={code}>{pack?.name || titleCaseCode(code)}</li>
+                        <li
+                          key={code}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <span className="min-w-0">
+                            {pack?.name || titleCaseCode(code)}
+                          </span>
+                          <span className="shrink-0 font-medium tabular-nums text-[var(--portal-ink)]">
+                            {formatItemPrice(unit, formatPrice)}
+                          </span>
+                        </li>
                       );
                     })}
                   </ul>

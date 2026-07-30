@@ -689,6 +689,10 @@ export type BillingCheckoutSession = {
   amount?: number | null;
   currency?: string | null;
   gateway?: string | null;
+  plan_name?: string | null;
+  metadata?: Record<string, unknown> | null;
+  session_replaced?: boolean;
+  previous_session_token?: string | null;
 };
 
 async function postPublic<T>(

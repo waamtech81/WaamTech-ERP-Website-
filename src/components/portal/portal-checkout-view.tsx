@@ -27,7 +27,12 @@ import { cn } from "@/lib/utils";
 import {
   clearCheckoutSessionToken,
   resolveCheckoutSessionToken,
+  saveCheckoutSessionToken,
 } from "@/lib/portal/checkout-session";
+import {
+  billingCycleSuffix,
+  resolveCheckoutCharge,
+} from "@/lib/portal/checkout-pricing";
 
 type CheckoutSession = {
   session_token?: string;
@@ -38,6 +43,9 @@ type CheckoutSession = {
   gateway?: string | null;
   plan_name?: string | null;
   payment_methods?: Partial<PortalPaymentMethodConfig> | null;
+  metadata?: Record<string, unknown> | null;
+  session_replaced?: boolean;
+  previous_session_token?: string | null;
 };
 
 function purposeLabel(mode: string, purpose?: string | null) {
@@ -144,6 +152,10 @@ export function PortalCheckoutView() {
           const data = json.data || null;
           setError("");
           setCheckout(data);
+          if (data?.session_replaced && data?.session_token) {
+            saveCheckoutSessionToken(String(data.session_token));
+            setSessionToken(String(data.session_token));
+          }
           setPaymentConfig(normalizePortalPaymentMethodConfig(data?.payment_methods));
           const urlMethod = PORTAL_PAYMENT_METHODS.some((m) => m.id === methodFromUrl)
             ? methodFromUrl
@@ -185,26 +197,26 @@ export function PortalCheckoutView() {
   const selectedMeta = methods.find((m) => m.id === selectedMethod);
   const needsTxn = Boolean(selectedMeta?.requiresTransactionId);
 
+  const resolvedCharge = useMemo(
+    () => resolveCheckoutCharge({ checkout }),
+    [checkout]
+  );
+
   const displayPlan = planName || checkout?.plan_name || checkout?.purpose || "WAAMTO subscription";
   const displayPurpose = purposeLabel(mode, checkout?.purpose);
-  const sessionAmount =
-    checkout?.amount != null && Number.isFinite(Number(checkout.amount))
-      ? Number(checkout.amount)
-      : null;
-  const usdAmount = sessionAmount;
-  const sessionCurrencyCode = checkout?.currency
-    ? String(checkout.currency).toUpperCase()
-    : "USD";
+  const usdAmount = resolvedCharge.usdAmount;
+  const sessionCurrencyCode = resolvedCharge.chargeCurrency;
+  const billingCycleLabel = billingCycleSuffix(resolvedCharge.pricingSummary?.billing_cycle);
 
-  // Billing SSOT is USD — show USD as the charge amount; local currency is informational only.
-  const totalDueUsdLabel =
+  // Match Builder/Signup: locale price from USD SSOT; USD line when visitor currency is not USD.
+  const totalDuePrimaryLabel =
     usdAmount != null
-      ? formatMoney(usdAmount, "USD", { showCode: true })
+      ? formatPrice(usdAmount, { showCode: true })
       : "—";
 
-  const totalDueLocalLabel =
+  const totalDueUsdSecondaryLabel =
     usdAmount != null && userCurrency !== "USD"
-      ? formatPrice(usdAmount, { showCode: true })
+      ? formatMoney(usdAmount, "USD", { showCode: true })
       : null;
 
   async function confirmPayment() {
@@ -220,7 +232,7 @@ export function PortalCheckoutView() {
         ? buildPaymentReference({
             methodId: selectedMethod,
             transactionId: transactionId.trim(),
-            amount: sessionAmount,
+            amount: usdAmount,
             currency: sessionCurrencyCode,
           })
         : selectedMethod || undefined;
@@ -386,11 +398,16 @@ export function PortalCheckoutView() {
                 <div>
                   <p className="text-sm text-[var(--portal-muted)]">Total due today</p>
                   <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-[var(--portal-fg)]">
-                    {totalDueUsdLabel}
+                    {totalDuePrimaryLabel}
+                    {billingCycleLabel ? (
+                      <span className="ml-1.5 text-base font-medium text-[var(--portal-muted)]">
+                        {billingCycleLabel}
+                      </span>
+                    ) : null}
                   </p>
-                  {totalDueLocalLabel ? (
-                    <p className="mt-2 text-sm font-semibold tabular-nums text-red-600">
-                      ≈ {totalDueLocalLabel}
+                  {totalDueUsdSecondaryLabel ? (
+                    <p className="mt-2 text-sm font-semibold tabular-nums text-[var(--portal-muted)]">
+                      {totalDueUsdSecondaryLabel} billing
                     </p>
                   ) : null}
                 </div>
@@ -472,8 +489,8 @@ export function PortalCheckoutView() {
                       method={selectedMeta}
                       transactionId={transactionId}
                       onTransactionIdChange={setTransactionId}
-                      amount={checkout?.amount}
-                      currency={checkout?.currency}
+                      amount={usdAmount ?? checkout?.amount}
+                      currency={sessionCurrencyCode}
                       paymentConfig={paymentConfig}
                       loadingConfig={loading}
                     />
@@ -483,7 +500,7 @@ export function PortalCheckoutView() {
                         <PayPalCheckout
                           sessionToken={sessionToken}
                           amount={usdAmount}
-                          currency="USD"
+                          currency={sessionCurrencyCode}
                           mode={mode}
                           planName={planName}
                           onError={setError}
@@ -508,7 +525,7 @@ export function PortalCheckoutView() {
                           ) : needsTxn ? (
                             "Submit payment confirmation"
                           ) : (
-                            `Pay ${totalDueUsdLabel !== "—" ? totalDueUsdLabel : "now"}`
+                            `Pay ${totalDuePrimaryLabel !== "—" ? totalDuePrimaryLabel : "now"}`
                           )}
                         </Button>
                       ) : null}

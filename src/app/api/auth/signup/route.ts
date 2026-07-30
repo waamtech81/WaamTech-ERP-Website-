@@ -19,6 +19,7 @@ import {
 import { validateSignupCommercialSelection } from "@/lib/signup/validate-commercial";
 import { validateSignupCustomPackage } from "@/lib/signup/validate-custom-package";
 import { buildPredefinedSignupPricingSummary } from "@/lib/signup/predefined-pricing-summary";
+import { buildCustomSignupPricingSummary } from "@/lib/signup/custom-pricing-summary";
 import { resolveSignupCommercialMode } from "@/lib/signup/commercial-mode";
 import type { BillingCycle } from "@/lib/commercial/types";
 
@@ -201,7 +202,10 @@ export const POST = withApiHandler(
       }
 
       const pkg = custom.data.package;
-      const finalTotal = pkg.money?.grand_total ?? pkg.estimated_total;
+      const pricingSummary = buildCustomSignupPricingSummary({
+        pkg,
+        effectiveModules: custom.data.effective_modules,
+      });
       signupMode = resolveSignupCommercialMode({
         packageType: "custom",
         plan: null,
@@ -229,7 +233,7 @@ export const POST = withApiHandler(
         monthly_price: pkg.monthly_price,
         yearly_price: pkg.yearly_price,
         lifetime_price: pkg.lifetime_price,
-        estimated_total: finalTotal,
+        estimated_total: pricingSummary.grand_total,
         selected_module_count: pkg.selected_module_count,
         discount_code: pkg.discount_code || discount_code || null,
         feature_packs: pkg.feature_packs,
@@ -240,23 +244,7 @@ export const POST = withApiHandler(
         company_limit: pkg.tenant_limits?.companies ?? null,
         branch_limit: pkg.tenant_limits?.branches ?? null,
         warehouse_limit: pkg.tenant_limits?.warehouses ?? null,
-        pricing_summary: {
-          monthly: pkg.monthly_price,
-          yearly: pkg.yearly_price,
-          lifetime: pkg.lifetime_price,
-          billing_cycle: pkg.billing_cycle,
-          currency: selectedCurrency || "USD",
-          subtotal: pkg.money?.subtotal ?? null,
-          discount_code: pkg.discount_code || null,
-          discount_amount: pkg.money?.discount_amount ?? 0,
-          tax_amount: pkg.money?.tax_amount ?? 0,
-          tax_label: pkg.money?.tax_label ?? null,
-          grand_total: finalTotal,
-          ...(pkg.tenant_limits ? { tenant_limits: pkg.tenant_limits } : {}),
-          ...(pkg.feature_packs?.length
-            ? { feature_packs: pkg.feature_packs }
-            : {}),
-        },
+        pricing_summary: pricingSummary,
         marketing_opt_in,
         captcha_token: captchaToken || undefined,
         signup_mode: signupMode,

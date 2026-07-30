@@ -30,17 +30,14 @@ export function buildPredefinedSignupPricingSummary(input: {
   const lifetime = Number(input.plan.lifetime_price ?? 0);
   const grandTotal =
     cycle === "lifetime" ? lifetime : cycle === "yearly" ? yearly : monthly;
-  const currency = String(input.currency || input.plan.currency || "USD")
-    .trim()
-    .toUpperCase()
-    .slice(0, 3);
 
   return {
     monthly,
     yearly,
     lifetime,
     billing_cycle: cycle,
-    currency,
+    currency: "USD",
+    base_currency: "USD",
     subtotal: grandTotal,
     discount_amount: 0,
     tax_amount: 0,

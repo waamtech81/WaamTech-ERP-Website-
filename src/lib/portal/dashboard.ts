@@ -98,8 +98,14 @@ export type PortalLicense = {
   grace_period_days?: number | null;
   package_type?: string | null;
   billing_cycle?: string | null;
+  /** Display labels for UI. */
   modules: string[];
+  /** Canonical License Engine module codes (upgrade / checkout SSOT). */
+  module_codes: string[];
+  /** Display labels for UI. */
   feature_packs: string[];
+  /** Canonical License Engine feature-pack codes (upgrade / checkout SSOT). */
+  feature_pack_codes: string[];
   tenant_limits?: PortalLicenseTenantLimits | null;
 };
 
@@ -183,12 +189,25 @@ export type PortalDashboard = {
   featurePacks: string[];
   /** Full public catalog module codes — for Custom ERP upgrade diff (not license-only). */
   catalogModuleCodes: string[];
+  /** Catalog modules with prices for Custom ERP upgrade picker. */
+  catalogModules: Array<{
+    code: string;
+    name: string;
+    description?: string | null;
+    monthly_price?: number | null;
+    yearly_price?: number | null;
+    lifetime_price?: number | null;
+  }>;
   /** Catalog feature packs for upgrade picker (from Commercial Overview). */
   catalogFeaturePacks: Array<{
     code: string;
     name: string;
     description?: string | null;
     required_module_codes?: string[];
+    monthly_price?: number | null;
+    yearly_price?: number | null;
+    lifetime_price?: number | null;
+    cycle_price?: number | null;
   }>;
   /** License Engine Commercial Snapshot SSOT (from GET /public/billing/company). */
   commercialSnapshot: PortalCommercialSnapshot | null;
@@ -270,6 +289,7 @@ function toPortalLicense(
     ])
   ).filter(Boolean);
   const modules = codes.map((code) => moduleLabels?.get(code) || code);
+  const packCodes = extractFeaturePackNames(lic.feature_packs);
   return {
     id: lic.id,
     keyMasked: maskLicenseKey(lic.license_key),
@@ -290,9 +310,11 @@ function toPortalLicense(
     package_type: lic.package_type || null,
     billing_cycle: lic.billing_cycle || null,
     modules,
-    feature_packs: extractFeaturePackNames(lic.feature_packs).map((code) =>
+    module_codes: codes,
+    feature_packs: packCodes.map((code) =>
       formatFeaturePackLabel(code, featurePackLabels)
     ),
+    feature_pack_codes: packCodes,
     tenant_limits: lic.tenant_limits
       ? {
           users: lic.tenant_limits.users ?? lic.max_users ?? null,
@@ -934,17 +956,48 @@ async function loadPortalDashboardUncached(
   const catalogModuleCodes = (modulesCatalogRes.data || [])
     .map((mod) => String(mod?.code || "").trim())
     .filter(Boolean);
+  const catalogModules = (modulesCatalogRes.data || [])
+    .map((mod) => {
+      const code = String(mod?.code || "").trim();
+      if (!code) return null;
+      return {
+        code,
+        name: String(mod?.name || code),
+        description: mod?.description ?? null,
+        monthly_price:
+          typeof mod?.monthly_price === "number" ? mod.monthly_price : null,
+        yearly_price:
+          typeof mod?.yearly_price === "number" ? mod.yearly_price : null,
+        lifetime_price:
+          typeof mod?.lifetime_price === "number" ? mod.lifetime_price : null,
+      };
+    })
+    .filter(Boolean) as PortalDashboard["catalogModules"];
   const catalogFeaturePacks = (commercialOverviewRes.data?.feature_packs || [])
     .map((pack) => {
       const code = String(pack.code || pack.slug || "").trim();
       if (!code) return null;
+      const required =
+        Array.isArray(pack.required_module_codes)
+          ? pack.required_module_codes.map(String)
+          : Array.isArray(pack.dependency_modules)
+            ? pack.dependency_modules.map(String)
+            : Array.isArray(pack.modules)
+              ? pack.modules.map(String)
+              : undefined;
       return {
         code,
         name: pack.name || code,
         description: pack.description ?? null,
-        required_module_codes: Array.isArray(pack.required_module_codes)
-          ? pack.required_module_codes.map(String)
-          : undefined,
+        required_module_codes: required,
+        monthly_price:
+          typeof pack.monthly_price === "number" ? pack.monthly_price : null,
+        yearly_price:
+          typeof pack.yearly_price === "number" ? pack.yearly_price : null,
+        lifetime_price:
+          typeof pack.lifetime_price === "number" ? pack.lifetime_price : null,
+        cycle_price:
+          typeof pack.cycle_price === "number" ? pack.cycle_price : null,
       };
     })
     .filter(Boolean) as PortalDashboard["catalogFeaturePacks"];
@@ -1429,6 +1482,7 @@ async function loadPortalDashboardUncached(
     modules: modules.filter(Boolean),
     featurePacks,
     catalogModuleCodes,
+    catalogModules,
     catalogFeaturePacks,
     commercialSnapshot,
     commercialJourney,

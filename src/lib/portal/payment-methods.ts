@@ -3,8 +3,9 @@
  * Engine checkout gateways stay stripe|paypal|bank|manual|simulated;
  * Pakistan wallets / Wise map to bank|manual with a structured reference.
  *
- * Payment account details come only from License Engine (checkout session or
- * /v1/public/billing/payment-methods). Never show website fallbacks.
+ * Payment account details come from License Engine (checkout session or
+ * /v1/public/billing/payment-methods). Bank transfer fields fall back to
+ * Askari Bank SSOT when Engine sends placeholders or incomplete values.
  */
 
 export type PaymentMethodId =
@@ -48,6 +49,19 @@ export type PortalPaymentMethodConfig = {
   paypal: { receive_email: string };
 };
 
+/** Askari Bank — direct transfer details for portal checkout (end-user SSOT). */
+export const ASKARI_BANK_TRANSFER_DETAILS = {
+  bank_name: "Askari Bank",
+  account_title: "WAAMTECH",
+  account_number: "1150420000732",
+  iban: "PK81ASCM0001150420000732",
+  swift: "ASCMPKKA",
+  branch: "Kamran Center Branch, ISB-PK",
+  currency: "PKR",
+  instructions:
+    "Transfer the exact bill amount in PKR. Include your checkout reference in the transfer description, then enter the transaction ID below.",
+} as const;
+
 function nonEmpty(value: unknown): string | null {
   const s = String(value ?? "").trim();
   return s ? s : null;
@@ -74,23 +88,53 @@ export function isPortalPaymentMethodConfigReady(
   return true;
 }
 
-/** Normalize Engine payment-method config — no local fallbacks. */
+function isInvalidBankTransferValue(value: unknown): boolean {
+  const s = String(value ?? "").trim();
+  if (!s) return true;
+  if (/add_if_missing/i.test(s)) return true;
+  if (/\bBANK_[A-Z0-9_]+\b/i.test(s)) return true;
+  if (/^standard$/i.test(s)) return true;
+  return false;
+}
+
+function resolveBankTransferField(value: unknown, fallback: string): string {
+  if (isInvalidBankTransferValue(value)) return fallback;
+  const s = String(value).trim();
+  if (/add_if_missing|\bBANK_[A-Z0-9_]+\b/i.test(s)) return fallback;
+  return s;
+}
+
+/** Normalize bank block — force Askari details when Engine/env placeholders leak through. */
+export function sanitizeBankTransferDetails(
+  bank: Partial<PortalPaymentMethodConfig["bank"]> | null | undefined
+): PortalPaymentMethodConfig["bank"] {
+  const defaults = ASKARI_BANK_TRANSFER_DETAILS;
+  return {
+    bank_name: resolveBankTransferField(bank?.bank_name, defaults.bank_name),
+    account_title: resolveBankTransferField(bank?.account_title, defaults.account_title),
+    account_number: resolveBankTransferField(bank?.account_number, defaults.account_number),
+    iban: resolveBankTransferField(bank?.iban, defaults.iban),
+    swift: resolveBankTransferField(bank?.swift, defaults.swift),
+    branch: resolveBankTransferField(bank?.branch, defaults.branch),
+    currency: resolveBankTransferField(bank?.currency, defaults.currency),
+    instructions: (() => {
+      const raw = bank?.instructions;
+      if (raw == null) return defaults.instructions;
+      const s = String(raw).trim();
+      if (!s || isInvalidBankTransferValue(s)) return defaults.instructions;
+      return s;
+    })(),
+  };
+}
+
+/** Normalize Engine payment-method config — bank block sanitized to Askari SSOT when needed. */
 export function normalizePortalPaymentMethodConfig(
   fromEngine: Partial<PortalPaymentMethodConfig> | null | undefined
 ): PortalPaymentMethodConfig | null {
   if (!isPortalPaymentMethodConfigReady(fromEngine)) return null;
   const bank = fromEngine.bank!;
   return {
-    bank: {
-      bank_name: nonEmpty(bank.bank_name)!,
-      account_title: nonEmpty(bank.account_title)!,
-      account_number: nonEmpty(bank.account_number)!,
-      iban: nonEmpty(bank.iban) || "",
-      swift: nonEmpty(bank.swift) || "",
-      branch: nonEmpty(bank.branch) || "",
-      currency: nonEmpty(bank.currency) || "USD",
-      instructions: bank.instructions != null ? String(bank.instructions).trim() || null : null,
-    },
+    bank: sanitizeBankTransferDetails(bank),
     jazzcash: {
       account_number: nonEmpty(fromEngine.jazzcash!.account_number)!,
     },

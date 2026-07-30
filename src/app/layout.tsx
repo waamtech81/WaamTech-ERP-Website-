@@ -10,7 +10,7 @@ import { TawkChat } from "@/components/analytics/tawk-to-chat";
 import { siteConfig } from "@/lib/data/site";
 import { fontVariablesClassName } from "@/lib/fonts";
 import { getSiteOrigin } from "@/lib/urls";
-import { buildSiteSearchIndexFromEngine } from "@/lib/search";
+import { buildSiteSearchIndexFromEngine, getSiteSearchIndex } from "@/lib/search";
 import {
   seoDescription,
   seoKeywords,
@@ -152,8 +152,15 @@ export default async function RootLayout({
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_GOOGLE_CAPTCHA_SITE_KEY?.trim() || "";
   // Don't block HTML on live exchange rates — client refreshes via /api/exchange-rates.
   const table = fallbackTable();
-  // Prime License Engine catalog search index once for the whole site shell.
-  const searchIndex = await buildSiteSearchIndexFromEngine();
+  const headerStore = await headers();
+  const pathname = headerStore.get("x-wt-pathname") || "";
+  const isAuthSurface = /^\/(login|signup|forgot-password|reset-password|verify-email)(\/|$)/.test(
+    pathname
+  );
+  // Avoid competing License Engine calls on auth pages (login/signup must stay fast).
+  const searchIndex = isAuthSurface
+    ? getSiteSearchIndex()
+    : await buildSiteSearchIndexFromEngine();
 
   return (
     <html

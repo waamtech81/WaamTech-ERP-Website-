@@ -285,7 +285,28 @@ function LoginForm() {
         cache: "no-store",
         credentials: "include",
       });
-      const json = await res.json();
+      let json: {
+        success?: boolean;
+        message?: string;
+        requires_email_verification?: boolean;
+        requiresOtp?: boolean;
+        requires_email_otp?: boolean;
+        requires2fa?: boolean;
+        requires_2fa?: boolean;
+        requiresStepUp?: boolean;
+        data?: Record<string, unknown>;
+      };
+      try {
+        json = await res.json();
+      } catch {
+        setError(
+          res.status >= 500
+            ? "Login service temporarily unavailable. Please try again."
+            : friendlyNetworkError(null, "Something went wrong. Please try again.")
+        );
+        setLoading(false);
+        return;
+      }
 
       const challengeTokenValue = String(json.data?.challenge_token || "").trim();
       const requiresEmailVerification = json.requires_email_verification === true;

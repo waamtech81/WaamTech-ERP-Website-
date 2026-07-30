@@ -955,6 +955,7 @@ function SignUpForm({
         captchaToken = await executeRecaptcha("portal_signup");
         if (!captchaToken) {
           setError("Captcha failed to load. Please refresh and try again.");
+          setLoading(false);
           return;
         }
       }
@@ -1042,7 +1043,28 @@ function SignUpForm({
           ...(localeCurrency ? { currency: localeCurrency } : {}),
         }),
       });
-      const json = await res.json();
+      let json: {
+        success?: boolean;
+        message?: string;
+        requiresOtp?: boolean;
+        requiresVerification?: boolean;
+        data?: {
+          email?: string;
+          registrationId?: string;
+          signup_mode?: string;
+        };
+      };
+      try {
+        json = await res.json();
+      } catch {
+        setError(
+          res.status >= 500
+            ? "Signup service temporarily unavailable. Please try again."
+            : friendlyNetworkError(null, "Something went wrong. Please try again.")
+        );
+        setLoading(false);
+        return;
+      }
 
       if (!json.success) {
         setError(apiMessageFromJson(json, "Signup failed."));

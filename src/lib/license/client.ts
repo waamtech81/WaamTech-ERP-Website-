@@ -55,6 +55,10 @@ export type TrialRegistrationInput = {
   company_limit?: number | null;
   branch_limit?: number | null;
   warehouse_limit?: number | null;
+  /** Business profile ID — Engine uses it for Category-First provisioning (both predefined and custom). */
+  business_profile_id?: string;
+  /** Visitor's selected display currency (e.g. "PKR", "EUR"). Engine converts pricing and stores on profile. */
+  currency?: string;
 };
 
 export type RegistrationStartResult = {
@@ -256,7 +260,13 @@ export async function startRegistrationOnLicenseServer(
       ...(input.product_id ? { product_id: input.product_id } : {}),
       ...(input.plan_id ? { plan_id: input.plan_id } : {}),
       ...(input.product_slug ? { product_slug: input.product_slug } : {}),
+      // Forward for both paths — Engine resolves Category-First provisioning profile.
+      ...(input.business_profile_id ? { business_profile_id: input.business_profile_id } : {}),
       package_type: input.package_type || "predefined",
+      // Forward billing_cycle for predefined plans so Engine stores it on the registration session.
+      ...(input.billing_cycle && input.package_type !== "custom"
+        ? { billing_cycle: input.billing_cycle }
+        : {}),
       ...(input.package_type === "custom"
         ? {
             selected_modules: input.selected_modules || [],
@@ -330,6 +340,8 @@ export async function startRegistrationOnLicenseServer(
         (input.signup_mode === "paid" ? 0 : authConfig.trialDays),
       source: "waamto-website",
       ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
+      // Forward visitor's selected currency so Engine invoices/profile use it.
+      ...(input.currency ? { customer_currency: input.currency } : {}),
     }
   );
 

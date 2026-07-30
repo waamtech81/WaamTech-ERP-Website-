@@ -118,7 +118,7 @@ export function LocaleProvider({
           .map((row: { code?: string }) => String(row?.code || "").toUpperCase())
           .filter((code: string): code is CurrencyCode => isCurrencyCode(code));
         if (!codes.length) return;
-        const unique = Array.from(new Set(codes));
+        const unique: CurrencyCode[] = Array.from(new Set(codes));
         setEnabledCurrencyCodes(unique);
         setCurrencyState((prev) =>
           unique.includes(prev) ? prev : normalizeCurrency(unique[0] || DEFAULT_CURRENCY)

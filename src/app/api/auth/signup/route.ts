@@ -86,6 +86,8 @@ export const POST = withApiHandler(
       sanitizeText(body?.category_id || body?.business_category_id, 80) || undefined;
     const industry_id = sanitizeText(body?.industry_id, 80) || undefined;
     const plan_id = sanitizeText(body?.plan_id, 80) || undefined;
+    const business_profile_id =
+      sanitizeText(body?.business_profile_id, 80) || undefined;
     const product_id_hint = sanitizeText(body?.product_id, 80) || undefined;
     const package_type =
       sanitizeText(body?.package_type, 20).toLowerCase() === "custom"
@@ -105,6 +107,10 @@ export const POST = withApiHandler(
       sanitizeText(body?.discount_code || body?.coupon_code, 64).toUpperCase() ||
       undefined;
     const marketing_opt_in = Boolean(body?.marketing_opt_in);
+    const selectedCurrency = sanitizeText(
+      body?.currency || body?.selected_currency || body?.customer_currency,
+      3
+    ).toUpperCase() || undefined;
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
       8192
@@ -211,6 +217,7 @@ export const POST = withApiHandler(
         category_id: pkg.category_id || category_id || undefined,
         industry_name: pkg.industry_name || undefined,
         category_name: pkg.category_name || undefined,
+        ...(business_profile_id ? { business_profile_id } : {}),
         product_id: custom.data.product.id,
         product_slug: custom.data.product.slug,
         package_type: "custom",
@@ -252,6 +259,7 @@ export const POST = withApiHandler(
         captcha_token: captchaToken || undefined,
         signup_mode: signupMode,
         trial_days: signupMode === "paid" ? 0 : authConfig.trialDays,
+        ...(selectedCurrency ? { currency: selectedCurrency } : {}),
       });
     } else {
       const commercial = await validateSignupCommercialSelection({
@@ -295,11 +303,13 @@ export const POST = withApiHandler(
         plan_id: commercial.data.plan.id,
         package_type: "predefined",
         ...(billing_cycle ? { billing_cycle } : {}),
+        ...(business_profile_id ? { business_profile_id } : {}),
         marketing_opt_in,
         // License Engine is the sole verifier; reCAPTCHA tokens are single-use.
         captcha_token: captchaToken || undefined,
         signup_mode: signupMode,
         trial_days: signupMode === "paid" ? 0 : authConfig.trialDays,
+        ...(selectedCurrency ? { currency: selectedCurrency } : {}),
       });
     }
 

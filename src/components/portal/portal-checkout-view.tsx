@@ -13,7 +13,8 @@ import { TrustBadgeStrip } from "@/components/trust-badges";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import { useLocale } from "@/components/providers/locale-provider";
-import { formatUsdAs } from "@/lib/currency/format";
+import { formatUsdAs, formatMoney } from "@/lib/currency/format";
+import { isCurrencyCode } from "@/lib/currency/config";
 import {
   buildPaymentReference,
   engineGatewayForMethod,
@@ -182,14 +183,32 @@ export function PortalCheckoutView() {
 
   const displayPlan = planName || checkout?.plan_name || checkout?.purpose || "WAAMTO subscription";
   const displayPurpose = purposeLabel(mode, checkout?.purpose);
-  const usdAmount =
+  const sessionAmount =
     checkout?.amount != null && Number.isFinite(Number(checkout.amount))
       ? Number(checkout.amount)
       : null;
+  // Use usdAmount for backward compat (PayPal / gateway paths still pass it through)
+  const usdAmount = sessionAmount;
+  const sessionCurrencyCode = checkout?.currency
+    ? String(checkout.currency).toUpperCase()
+    : "USD";
+  const isSessionUsd = sessionCurrencyCode === "USD";
+
+  // Display the invoice amount in its own currency; only re-convert if session is USD.
   const displayAmountLabel =
-    usdAmount != null ? formatPrice(usdAmount, { showCode: true }) : "—";
+    sessionAmount != null
+      ? isSessionUsd
+        ? formatPrice(sessionAmount, { showCode: true })
+        : isCurrencyCode(sessionCurrencyCode)
+          ? formatMoney(sessionAmount, sessionCurrencyCode, { showCode: true })
+          : `${sessionCurrencyCode} ${sessionAmount.toLocaleString()}`
+      : "—";
+
+  // Secondary "Payment amount" — shown only for USD sessions so customers know the gateway currency.
   const paymentUsdLabel =
-    usdAmount != null ? formatUsdAs(usdAmount, "USD", rates, { showCode: true }) : "—";
+    sessionAmount != null && isSessionUsd
+      ? formatUsdAs(sessionAmount, "USD", rates, { showCode: true })
+      : null;
 
   async function confirmPayment() {
     if (!sessionToken || confirming) return;
@@ -204,8 +223,8 @@ export function PortalCheckoutView() {
         ? buildPaymentReference({
             methodId: selectedMethod,
             transactionId: transactionId.trim(),
-            amount: usdAmount,
-            currency: "USD",
+            amount: sessionAmount,
+            currency: sessionCurrencyCode,
           })
         : selectedMethod || undefined;
 
@@ -372,7 +391,7 @@ export function PortalCheckoutView() {
                   <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-[var(--portal-fg)]">
                     {displayAmountLabel}
                   </p>
-                  {usdAmount != null ? (
+                  {paymentUsdLabel != null ? (
                     <p className="mt-2 text-sm text-[var(--portal-muted)]">
                       Payment amount:{" "}
                       <span className="font-medium tabular-nums text-[var(--portal-fg)]">

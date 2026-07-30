@@ -321,7 +321,7 @@ function SignUpForm({
   hierarchyValidated = false,
 }: SignUpClientProps) {
   const searchParams = useSearchParams();
-  const { country: detectedCountry, formatPrice } = useLocale();
+  const { country: detectedCountry, formatPrice, currency: localeCurrency } = useLocale();
 
   // Display-only slugs from server props — never bind commercial IDs from path params
   const industrySlug = normalizePermalinkSlug(industrySlugProp);
@@ -1038,6 +1038,8 @@ function SignUpForm({
           website: honeypot,
           _t: formStartedAt,
           ...(captchaToken ? { captcha_token: captchaToken } : {}),
+          // Pass visitor's selected currency so Engine invoices use it.
+          ...(localeCurrency ? { currency: localeCurrency } : {}),
         }),
       });
       const json = await res.json();

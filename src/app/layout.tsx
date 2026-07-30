@@ -6,7 +6,7 @@ import { LocaleProvider } from "@/components/providers/locale-provider";
 import { SearchIndexProvider } from "@/components/providers/search-index-provider";
 import { SiteJsonLd } from "@/components/seo/json-ld";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
-import { CrispChat } from "@/components/analytics/crisp-chat";
+import { TawkChat } from "@/components/analytics/tawk-to-chat";
 import { siteConfig } from "@/lib/data/site";
 import { fontVariablesClassName } from "@/lib/fonts";
 import { getSiteOrigin } from "@/lib/urls";
@@ -179,7 +179,7 @@ export default async function RootLayout({
           <SearchIndexProvider index={searchIndex}>
             <SiteJsonLd />
             <GoogleAnalytics />
-            <CrispChat />
+            <TawkChat />
             <SiteShell language={language}>{children}</SiteShell>
           </SearchIndexProvider>
         </LocaleProvider>

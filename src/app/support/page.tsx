@@ -56,7 +56,7 @@ export default function SupportPage() {
             </AnimateIn>
 
             <AnimateIn delay={0.05}>
-              <Card className="h-full flex flex-col" data-live-chat-provider="crisp">
+              <Card className="h-full flex flex-col" data-live-chat-provider="tawk">
                 <CardHeader>
                   <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary">
                     <MessageCircle className="h-5 w-5" />
@@ -66,7 +66,7 @@ export default function SupportPage() {
                 <CardContent className="flex flex-1 flex-col">
                   <p className="text-sm text-muted-foreground leading-relaxed flex-1">
                     Chat with WAAMTO support in real time. If the chat bubble is hidden, use the
-                    button below to open Crisp.
+                    button below to open live chat.
                   </p>
                   <div
                     id="waamto-live-chat-mount"

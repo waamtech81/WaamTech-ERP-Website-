@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Boxes,
+  Check,
   CreditCard,
   ExternalLink,
   FileText,
@@ -11,6 +14,7 @@ import {
   History,
   KeyRound,
   LifeBuoy,
+  Loader2,
   Package,
   Puzzle,
   RefreshCw,
@@ -41,6 +45,8 @@ import {
   showRenewalUi,
 } from "@/lib/portal/package-type";
 import { authConfig } from "@/lib/auth/config";
+import { fetchPublicModules } from "@/lib/commercial/client";
+import { cn } from "@/lib/utils";
 
 function titleCaseCode(code: string) {
   const c = String(code || "").trim();
@@ -911,66 +917,350 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
     );
   }
 
+  return <PortalCustomErpUpgradeWizard data={data} />;
+}
+
+// ─── Custom ERP Upgrade Wizard ────────────────────────────────────────────────
+
+type CatalogModule = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+};
+
+function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
+  const router = useRouter();
+  const primary = primaryPortalLicense(data.licenses);
+  const sub = activeSubscription(data);
+  const billingCycle = resolvePrimaryBillingCycle(primary, data.subscriptions);
+
+  // Currently owned module codes
+  const ownedModuleCodes = new Set(
+    (primary?.modules ?? data.modules ?? []).map((m) =>
+      String((m as { code?: string }).code || (m as { id?: string }).id || m).toLowerCase()
+    )
+  );
+  const ownedPackCodes = new Set(
+    (primary?.feature_packs ?? data.featurePacks ?? []).map((p) =>
+      String((p as { code?: string }).code || (p as { id?: string }).id || p).toLowerCase()
+    )
+  );
+
+  const currentLimits = (primary?.tenant_limits ?? {}) as Record<string, number>;
+
+  // Catalog state
+  const [catalogModules, setCatalogModules] = useState<CatalogModule[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+
+  // Selection state — user picks FULL new config (owned + new additions)
+  const [selectedModules, setSelectedModules] = useState<Set<string>>(() => new Set(ownedModuleCodes));
+  const [selectedPacks, setSelectedPacks] = useState<Set<string>>(() => new Set(ownedPackCodes));
+  const [userLimit, setUserLimit] = useState<number>(currentLimits.user_limit ?? currentLimits.users ?? 5);
+  const [branchLimit, setBranchLimit] = useState<number>(currentLimits.branch_limit ?? currentLimits.branches ?? 1);
+  const [warehouseLimit, setWarehouseLimit] = useState<number>(currentLimits.warehouse_limit ?? currentLimits.warehouses ?? 1);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    setCatalogLoading(true);
+    fetchPublicModules()
+      .then((res) => {
+        if (res.ok && Array.isArray(res.data)) {
+          setCatalogModules(
+            (res.data as CatalogModule[]).filter((m) => m.code && m.name)
+          );
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCatalogLoading(false));
+  }, []);
+
+  const availableModules = catalogModules.filter(
+    (m) => !ownedModuleCodes.has(m.code.toLowerCase())
+  );
+
+  const newlySelected = [...selectedModules].filter(
+    (c) => !ownedModuleCodes.has(c.toLowerCase())
+  );
+  const newlySelectedPacks = [...selectedPacks].filter(
+    (c) => !ownedPackCodes.has(c.toLowerCase())
+  );
+
+  const hasChanges =
+    newlySelected.length > 0 ||
+    newlySelectedPacks.length > 0 ||
+    userLimit > (currentLimits.user_limit ?? currentLimits.users ?? 5) ||
+    branchLimit > (currentLimits.branch_limit ?? currentLimits.branches ?? 1) ||
+    warehouseLimit > (currentLimits.warehouse_limit ?? currentLimits.warehouses ?? 1);
+
+  function toggleModule(code: string) {
+    const lower = code.toLowerCase();
+    if (ownedModuleCodes.has(lower)) return; // cannot deselect owned
+    setSelectedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(lower)) next.delete(lower);
+      else next.add(lower);
+      return next;
+    });
+  }
+
+  function togglePack(code: string) {
+    const lower = code.toLowerCase();
+    if (ownedPackCodes.has(lower)) return;
+    setSelectedPacks((prev) => {
+      const next = new Set(prev);
+      if (next.has(lower)) next.delete(lower);
+      else next.add(lower);
+      return next;
+    });
+  }
+
+  async function handleUpgrade() {
+    if (!sub?.id) {
+      setSubmitError("No active subscription found.");
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const res = await fetch("/api/portal/billing/custom-upgrade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscription_id: sub.id,
+          selected_modules: [...selectedModules],
+          selected_feature_packs: [...selectedPacks],
+          user_limit: userLimit,
+          branch_limit: branchLimit,
+          warehouse_limit: warehouseLimit,
+          billing_cycle: billingCycle || undefined,
+        }),
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        data?: { session_token?: string };
+        message?: string;
+      };
+      if (!res.ok || !json.ok || !json.data?.session_token) {
+        setSubmitError(json.message || "Unable to create upgrade checkout. Please try again.");
+        return;
+      }
+      router.push(
+        `/portal/checkout?session=${encodeURIComponent(json.data.session_token)}&mode=upgrade`
+      );
+    } catch {
+      setSubmitError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PortalPageHeader
         eyebrow="Custom ERP"
-        title="Modify ERP Configuration"
-        description="Preview pricing changes for modules, feature packs, and limits — then confirm a license update."
+        title="Upgrade Configuration"
+        description="Add modules, feature packs, or increase limits. All changes go through the License Engine upgrade checkout."
       />
-      <div className="grid gap-6 xl:grid-cols-2">
-        <PortalPanel
-          title="Upgrade preview → quote → checkout"
-          description="Select modules, feature packs, and limits — License Engine confirms pricing."
-        >
-          <ol className="list-decimal space-y-2 pl-5 text-sm text-[var(--portal-muted)]">
-            <li>Review installed modules and feature packs.</li>
-            <li>Adjust modules, packs, or tenant limits in the builder.</li>
-            <li>Request a quote preview and review pricing changes.</li>
-            <li>Confirm checkout — License Engine updates your custom package.</li>
-            <li>Portal refreshes and ERP syncs automatically.</li>
-          </ol>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Button asChild size="sm" className="rounded-xl">
-              <Link href="/build-your-own-erp">
-                Open Custom ERP Builder
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline" className="rounded-xl">
-              <Link href="/portal/billing">Review billing</Link>
-            </Button>
+
+      {/* Currently owned — read-only overview */}
+      <PortalPanel
+        title="Current entitlements"
+        description="Already included in your active Custom ERP license."
+      >
+        <div className="flex flex-wrap gap-2">
+          {[...ownedModuleCodes].map((code) => (
+            <span
+              key={code}
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-1 text-xs font-medium text-[var(--portal-muted)]"
+            >
+              <Check className="h-3 w-3 text-green-500" />
+              {titleCaseCode(code)}
+            </span>
+          ))}
+          {ownedModuleCodes.size === 0 && (
+            <p className="text-sm text-[var(--portal-muted)]">No modules active yet.</p>
+          )}
+        </div>
+      </PortalPanel>
+
+      {/* Module selection */}
+      <PortalPanel
+        title="Add modules"
+        description={
+          catalogLoading
+            ? "Loading catalog…"
+            : availableModules.length === 0
+              ? "All catalog modules are already included in your package."
+              : `${availableModules.length} module${availableModules.length !== 1 ? "s" : ""} available to add.`
+        }
+      >
+        {catalogLoading ? (
+          <div className="flex items-center gap-2 text-sm text-[var(--portal-muted)]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading modules…
           </div>
-        </PortalPanel>
-        <PortalPanel title="Current subscription" description="Billing signals for this custom package.">
+        ) : availableModules.length === 0 ? (
+          <p className="text-sm text-[var(--portal-muted)]">
+            Your package already includes all available modules.
+          </p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {availableModules.map((m) => {
+              const isSelected = selectedModules.has(m.code.toLowerCase());
+              return (
+                <button
+                  key={m.code}
+                  type="button"
+                  onClick={() => toggleModule(m.code)}
+                  className={cn(
+                    "portal-focus-ring flex items-start gap-3 rounded-xl border p-3 text-left transition",
+                    isSelected
+                      ? "border-[var(--portal-primary)] bg-[var(--portal-primary)]/5"
+                      : "border-[var(--portal-border)] bg-[var(--portal-soft)] hover:border-[var(--portal-primary)]/40"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                      isSelected
+                        ? "border-[var(--portal-primary)] bg-[var(--portal-primary)] text-white"
+                        : "border-[var(--portal-border)]"
+                    )}
+                  >
+                    {isSelected && <Check className="h-3 w-3" />}
+                  </span>
+                  <span>
+                    <span className="block text-sm font-medium">{m.name}</span>
+                    {m.description && (
+                      <span className="mt-0.5 block text-xs text-[var(--portal-muted)] line-clamp-1">
+                        {m.description}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </PortalPanel>
+
+      {/* Limit upgrade */}
+      <PortalPanel
+        title="Adjust limits"
+        description="Increase user, branch, or warehouse limits for your tenant."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              label: "Users",
+              value: userLimit,
+              min: currentLimits.user_limit ?? currentLimits.users ?? 1,
+              set: setUserLimit,
+            },
+            {
+              label: "Branches",
+              value: branchLimit,
+              min: currentLimits.branch_limit ?? currentLimits.branches ?? 1,
+              set: setBranchLimit,
+            },
+            {
+              label: "Warehouses",
+              value: warehouseLimit,
+              min: currentLimits.warehouse_limit ?? currentLimits.warehouses ?? 1,
+              set: setWarehouseLimit,
+            },
+          ].map((f) => (
+            <div key={f.label} className="space-y-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
+                {f.label}
+              </label>
+              <input
+                type="number"
+                min={f.min}
+                value={f.value}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v) && v >= (f.min as number)) f.set(v);
+                }}
+                className="w-full rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-2 text-sm focus:border-[var(--portal-primary)] focus:outline-none"
+              />
+              <p className="text-[11px] text-[var(--portal-muted)]">
+                Current: {f.min}
+              </p>
+            </div>
+          ))}
+        </div>
+      </PortalPanel>
+
+      {/* Upgrade summary + action */}
+      <PortalPanel
+        title="Upgrade summary"
+        description="Review your selections before creating the checkout."
+      >
+        {newlySelected.length > 0 || newlySelectedPacks.length > 0 ? (
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between gap-3 border-b border-[var(--portal-border)] py-2">
-              <span className="text-[var(--portal-muted)]">Package</span>
-              <span className="font-medium">Custom ERP</span>
-            </div>
-            <div className="flex justify-between gap-3 border-b border-[var(--portal-border)] py-2">
-              <span className="text-[var(--portal-muted)]">Status</span>
-              <span className="font-medium">
-                {sub?.status || primary?.effective_status || primary?.status || "—"}
-              </span>
-            </div>
-            <div className="flex justify-between gap-3 border-b border-[var(--portal-border)] py-2">
-              <span className="text-[var(--portal-muted)]">Billing cycle</span>
-              <span className="font-medium">{formatBillingCycleLabel(billingCycle)}</span>
-            </div>
-            {canRenew ? (
-              <div className="flex justify-between gap-3 py-2">
-                <span className="text-[var(--portal-muted)]">Next renewal</span>
-                <span className="font-medium">{formatPortalDate(renewal)}</span>
+            {newlySelected.length > 0 && (
+              <div>
+                <p className="font-medium">New modules ({newlySelected.length})</p>
+                <p className="text-[var(--portal-muted)]">
+                  {newlySelected.map((c) => titleCaseCode(c)).join(", ")}
+                </p>
               </div>
-            ) : (
-              <div className="py-2 text-[var(--portal-muted)]">
-                Lifetime package — no renewal required.
+            )}
+            {newlySelectedPacks.length > 0 && (
+              <div>
+                <p className="font-medium">New feature packs ({newlySelectedPacks.length})</p>
+                <p className="text-[var(--portal-muted)]">
+                  {newlySelectedPacks.map((c) => titleCaseCode(c)).join(", ")}
+                </p>
               </div>
             )}
           </div>
-        </PortalPanel>
-      </div>
+        ) : (
+          <p className="text-sm text-[var(--portal-muted)]">
+            Select modules or adjust limits above to preview your upgrade.
+          </p>
+        )}
+
+        {submitError && (
+          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+            {submitError}
+          </p>
+        )}
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Button
+            size="sm"
+            className="rounded-xl"
+            disabled={!hasChanges || submitting || !sub?.id}
+            onClick={handleUpgrade}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Creating checkout…
+              </>
+            ) : (
+              <>
+                Upgrade &amp; Checkout
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </>
+            )}
+          </Button>
+          <Button asChild size="sm" variant="outline" className="rounded-xl">
+            <Link href="/portal/billing">Review billing</Link>
+          </Button>
+        </div>
+
+        {!sub?.id && (
+          <p className="mt-2 text-xs text-[var(--portal-muted)]">
+            No active subscription found. Contact support if your license is active.
+          </p>
+        )}
+      </PortalPanel>
     </div>
   );
 }

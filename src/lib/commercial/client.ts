@@ -840,6 +840,53 @@ export async function requestPlanChange(
 }
 
 /**
+ * Create an upgrade checkout session for an existing Custom ERP subscription.
+ * Lets portal customers add modules / feature packs / change limits without
+ * returning to the public marketing builder.
+ */
+export async function requestCustomErpUpgrade(
+  accessToken: string,
+  body: {
+    subscription_id: string;
+    selected_modules: string[];
+    selected_feature_packs?: string[];
+    user_limit?: number | null;
+    company_limit?: number | null;
+    branch_limit?: number | null;
+    warehouse_limit?: number | null;
+    billing_cycle?: string;
+    coupon?: string | null;
+    gateway?: string;
+    success_url?: string;
+    cancel_url?: string;
+  }
+) {
+  return postPublic<{
+    session_token: string;
+    amount: number;
+    currency: string;
+    quote: unknown;
+  }>(
+    "/v1/public/billing/custom-erp-upgrade",
+    {
+      subscription_id: body.subscription_id,
+      selected_modules: body.selected_modules,
+      selected_feature_packs: body.selected_feature_packs ?? [],
+      user_limit: body.user_limit,
+      company_limit: body.company_limit,
+      branch_limit: body.branch_limit,
+      warehouse_limit: body.warehouse_limit,
+      billing_cycle: body.billing_cycle,
+      coupon: body.coupon,
+      gateway: body.gateway || "bank",
+      success_url: body.success_url,
+      cancel_url: body.cancel_url,
+    },
+    accessToken
+  );
+}
+
+/**
  * Add a new place / subscription under the same customer identity.
  * Tries known Engine paths; returns first successful response.
  */

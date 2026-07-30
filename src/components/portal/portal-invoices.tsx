@@ -22,12 +22,14 @@ type InvoiceStatusFilter =
   | "overdue"
   | "partial"
   | "sent"
+  | "awaiting"
   | "cancelled";
 
 const STATUS_FILTERS: { key: InvoiceStatusFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "open", label: "Open" },
   { key: "sent", label: "Sent" },
+  { key: "awaiting", label: "Awaiting Approval" },
   { key: "paid", label: "Paid" },
   { key: "overdue", label: "Overdue" },
   { key: "partial", label: "Partial" },
@@ -67,6 +69,13 @@ function matchesStatusFilter(invoice: PortalInvoice, filter: InvoiceStatusFilter
       return status === "cancelled";
     case "sent":
       return status === "sent" || status === "pending";
+    case "awaiting":
+      return (
+        status === "awaiting_confirmation" ||
+        status === "awaiting_approval" ||
+        status === "pending_approval" ||
+        status === "awaiting"
+      );
     case "open":
       return (
         !paid &&

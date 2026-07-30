@@ -223,10 +223,10 @@ export function useCatalogPricing(productSlug?: string | null) {
   );
 }
 
-export function useCatalogIndustries() {
+export function useCatalogIndustries(enabled = true) {
   return useCommercialQuery<CatalogIndustry[]>(
-    "catalog:industries",
-    "/api/commercial/industries",
+    enabled ? "catalog:industries" : null,
+    enabled ? "/api/commercial/industries" : null,
     EMPTY_ARRAY as unknown as CatalogIndustry[]
   );
 }
@@ -252,10 +252,10 @@ export function useCatalogBuilderRecommendations(categoryId?: string | null) {
 }
 
 /** All public business categories (no industry filter) — for menu/home totals. */
-export function useCatalogAllBusinessCategories() {
+export function useCatalogAllBusinessCategories(enabled = true) {
   return useCommercialQuery<CatalogBusinessCategory[]>(
-    "catalog:categories:all",
-    "/api/commercial/business-categories",
+    enabled ? "catalog:categories:all" : null,
+    enabled ? "/api/commercial/business-categories" : null,
     EMPTY_ARRAY as unknown as CatalogBusinessCategory[]
   );
 }
@@ -280,11 +280,11 @@ export function useCatalogBusinessTypes(industryId?: string | null) {
   );
 }
 
-export function useCatalogBundle(productSlug?: string | null) {
+export function useCatalogBundle(productSlug?: string | null, enabled = true) {
   const qs = productSlug ? `?product=${encodeURIComponent(productSlug)}` : "";
   return useCommercialQuery<CatalogBundle>(
-    productSlug ? `catalog:bundle:${productSlug}` : "catalog:bundle",
-    `/api/commercial/catalog${qs}`,
+    enabled ? (productSlug ? `catalog:bundle:${productSlug}` : "catalog:bundle") : null,
+    enabled ? `/api/commercial/catalog${qs}` : null,
     EMPTY_BUNDLE
   );
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { withApiHandler } from "@/lib/api/handler";
 import {
   hasLoginTokens,
   identityLogin,
@@ -94,7 +95,7 @@ function isPlatformSuperAdminPayload(data: unknown): boolean {
  * 2) Verified customers receive tokens and get a session immediately.
  * 3) OTP only when Engine returns a genuine unverified-email challenge.
  */
-export async function POST(req: Request) {
+export const POST = withApiHandler(async (req) => {
   try {
     if (!isSameOrigin(req)) {
       return NextResponse.json(
@@ -544,4 +545,4 @@ export async function POST(req: Request) {
       { status: 502 }
     );
   }
-}
+}, { endpoint: "/api/auth/login" });

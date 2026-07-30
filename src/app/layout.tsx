@@ -11,6 +11,7 @@ import { siteConfig } from "@/lib/data/site";
 import { fontVariablesClassName } from "@/lib/fonts";
 import { getSiteOrigin } from "@/lib/urls";
 import { buildSiteSearchIndexFromEngine, getSiteSearchIndex } from "@/lib/search";
+import { isAuthSurfacePath } from "@/lib/routing/auth-surfaces";
 import {
   seoDescription,
   seoKeywords,
@@ -154,9 +155,7 @@ export default async function RootLayout({
   const table = fallbackTable();
   const headerStore = await headers();
   const pathname = headerStore.get("x-wt-pathname") || "";
-  const isAuthSurface = /^\/(login|signup|forgot-password|reset-password|verify-email)(\/|$)/.test(
-    pathname
-  );
+  const isAuthSurface = isAuthSurfacePath(pathname);
   // Avoid competing License Engine calls on auth pages (login/signup must stay fast).
   const searchIndex = isAuthSurface
     ? getSiteSearchIndex()

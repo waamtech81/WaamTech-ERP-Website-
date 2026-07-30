@@ -36,6 +36,7 @@ import {
   useCatalogIndustries,
 } from "@/hooks/use-commercial";
 import { industryDisplayIcon, publicMarketingPlans } from "@/lib/commercial/mappers";
+import { isAuthSurfacePath } from "@/lib/routing/auth-surfaces";
 
 type DropdownKey = "products" | "industries" | "other" | null;
 
@@ -126,10 +127,11 @@ function MobileAccordion({
 
 export function Header() {
   const pathname = usePathname();
+  const isAuthSurface = isAuthSurfacePath(pathname);
   const { t, formatPrice } = useLocale();
-  const catalog = useCatalogBundle();
-  const industriesQuery = useCatalogIndustries();
-  const allCategoriesQuery = useCatalogAllBusinessCategories();
+  const catalog = useCatalogBundle(undefined, !isAuthSurface);
+  const industriesQuery = useCatalogIndustries(!isAuthSurface);
+  const allCategoriesQuery = useCatalogAllBusinessCategories(!isAuthSurface);
   const prices = publicMarketingPlans(catalog.data.pricingPlans || [])
     .map((p) => p.yearlyPrice ?? p.monthlyPrice)
     .filter((v): v is number => typeof v === "number" && v > 0);

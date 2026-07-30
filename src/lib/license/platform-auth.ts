@@ -6,6 +6,10 @@
 import { toPublicError } from "@/lib/api/errors";
 import { logApiError } from "@/lib/api/logger";
 import { licenseConfig, normalizeLicenseBase } from "@/lib/license/config";
+import {
+  fetchLicenseUpstream,
+  licenseUpstreamErrorMessage,
+} from "@/lib/license/upstream-fetch";
 import { isLoopbackHostname, isLoopbackUrl } from "@/lib/network/address-space";
 
 export type PlatformRole = "super_admin" | "administrator" | "support_staff";
@@ -113,7 +117,7 @@ async function requestPlatformAuth<T>(
 
   for (const path of paths) {
     try {
-      const res = await fetch(`${base}${path}`, {
+      const res = await fetchLicenseUpstream(`${base}${path}`, {
         method,
         headers: licenseHeaders(),
         body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -154,8 +158,7 @@ async function requestPlatformAuth<T>(
         };
       }
     } catch (error) {
-      const technical =
-        error instanceof Error ? error.message : "Could not reach license server.";
+      const technical = licenseUpstreamErrorMessage(error);
       logApiError(error, {
         endpoint: path,
         httpStatus: 502,

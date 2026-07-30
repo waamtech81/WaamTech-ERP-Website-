@@ -1,6 +1,10 @@
 import { toPublicError } from "@/lib/api/errors";
 import { logApiError } from "@/lib/api/logger";
 import { licenseConfig, normalizeLicenseBase } from "@/lib/license/config";
+import {
+  fetchLicenseUpstream,
+  licenseUpstreamErrorMessage,
+} from "@/lib/license/upstream-fetch";
 
 export type IdentityProfile = {
   id: string;
@@ -229,7 +233,7 @@ async function requestLicense<T>(
 
   for (const path of paths) {
     try {
-      const res = await fetch(`${base}${path}`, {
+      const res = await fetchLicenseUpstream(`${base}${path}`, {
         method,
         headers: licenseHeaders(options?.accessToken),
         body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
@@ -269,8 +273,7 @@ async function requestLicense<T>(
         };
       }
     } catch (error) {
-      const technical =
-        error instanceof Error ? error.message : "Could not reach license server.";
+      const technical = licenseUpstreamErrorMessage(error);
       logApiError(error, {
         endpoint: path,
         httpStatus: 502,

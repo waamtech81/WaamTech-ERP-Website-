@@ -2,6 +2,10 @@ import { toPublicError } from "@/lib/api/errors";
 import { logApiError } from "@/lib/api/logger";
 import { authConfig } from "@/lib/auth/config";
 import { licenseConfig, normalizeLicenseBase } from "@/lib/license/config";
+import {
+  fetchLicenseUpstream,
+  licenseUpstreamErrorMessage,
+} from "@/lib/license/upstream-fetch";
 
 export type TrialRegistrationInput = {
   name: string;
@@ -168,7 +172,7 @@ async function postLicense<T>(
 
   for (const path of paths) {
     try {
-      const res = await fetch(`${base}${path}`, {
+      const res = await fetchLicenseUpstream(`${base}${path}`, {
         method: "POST",
         headers: licenseHeaders(),
         body: JSON.stringify(body),
@@ -207,8 +211,7 @@ async function postLicense<T>(
       lastCode = extracted.code;
       if (res.status !== 404) break;
     } catch (error) {
-      const technical =
-        error instanceof Error ? error.message : "Could not reach license server.";
+      const technical = licenseUpstreamErrorMessage(error);
       logApiError(error, {
         endpoint: path,
         httpStatus: 502,

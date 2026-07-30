@@ -33,22 +33,38 @@ export function primaryPortalLicense(
   return active || licenses[0] || null;
 }
 
+/**
+ * Portal journey SSOT = commercial snapshot package_type / package_mode.
+ * Do not infer Custom ERP from plan_name, display titles, or module counts.
+ */
 export function resolveJourneyFromLicenses(
-  licenses: PortalLicense[] | null | undefined
+  licenses: PortalLicense[] | null | undefined,
+  opts?: {
+    commercialSnapshotPackageType?: string | null;
+    commercialSnapshotPackageMode?: string | null;
+  }
 ): PortalCommercialJourney {
+  const snapType = opts?.commercialSnapshotPackageType;
+  const snapMode = opts?.commercialSnapshotPackageMode;
+  if (isCustomErpPackageType(snapType) || isCustomErpPackageType(snapMode)) {
+    return "custom";
+  }
+  // Explicit non-custom snapshot → predefined (Starter / Business / Enterprise).
+  if (snapType != null && String(snapType).trim() !== "") {
+    return resolvePortalCommercialJourney(snapType);
+  }
+  if (snapMode != null && String(snapMode).trim() !== "") {
+    return resolvePortalCommercialJourney(snapMode);
+  }
+  // No snapshot: license package_type only (never plan_name / module heuristics).
   const primary = primaryPortalLicense(licenses);
   if (!primary) return "predefined";
-  if (licenseIsCustomErp(primary)) return "custom";
   return resolvePortalCommercialJourney(primary.package_type);
 }
 
 export function licenseIsCustomErp(license: PortalLicense | null | undefined): boolean {
   if (!license) return false;
-  if (isCustomErpPackageType(license.package_type)) return true;
-  // Fallback when Engine omits package_type but modules are present without a plan name
-  const hasModules = (license.modules?.length || 0) > 0;
-  const hasPlanName = Boolean(String(license.plan_name || "").trim());
-  return hasModules && !hasPlanName;
+  return isCustomErpPackageType(license.package_type);
 }
 
 /** Normalize billing cycle strings from License Engine / commercial subs. */

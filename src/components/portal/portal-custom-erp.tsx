@@ -520,28 +520,20 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
     return <PortalErrorState message={error || "Something went wrong."} onRetry={reload} />;
   }
 
+  // Configuration sections always use the checkbox Upgrade Wizard (installed = checked).
+  if (
+    section === "modules" ||
+    section === "feature-packs" ||
+    section === "limits" ||
+    section === "custom-erp"
+  ) {
+    return <PortalCustomErpUpgradeWizard data={data} />;
+  }
+
   const primary = primaryPortalLicense(data.licenses);
   const sub = activeSubscription(data);
   const billingCycle = resolvePrimaryBillingCycle(primary, data.subscriptions);
   const canRenew = showRenewalUi(billingCycle);
-  const modules = primary?.modules?.length ? primary.modules : data.modules;
-  const packs = (
-    primary?.feature_packs?.length ? primary.feature_packs : data.featurePacks
-  ).filter((p) => !isNonPurchasableCustomErpPack(p, p));
-  const packCodes = (primary?.feature_pack_codes || []).filter(
-    (c) => !isNonPurchasableCustomErpPack(c)
-  );
-  const displayPacks =
-    packCodes.length > 0
-      ? packCodes.map((code) => {
-          const label = packs.find(
-            (p) => normCode(p) === normCode(code) || normCode(p).includes(normCode(code))
-          );
-          return label || titleCaseCode(code);
-        })
-      : packs;
-  const limits = primary?.tenant_limits || {};
-  const usage = resolveUsage(data);
   const renewal =
     data.subscription?.renewalDate ||
     sub?.renewal_date ||
@@ -719,175 +711,6 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
               Lifetime packages do not renew. Upgrade modules, feature packs, or limits instead.
             </p>
           ) : null}
-        </PortalPanel>
-      </div>
-    );
-  }
-
-  if (section === "modules") {
-    const catalogModules = (data.catalogModuleCodes?.length ? data.catalogModuleCodes : []).filter(
-      (m) => !isNonPurchasableCustomErpModule(m)
-    );
-    const enabledModules = modules.filter((m) => !isNonPurchasableCustomErpModule(m));
-    const enabled = new Set(enabledModules.map((m) => m.toLowerCase()));
-    const available = catalogModules.filter((m) => !enabled.has(m.toLowerCase()));
-
-    return (
-      <div className="space-y-6">
-        <PortalPageHeader
-          eyebrow="Custom ERP"
-          title="Modules"
-          description="Purchased, enabled, and available modules on your Custom ERP package."
-        />
-        <div className="grid gap-6 xl:grid-cols-2">
-          <PortalPanel title="Purchased / enabled modules" description="Active on your license.">
-            {enabledModules.length ? (
-              <ul className="grid gap-2 sm:grid-cols-2">
-                {enabledModules.map((m) => (
-                  <li
-                    key={m}
-                    className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3 text-sm font-medium"
-                  >
-                    {titleCaseCode(m)}
-                    <span className="ml-2 text-xs text-[var(--portal-primary)]">Enabled</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <PortalEmptyState
-                title="No modules listed"
-                description="Module entitlements will appear when License Engine returns your package composition."
-              />
-            )}
-          </PortalPanel>
-          <PortalPanel title="Available modules" description="Add via Custom ERP configuration quote.">
-            {available.length ? (
-              <ul className="grid gap-2 sm:grid-cols-2">
-                {available.map((m) => (
-                  <li
-                    key={m}
-                    className="rounded-xl border border-dashed border-[var(--portal-border)] px-3.5 py-3 text-sm"
-                  >
-                    {titleCaseCode(m)}
-                    <span className="ml-2 text-xs text-[var(--portal-muted)]">Not installed</span>
-                  </li>
-                ))}
-              </ul>
-            ) : catalogModules.length === 0 ? (
-              <p className="text-sm text-[var(--portal-muted)]">
-                Module catalog is loading from License Engine.
-              </p>
-            ) : (
-              <p className="text-sm text-[var(--portal-muted)]">
-                All catalog modules on your account are enabled.
-              </p>
-            )}
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button asChild size="sm" className="rounded-xl">
-                <Link href="/portal/custom-erp">Add module · preview cost</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="rounded-xl">
-                <Link href="/portal/custom-erp">Send upgrade request</Link>
-              </Button>
-            </div>
-          </PortalPanel>
-        </div>
-      </div>
-    );
-  }
-
-  if (section === "feature-packs") {
-    return (
-      <div className="space-y-6">
-        <PortalPageHeader
-          eyebrow="Custom ERP"
-          title="Feature Packs"
-          description="Purchased and available feature packs on your Custom ERP package."
-        />
-        <div className="grid gap-6 xl:grid-cols-2">
-          <PortalPanel title="Purchased / active packs" description="Currently entitled packs.">
-            {displayPacks.length ? (
-              <ul className="grid gap-2 sm:grid-cols-2">
-                {displayPacks.map((p) => (
-                  <li
-                    key={p}
-                    className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3 text-sm font-medium"
-                  >
-                    {titleCaseCode(p)}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <PortalEmptyState
-                title="No feature packs listed"
-                description="Packs appear when included on your Custom ERP license."
-              />
-            )}
-          </PortalPanel>
-          <PortalPanel title="Add / remove / preview" description="Pack changes via Custom ERP quote.">
-            <div className="space-y-3 text-sm text-[var(--portal-muted)]">
-              <p>
-                Available packs and pricing are reviewed in Modify ERP Configuration, then confirmed
-                with License Engine before the license updates.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm" className="rounded-xl">
-                  <Link href="/portal/custom-erp">Add pack · preview</Link>
-                </Button>
-                <Button asChild size="sm" variant="outline" className="rounded-xl">
-                  <Link href="/portal/custom-erp">Remove · upgrade request</Link>
-                </Button>
-              </div>
-            </div>
-          </PortalPanel>
-        </div>
-      </div>
-    );
-  }
-
-  if (section === "limits") {
-    return (
-      <div className="space-y-6">
-        <PortalPageHeader
-          eyebrow="Custom ERP"
-          title="Limits"
-          description="Tenant limits for your Custom ERP package. Increase limits through configuration quotes."
-        />
-        <PortalPanel title="Current vs maximum" description="Usage and entitlement caps from License Engine.">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {usage.map((row) => (
-              <div
-                key={row.label}
-                className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4"
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-                  {row.label}
-                </p>
-                {row.max != null && row.max > 0 && row.used != null ? (
-                  <div className="mt-3">
-                    <PortalUsageMeter
-                      label={`${row.label} usage`}
-                      used={Number(row.used)}
-                      limit={Number(row.max)}
-                    />
-                  </div>
-                ) : (
-                  <p className="mt-2 text-xl font-semibold tracking-tight">
-                    {row.used != null ? `${row.used}` : "—"}
-                    {row.max != null ? ` / ${row.max}` : ""}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button asChild size="sm" className="rounded-xl">
-              <Link href="/portal/custom-erp">Increase limit · preview pricing</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline" className="rounded-xl">
-              <Link href="/portal/users">View users</Link>
-            </Button>
-          </div>
         </PortalPanel>
       </div>
     );

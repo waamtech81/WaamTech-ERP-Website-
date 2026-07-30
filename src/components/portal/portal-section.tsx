@@ -40,6 +40,7 @@ import {
   resolvePrimaryBillingCycle,
   showRenewalUi,
 } from "@/lib/portal/package-type";
+import { isNonPurchasableCustomErpPack } from "@/lib/commercial/erp-builder-config";
 import {
   PortalDataRow,
   PortalEmptyState,
@@ -920,7 +921,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             : data.licenses.flatMap((l) => l.feature_packs)
         ).filter(Boolean)
       )
-    );
+    ).filter((pack) => !isNonPurchasableCustomErpPack(pack, pack));
     body = packs.length ? (
       <div className="space-y-6">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

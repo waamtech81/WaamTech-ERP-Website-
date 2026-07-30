@@ -45,11 +45,13 @@ import type {
   CommercialSubscription,
 } from "@/lib/commercial/types";
 import {
+  isCustomErpPackageType,
   resolveJourneyFromLicenses,
   resolvePrimaryBillingCycle,
   showRenewalUi,
   type PortalCommercialJourney,
 } from "@/lib/portal/package-type";
+import { isNonPurchasableCustomErpPack } from "@/lib/commercial/erp-builder-config";
 
 export type PortalBusinessCard = {
   businessName: string;
@@ -212,7 +214,7 @@ export type PortalDashboard = {
   /** License Engine Commercial Snapshot SSOT (from GET /public/billing/company). */
   commercialSnapshot: PortalCommercialSnapshot | null;
   /**
-   * Portal rendering journey — derived from primary license package_type.
+   * Portal rendering journey — SSOT: commercial snapshot package_type / package_mode.
    * Does not change License Engine commercial logic.
    */
   commercialJourney: PortalCommercialJourney;
@@ -281,7 +283,7 @@ function toPortalLicense(
   moduleLabels?: Map<string, string>,
   featurePackLabels?: Map<string, string>
 ): PortalLicense {
-  const isCustom = String(lic.package_type || "").toLowerCase() === "custom";
+  const isCustom = isCustomErpPackageType(lic.package_type);
   const selected = (lic.selected_modules || []).filter(Boolean);
   const deps = (lic.dependency_modules || []).filter(Boolean);
   const all = (lic.modules || []).filter(Boolean);
@@ -294,7 +296,9 @@ function toPortalLicense(
     )
   ).filter(Boolean);
   const modules = codes.map((code) => moduleLabels?.get(code) || code);
-  const packCodes = extractFeaturePackNames(lic.feature_packs);
+  const packCodes = extractFeaturePackNames(lic.feature_packs).filter(
+    (code) => !isNonPurchasableCustomErpPack(code)
+  );
   return {
     id: lic.id,
     keyMasked: maskLicenseKey(lic.license_key),
@@ -1010,6 +1014,38 @@ async function loadPortalDashboardUncached(
   let licenses = rawLicenses.map((lic) =>
     toPortalLicense(lic, moduleLabels, featurePackLabels)
   );
+  // Snapshot package_type=custom is journey SSOT — align primary license composition.
+  const snapIsCustom =
+    isCustomErpPackageType(commercialSnapshot?.package_type) ||
+    isCustomErpPackageType(commercialSnapshot?.package_mode);
+  if (snapIsCustom) {
+    const snapSelected = (commercialSnapshot?.selected_modules || []).filter(Boolean);
+    const snapDeps = (commercialSnapshot?.dependency_modules || []).filter(Boolean);
+    const snapPacks = (commercialSnapshot?.feature_packs || []).filter(
+      (code) => !isNonPurchasableCustomErpPack(code)
+    );
+    const primaryRawId = primaryLicense(rawLicenses)?.id;
+    licenses = licenses.map((lic) => {
+      if (primaryRawId && lic.id !== primaryRawId) {
+        return { ...lic, package_type: lic.package_type || "custom" };
+      }
+      const codes =
+        snapSelected.length > 0
+          ? Array.from(new Set([...snapSelected, ...snapDeps]))
+          : lic.module_codes;
+      const packCodes = snapPacks.length > 0 ? snapPacks : lic.feature_pack_codes;
+      return {
+        ...lic,
+        package_type: "custom",
+        module_codes: codes,
+        modules: codes.map((code) => moduleLabels.get(code) || code),
+        feature_pack_codes: packCodes,
+        feature_packs: packCodes.map((code) =>
+          formatFeaturePackLabel(code, featurePackLabels)
+        ),
+      };
+    });
+  }
   const primaryRaw = primaryLicense(rawLicenses);
   const snapshotLimits = normalizeSnapshotLimits(
     (commercialSnapshot?.purchased_limits as Record<string, unknown> | undefined) ||
@@ -1290,7 +1326,10 @@ async function loadPortalDashboardUncached(
   // Prefer license plan entitlements; do not union full ERP/catalog dumps into portal Modules.
   const modules = licenseModules.length > 0 ? licenseModules : [];
 
-  const commercialJourney = resolveJourneyFromLicenses(licenses);
+  const commercialJourney = resolveJourneyFromLicenses(licenses, {
+    commercialSnapshotPackageType: commercialSnapshot?.package_type,
+    commercialSnapshotPackageMode: commercialSnapshot?.package_mode,
+  });
   const isCustomJourney = commercialJourney === "custom";
   const primaryBillingCycle = resolvePrimaryBillingCycle(
     licenses.find((l) => l.id === primary?.id) || licenses[0] || null,

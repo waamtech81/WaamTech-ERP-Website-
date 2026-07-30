@@ -1,6 +1,6 @@
 /** Upstream License Engine fetch with a hard timeout (prevents Cloudflare 502 on hang). */
 export const LICENSE_UPSTREAM_TIMEOUT_MS = Number(
-  process.env.LICENSE_REQUEST_TIMEOUT_MS || 18_000
+  process.env.LICENSE_REQUEST_TIMEOUT_MS || 8_000
 );
 
 export async function fetchLicenseUpstream(

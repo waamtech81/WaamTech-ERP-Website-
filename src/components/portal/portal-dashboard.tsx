@@ -33,6 +33,7 @@ import {
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
 import { TrustBadgeStrip } from "@/components/trust-badges";
 import { PortalDashboardPayBanner } from "@/components/portal/portal-dashboard-pay-banner";
+import { PortalEmailDeliveryNotice } from "@/components/portal/portal-email-delivery-notice";
 import { subscriptionActionsLocked } from "@/components/portal/portal-subscription-cancel";
 import { cn } from "@/lib/utils";
 
@@ -358,6 +359,7 @@ export function PortalDashboardView() {
 
   return (
     <div className="space-y-8">
+      <PortalEmailDeliveryNotice />
       <PortalDashboardPayBanner data={data} />
       <PortalPageHeader
         eyebrow="Customer success"

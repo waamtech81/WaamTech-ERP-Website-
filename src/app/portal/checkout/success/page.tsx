@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PortalPanel, PortalSkeleton } from "@/components/portal/portal-ui";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { authConfig } from "@/lib/auth/config";
+import { markPortalEmailDeliveryNoticePending } from "@/lib/portal/email-delivery-notice";
 
 function SuccessInner() {
   const { reload } = usePortalContext();
@@ -19,7 +20,11 @@ function SuccessInner() {
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+    // One-time dashboard email notice after checkout (predefined + custom).
+    if (!awaitingReview) {
+      markPortalEmailDeliveryNoticePending();
+    }
+  }, [reload, awaitingReview]);
 
   const isTrialConvert =
     mode === "trial-convert" || mode === "trial_convert";

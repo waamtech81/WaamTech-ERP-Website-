@@ -78,6 +78,7 @@ import {
 } from "@/lib/signup/commercial-mode";
 import { buildCustomSignupPricingSummary } from "@/lib/signup/custom-pricing-summary";
 import { saveCheckoutSessionToken } from "@/lib/portal/checkout-session";
+import { markPortalEmailDeliveryNoticePending } from "@/lib/portal/email-delivery-notice";
 
 export type SignUpClientProps = {
   /** Pre-resolved Engine UUIDs from server slug lookup (never from public URL). */
@@ -1224,6 +1225,8 @@ function SignUpForm({
 
       setTrialReady(true);
       setSuccess(json.message || "Trial activated.");
+      // One-time dashboard email notice for trial signup (predefined + custom).
+      markPortalEmailDeliveryNoticePending();
       window.setTimeout(() => {
         window.location.assign(redirectTo);
       }, 3500);

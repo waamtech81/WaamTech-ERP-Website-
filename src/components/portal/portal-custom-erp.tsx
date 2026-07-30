@@ -1039,11 +1039,11 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         }),
       });
       const json = (await res.json()) as {
-        ok?: boolean;
+        success?: boolean;
         data?: { session_token?: string };
         message?: string;
       };
-      if (!res.ok || !json.ok || !json.data?.session_token) {
+      if (!res.ok || !json.success || !json.data?.session_token) {
         setSubmitError(json.message || "Unable to create upgrade checkout. Please try again.");
         return;
       }

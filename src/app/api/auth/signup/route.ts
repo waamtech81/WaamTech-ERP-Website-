@@ -244,6 +244,7 @@ export const POST = withApiHandler(
           yearly: pkg.yearly_price,
           lifetime: pkg.lifetime_price,
           billing_cycle: pkg.billing_cycle,
+          currency: selectedCurrency || "USD",
           subtotal: pkg.money?.subtotal ?? null,
           discount_code: pkg.discount_code || null,
           discount_amount: pkg.money?.discount_amount ?? 0,

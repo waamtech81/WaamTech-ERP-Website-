@@ -97,16 +97,20 @@ export function PortalNotificationsView() {
   }, [filter]);
 
   useEffect(() => {
+    if (filter === "all" && (data?.notifications?.length ?? 0) > 0) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     void fetchNotifications();
-  }, [fetchNotifications]);
+  }, [fetchNotifications, filter, data?.notifications]);
 
   useEffect(() => {
     const refresh = () => {
       void fetchNotifications();
     };
     window.addEventListener("portal-notifications-refresh", refresh);
-    const timer = window.setInterval(refresh, 90_000);
+    const timer = window.setInterval(refresh, 180_000);
     return () => {
       window.removeEventListener("portal-notifications-refresh", refresh);
       window.clearInterval(timer);

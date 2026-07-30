@@ -20,6 +20,8 @@ import {
   engineGatewayForMethod,
   paymentMethodsForCountry,
   PORTAL_PAYMENT_METHODS,
+  resolvePortalPaymentMethodConfig,
+  type PortalPaymentMethodConfig,
 } from "@/lib/portal/payment-methods";
 import { formatPortalStatus } from "@/lib/portal/display-labels";
 import { cn } from "@/lib/utils";
@@ -36,6 +38,7 @@ type CheckoutSession = {
   currency?: string | null;
   gateway?: string | null;
   plan_name?: string | null;
+  payment_methods?: Partial<PortalPaymentMethodConfig> | null;
 };
 
 function purposeLabel(mode: string, purpose?: string | null) {
@@ -75,6 +78,9 @@ export function PortalCheckoutView() {
   const [methodReady, setMethodReady] = useState(Boolean(selectedMethod));
   const [transactionId, setTransactionId] = useState("");
   const [checkout, setCheckout] = useState<CheckoutSession | null>(null);
+  const [paymentConfig, setPaymentConfig] = useState<PortalPaymentMethodConfig>(() =>
+    resolvePortalPaymentMethodConfig()
+  );
   const [geoCountry, setGeoCountry] = useState<string | null>(visitorCountry);
 
   useEffect(() => {
@@ -141,6 +147,7 @@ export function PortalCheckoutView() {
           const data = json.data || null;
           setError("");
           setCheckout(data);
+          setPaymentConfig(resolvePortalPaymentMethodConfig(data?.payment_methods));
           const urlMethod = PORTAL_PAYMENT_METHODS.some((m) => m.id === methodFromUrl)
             ? methodFromUrl
             : "";
@@ -480,6 +487,7 @@ export function PortalCheckoutView() {
                       onTransactionIdChange={setTransactionId}
                       amount={checkout?.amount}
                       currency={checkout?.currency}
+                      paymentConfig={paymentConfig}
                     />
 
                     <div className="mt-5 space-y-3 border-t border-[var(--portal-border)] pt-5">

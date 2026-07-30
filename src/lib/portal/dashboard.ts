@@ -730,7 +730,7 @@ async function tryFetchErpStats(email: string): Promise<Record<string, unknown> 
   return null;
 }
 
-const DASHBOARD_CACHE_MS = 25_000;
+const DASHBOARD_CACHE_MS = 45_000;
 const dashboardCache = new Map<string, { expires: number; data: PortalDashboard }>();
 
 export async function loadPortalDashboard(
@@ -835,6 +835,17 @@ async function loadPortalDashboardUncached(
   // ERP stats only need identity email — overlap with wave 1.
   const erpPromise = tryFetchErpStats(me.data.identity.email);
 
+  // When customer product is known upfront, prefetch public catalog in parallel with wave 1.
+  const earlyProductSlug = me.data.customer?.product_slug
+    ? String(me.data.customer.product_slug)
+    : null;
+  const earlyCatalogPromise = earlyProductSlug
+    ? Promise.all([
+        fetchPublicModules(earlyProductSlug),
+        fetchPublicCommercialOverview({ product: earlyProductSlug }),
+      ])
+    : null;
+
   const [licensesRes, sessionsRes, subsRes, companyRes, gatewaysRes, usageRes] =
     await Promise.all([
       identityListLicenses(token),
@@ -850,14 +861,23 @@ async function loadPortalDashboardUncached(
     (Array.isArray(licensesRes.data) && licensesRes.data[0]?.product_slug) ||
     "waamto-erp";
 
-  const [invoicesRes, paymentsRes, renewalsRes, engineDashboardRes, modulesCatalogRes, commercialOverviewRes, notificationsRes] =
+  let modulesCatalogRes: Awaited<ReturnType<typeof fetchPublicModules>>;
+  let commercialOverviewRes: Awaited<ReturnType<typeof fetchPublicCommercialOverview>>;
+  if (earlyCatalogPromise && earlyProductSlug === String(productSlugHint)) {
+    [modulesCatalogRes, commercialOverviewRes] = await earlyCatalogPromise;
+  } else {
+    [modulesCatalogRes, commercialOverviewRes] = await Promise.all([
+      fetchPublicModules(String(productSlugHint)),
+      fetchPublicCommercialOverview({ product: String(productSlugHint) }),
+    ]);
+  }
+
+  const [invoicesRes, paymentsRes, renewalsRes, engineDashboardRes, notificationsRes] =
     await Promise.all([
       fetchMyInvoices(token, { limit: 50 }),
       fetchMyPayments(token, { limit: 50 }),
       fetchMyRenewals(token),
       fetchBillingDashboard(token),
-      fetchPublicModules(String(productSlugHint)),
-      fetchPublicCommercialOverview({ product: String(productSlugHint) }),
       fetchMyNotifications(token, { limit: 20 }),
     ]);
 

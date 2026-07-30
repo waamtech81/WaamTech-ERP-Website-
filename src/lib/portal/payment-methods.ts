@@ -48,6 +48,58 @@ export function standardCharteredDetails() {
   };
 }
 
+export type PortalPaymentMethodConfig = {
+  bank: {
+    bank_name: string;
+    account_title: string;
+    account_number: string;
+    iban: string;
+    swift: string;
+    branch: string;
+    currency: string;
+    instructions: string | null;
+  };
+  jazzcash: { account_number: string };
+  easypaisa: { iban: string };
+  wise: { payment_id: string };
+  paypal: { receive_email: string };
+};
+
+export function resolvePortalPaymentMethodConfig(
+  fromEngine?: Partial<PortalPaymentMethodConfig> | null
+): PortalPaymentMethodConfig {
+  const bank = fromEngine?.bank;
+  const jazzcash = fromEngine?.jazzcash;
+  const easypaisa = fromEngine?.easypaisa;
+  const wise = fromEngine?.wise;
+  const paypal = fromEngine?.paypal;
+  const fallbackBank = standardCharteredDetails();
+  return {
+    bank: {
+      bank_name: bank?.bank_name || fallbackBank.bankName,
+      account_title: bank?.account_title || fallbackBank.accountTitle,
+      account_number: bank?.account_number || fallbackBank.accountNumber,
+      iban: bank?.iban || fallbackBank.iban,
+      swift: bank?.swift || fallbackBank.swift,
+      branch: bank?.branch || fallbackBank.branch,
+      currency: bank?.currency || "PKR",
+      instructions: bank?.instructions ?? null,
+    },
+    jazzcash: {
+      account_number: jazzcash?.account_number || PK_MOBILE_WALLET_ACCOUNT,
+    },
+    easypaisa: {
+      iban: easypaisa?.iban || EASYPAYSA_IBAN,
+    },
+    wise: {
+      payment_id: wise?.payment_id || WISE_PAYMENT_ID,
+    },
+    paypal: {
+      receive_email: paypal?.receive_email || PAYPAL_RECEIVE_EMAIL,
+    },
+  };
+}
+
 export const PORTAL_PAYMENT_METHODS: PortalPaymentMethod[] = [
   {
     id: "jazzcash",
@@ -149,12 +201,12 @@ export function buildPaymentReference(input: {
   return parts.join("|").slice(0, 240);
 }
 
-export function jazzcashTransferMessage(): string {
-  return `Send the exact bill amount to JazzCash using account number ${PK_MOBILE_WALLET_ACCOUNT}. After the transfer succeeds, enter the transaction ID below and submit — License Engine will record the payment and notify your account.`;
+export function jazzcashTransferMessage(accountNumber = PK_MOBILE_WALLET_ACCOUNT): string {
+  return `Send the exact bill amount to JazzCash using account number ${accountNumber}. After the transfer succeeds, enter the transaction ID below and submit — License Engine will record the payment and notify your account.`;
 }
 
-export function easypaisaTransferMessage(): string {
-  return `Send the exact bill amount via EasyPaisa bank transfer using IBAN ${EASYPAYSA_IBAN}. After the transfer succeeds, enter the transaction ID below and submit — License Engine will record the payment and notify your account.`;
+export function easypaisaTransferMessage(iban = EASYPAYSA_IBAN): string {
+  return `Send the exact bill amount via EasyPaisa bank transfer using IBAN ${iban}. After the transfer succeeds, enter the transaction ID below and submit — License Engine will record the payment and notify your account.`;
 }
 
 /** @deprecated Use jazzcashTransferMessage or easypaisaTransferMessage */
@@ -163,10 +215,14 @@ export function walletTransferMessage(methodLabel: string): string {
   return jazzcashTransferMessage();
 }
 
-export function paypalCheckoutUrl(amount?: number | null, currency?: string | null): string {
+export function paypalCheckoutUrl(
+  amount?: number | null,
+  currency?: string | null,
+  receiveEmail = PAYPAL_RECEIVE_EMAIL
+): string {
   const params = new URLSearchParams({
     cmd: "_xclick",
-    business: PAYPAL_RECEIVE_EMAIL,
+    business: receiveEmail,
     currency_code: (currency || "USD").toUpperCase(),
     item_name: "WAAMTO ERP Cloud subscription",
   });

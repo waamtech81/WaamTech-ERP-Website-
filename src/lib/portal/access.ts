@@ -16,8 +16,14 @@ export type PortalAccess = {
   refreshed?: { accessToken: string; refreshToken: string };
 };
 
-/** Resolve a valid portal access token, refreshing when needed. Blocks deleted accounts. */
-export async function resolvePortalAccess(): Promise<
+/** Short-lived in-process cache — dedupes parallel BFF routes (e.g. security panel). */
+const PORTAL_ACCESS_CACHE_MS = 30_000;
+const portalAccessCache = new Map<
+  string,
+  { expires: number; value: Awaited<ReturnType<typeof resolvePortalAccessUncached>> }
+>();
+
+async function resolvePortalAccessUncached(): Promise<
   | { ok: true; access: PortalAccess }
   | { ok: false; status: number; message: string; code?: string }
 > {
@@ -106,6 +112,31 @@ export async function resolvePortalAccess(): Promise<
   }
 
   return { ok: false, status: 401, message: "Session expired. Please sign in again." };
+}
+
+/** Resolve a valid portal access token, refreshing when needed. Blocks deleted accounts. */
+export async function resolvePortalAccess(): Promise<
+  | { ok: true; access: PortalAccess }
+  | { ok: false; status: number; message: string; code?: string }
+> {
+  const { accessToken, refreshToken } = await readPortalTokens();
+  const cacheKey = `${String(accessToken || "").slice(0, 24)}:${String(refreshToken || "").slice(0, 12)}`;
+  const hit = portalAccessCache.get(cacheKey);
+  if (hit && hit.expires > Date.now()) {
+    return hit.value;
+  }
+  const value = await resolvePortalAccessUncached();
+  if (value.ok) {
+    portalAccessCache.set(cacheKey, {
+      expires: Date.now() + PORTAL_ACCESS_CACHE_MS,
+      value,
+    });
+  }
+  return value;
+}
+
+export function invalidatePortalAccessCache() {
+  portalAccessCache.clear();
 }
 
 export function applyPortalRefreshCookies(

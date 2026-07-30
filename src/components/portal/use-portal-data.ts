@@ -139,7 +139,7 @@ export function usePortalData() {
   useEffect(() => {
     const id = window.setInterval(() => {
       if (document.visibilityState === "visible") void reload({ silent: true });
-    }, 120_000);
+    }, 300_000);
     return () => window.clearInterval(id);
   }, [reload]);
 

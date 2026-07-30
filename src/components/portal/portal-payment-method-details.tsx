@@ -6,11 +6,9 @@ import { PortalPaymentMethodIcon } from "@/components/portal/portal-payment-meth
 import {
   easypaisaTransferMessage,
   jazzcashTransferMessage,
-  PK_MOBILE_WALLET_ACCOUNT,
-  EASYPAYSA_IBAN,
-  WISE_PAYMENT_ID,
-  standardCharteredDetails,
+  resolvePortalPaymentMethodConfig,
   type PortalPaymentMethod,
+  type PortalPaymentMethodConfig,
 } from "@/lib/portal/payment-methods";
 
 type Props = {
@@ -19,14 +17,17 @@ type Props = {
   onTransactionIdChange: (value: string) => void;
   amount?: number | null;
   currency?: string | null;
+  paymentConfig?: PortalPaymentMethodConfig;
 };
 
 export function PortalPaymentMethodDetails({
   method,
   transactionId,
   onTransactionIdChange,
+  paymentConfig,
 }: Props) {
-  const bank = standardCharteredDetails();
+  const config = paymentConfig ?? resolvePortalPaymentMethodConfig();
+  const bank = config.bank;
 
   return (
     <div className="space-y-4">
@@ -42,10 +43,10 @@ export function PortalPaymentMethodDetails({
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4 text-sm">
           <p className="font-semibold text-[var(--portal-fg)]">JazzCash transfer</p>
           <p className="mt-2 leading-relaxed text-[var(--portal-muted)]">
-            {jazzcashTransferMessage()}
+            {jazzcashTransferMessage(config.jazzcash.account_number)}
           </p>
           <p className="mt-3 font-mono text-lg font-semibold tracking-wide text-[var(--portal-fg)]">
-            {PK_MOBILE_WALLET_ACCOUNT}
+            {config.jazzcash.account_number}
           </p>
         </div>
       ) : null}
@@ -54,13 +55,13 @@ export function PortalPaymentMethodDetails({
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4 text-sm">
           <p className="font-semibold text-[var(--portal-fg)]">EasyPaisa transfer</p>
           <p className="mt-2 leading-relaxed text-[var(--portal-muted)]">
-            {easypaisaTransferMessage()}
+            {easypaisaTransferMessage(config.easypaisa.iban)}
           </p>
           <p className="mt-3 text-xs font-medium uppercase tracking-wide text-[var(--portal-muted)]">
             IBAN
           </p>
           <p className="mt-1 font-mono text-lg font-semibold tracking-wide text-[var(--portal-fg)]">
-            {EASYPAYSA_IBAN}
+            {config.easypaisa.iban}
           </p>
         </div>
       ) : null}
@@ -73,7 +74,7 @@ export function PortalPaymentMethodDetails({
             transaction ID below.
           </p>
           <p className="mt-3 font-mono text-lg font-semibold text-[var(--portal-fg)]">
-            {WISE_PAYMENT_ID}
+            {config.wise.payment_id}
           </p>
         </div>
       ) : null}
@@ -84,15 +85,15 @@ export function PortalPaymentMethodDetails({
           <dl className="mt-3 grid gap-3 sm:grid-cols-2">
             <div>
               <dt className="text-xs text-[var(--portal-muted)]">Bank</dt>
-              <dd className="font-medium">{bank.bankName}</dd>
+              <dd className="font-medium">{bank.bank_name}</dd>
             </div>
             <div>
               <dt className="text-xs text-[var(--portal-muted)]">Account title</dt>
-              <dd className="font-medium">{bank.accountTitle}</dd>
+              <dd className="font-medium">{bank.account_title}</dd>
             </div>
             <div>
               <dt className="text-xs text-[var(--portal-muted)]">Account number</dt>
-              <dd className="font-mono font-medium">{bank.accountNumber}</dd>
+              <dd className="font-mono font-medium">{bank.account_number}</dd>
             </div>
             {bank.iban ? (
               <div>
@@ -111,6 +112,9 @@ export function PortalPaymentMethodDetails({
               <dd className="font-medium">{bank.branch}</dd>
             </div>
           </dl>
+          {bank.instructions ? (
+            <p className="mt-3 text-sm text-[var(--portal-muted)]">{bank.instructions}</p>
+          ) : null}
         </div>
       ) : null}
 
@@ -121,27 +125,16 @@ export function PortalPaymentMethodDetails({
         </div>
       ) : null}
 
-      {method.id === "stripe" || method.id === "card" ? (
-        <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4 text-sm text-[var(--portal-muted)]">
-          Card checkout is processed when Stripe is enabled on your billing profile. Submit
-          payment confirmation after completing the card charge.
-        </div>
-      ) : null}
-
       {method.requiresTransactionId ? (
         <div className="space-y-2">
-          <Label htmlFor="checkout-payment-txn-id">Transaction ID</Label>
+          <Label htmlFor="portal-payment-txn">Transaction / reference ID</Label>
           <Input
-            id="checkout-payment-txn-id"
+            id="portal-payment-txn"
             value={transactionId}
-            onChange={(e) => onTransactionIdChange(e.target.value.trimStart())}
-            className="h-11 bg-white font-mono"
-            placeholder="Paste transaction / reference ID after transfer"
+            onChange={(e) => onTransactionIdChange(e.target.value)}
+            placeholder="Enter the ID from your payment receipt"
             autoComplete="off"
           />
-          <p className="text-xs text-[var(--portal-muted)]">
-            Required after you send the payment. License Engine records this with your checkout.
-          </p>
         </div>
       ) : null}
     </div>

@@ -146,7 +146,7 @@ function LoginForm() {
   }, [prefill]);
 
   useEffect(() => {
-    fetch("/api/portal/dashboard", { cache: "no-store", credentials: "include" })
+    fetch("/api/portal/session", { cache: "no-store", credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
         if (json?.success) {

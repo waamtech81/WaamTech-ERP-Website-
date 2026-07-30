@@ -35,12 +35,21 @@ export function buildCustomSignupPricingSummary(input: {
   const money = pkg.money;
   const grandTotal = Number(money?.grand_total ?? pkg.estimated_total) || 0;
   const subtotal = Number(money?.subtotal ?? grandTotal) || 0;
+  const cycle = pkg.billing_cycle;
+  // Selected-cycle amount must equal Grand Total (seats/packs/tax included).
+  // Do not leave module-only list prices in the active cycle field.
+  const monthly =
+    cycle === "monthly" ? grandTotal : Number(pkg.monthly_price) || 0;
+  const yearly =
+    cycle === "yearly" ? grandTotal : Number(pkg.yearly_price) || 0;
+  const lifetime =
+    cycle === "lifetime" ? grandTotal : Number(pkg.lifetime_price) || 0;
 
   return {
-    monthly: Number(pkg.monthly_price) || 0,
-    yearly: Number(pkg.yearly_price) || 0,
-    lifetime: Number(pkg.lifetime_price) || 0,
-    billing_cycle: pkg.billing_cycle,
+    monthly,
+    yearly,
+    lifetime,
+    billing_cycle: cycle,
     currency: "USD",
     base_currency: "USD",
     subtotal,

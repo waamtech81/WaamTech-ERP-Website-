@@ -609,16 +609,16 @@ function toPortalInvoice(inv: CommercialInvoice, index: number): PortalInvoice {
     dueDate: inv.due_date || null,
     amount:
       inv.grand_total != null || inv.total != null
-        ? `${inv.currency || "USD"} ${total.toFixed(2)}`
+        ? `USD ${total.toFixed(2)}`
         : inv.amount_paid != null && amountPaid > 0
-          ? `${inv.currency || "USD"} ${amountPaid.toFixed(2)}`
+          ? `USD ${amountPaid.toFixed(2)}`
             : null,
     /** PDF download only after License Engine confirms payment. */
     pdfUrl: isPaid ? portalInvoicePdfPath(id) : null,
     documentUrl: portalInvoiceDocumentPath(id),
     amountDue: inv.grand_total != null || inv.total != null ? amountDue : inv.amount_due ?? null,
     amountPaid: inv.amount_paid ?? null,
-    currency: inv.currency ?? null,
+    currency: "USD",
     total: inv.grand_total ?? inv.total ?? null,
   };
 }

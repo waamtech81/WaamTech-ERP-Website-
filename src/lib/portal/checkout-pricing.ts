@@ -17,9 +17,9 @@ export type CheckoutPricingSnapshot = {
 };
 
 export type ResolvedCheckoutCharge = {
-  /** USD billing amount (Engine SSOT) used for display parity with Builder/Signup. */
+  /** USD billing amount (frozen commercial SSOT) for display + payment handoff. */
   usdAmount: number | null;
-  /** Currency the checkout session will charge (from Engine). */
+  /** Currency the checkout session will charge (from Engine session). */
   chargeCurrency: string;
   /** Frozen commercial snapshot when present on the checkout session. */
   pricingSummary: CheckoutPricingSnapshot | null;
@@ -36,6 +36,14 @@ function finiteNumber(value: unknown): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+function isoCurrency(value: unknown, fallback = "USD"): string {
+  const raw = String(value || fallback)
+    .trim()
+    .toUpperCase()
+    .slice(0, 3);
+  return raw || fallback;
+}
+
 /** Parse Engine checkout metadata.pricing_summary (or equivalent). */
 export function parseCheckoutPricingSummary(
   metadata: unknown
@@ -49,11 +57,9 @@ export function parseCheckoutPricingSummary(
   if (grandTotal == null || grandTotal <= 0) return null;
 
   return {
-    currency: raw.currency != null ? String(raw.currency).toUpperCase().slice(0, 3) : null,
+    currency: raw.currency != null ? isoCurrency(raw.currency) : null,
     base_currency:
-      raw.base_currency != null
-        ? String(raw.base_currency).toUpperCase().slice(0, 3)
-        : null,
+      raw.base_currency != null ? isoCurrency(raw.base_currency) : null,
     grand_total: grandTotal,
     subtotal: finiteNumber(raw.subtotal),
     discount_amount: finiteNumber(raw.discount_amount),
@@ -68,51 +74,32 @@ export function parseCheckoutPricingSummary(
   };
 }
 
-/** USD list price for the selected billing cycle when frozen on the snapshot. */
-function cycleUsdFromSnapshot(
+/**
+ * Frozen Signup/Builder Grand Total as USD.
+ * Never use incomplete monthly/yearly cycle fields when grand_total is the USD SSOT —
+ * those fields can be module-only list prices and do not include seats/packs/tax.
+ */
+function frozenUsdGrandTotal(
   snapshot: CheckoutPricingSnapshot | null
 ): number | null {
-  if (!snapshot) return null;
-  const cycle = String(snapshot.billing_cycle || "").toLowerCase();
-  const pick =
-    cycle === "lifetime"
-      ? snapshot.lifetime
-      : cycle === "yearly"
-        ? snapshot.yearly
-        : cycle === "monthly"
-          ? snapshot.monthly
-          : null;
-  const amount = finiteNumber(pick);
-  return amount != null && amount > 0 ? amount : null;
-}
-
-function snapshotUsdAmount(snapshot: CheckoutPricingSnapshot | null): number | null {
   if (!snapshot?.grand_total || snapshot.grand_total <= 0) return null;
-  const currency = String(snapshot.currency || "USD").toUpperCase().slice(0, 3);
-  const base = String(snapshot.base_currency || currency || "USD")
-    .toUpperCase()
-    .slice(0, 3);
 
-  // Fully USD snapshot — grand_total is the SSOT.
-  if (base === "USD" && currency === "USD") return snapshot.grand_total;
+  const currency = isoCurrency(snapshot.currency, "USD");
+  const base = isoCurrency(snapshot.base_currency || currency, "USD");
 
-  // Engine converts grand_total to customer currency but keeps base_currency USD.
-  // Never treat the converted grand_total as USD (e.g. 7226 PKR ≠ $7226).
-  if (base === "USD" && currency !== "USD") {
-    return cycleUsdFromSnapshot(snapshot);
+  // Website freezes Custom ERP as USD/USD. Engine preserves that as charge SSOT.
+  if (base === "USD" || currency === "USD") {
+    return snapshot.grand_total;
   }
 
-  // Customer-currency snapshot without base_currency — cycle fields remain USD plan prices.
-  if (currency !== "USD") {
-    return cycleUsdFromSnapshot(snapshot);
-  }
-
+  // Non-USD snapshot without USD base — cannot safely treat grand_total as USD.
   return null;
 }
 
 /**
- * Resolve the payable amount for checkout display and payment handoff.
- * Uses Engine checkout metadata.pricing_summary only — never browser storage.
+ * Resolve the payable USD amount for checkout display and payment handoff.
+ * Uses Engine checkout metadata.pricing_summary.grand_total only — never
+ * recalculates Custom ERP pricing and never prefers incomplete cycle fields.
  */
 export function resolveCheckoutCharge(input: {
   checkout: BillingCheckoutSession | null | undefined;
@@ -120,19 +107,15 @@ export function resolveCheckoutCharge(input: {
   const checkout = input.checkout;
   const pricingSummary = parseCheckoutPricingSummary(checkout?.metadata);
 
-  const sessionCurrency = String(checkout?.currency || "USD")
-    .toUpperCase()
-    .slice(0, 3);
+  const sessionCurrency = isoCurrency(checkout?.currency, "USD");
   const sessionAmount = finiteNumber(checkout?.amount);
 
-  const snapshotUsd = snapshotUsdAmount(pricingSummary);
-  if (snapshotUsd != null && snapshotUsd > 0) {
-    const snapCurrency = String(pricingSummary?.currency || "USD")
-      .toUpperCase()
-      .slice(0, 3);
+  const frozenUsd = frozenUsdGrandTotal(pricingSummary);
+  if (frozenUsd != null && frozenUsd > 0) {
     return {
-      usdAmount: snapshotUsd,
-      chargeCurrency: snapCurrency,
+      usdAmount: frozenUsd,
+      // Gateways (PayPal / card / Wise) always charge this frozen USD SSOT.
+      chargeCurrency: "USD",
       pricingSummary,
     };
   }
@@ -140,15 +123,6 @@ export function resolveCheckoutCharge(input: {
   if (sessionAmount != null && sessionAmount > 0 && sessionCurrency === "USD") {
     return {
       usdAmount: sessionAmount,
-      chargeCurrency: sessionCurrency,
-      pricingSummary,
-    };
-  }
-
-  const cycleUsd = cycleUsdFromSnapshot(pricingSummary);
-  if (cycleUsd != null && cycleUsd > 0) {
-    return {
-      usdAmount: cycleUsd,
       chargeCurrency: sessionCurrency,
       pricingSummary,
     };

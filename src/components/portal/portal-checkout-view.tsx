@@ -66,7 +66,7 @@ export function PortalCheckoutView() {
   const checkoutReason = String(searchParams.get("reason") || "").trim();
   const planName = String(searchParams.get("plan") || "").trim();
   const methodFromUrl = String(searchParams.get("method") || "").trim().toLowerCase();
-  const { formatPrice, country: visitorCountry, currency: userCurrency } = useLocale();
+  const { country: visitorCountry } = useLocale();
   const { data: portal } = usePortalContext();
 
   const [sessionToken, setSessionToken] = useState(() =>
@@ -204,20 +204,14 @@ export function PortalCheckoutView() {
 
   const displayPlan = planName || checkout?.plan_name || checkout?.purpose || "WAAMTO subscription";
   const displayPurpose = purposeLabel(mode, checkout?.purpose);
+  // Frozen Signup Grand Total (USD SSOT) — portal/checkout never shows local currency.
   const usdAmount = resolvedCharge.usdAmount;
-  const sessionCurrencyCode = resolvedCharge.chargeCurrency;
   const billingCycleLabel = billingCycleSuffix(resolvedCharge.pricingSummary?.billing_cycle);
 
-  // Match Builder/Signup: locale price from USD SSOT; USD line when visitor currency is not USD.
   const totalDuePrimaryLabel =
     usdAmount != null
-      ? formatPrice(usdAmount, { showCode: true })
-      : "—";
-
-  const totalDueUsdSecondaryLabel =
-    usdAmount != null && userCurrency !== "USD"
       ? formatMoney(usdAmount, "USD", { showCode: true })
-      : null;
+      : "—";
 
   async function confirmPayment() {
     if (!sessionToken || confirming) return;
@@ -233,7 +227,7 @@ export function PortalCheckoutView() {
             methodId: selectedMethod,
             transactionId: transactionId.trim(),
             amount: usdAmount,
-            currency: sessionCurrencyCode,
+            currency: "USD",
           })
         : selectedMethod || undefined;
 
@@ -405,11 +399,6 @@ export function PortalCheckoutView() {
                       </span>
                     ) : null}
                   </p>
-                  {totalDueUsdSecondaryLabel ? (
-                    <p className="mt-2 text-sm font-semibold tabular-nums text-[var(--portal-muted)]">
-                      {totalDueUsdSecondaryLabel} billing
-                    </p>
-                  ) : null}
                 </div>
               </div>
             </div>
@@ -490,7 +479,7 @@ export function PortalCheckoutView() {
                       transactionId={transactionId}
                       onTransactionIdChange={setTransactionId}
                       amount={usdAmount ?? checkout?.amount}
-                      currency={sessionCurrencyCode}
+                      currency="USD"
                       paymentConfig={paymentConfig}
                       loadingConfig={loading}
                     />
@@ -500,7 +489,7 @@ export function PortalCheckoutView() {
                         <PayPalCheckout
                           sessionToken={sessionToken}
                           amount={usdAmount}
-                          currency={sessionCurrencyCode}
+                          currency="USD"
                           mode={mode}
                           planName={planName}
                           onError={setError}

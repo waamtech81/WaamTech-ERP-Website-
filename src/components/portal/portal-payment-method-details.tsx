@@ -25,6 +25,8 @@ export function PortalPaymentMethodDetails({
   method,
   transactionId,
   onTransactionIdChange,
+  amount,
+  currency,
   paymentConfig,
   loadingConfig = false,
 }: Props) {
@@ -38,6 +40,15 @@ export function PortalPaymentMethodDetails({
 
   const config = paymentConfig;
   const bank = config.bank;
+  const chargeCurrency = String(currency || "USD").toUpperCase().slice(0, 3) || "USD";
+  const chargeAmount =
+    amount != null && Number.isFinite(Number(amount)) && Number(amount) > 0
+      ? Number(amount)
+      : null;
+  const chargeLabel =
+    chargeAmount != null
+      ? `${chargeCurrency === "USD" ? "$" : ""}${chargeAmount.toFixed(2)} ${chargeCurrency}`
+      : null;
 
   return (
     <div className="space-y-4">
@@ -48,6 +59,17 @@ export function PortalPaymentMethodDetails({
           <p className="text-sm text-[var(--portal-muted)]">{method.shortHint}</p>
         </div>
       </div>
+
+      {chargeLabel ? (
+        <div className="rounded-xl border border-[var(--portal-border)] bg-white px-4 py-3 text-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--portal-muted)]">
+            Amount to pay
+          </p>
+          <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--portal-fg)]">
+            {chargeLabel}
+          </p>
+        </div>
+      ) : null}
 
       {method.id === "jazzcash" ? (
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4 text-sm">

@@ -42,14 +42,12 @@ function normalize(value?: string | null) {
     .toLowerCase();
 }
 
-function formatMoney(
-  amount: number | string | null | undefined,
-  currency?: string | null
-) {
+function formatMoney(amount: number | string | null | undefined) {
   if (amount == null || amount === "") return "—";
   const num = Number(amount);
   if (Number.isNaN(num)) return String(amount);
-  return `${currency || "USD"} ${num.toFixed(2)}`;
+  // Commercial invoices / portal billing are USD SSOT.
+  return `USD ${num.toFixed(2)}`;
 }
 
 function matchesStatusFilter(invoice: PortalInvoice, filter: InvoiceStatusFilter) {
@@ -225,18 +223,17 @@ export function PortalInvoicesView() {
                   <td className="whitespace-nowrap tabular-nums font-medium">
                     {invoice.amount ||
                       formatMoney(
-                        invoice.total ?? invoice.amountPaid ?? invoice.amountDue,
-                        invoice.currency
+                        invoice.total ?? invoice.amountPaid ?? invoice.amountDue
                       )}
                   </td>
                   <td>
                     <PortalStatusBadge status={invoice.paymentStatus} />
                   </td>
                   <td className="whitespace-nowrap tabular-nums">
-                    {formatMoney(invoice.amountDue, invoice.currency)}
+                    {formatMoney(invoice.amountDue)}
                   </td>
                   <td className="whitespace-nowrap tabular-nums">
-                    {formatMoney(invoice.amountPaid, invoice.currency)}
+                    {formatMoney(invoice.amountPaid)}
                   </td>
                   <td>
                     <div className="flex flex-nowrap items-center justify-end gap-1">
@@ -357,11 +354,11 @@ export function PortalInvoicesView() {
                 <PortalDataRow label="Total amount" value={selected.amount} />
                 <PortalDataRow
                   label="Amount due"
-                  value={formatMoney(selected.amountDue, selected.currency)}
+                  value={formatMoney(selected.amountDue)}
                 />
                 <PortalDataRow
                   label="Amount paid"
-                  value={formatMoney(selected.amountPaid, selected.currency)}
+                  value={formatMoney(selected.amountPaid)}
                 />
                 <PortalDataRow label="Payment status" value={selected.paymentStatus} />
               </div>
@@ -386,7 +383,7 @@ export function PortalInvoicesView() {
                           <PortalStatusBadge status={payment.status} />
                         </div>
                         <p className="mt-1 tabular-nums text-[var(--portal-fg)]">
-                          {payment.currency} {Number(payment.amount).toFixed(2)}
+                          {`USD ${Number(payment.amount).toFixed(2)}`}
                         </p>
                         <p className="mt-1 text-xs text-[var(--portal-muted)]">
                           {formatPortalDateTime(payment.paid_date) || "—"}

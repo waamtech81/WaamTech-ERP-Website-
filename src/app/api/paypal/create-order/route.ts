@@ -5,6 +5,7 @@ import { resolvePortalAccess, applyPortalRefreshCookies, clearPortalOnUnauthoriz
 import { fetchCheckoutSession } from "@/lib/commercial/client";
 import { readPortalTokens } from "@/lib/auth/session";
 import { createPayPalOrder, paypalEnabled } from "@/lib/paypal/client";
+import { resolveCheckoutCharge } from "@/lib/portal/checkout-pricing";
 import { ApiError } from "@/lib/api/errors";
 import { ApiErrorCode } from "@/lib/api/codes";
 
@@ -40,8 +41,11 @@ export const POST = withApiHandler(
       return apiFail("Checkout session not found.", { status: 404 });
     }
 
-    const amount = Number(session.data.amount ?? 0);
-    const currency = String(session.data.currency || "USD");
+    // Same frozen USD SSOT as Customer Portal "Billing Amount" — never raw session.amount
+    // alone when pricing_summary.grand_total is present (avoids cycle/legacy mismatch).
+    const charge = resolveCheckoutCharge({ checkout: session.data });
+    const amount = Number(charge.usdAmount ?? 0);
+    const currency = "USD";
 
     if (!amount || amount <= 0) {
       return apiFail("Checkout session has an invalid amount.", { status: 400 });
@@ -69,7 +73,12 @@ export const POST = withApiHandler(
 
     const { remember } = await readPortalTokens();
     const res = apiSuccess("PayPal order created.", {
-      data: { order_id: order.id, status: order.status },
+      data: {
+        order_id: order.id,
+        status: order.status,
+        amount,
+        currency,
+      },
     });
     applyPortalRefreshCookies(res, resolved.access, Boolean(remember));
     return res;

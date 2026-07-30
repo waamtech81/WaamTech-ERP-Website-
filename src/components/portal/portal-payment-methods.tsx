@@ -4,16 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { CreditCard } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PortalSkeleton } from "@/components/portal/portal-ui";
 import { cn } from "@/lib/utils";
 import {
   easypaisaTransferMessage,
   jazzcashTransferMessage,
-  PK_MOBILE_WALLET_ACCOUNT,
-  EASYPAYSA_IBAN,
-  WISE_PAYMENT_ID,
   paymentMethodsForCountry,
-  standardCharteredDetails,
   type PortalPaymentMethod,
+  type PortalPaymentMethodConfig,
 } from "@/lib/portal/payment-methods";
 
 type Props = {
@@ -24,6 +22,8 @@ type Props = {
   country?: string | null;
   amount?: number | null;
   currency?: string | null;
+  paymentConfig?: PortalPaymentMethodConfig | null;
+  loadingConfig?: boolean;
   /** When false, do not auto-pick the first geo method (checkout preserves user choice). */
   autoSelectFirst?: boolean;
   className?: string;
@@ -35,8 +35,8 @@ export function PortalPaymentMethodPicker({
   transactionId,
   onTransactionIdChange,
   country: countryProp,
-  amount,
-  currency,
+  paymentConfig = null,
+  loadingConfig = false,
   autoSelectFirst = true,
   className,
 }: Props) {
@@ -50,16 +50,16 @@ export function PortalPaymentMethodPicker({
         const res = await fetch("/api/geo", { cache: "no-store" });
         const json = await res.json();
         if (cancelled) return;
-        const c = json?.extra?.country || json?.data?.country || null;
+        const c = json?.extra?.country || json?.data?.country || countryProp || null;
         if (c) setGeoCountry(String(c).trim().toUpperCase());
       } catch {
-        /* geo optional */
+        if (!cancelled && countryProp) setGeoCountry(String(countryProp).trim().toUpperCase());
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [countryProp]);
 
   const methods = useMemo(
     () => paymentMethodsForCountry(geoCountry),
@@ -82,7 +82,6 @@ export function PortalPaymentMethodPicker({
   }, [methods, value, autoSelectFirst]);
 
   const selected: PortalPaymentMethod | undefined = methods.find((m) => m.id === value);
-  const bank = standardCharteredDetails();
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -114,80 +113,98 @@ export function PortalPaymentMethodPicker({
         ))}
       </div>
 
-      {selected?.id === "jazzcash" ? (
+      {loadingConfig || !paymentConfig ? (
+        <PortalSkeleton rows={3} />
+      ) : selected?.id === "jazzcash" ? (
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm text-[var(--portal-fg)]">
           <p className="font-semibold">JazzCash transfer</p>
-          <p className="mt-2 leading-relaxed">{jazzcashTransferMessage()}</p>
+          <p className="mt-2 leading-relaxed">
+            {jazzcashTransferMessage(paymentConfig.jazzcash.account_number)}
+          </p>
           <p className="mt-3 font-mono text-base font-semibold tracking-wide">
-            {PK_MOBILE_WALLET_ACCOUNT}
+            {paymentConfig.jazzcash.account_number}
           </p>
         </div>
       ) : null}
 
-      {selected?.id === "easypaisa" ? (
+      {!loadingConfig && paymentConfig && selected?.id === "easypaisa" ? (
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm text-[var(--portal-fg)]">
           <p className="font-semibold">EasyPaisa transfer</p>
-          <p className="mt-2 leading-relaxed">{easypaisaTransferMessage()}</p>
+          <p className="mt-2 leading-relaxed">
+            {easypaisaTransferMessage(paymentConfig.easypaisa.iban)}
+          </p>
           <p className="mt-3 text-xs font-medium uppercase tracking-wide text-[var(--portal-muted)]">
             IBAN
           </p>
           <p className="mt-1 font-mono text-base font-semibold tracking-wide">
-            {EASYPAYSA_IBAN}
+            {paymentConfig.easypaisa.iban}
           </p>
         </div>
       ) : null}
 
-      {selected?.id === "wise" ? (
+      {!loadingConfig && paymentConfig && selected?.id === "wise" ? (
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm text-[var(--portal-fg)]">
           <p className="font-semibold">Wise payment</p>
           <p className="mt-2 leading-relaxed">
             Send the exact amount to this Wise payment ID / email, then enter the
             transaction ID below.
           </p>
-          <p className="mt-3 font-mono text-base font-semibold">{WISE_PAYMENT_ID}</p>
+          <p className="mt-3 font-mono text-base font-semibold">
+            {paymentConfig.wise.payment_id}
+          </p>
         </div>
       ) : null}
 
-      {selected?.id === "bank" ? (
+      {!loadingConfig && paymentConfig && selected?.id === "bank" ? (
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm text-[var(--portal-fg)]">
           <p className="font-semibold">Direct bank transfer</p>
           <dl className="mt-3 grid gap-2 sm:grid-cols-2">
             <div>
               <dt className="text-xs text-[var(--portal-muted)]">Bank</dt>
-              <dd className="font-medium">{bank.bankName}</dd>
+              <dd className="font-medium">{paymentConfig.bank.bank_name}</dd>
             </div>
             <div>
               <dt className="text-xs text-[var(--portal-muted)]">Account title</dt>
-              <dd className="font-medium">{bank.accountTitle}</dd>
+              <dd className="font-medium">{paymentConfig.bank.account_title}</dd>
             </div>
             <div>
               <dt className="text-xs text-[var(--portal-muted)]">Account number</dt>
-              <dd className="font-mono font-medium">{bank.accountNumber}</dd>
+              <dd className="font-mono font-medium">{paymentConfig.bank.account_number}</dd>
             </div>
-            {bank.iban ? (
+            {paymentConfig.bank.iban ? (
               <div>
                 <dt className="text-xs text-[var(--portal-muted)]">IBAN</dt>
-                <dd className="font-mono font-medium">{bank.iban}</dd>
+                <dd className="font-mono font-medium">{paymentConfig.bank.iban}</dd>
               </div>
             ) : null}
-            {bank.swift ? (
+            {paymentConfig.bank.swift ? (
               <div>
                 <dt className="text-xs text-[var(--portal-muted)]">SWIFT</dt>
-                <dd className="font-mono font-medium">{bank.swift}</dd>
+                <dd className="font-mono font-medium">{paymentConfig.bank.swift}</dd>
               </div>
             ) : null}
             <div>
               <dt className="text-xs text-[var(--portal-muted)]">Branch</dt>
-              <dd className="font-medium">{bank.branch}</dd>
+              <dd className="font-medium">{paymentConfig.bank.branch}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[var(--portal-muted)]">Currency</dt>
+              <dd className="font-medium">{paymentConfig.bank.currency}</dd>
             </div>
           </dl>
-          <p className="mt-3 text-xs text-[var(--portal-muted)]">
-            After transfer, enter the bank transaction / reference ID and submit.
-          </p>
+          {paymentConfig.bank.instructions ? (
+            <p className="mt-3 text-sm text-[var(--portal-muted)]">
+              {paymentConfig.bank.instructions}
+            </p>
+          ) : (
+            <p className="mt-3 text-xs text-[var(--portal-muted)]">
+              After transfer, enter the bank transaction / reference ID and submit.
+            </p>
+          )}
         </div>
       ) : null}
 
-      {selected?.id === "paypal" ? (
+      {!loadingConfig && paymentConfig && selected?.id === "paypal" ? (
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 text-sm text-[var(--portal-fg)]">
           <div className="flex items-center gap-2">
             <CreditCard className="h-4 w-4 text-[var(--portal-primary)]" />
@@ -211,6 +228,7 @@ export function PortalPaymentMethodPicker({
             className="h-11 bg-[var(--portal-soft)] font-mono"
             placeholder="Paste transaction / reference ID after transfer"
             autoComplete="off"
+            disabled={!paymentConfig}
           />
           <p className="text-xs text-[var(--portal-muted)]">
             Required after you send the payment. This is stored on License Engine with your

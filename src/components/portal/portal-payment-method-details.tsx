@@ -3,10 +3,10 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PortalPaymentMethodIcon } from "@/components/portal/portal-payment-method-icon";
+import { PortalSkeleton } from "@/components/portal/portal-ui";
 import {
   easypaisaTransferMessage,
   jazzcashTransferMessage,
-  resolvePortalPaymentMethodConfig,
   type PortalPaymentMethod,
   type PortalPaymentMethodConfig,
 } from "@/lib/portal/payment-methods";
@@ -17,7 +17,8 @@ type Props = {
   onTransactionIdChange: (value: string) => void;
   amount?: number | null;
   currency?: string | null;
-  paymentConfig?: PortalPaymentMethodConfig;
+  paymentConfig: PortalPaymentMethodConfig | null;
+  loadingConfig?: boolean;
 };
 
 export function PortalPaymentMethodDetails({
@@ -25,8 +26,17 @@ export function PortalPaymentMethodDetails({
   transactionId,
   onTransactionIdChange,
   paymentConfig,
+  loadingConfig = false,
 }: Props) {
-  const config = paymentConfig ?? resolvePortalPaymentMethodConfig();
+  if (loadingConfig || !paymentConfig) {
+    return (
+      <div className="space-y-4">
+        <PortalSkeleton rows={2} />
+      </div>
+    );
+  }
+
+  const config = paymentConfig;
   const bank = config.bank;
 
   return (
@@ -111,6 +121,10 @@ export function PortalPaymentMethodDetails({
               <dt className="text-xs text-[var(--portal-muted)]">Branch</dt>
               <dd className="font-medium">{bank.branch}</dd>
             </div>
+            <div>
+              <dt className="text-xs text-[var(--portal-muted)]">Currency</dt>
+              <dd className="font-medium">{bank.currency}</dd>
+            </div>
           </dl>
           {bank.instructions ? (
             <p className="mt-3 text-sm text-[var(--portal-muted)]">{bank.instructions}</p>
@@ -122,6 +136,13 @@ export function PortalPaymentMethodDetails({
         <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4 text-sm text-[var(--portal-muted)]">
           Pay with your PayPal account or debit / credit card in the secure PayPal window
           below. You will not be charged until you confirm on PayPal.
+        </div>
+      ) : null}
+
+      {method.id === "stripe" || method.id === "card" ? (
+        <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4 text-sm text-[var(--portal-muted)]">
+          Card payments are processed securely through Stripe when enabled on your checkout
+          session.
         </div>
       ) : null}
 

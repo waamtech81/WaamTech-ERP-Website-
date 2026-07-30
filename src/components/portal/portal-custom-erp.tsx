@@ -46,6 +46,7 @@ import {
 } from "@/lib/portal/package-type";
 import { authConfig } from "@/lib/auth/config";
 import { fetchPublicModules } from "@/lib/commercial/client";
+import { resolvePurchasedLimits } from "@/lib/portal/commercial-snapshot";
 import { cn } from "@/lib/utils";
 
 function titleCaseCode(code: string) {
@@ -88,7 +89,10 @@ function activeSubscription(data: PortalDashboard) {
 
 function resolveUsage(data: PortalDashboard) {
   const primary = primaryPortalLicense(data.licenses);
-  const limits = primary?.tenant_limits || {};
+  const limits = resolvePurchasedLimits(
+    data.commercialSnapshot,
+    primary?.tenant_limits || null
+  );
   const erp = (data.erp || {}) as Record<string, unknown>;
   const erpCounts = (erp.counts || erp) as Record<string, unknown>;
 
@@ -99,22 +103,22 @@ function resolveUsage(data: PortalDashboard) {
     {
       label: "Users",
       used: data.counts.registeredUsers ?? data.workspaceUsers.length ?? null,
-      max: limits.users ?? null,
+      max: limits.users,
     },
     {
       label: "Companies",
       used: data.counts.registeredBusinesses ?? num(erpCounts.companies) ?? num(erpCounts.businesses),
-      max: limits.companies ?? null,
+      max: limits.companies,
     },
     {
       label: "Branches",
       used: num(erpCounts.branches),
-      max: limits.branches ?? null,
+      max: limits.branches,
     },
     {
       label: "Warehouses",
       used: num(erpCounts.warehouses),
-      max: limits.warehouses ?? null,
+      max: limits.warehouses,
     },
     {
       label: "Storage",
@@ -708,7 +712,7 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
   }
 
   if (section === "modules") {
-    const catalogModules = data.modules.filter(Boolean);
+    const catalogModules = data.catalogModuleCodes?.length ? data.catalogModuleCodes : [];
     const enabled = new Set(modules.map((m) => m.toLowerCase()));
     const available = catalogModules.filter((m) => !enabled.has(m.toLowerCase()));
 
@@ -753,9 +757,13 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                   </li>
                 ))}
               </ul>
+            ) : catalogModules.length === 0 ? (
+              <p className="text-sm text-[var(--portal-muted)]">
+                Module catalog is loading from License Engine.
+              </p>
             ) : (
               <p className="text-sm text-[var(--portal-muted)]">
-                All catalog modules on your account are enabled, or the catalog is loading from License Engine.
+                All catalog modules on your account are enabled.
               </p>
             )}
             <div className="mt-4 flex flex-wrap gap-2">
@@ -947,18 +955,25 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     )
   );
 
-  const currentLimits = (primary?.tenant_limits ?? {}) as Record<string, number>;
+  const currentLimits = resolvePurchasedLimits(
+    data.commercialSnapshot,
+    (primary?.tenant_limits ?? {}) as Record<string, number | null>
+  );
 
   // Catalog state
   const [catalogModules, setCatalogModules] = useState<CatalogModule[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
 
+  const minUsers = currentLimits.users ?? 0;
+  const minBranches = currentLimits.branches ?? 0;
+  const minWarehouses = currentLimits.warehouses ?? 0;
+
   // Selection state — user picks FULL new config (owned + new additions)
   const [selectedModules, setSelectedModules] = useState<Set<string>>(() => new Set(ownedModuleCodes));
   const [selectedPacks, setSelectedPacks] = useState<Set<string>>(() => new Set(ownedPackCodes));
-  const [userLimit, setUserLimit] = useState<number>(currentLimits.user_limit ?? currentLimits.users ?? 5);
-  const [branchLimit, setBranchLimit] = useState<number>(currentLimits.branch_limit ?? currentLimits.branches ?? 1);
-  const [warehouseLimit, setWarehouseLimit] = useState<number>(currentLimits.warehouse_limit ?? currentLimits.warehouses ?? 1);
+  const [userLimit, setUserLimit] = useState<number>(minUsers);
+  const [branchLimit, setBranchLimit] = useState<number>(minBranches);
+  const [warehouseLimit, setWarehouseLimit] = useState<number>(minWarehouses);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -988,12 +1003,16 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     (c) => !ownedPackCodes.has(c.toLowerCase())
   );
 
+  const availableFeaturePacks = (data.catalogFeaturePacks || []).filter(
+    (pack) => !ownedPackCodes.has(pack.code.toLowerCase())
+  );
+
   const hasChanges =
     newlySelected.length > 0 ||
     newlySelectedPacks.length > 0 ||
-    userLimit > (currentLimits.user_limit ?? currentLimits.users ?? 5) ||
-    branchLimit > (currentLimits.branch_limit ?? currentLimits.branches ?? 1) ||
-    warehouseLimit > (currentLimits.warehouse_limit ?? currentLimits.warehouses ?? 1);
+    (currentLimits.users != null && userLimit > currentLimits.users) ||
+    (currentLimits.branches != null && branchLimit > currentLimits.branches) ||
+    (currentLimits.warehouses != null && warehouseLimit > currentLimits.warehouses);
 
   function toggleModule(code: string) {
     const lower = code.toLowerCase();
@@ -1147,6 +1166,60 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         )}
       </PortalPanel>
 
+      {/* Feature pack selection */}
+      <PortalPanel
+        title="Add feature packs"
+        description={
+          availableFeaturePacks.length
+            ? `${availableFeaturePacks.length} pack${availableFeaturePacks.length !== 1 ? "s" : ""} available to add.`
+            : "All catalog feature packs on your license are active."
+        }
+      >
+        {availableFeaturePacks.length ? (
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {availableFeaturePacks.map((pack) => {
+              const isSelected = selectedPacks.has(pack.code.toLowerCase());
+              return (
+                <button
+                  key={pack.code}
+                  type="button"
+                  onClick={() => togglePack(pack.code)}
+                  className={cn(
+                    "portal-focus-ring flex items-start gap-3 rounded-xl border p-3 text-left transition",
+                    isSelected
+                      ? "border-[var(--portal-primary)] bg-[var(--portal-primary)]/5"
+                      : "border-[var(--portal-border)] bg-[var(--portal-soft)] hover:border-[var(--portal-primary)]/40"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                      isSelected
+                        ? "border-[var(--portal-primary)] bg-[var(--portal-primary)] text-white"
+                        : "border-[var(--portal-border)]"
+                    )}
+                  >
+                    {isSelected && <Check className="h-3 w-3" />}
+                  </span>
+                  <span>
+                    <span className="block text-sm font-medium">{pack.name}</span>
+                    {pack.description ? (
+                      <span className="mt-0.5 block text-xs text-[var(--portal-muted)] line-clamp-2">
+                        {pack.description}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--portal-muted)]">
+            No additional feature packs are available for purchase on your current package.
+          </p>
+        )}
+      </PortalPanel>
+
       {/* Limit upgrade */}
       <PortalPanel
         title="Adjust limits"
@@ -1157,20 +1230,23 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
             {
               label: "Users",
               value: userLimit,
-              min: currentLimits.user_limit ?? currentLimits.users ?? 1,
+              min: minUsers,
               set: setUserLimit,
+              current: currentLimits.users,
             },
             {
               label: "Branches",
               value: branchLimit,
-              min: currentLimits.branch_limit ?? currentLimits.branches ?? 1,
+              min: minBranches,
               set: setBranchLimit,
+              current: currentLimits.branches,
             },
             {
               label: "Warehouses",
               value: warehouseLimit,
-              min: currentLimits.warehouse_limit ?? currentLimits.warehouses ?? 1,
+              min: minWarehouses,
               set: setWarehouseLimit,
+              current: currentLimits.warehouses,
             },
           ].map((f) => (
             <div key={f.label} className="space-y-1.5">
@@ -1188,7 +1264,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                 className="w-full rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-2 text-sm focus:border-[var(--portal-primary)] focus:outline-none"
               />
               <p className="text-[11px] text-[var(--portal-muted)]">
-                Current: {f.min}
+                Purchased: {f.current != null ? f.current : "—"}
               </p>
             </div>
           ))}

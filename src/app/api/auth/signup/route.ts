@@ -18,6 +18,7 @@ import {
 } from "@/lib/security/guards";
 import { validateSignupCommercialSelection } from "@/lib/signup/validate-commercial";
 import { validateSignupCustomPackage } from "@/lib/signup/validate-custom-package";
+import { buildPredefinedSignupPricingSummary } from "@/lib/signup/predefined-pricing-summary";
 import { resolveSignupCommercialMode } from "@/lib/signup/commercial-mode";
 import type { BillingCycle } from "@/lib/commercial/types";
 
@@ -311,6 +312,15 @@ export const POST = withApiHandler(
         signup_mode: signupMode,
         trial_days: signupMode === "paid" ? 0 : authConfig.trialDays,
         ...(selectedCurrency ? { currency: selectedCurrency } : {}),
+        ...(signupMode === "paid"
+          ? {
+              pricing_summary: buildPredefinedSignupPricingSummary({
+                plan: commercial.data.plan,
+                billingCycle: billing_cycle,
+                currency: selectedCurrency,
+              }),
+            }
+          : {}),
       });
     }
 

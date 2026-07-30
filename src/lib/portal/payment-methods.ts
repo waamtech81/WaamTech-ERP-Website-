@@ -2,6 +2,9 @@
  * Portal payment method catalog — geo-aware UI instructions.
  * Engine checkout gateways stay stripe|paypal|bank|manual|simulated;
  * Pakistan wallets / Wise map to bank|manual with a structured reference.
+ *
+ * Payment account details come only from License Engine (checkout session or
+ * /v1/public/billing/payment-methods). Never show website fallbacks.
  */
 
 export type PaymentMethodId =
@@ -28,26 +31,6 @@ export type PortalPaymentMethod = {
   shortHint: string;
 };
 
-export const PK_MOBILE_WALLET_ACCOUNT = "03002830192";
-export const EASYPAYSA_IBAN = "PK94TMFB0000000045745494";
-export const WISE_PAYMENT_ID = "atif.rehmani@gmail.com";
-export const PAYPAL_RECEIVE_EMAIL = "atifrehmani@gmail.com";
-
-/** Direct bank transfer — override via NEXT_PUBLIC_SC_* env when details change. */
-export function standardCharteredDetails() {
-  return {
-    bankName: process.env.NEXT_PUBLIC_SC_BANK_NAME?.trim() || "Askari Bank",
-    accountTitle:
-      process.env.NEXT_PUBLIC_SC_ACCOUNT_TITLE?.trim() || "WAAMTECH",
-    accountNumber:
-      process.env.NEXT_PUBLIC_SC_ACCOUNT_NUMBER?.trim() || "1150420000732",
-    iban: process.env.NEXT_PUBLIC_SC_IBAN?.trim() || "PK81ASCM0001150420000732",
-    branch:
-      process.env.NEXT_PUBLIC_SC_BRANCH?.trim() || "Kamran Center Branch, ISB-PK",
-    swift: process.env.NEXT_PUBLIC_SC_SWIFT?.trim() || "ASCMPKKA",
-  };
-}
-
 export type PortalPaymentMethodConfig = {
   bank: {
     bank_name: string;
@@ -65,37 +48,60 @@ export type PortalPaymentMethodConfig = {
   paypal: { receive_email: string };
 };
 
-export function resolvePortalPaymentMethodConfig(
-  fromEngine?: Partial<PortalPaymentMethodConfig> | null
-): PortalPaymentMethodConfig {
-  const bank = fromEngine?.bank;
-  const jazzcash = fromEngine?.jazzcash;
-  const easypaisa = fromEngine?.easypaisa;
-  const wise = fromEngine?.wise;
-  const paypal = fromEngine?.paypal;
-  const fallbackBank = standardCharteredDetails();
+function nonEmpty(value: unknown): string | null {
+  const s = String(value ?? "").trim();
+  return s ? s : null;
+}
+
+/** True when Engine supplied enough detail to render a method safely. */
+export function isPortalPaymentMethodConfigReady(
+  config: Partial<PortalPaymentMethodConfig> | null | undefined
+): config is PortalPaymentMethodConfig {
+  if (!config) return false;
+  const bank = config.bank;
+  if (
+    !bank ||
+    !nonEmpty(bank.bank_name) ||
+    !nonEmpty(bank.account_title) ||
+    !nonEmpty(bank.account_number)
+  ) {
+    return false;
+  }
+  if (!nonEmpty(config.jazzcash?.account_number)) return false;
+  if (!nonEmpty(config.easypaisa?.iban)) return false;
+  if (!nonEmpty(config.wise?.payment_id)) return false;
+  if (!nonEmpty(config.paypal?.receive_email)) return false;
+  return true;
+}
+
+/** Normalize Engine payment-method config — no local fallbacks. */
+export function normalizePortalPaymentMethodConfig(
+  fromEngine: Partial<PortalPaymentMethodConfig> | null | undefined
+): PortalPaymentMethodConfig | null {
+  if (!isPortalPaymentMethodConfigReady(fromEngine)) return null;
+  const bank = fromEngine.bank!;
   return {
     bank: {
-      bank_name: bank?.bank_name || fallbackBank.bankName,
-      account_title: bank?.account_title || fallbackBank.accountTitle,
-      account_number: bank?.account_number || fallbackBank.accountNumber,
-      iban: bank?.iban || fallbackBank.iban,
-      swift: bank?.swift || fallbackBank.swift,
-      branch: bank?.branch || fallbackBank.branch,
-      currency: bank?.currency || "PKR",
-      instructions: bank?.instructions ?? null,
+      bank_name: nonEmpty(bank.bank_name)!,
+      account_title: nonEmpty(bank.account_title)!,
+      account_number: nonEmpty(bank.account_number)!,
+      iban: nonEmpty(bank.iban) || "",
+      swift: nonEmpty(bank.swift) || "",
+      branch: nonEmpty(bank.branch) || "",
+      currency: nonEmpty(bank.currency) || "USD",
+      instructions: bank.instructions != null ? String(bank.instructions).trim() || null : null,
     },
     jazzcash: {
-      account_number: jazzcash?.account_number || PK_MOBILE_WALLET_ACCOUNT,
+      account_number: nonEmpty(fromEngine.jazzcash!.account_number)!,
     },
     easypaisa: {
-      iban: easypaisa?.iban || EASYPAYSA_IBAN,
+      iban: nonEmpty(fromEngine.easypaisa!.iban)!,
     },
     wise: {
-      payment_id: wise?.payment_id || WISE_PAYMENT_ID,
+      payment_id: nonEmpty(fromEngine.wise!.payment_id)!,
     },
     paypal: {
-      receive_email: paypal?.receive_email || PAYPAL_RECEIVE_EMAIL,
+      receive_email: nonEmpty(fromEngine.paypal!.receive_email)!,
     },
   };
 }
@@ -201,28 +207,28 @@ export function buildPaymentReference(input: {
   return parts.join("|").slice(0, 240);
 }
 
-export function jazzcashTransferMessage(accountNumber = PK_MOBILE_WALLET_ACCOUNT): string {
+export function jazzcashTransferMessage(accountNumber: string): string {
   return `Send the exact bill amount to JazzCash using account number ${accountNumber}. After the transfer succeeds, enter the transaction ID below and submit — License Engine will record the payment and notify your account.`;
 }
 
-export function easypaisaTransferMessage(iban = EASYPAYSA_IBAN): string {
+export function easypaisaTransferMessage(iban: string): string {
   return `Send the exact bill amount via EasyPaisa bank transfer using IBAN ${iban}. After the transfer succeeds, enter the transaction ID below and submit — License Engine will record the payment and notify your account.`;
 }
 
 /** @deprecated Use jazzcashTransferMessage or easypaisaTransferMessage */
-export function walletTransferMessage(methodLabel: string): string {
-  if (/easypaisa/i.test(methodLabel)) return easypaisaTransferMessage();
-  return jazzcashTransferMessage();
+export function walletTransferMessage(methodLabel: string, config: PortalPaymentMethodConfig): string {
+  if (/easypaisa/i.test(methodLabel)) return easypaisaTransferMessage(config.easypaisa.iban);
+  return jazzcashTransferMessage(config.jazzcash.account_number);
 }
 
 export function paypalCheckoutUrl(
   amount?: number | null,
   currency?: string | null,
-  receiveEmail = PAYPAL_RECEIVE_EMAIL
+  receiveEmail?: string
 ): string {
   const params = new URLSearchParams({
     cmd: "_xclick",
-    business: receiveEmail,
+    business: receiveEmail || "",
     currency_code: (currency || "USD").toUpperCase(),
     item_name: "WAAMTO ERP Cloud subscription",
   });

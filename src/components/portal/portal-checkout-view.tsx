@@ -13,14 +13,13 @@ import { TrustBadgeStrip } from "@/components/trust-badges";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import { useLocale } from "@/components/providers/locale-provider";
-import { formatUsdAs, formatMoney } from "@/lib/currency/format";
-import { isCurrencyCode } from "@/lib/currency/config";
+import { formatMoney } from "@/lib/currency/format";
 import {
   buildPaymentReference,
   engineGatewayForMethod,
   paymentMethodsForCountry,
   PORTAL_PAYMENT_METHODS,
-  resolvePortalPaymentMethodConfig,
+  normalizePortalPaymentMethodConfig,
   type PortalPaymentMethodConfig,
 } from "@/lib/portal/payment-methods";
 import { formatPortalStatus } from "@/lib/portal/display-labels";
@@ -59,7 +58,7 @@ export function PortalCheckoutView() {
   const checkoutReason = String(searchParams.get("reason") || "").trim();
   const planName = String(searchParams.get("plan") || "").trim();
   const methodFromUrl = String(searchParams.get("method") || "").trim().toLowerCase();
-  const { formatPrice, rates, country: visitorCountry } = useLocale();
+  const { formatPrice, country: visitorCountry, currency: userCurrency } = useLocale();
   const { data: portal } = usePortalContext();
 
   const [sessionToken, setSessionToken] = useState(() =>
@@ -78,9 +77,7 @@ export function PortalCheckoutView() {
   const [methodReady, setMethodReady] = useState(Boolean(selectedMethod));
   const [transactionId, setTransactionId] = useState("");
   const [checkout, setCheckout] = useState<CheckoutSession | null>(null);
-  const [paymentConfig, setPaymentConfig] = useState<PortalPaymentMethodConfig>(() =>
-    resolvePortalPaymentMethodConfig()
-  );
+  const [paymentConfig, setPaymentConfig] = useState<PortalPaymentMethodConfig | null>(null);
   const [geoCountry, setGeoCountry] = useState<string | null>(visitorCountry);
 
   useEffect(() => {
@@ -147,7 +144,7 @@ export function PortalCheckoutView() {
           const data = json.data || null;
           setError("");
           setCheckout(data);
-          setPaymentConfig(resolvePortalPaymentMethodConfig(data?.payment_methods));
+          setPaymentConfig(normalizePortalPaymentMethodConfig(data?.payment_methods));
           const urlMethod = PORTAL_PAYMENT_METHODS.some((m) => m.id === methodFromUrl)
             ? methodFromUrl
             : "";
@@ -194,27 +191,20 @@ export function PortalCheckoutView() {
     checkout?.amount != null && Number.isFinite(Number(checkout.amount))
       ? Number(checkout.amount)
       : null;
-  // Use usdAmount for backward compat (PayPal / gateway paths still pass it through)
   const usdAmount = sessionAmount;
   const sessionCurrencyCode = checkout?.currency
     ? String(checkout.currency).toUpperCase()
     : "USD";
-  const isSessionUsd = sessionCurrencyCode === "USD";
 
-  // Display the invoice amount in its own currency; only re-convert if session is USD.
-  const displayAmountLabel =
-    sessionAmount != null
-      ? isSessionUsd
-        ? formatPrice(sessionAmount, { showCode: true })
-        : isCurrencyCode(sessionCurrencyCode)
-          ? formatMoney(sessionAmount, sessionCurrencyCode, { showCode: true })
-          : `${sessionCurrencyCode} ${sessionAmount.toLocaleString()}`
+  // Billing SSOT is USD — show USD as the charge amount; local currency is informational only.
+  const totalDueUsdLabel =
+    usdAmount != null
+      ? formatMoney(usdAmount, "USD", { showCode: true })
       : "—";
 
-  // Secondary "Payment amount" — shown only for USD sessions so customers know the gateway currency.
-  const paymentUsdLabel =
-    sessionAmount != null && isSessionUsd
-      ? formatUsdAs(sessionAmount, "USD", rates, { showCode: true })
+  const totalDueLocalLabel =
+    usdAmount != null && userCurrency !== "USD"
+      ? formatPrice(usdAmount, { showCode: true })
       : null;
 
   async function confirmPayment() {
@@ -396,14 +386,11 @@ export function PortalCheckoutView() {
                 <div>
                   <p className="text-sm text-[var(--portal-muted)]">Total due today</p>
                   <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-[var(--portal-fg)]">
-                    {displayAmountLabel}
+                    {totalDueUsdLabel}
                   </p>
-                  {paymentUsdLabel != null ? (
-                    <p className="mt-2 text-sm text-[var(--portal-muted)]">
-                      Payment amount:{" "}
-                      <span className="font-medium tabular-nums text-[var(--portal-fg)]">
-                        {paymentUsdLabel}
-                      </span>
+                  {totalDueLocalLabel ? (
+                    <p className="mt-2 text-sm font-semibold tabular-nums text-red-600">
+                      ≈ {totalDueLocalLabel}
                     </p>
                   ) : null}
                 </div>
@@ -488,10 +475,11 @@ export function PortalCheckoutView() {
                       amount={checkout?.amount}
                       currency={checkout?.currency}
                       paymentConfig={paymentConfig}
+                      loadingConfig={loading}
                     />
 
                     <div className="mt-5 space-y-3 border-t border-[var(--portal-border)] pt-5">
-                      {selectedMethod === "paypal" && usdAmount != null ? (
+                      {selectedMethod === "paypal" && usdAmount != null && paymentConfig ? (
                         <PayPalCheckout
                           sessionToken={sessionToken}
                           amount={usdAmount}
@@ -504,7 +492,12 @@ export function PortalCheckoutView() {
                         <Button
                           type="button"
                           className="h-11 w-full rounded-xl text-base"
-                          disabled={!sessionToken || confirming || Boolean(error && !checkout)}
+                          disabled={
+                            !sessionToken ||
+                            !paymentConfig ||
+                            confirming ||
+                            Boolean(error && !checkout)
+                          }
                           onClick={() => void confirmPayment()}
                         >
                           {confirming ? (
@@ -515,7 +508,7 @@ export function PortalCheckoutView() {
                           ) : needsTxn ? (
                             "Submit payment confirmation"
                           ) : (
-                            `Pay ${paymentUsdLabel !== "—" ? paymentUsdLabel : "now"}`
+                            `Pay ${totalDueUsdLabel !== "—" ? totalDueUsdLabel : "now"}`
                           )}
                         </Button>
                       ) : null}

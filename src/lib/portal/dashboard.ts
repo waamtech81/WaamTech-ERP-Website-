@@ -10,6 +10,11 @@ import {
 } from "@/lib/license/identity";
 import { maskLicenseKey } from "@/lib/auth/session";
 import { formatFeaturePackLabel } from "@/lib/portal/display-labels";
+import {
+  normalizePortalCommercialSnapshot,
+  normalizeSnapshotLimits,
+  type PortalCommercialSnapshot,
+} from "@/lib/portal/commercial-snapshot";
 import { authConfig, normalizeApiBase } from "@/lib/auth/config";
 import {
   fetchBillingCompany,
@@ -176,6 +181,17 @@ export type PortalDashboard = {
   };
   modules: string[];
   featurePacks: string[];
+  /** Full public catalog module codes — for Custom ERP upgrade diff (not license-only). */
+  catalogModuleCodes: string[];
+  /** Catalog feature packs for upgrade picker (from Commercial Overview). */
+  catalogFeaturePacks: Array<{
+    code: string;
+    name: string;
+    description?: string | null;
+    required_module_codes?: string[];
+  }>;
+  /** License Engine Commercial Snapshot SSOT (from GET /public/billing/company). */
+  commercialSnapshot: PortalCommercialSnapshot | null;
   /**
    * Portal rendering journey — derived from primary license package_type.
    * Does not change License Engine commercial logic.
@@ -910,15 +926,58 @@ async function loadPortalDashboardUncached(
     if (code) featurePackLabels.set(code, pack.name || code);
   }
 
-  const licenses = rawLicenses.map((lic) =>
+  const company = companyRes.ok ? companyRes.data : null;
+  const commercialSnapshot = normalizePortalCommercialSnapshot(
+    company as Record<string, unknown> | null
+  );
+  const catalogModuleCodes = (modulesCatalogRes.data || [])
+    .map((mod) => String(mod?.code || "").trim())
+    .filter(Boolean);
+  const catalogFeaturePacks = (commercialOverviewRes.data?.feature_packs || [])
+    .map((pack) => {
+      const code = String(pack.code || pack.slug || "").trim();
+      if (!code) return null;
+      return {
+        code,
+        name: pack.name || code,
+        description: pack.description ?? null,
+        required_module_codes: Array.isArray(pack.required_module_codes)
+          ? pack.required_module_codes.map(String)
+          : undefined,
+      };
+    })
+    .filter(Boolean) as PortalDashboard["catalogFeaturePacks"];
+
+  let licenses = rawLicenses.map((lic) =>
     toPortalLicense(lic, moduleLabels, featurePackLabels)
   );
+  const primaryRaw = primaryLicense(rawLicenses);
+  const snapshotLimits = normalizeSnapshotLimits(
+    (commercialSnapshot?.purchased_limits as Record<string, unknown> | undefined) ||
+      (commercialSnapshot?.limits as Record<string, unknown> | undefined)
+  );
+  if (Object.values(snapshotLimits).some((v) => v != null)) {
+    const primaryLicId = primaryRaw?.id;
+    licenses = licenses.map((lic) => {
+      if (primaryLicId && lic.id !== primaryLicId) return lic;
+      return {
+        ...lic,
+        tenant_limits: {
+          ...lic.tenant_limits,
+          users: snapshotLimits.users ?? lic.tenant_limits?.users ?? null,
+          companies: snapshotLimits.companies ?? lic.tenant_limits?.companies ?? null,
+          branches: snapshotLimits.branches ?? lic.tenant_limits?.branches ?? null,
+          warehouses: snapshotLimits.warehouses ?? lic.tenant_limits?.warehouses ?? null,
+          storage: snapshotLimits.storage ?? lic.tenant_limits?.storage ?? null,
+        },
+      };
+    });
+  }
   const sessions = Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
-  const primary = primaryLicense(rawLicenses);
+  const primary = primaryRaw;
   const trial = trialFromLicenses(rawLicenses);
   const erp = sanitizeErpPayload(await erpPromise);
 
-  const company = companyRes.ok ? companyRes.data : null;
   const engineDashboard = engineDashboardRes.ok ? engineDashboardRes.data : null;
   const pendingCheckoutRaw =
     engineDashboard &&
@@ -1368,6 +1427,9 @@ async function loadPortalDashboardUncached(
     counts,
     modules: modules.filter(Boolean),
     featurePacks,
+    catalogModuleCodes,
+    catalogFeaturePacks,
+    commercialSnapshot,
     commercialJourney,
     quickActions,
     erp: erp && Object.keys(erp).length ? erp : null,

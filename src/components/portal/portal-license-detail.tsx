@@ -1,5 +1,18 @@
 import type { PortalLicense } from "@/lib/portal/dashboard";
 
+type MetaRow = { label: string; value: string };
+
+function MetaCell({ label, value }: MetaRow) {
+  return (
+    <div className="min-w-0 rounded-xl border border-[var(--portal-border)] bg-white px-3.5 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+        {label}
+      </p>
+      <p className="mt-1.5 text-sm font-medium capitalize leading-snug">{value}</p>
+    </div>
+  );
+}
+
 function formatCycle(cycle: string | null | undefined): string | null {
   if (!cycle) return null;
   const c = cycle.toLowerCase();
@@ -36,21 +49,25 @@ export function PortalLicenseEntitlements({
   industry,
   category,
   billingCycleFallback,
+  primaryMeta = [],
 }: {
   license: PortalLicense;
   industry?: string | null;
   category?: string | null;
   billingCycleFallback?: string | null;
+  /** License type, activation, expiry — merged into the same metadata grid. */
+  primaryMeta?: MetaRow[];
 }) {
   const pkg = packageLabel(lic);
   const cycle = formatCycle(lic.billing_cycle || billingCycleFallback);
   const tenantRows = tenantLimitRows(lic);
   const meta = [
+    ...primaryMeta,
     pkg ? { label: "Package", value: pkg } : null,
     cycle ? { label: "Billing cycle", value: cycle } : null,
     industry ? { label: "Industry", value: industry } : null,
     category ? { label: "Category", value: category } : null,
-  ].filter((r): r is { label: string; value: string } => Boolean(r));
+  ].filter((r): r is MetaRow => Boolean(r));
 
   const hasModules = lic.modules.length > 0;
   const hasPacks = lic.feature_packs.length > 0;
@@ -59,30 +76,25 @@ export function PortalLicenseEntitlements({
   if (!meta.length && !hasModules && !hasPacks && !hasTenant) return null;
 
   return (
-    <div className="mt-4 space-y-4 border-t border-[var(--portal-border)] pt-4">
+    <div className="mt-5 space-y-5">
       {meta.length ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {meta.map((r) => (
-            <div key={r.label}>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-                {r.label}
-              </p>
-              <p className="mt-1 text-sm font-medium">{r.value}</p>
-            </div>
+            <MetaCell key={r.label} label={r.label} value={r.value} />
           ))}
         </div>
       ) : null}
 
       {hasModules ? (
-        <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
             Modules ({lic.modules.length})
           </p>
           <div className="flex flex-wrap gap-1.5">
             {lic.modules.map((m) => (
               <span
                 key={m}
-                className="rounded-full border border-[var(--portal-border)] bg-[var(--portal-soft)] px-2.5 py-1 text-[11px] font-medium"
+                className="rounded-full border border-[var(--portal-border)] bg-white px-2.5 py-1 text-[11px] font-medium"
               >
                 {m}
               </span>
@@ -92,8 +104,8 @@ export function PortalLicenseEntitlements({
       ) : null}
 
       {hasPacks ? (
-        <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
             Feature packs
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -110,20 +122,20 @@ export function PortalLicenseEntitlements({
       ) : null}
 
       {hasTenant ? (
-        <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
             Tenant limits
           </p>
-          <div className="grid gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {tenantRows.map((r) => (
               <div
                 key={r.label}
-                className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-2"
+                className="min-w-0 rounded-xl border border-[var(--portal-border)] bg-white px-3.5 py-3 text-center sm:text-left"
               >
-                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
                   {r.label}
                 </p>
-                <p className="mt-0.5 text-sm font-semibold tabular-nums">{r.value}</p>
+                <p className="mt-1.5 text-lg font-semibold tabular-nums leading-none">{r.value}</p>
               </div>
             ))}
           </div>

@@ -18,6 +18,7 @@ import {
   buildPaymentReference,
   engineGatewayForMethod,
   paymentMethodsForCountry,
+  paymentMethodDisplayCurrency,
   PORTAL_PAYMENT_METHODS,
   normalizePortalPaymentMethodConfig,
   type PortalPaymentMethodConfig,
@@ -31,6 +32,7 @@ import {
 } from "@/lib/portal/checkout-session";
 import {
   billingCycleSuffix,
+  convertCheckoutUsdToDisplay,
   resolveCheckoutCharge,
 } from "@/lib/portal/checkout-pricing";
 
@@ -66,7 +68,7 @@ export function PortalCheckoutView() {
   const checkoutReason = String(searchParams.get("reason") || "").trim();
   const planName = String(searchParams.get("plan") || "").trim();
   const methodFromUrl = String(searchParams.get("method") || "").trim().toLowerCase();
-  const { country: visitorCountry } = useLocale();
+  const { country: visitorCountry, currency: visitorCurrency, rates } = useLocale();
   const { data: portal } = usePortalContext();
 
   const [sessionToken, setSessionToken] = useState(() =>
@@ -204,7 +206,6 @@ export function PortalCheckoutView() {
 
   const displayPlan = planName || checkout?.plan_name || checkout?.purpose || "WAAMTO subscription";
   const displayPurpose = purposeLabel(mode, checkout?.purpose);
-  // Frozen Signup Grand Total (USD SSOT) — portal/checkout never shows local currency.
   const usdAmount = resolvedCharge.usdAmount;
   const billingCycleLabel = billingCycleSuffix(resolvedCharge.pricingSummary?.billing_cycle);
 
@@ -212,6 +213,20 @@ export function PortalCheckoutView() {
     usdAmount != null
       ? formatMoney(usdAmount, "USD", { showCode: true })
       : "—";
+
+  const payDisplayCurrency = useMemo(() => {
+    if (!selectedMeta) return visitorCurrency;
+    return paymentMethodDisplayCurrency(
+      selectedMeta,
+      visitorCurrency,
+      paymentConfig?.bank?.currency
+    );
+  }, [selectedMeta, visitorCurrency, paymentConfig?.bank?.currency]);
+
+  const payDisplayAmount = useMemo(
+    () => convertCheckoutUsdToDisplay(usdAmount, payDisplayCurrency, rates),
+    [usdAmount, payDisplayCurrency, rates]
+  );
 
   async function confirmPayment() {
     if (!sessionToken || confirming) return;
@@ -478,8 +493,9 @@ export function PortalCheckoutView() {
                       method={selectedMeta}
                       transactionId={transactionId}
                       onTransactionIdChange={setTransactionId}
-                      amount={usdAmount ?? checkout?.amount}
-                      currency="USD"
+                      amount={payDisplayAmount}
+                      currency={payDisplayCurrency}
+                      usdReferenceAmount={payDisplayCurrency !== "USD" ? usdAmount : null}
                       paymentConfig={paymentConfig}
                       loadingConfig={loading}
                     />

@@ -1,3 +1,5 @@
+import { normalizeCurrency, type CurrencyCode } from "@/lib/currency/config";
+
 /**
  * Portal payment method catalog — geo-aware UI instructions.
  * Engine checkout gateways stay stripe|paypal|bank|manual|simulated;
@@ -217,6 +219,26 @@ export function isPakistanCountry(country: string | null | undefined): boolean {
     .trim()
     .toUpperCase();
   return c === "PK" || c === "PAK" || c === "PAKISTAN";
+}
+
+/** Currency shown in "Amount to pay" for each method (USD gateways vs local PKR transfers). */
+export function paymentMethodDisplayCurrency(
+  method: PortalPaymentMethod,
+  visitorCurrency: CurrencyCode,
+  bankCurrency?: string | null
+): CurrencyCode {
+  if (method.pakistanOnly || method.id === "bank") {
+    return normalizeCurrency(bankCurrency || "PKR");
+  }
+  if (
+    method.id === "paypal" ||
+    method.id === "stripe" ||
+    method.id === "card" ||
+    method.id === "wise"
+  ) {
+    return "USD";
+  }
+  return normalizeCurrency(visitorCurrency);
 }
 
 export function paymentMethodsForCountry(

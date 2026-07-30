@@ -10,13 +10,18 @@ import {
   type PortalPaymentMethod,
   type PortalPaymentMethodConfig,
 } from "@/lib/portal/payment-methods";
+import { formatMoney } from "@/lib/currency/format";
+import { normalizeCurrency } from "@/lib/currency/config";
 
 type Props = {
   method: PortalPaymentMethod;
   transactionId: string;
   onTransactionIdChange: (value: string) => void;
+  /** Amount in the display currency (already converted when not USD). */
   amount?: number | null;
   currency?: string | null;
+  /** USD billing total — shown as reference when display currency is not USD. */
+  usdReferenceAmount?: number | null;
   paymentConfig: PortalPaymentMethodConfig | null;
   loadingConfig?: boolean;
 };
@@ -29,6 +34,7 @@ export function PortalPaymentMethodDetails({
   currency,
   paymentConfig,
   loadingConfig = false,
+  usdReferenceAmount = null,
 }: Props) {
   if (loadingConfig || !paymentConfig) {
     return (
@@ -40,14 +46,21 @@ export function PortalPaymentMethodDetails({
 
   const config = paymentConfig;
   const bank = config.bank;
-  const chargeCurrency = String(currency || "USD").toUpperCase().slice(0, 3) || "USD";
+  const displayCurrency = normalizeCurrency(currency || "USD");
   const chargeAmount =
     amount != null && Number.isFinite(Number(amount)) && Number(amount) > 0
       ? Number(amount)
       : null;
   const chargeLabel =
     chargeAmount != null
-      ? `${chargeCurrency === "USD" ? "$" : ""}${chargeAmount.toFixed(2)} ${chargeCurrency}`
+      ? formatMoney(chargeAmount, displayCurrency, { showCode: true })
+      : null;
+  const usdRef =
+    displayCurrency !== "USD" &&
+    usdReferenceAmount != null &&
+    Number.isFinite(Number(usdReferenceAmount)) &&
+    Number(usdReferenceAmount) > 0
+      ? formatMoney(Number(usdReferenceAmount), "USD", { showCode: true })
       : null;
 
   return (
@@ -68,6 +81,11 @@ export function PortalPaymentMethodDetails({
           <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--portal-fg)]">
             {chargeLabel}
           </p>
+          {usdRef ? (
+            <p className="mt-1 text-xs text-[var(--portal-muted)]">
+              Billing total {usdRef} · converted at live USD rate
+            </p>
+          ) : null}
         </div>
       ) : null}
 

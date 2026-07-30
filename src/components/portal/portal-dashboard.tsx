@@ -401,7 +401,7 @@ export function PortalDashboardView() {
               {primary ? (
                 <div className="space-y-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-base font-semibold tracking-tight sm:text-lg">
                         {primary.product_name || "Product"} ·{" "}
                         {primary.plan_name ||
@@ -414,40 +414,28 @@ export function PortalDashboardView() {
                         {license?.keyMasked || primary.keyMasked || "—"}
                       </p>
                     </div>
-                    <PortalStatusBadge status={primary.effective_status || primary.status} />
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    {[
-                      { label: "Activation", value: formatPortalDate(primary.activation_date) },
-                      { label: "Expiry", value: formatPortalDate(primary.expiry_date) },
-                      {
-                        label: "Days left",
-                        value:
-                          typeof primary.days_remaining === "number"
-                            ? String(primary.days_remaining)
-                            : null,
-                      },
-                    ]
-                      .filter((r) => r.value)
-                      .map((r) => (
-                        <div
-                          key={r.label}
-                          className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3"
-                        >
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-                            {r.label}
-                          </p>
-                          <p className="mt-1.5 text-sm font-medium">{r.value}</p>
-                        </div>
-                      ))}
+                    <div className="shrink-0">
+                      <PortalStatusBadge status={primary.effective_status || primary.status} />
+                    </div>
                   </div>
                   <PortalLicenseEntitlements
                     license={primary}
                     industry={overview.industry}
                     category={overview.businessCategory}
                     billingCycleFallback={data.subscriptions?.[0]?.billing_cycle}
+                    primaryMeta={[
+                      { label: "Activation", value: formatPortalDate(primary.activation_date) || "—" },
+                      { label: "Expiry", value: formatPortalDate(primary.expiry_date) || "—" },
+                      {
+                        label: "Days left",
+                        value:
+                          typeof primary.days_remaining === "number"
+                            ? String(primary.days_remaining)
+                            : "—",
+                      },
+                    ].filter((r) => r.value && r.value !== "—")}
                   />
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2 border-t border-[var(--portal-border)] pt-4">
                     <Button asChild size="sm" className="rounded-xl">
                       <Link
                         href={

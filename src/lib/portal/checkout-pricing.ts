@@ -1,4 +1,12 @@
 import type { BillingCheckoutSession } from "@/lib/commercial/client";
+import {
+  convertUsd,
+  type RateMap,
+} from "@/lib/currency/format";
+import {
+  normalizeCurrency,
+  type CurrencyCode,
+} from "@/lib/currency/config";
 
 export type CheckoutPricingSnapshot = {
   currency?: string | null;
@@ -14,6 +22,7 @@ export type CheckoutPricingSnapshot = {
   yearly?: number | null;
   lifetime?: number | null;
   frozen_at?: string | null;
+  exchange_rate?: number | null;
 };
 
 export type ResolvedCheckoutCharge = {
@@ -26,6 +35,16 @@ export type ResolvedCheckoutCharge = {
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
@@ -44,6 +63,10 @@ function isoCurrency(value: unknown, fallback = "USD"): string {
   return raw || fallback;
 }
 
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 /** Parse Engine checkout metadata.pricing_summary (or equivalent). */
 export function parseCheckoutPricingSummary(
   metadata: unknown
@@ -54,14 +77,30 @@ export function parseCheckoutPricingSummary(
   if (!raw) return null;
 
   const grandTotal = finiteNumber(raw.grand_total);
-  if (grandTotal == null || grandTotal <= 0) return null;
+  const subtotal = finiteNumber(raw.subtotal);
+  const discountAmount = finiteNumber(raw.discount_amount) ?? 0;
+  const taxAmount = finiteNumber(raw.tax_amount) ?? 0;
+
+  const fromParts =
+    subtotal != null && subtotal > 0
+      ? roundMoney(subtotal - discountAmount + taxAmount)
+      : null;
+
+  const resolvedGrand =
+    grandTotal != null && grandTotal > 0
+      ? fromParts != null && fromParts > grandTotal + 0.01
+        ? fromParts
+        : grandTotal
+      : fromParts;
+
+  if (resolvedGrand == null || resolvedGrand <= 0) return null;
 
   return {
     currency: raw.currency != null ? isoCurrency(raw.currency) : null,
     base_currency:
       raw.base_currency != null ? isoCurrency(raw.base_currency) : null,
-    grand_total: grandTotal,
-    subtotal: finiteNumber(raw.subtotal),
+    grand_total: resolvedGrand,
+    subtotal,
     discount_amount: finiteNumber(raw.discount_amount),
     tax_amount: finiteNumber(raw.tax_amount),
     tax_label: raw.tax_label != null ? String(raw.tax_label) : null,
@@ -71,13 +110,13 @@ export function parseCheckoutPricingSummary(
     yearly: finiteNumber(raw.yearly),
     lifetime: finiteNumber(raw.lifetime),
     frozen_at: raw.frozen_at != null ? String(raw.frozen_at) : null,
+    exchange_rate: finiteNumber(raw.exchange_rate),
   };
 }
 
 /**
  * Frozen Signup/Builder Grand Total as USD.
- * Never use incomplete monthly/yearly cycle fields when grand_total is the USD SSOT —
- * those fields can be module-only list prices and do not include seats/packs/tax.
+ * Never use incomplete monthly/yearly cycle fields — those can be module-only list prices.
  */
 function frozenUsdGrandTotal(
   snapshot: CheckoutPricingSnapshot | null
@@ -87,19 +126,21 @@ function frozenUsdGrandTotal(
   const currency = isoCurrency(snapshot.currency, "USD");
   const base = isoCurrency(snapshot.base_currency || currency, "USD");
 
-  // Website freezes Custom ERP as USD/USD. Engine preserves that as charge SSOT.
   if (base === "USD" || currency === "USD") {
     return snapshot.grand_total;
   }
 
-  // Non-USD snapshot without USD base — cannot safely treat grand_total as USD.
+  const rate = finiteNumber(snapshot.exchange_rate);
+  if (rate != null && rate > 0) {
+    return roundMoney(snapshot.grand_total / rate);
+  }
+
   return null;
 }
 
 /**
  * Resolve the payable USD amount for checkout display and payment handoff.
- * Uses Engine checkout metadata.pricing_summary.grand_total only — never
- * recalculates Custom ERP pricing and never prefers incomplete cycle fields.
+ * Uses Engine checkout metadata.pricing_summary.grand_total (reconciled with line parts).
  */
 export function resolveCheckoutCharge(input: {
   checkout: BillingCheckoutSession | null | undefined;
@@ -114,7 +155,6 @@ export function resolveCheckoutCharge(input: {
   if (frozenUsd != null && frozenUsd > 0) {
     return {
       usdAmount: frozenUsd,
-      // Gateways (PayPal / card / Wise) always charge this frozen USD SSOT.
       chargeCurrency: "USD",
       pricingSummary,
     };
@@ -135,10 +175,27 @@ export function resolveCheckoutCharge(input: {
   };
 }
 
+/** Convert frozen USD checkout amount to the payment-method display currency (live rates). */
+export function convertCheckoutUsdToDisplay(
+  usdAmount: number | null | undefined,
+  displayCurrency: CurrencyCode,
+  rates?: RateMap
+): number | null {
+  if (usdAmount == null || !Number.isFinite(usdAmount) || usdAmount <= 0) {
+    return null;
+  }
+  if (displayCurrency === "USD") return roundMoney(usdAmount);
+  return roundMoney(convertUsd(usdAmount, displayCurrency, rates));
+}
+
 export function billingCycleSuffix(cycle?: string | null): string {
   const raw = String(cycle || "").toLowerCase();
   if (raw === "lifetime") return "one-time";
   if (raw === "yearly") return "/ year";
   if (raw === "monthly") return "/ month";
   return "";
+}
+
+export function normalizeCheckoutDisplayCurrency(code?: string | null): CurrencyCode {
+  return normalizeCurrency(code);
 }

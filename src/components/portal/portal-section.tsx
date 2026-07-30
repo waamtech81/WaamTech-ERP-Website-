@@ -227,45 +227,36 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           return (
           <article
             key={lic.id}
-            className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-5"
+            className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-5 sm:p-6"
           >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 flex-1">
                 <p className="font-semibold tracking-tight">
                   {lic.product_name || "Product"} · {planTitle}
                 </p>
-                <p className="mt-2 font-mono text-xs tracking-wide text-[var(--portal-muted)]">
+                <p className="mt-2 break-all font-mono text-xs tracking-wide text-[var(--portal-muted)]">
                   {lic.keyMasked || "—"}
                 </p>
               </div>
-              <PortalStatusBadge status={lic.effective_status || lic.status} />
-              {linkedSub && subscriptionCancelScheduled(linkedSub) ? (
-                <PortalStatusBadge status="Cancel scheduled" />
-              ) : null}
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {[
-                { label: "License type", value: lic.plan_type || lic.deployment_type || null },
-                { label: "Activation", value: formatPortalDate(lic.activation_date) },
-                { label: "Expiry", value: formatPortalDate(lic.expiry_date) },
-              ]
-                .filter((r) => r.value)
-                .map((r) => (
-                  <div key={r.label}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-                      {r.label}
-                    </p>
-                    <p className="mt-1 text-sm font-medium capitalize">{r.value}</p>
-                  </div>
-                ))}
+              <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+                <PortalStatusBadge status={lic.effective_status || lic.status} />
+                {linkedSub && subscriptionCancelScheduled(linkedSub) ? (
+                  <PortalStatusBadge status="Cancel scheduled" />
+                ) : null}
+              </div>
             </div>
             <PortalLicenseEntitlements
               license={lic}
               industry={data.overview?.industry}
               category={data.overview?.businessCategory}
               billingCycleFallback={linkedSub?.billing_cycle}
+              primaryMeta={[
+                { label: "License type", value: lic.plan_type || lic.deployment_type || "—" },
+                { label: "Activation", value: formatPortalDate(lic.activation_date) || "—" },
+                { label: "Expiry", value: formatPortalDate(lic.expiry_date) || "—" },
+              ].filter((r) => r.value && r.value !== "—")}
             />
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[var(--portal-border)] pt-5">
               {canRenew ? (
                 isCustomJourney ? (
                   <PortalCustomErpRenewButton subscriptionId={linkedSubId} label="Renew" />

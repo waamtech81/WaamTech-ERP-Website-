@@ -302,14 +302,14 @@ export function normPackKey(value: string): string {
     .replace(/[\s_-]+/g, "");
 }
 
-function isLegacyProvisioningPack(code: string): boolean {
+export function isLegacyProvisioningPack(code: string): boolean {
   const c = String(code || "").trim();
   if (!c) return false;
   if (c === "CORE_ALL_MODULES") return true;
   return c.startsWith("BP_");
 }
 
-function isBuilderRecommendationPack(code: string): boolean {
+export function isBuilderRecommendationPack(code: string): boolean {
   const c = String(code || "").trim();
   return c === "CORE_OPS" || c.startsWith("BUILDER_");
 }
@@ -318,7 +318,7 @@ function selectedModuleSet(codes: string[]): Set<string> {
   return new Set(codes.map((c) => String(c || "").trim().toLowerCase()).filter(Boolean));
 }
 
-function featurePackMatchesSelectedModules(
+export function featurePackMatchesSelectedModules(
   pack: { code: string; required_module_codes?: string[] | null },
   selected: Set<string>
 ): boolean {
@@ -329,10 +329,43 @@ function featurePackMatchesSelectedModules(
   return reqs.some((r) => selected.has(String(r).toLowerCase()));
 }
 
-function isPackExcludedFromBuilder(code: string): boolean {
+export function isPackExcludedFromBuilder(code: string): boolean {
   const c = String(code || "").trim();
   if (!c) return true;
   return isLegacyProvisioningPack(c);
+}
+
+/** Plan / trial / internal packs that must never appear on Custom ERP customer surfaces. */
+export function isNonPurchasableCustomErpPack(
+  code: string,
+  name?: string | null
+): boolean {
+  if (isPackExcludedFromBuilder(code)) return true;
+  const key = `${code || ""} ${name || ""}`.toLowerCase();
+  if (!key.trim()) return true;
+  if (
+    /\b(trial|internal|system|hidden|default)\b/.test(key) ||
+    /license\s*test|test\s*pack|all\s+erp\s+modules|all\s+core\s+modules/.test(key)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Modules that must not appear in Custom ERP purchase pickers. */
+export function isNonPurchasableCustomErpModule(
+  code: string,
+  name?: string | null,
+  status?: string | null,
+  isPublic?: boolean | null
+): boolean {
+  if (isPublic === false) return true;
+  const st = String(status || "active").trim().toLowerCase();
+  if (st && !["active", "enabled", "published"].includes(st)) return true;
+  const key = `${code || ""} ${name || ""}`.toLowerCase();
+  if (/^(dev_|test_|internal_|trial_)/.test(String(code || "").toLowerCase())) return true;
+  if (/\b(trial[- ]?only|internal module|development module)\b/.test(key)) return true;
+  return false;
 }
 
 export function resolveBuilderRecommendationPackRows(

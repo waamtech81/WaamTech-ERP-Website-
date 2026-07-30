@@ -784,10 +784,42 @@ html.portal-dark {
   }
 }
 
+/* Soft attention nudge for Upgrade Configuration "New" selection badges */
+@keyframes portal-badge-nudge {
+  0%,
+  70%,
+  100% {
+    transform: translateX(0);
+  }
+  75% {
+    transform: translateX(-1.5px);
+  }
+  80% {
+    transform: translateX(1.5px);
+  }
+  85% {
+    transform: translateX(-1px);
+  }
+  90% {
+    transform: translateX(1px);
+  }
+  95% {
+    transform: translateX(0);
+  }
+}
+
+.portal-new-badge {
+  animation: portal-badge-nudge 2.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .portal-skeleton-block {
     animation: none;
     background: var(--portal-skeleton);
+  }
+
+  .portal-new-badge {
+    animation: none;
   }
 }
 

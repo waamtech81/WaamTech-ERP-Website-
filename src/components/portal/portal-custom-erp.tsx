@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -47,6 +47,12 @@ import {
 } from "@/lib/portal/package-type";
 import { authConfig } from "@/lib/auth/config";
 import { fetchPublicCommercialOverview, fetchPublicModules } from "@/lib/commercial/client";
+import {
+  featurePackMatchesSelectedModules,
+  isNonPurchasableCustomErpModule,
+  isNonPurchasableCustomErpPack,
+} from "@/lib/commercial/erp-builder-config";
+import type { BillingCycle, CustomPackageQuoteResult } from "@/lib/commercial/types";
 import { useLocale } from "@/components/providers/locale-provider";
 import { resolvePurchasedLimits } from "@/lib/portal/commercial-snapshot";
 import { cn } from "@/lib/utils";
@@ -101,6 +107,7 @@ function resolveUsage(data: PortalDashboard) {
   const num = (value: unknown) =>
     typeof value === "number" && Number.isFinite(value) ? value : null;
 
+  // Paid commercial limits only — Storage/API are not Custom ERP purchasable seats.
   return [
     {
       label: "Users",
@@ -121,16 +128,6 @@ function resolveUsage(data: PortalDashboard) {
       label: "Warehouses",
       used: num(erpCounts.warehouses),
       max: limits.warehouses,
-    },
-    {
-      label: "Storage",
-      used: num(erpCounts.storage) ?? num(erpCounts.storage_gb),
-      max: limits.storage ?? null,
-    },
-    {
-      label: "API",
-      used: num(erpCounts.api) ?? num(erpCounts.api_calls),
-      max: limits.api ?? null,
     },
   ];
 }
@@ -528,7 +525,21 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
   const billingCycle = resolvePrimaryBillingCycle(primary, data.subscriptions);
   const canRenew = showRenewalUi(billingCycle);
   const modules = primary?.modules?.length ? primary.modules : data.modules;
-  const packs = primary?.feature_packs?.length ? primary.feature_packs : data.featurePacks;
+  const packs = (
+    primary?.feature_packs?.length ? primary.feature_packs : data.featurePacks
+  ).filter((p) => !isNonPurchasableCustomErpPack(p, p));
+  const packCodes = (primary?.feature_pack_codes || []).filter(
+    (c) => !isNonPurchasableCustomErpPack(c)
+  );
+  const displayPacks =
+    packCodes.length > 0
+      ? packCodes.map((code) => {
+          const label = packs.find(
+            (p) => normCode(p) === normCode(code) || normCode(p).includes(normCode(code))
+          );
+          return label || titleCaseCode(code);
+        })
+      : packs;
   const limits = primary?.tenant_limits || {};
   const usage = resolveUsage(data);
   const renewal =
@@ -714,8 +725,11 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
   }
 
   if (section === "modules") {
-    const catalogModules = data.catalogModuleCodes?.length ? data.catalogModuleCodes : [];
-    const enabled = new Set(modules.map((m) => m.toLowerCase()));
+    const catalogModules = (data.catalogModuleCodes?.length ? data.catalogModuleCodes : []).filter(
+      (m) => !isNonPurchasableCustomErpModule(m)
+    );
+    const enabledModules = modules.filter((m) => !isNonPurchasableCustomErpModule(m));
+    const enabled = new Set(enabledModules.map((m) => m.toLowerCase()));
     const available = catalogModules.filter((m) => !enabled.has(m.toLowerCase()));
 
     return (
@@ -727,9 +741,9 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
         />
         <div className="grid gap-6 xl:grid-cols-2">
           <PortalPanel title="Purchased / enabled modules" description="Active on your license.">
-            {modules.length ? (
+            {enabledModules.length ? (
               <ul className="grid gap-2 sm:grid-cols-2">
-                {modules.map((m) => (
+                {enabledModules.map((m) => (
                   <li
                     key={m}
                     className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3 text-sm font-medium"
@@ -792,9 +806,9 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
         />
         <div className="grid gap-6 xl:grid-cols-2">
           <PortalPanel title="Purchased / active packs" description="Currently entitled packs.">
-            {packs.length ? (
+            {displayPacks.length ? (
               <ul className="grid gap-2 sm:grid-cols-2">
-                {packs.map((p) => (
+                {displayPacks.map((p) => (
                   <li
                     key={p}
                     className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3 text-sm font-medium"
@@ -947,41 +961,55 @@ type UpgradeCatalogPack = NonNullable<PortalDashboard["catalogFeaturePacks"]>[nu
     yearly?: number | "Included";
     lifetime?: number | "Included";
   };
+  is_included?: boolean;
 };
 
-/** Per-module tint for feature packs that depend on that module. */
+/** Soft theme tints for selected modules / pack highlights (light, not saturated). */
 const MODULE_PACK_COLORS = [
   {
-    bg: "bg-sky-100/80 dark:bg-sky-950/40",
-    border: "border-sky-300/70 dark:border-sky-700/50",
-    text: "text-sky-800 dark:text-sky-200",
-    dot: "bg-sky-500",
+    bg: "bg-sky-50",
+    border: "border-sky-200",
+    text: "text-sky-700",
+    dot: "bg-sky-400",
   },
   {
-    bg: "bg-violet-100/80 dark:bg-violet-950/40",
-    border: "border-violet-300/70 dark:border-violet-700/50",
-    text: "text-violet-800 dark:text-violet-200",
-    dot: "bg-violet-500",
+    bg: "bg-violet-50",
+    border: "border-violet-200",
+    text: "text-violet-700",
+    dot: "bg-violet-400",
   },
   {
-    bg: "bg-emerald-100/80 dark:bg-emerald-950/40",
-    border: "border-emerald-300/70 dark:border-emerald-700/50",
-    text: "text-emerald-800 dark:text-emerald-200",
-    dot: "bg-emerald-500",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    text: "text-emerald-700",
+    dot: "bg-emerald-400",
   },
   {
-    bg: "bg-amber-100/80 dark:bg-amber-950/40",
-    border: "border-amber-300/70 dark:border-amber-700/50",
-    text: "text-amber-900 dark:text-amber-200",
-    dot: "bg-amber-500",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    text: "text-amber-800",
+    dot: "bg-amber-400",
   },
   {
-    bg: "bg-rose-100/80 dark:bg-rose-950/40",
-    border: "border-rose-300/70 dark:border-rose-700/50",
-    text: "text-rose-800 dark:text-rose-200",
-    dot: "bg-rose-500",
+    bg: "bg-rose-50",
+    border: "border-rose-200",
+    text: "text-rose-700",
+    dot: "bg-rose-400",
   },
 ] as const;
+
+const SELECTED_CARD =
+  "border-[var(--portal-primary)]/35 bg-[var(--portal-primary)]/[0.06] ring-1 ring-[var(--portal-primary)]/15";
+const SELECTED_CHECK =
+  "border-[var(--portal-primary)]/45 bg-[var(--portal-primary)]/10 text-[var(--portal-primary)]";
+
+function NewSelectionBadge() {
+  return (
+    <span className="portal-new-badge inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-800 ring-1 ring-sky-300/80">
+      New
+    </span>
+  );
+}
 
 function normCode(value: string): string {
   return String(value || "").trim().toLowerCase();
@@ -1043,7 +1071,23 @@ function formatItemPrice(
   formatPrice: (n: number) => string
 ): string {
   if (price > 0) return formatPrice(price);
-  return "Included";
+  return "Quoted at checkout";
+}
+
+function toBillingCycle(cycle: string | null | undefined): BillingCycle {
+  const c = String(cycle || "monthly").toLowerCase();
+  if (/lifetime|one.?time|once/.test(c)) return "lifetime";
+  if (/year/.test(c)) return "yearly";
+  return "monthly";
+}
+
+function isPurchasableCatalogPack(
+  pack: UpgradeCatalogPack,
+  cycle: string | null | undefined
+): boolean {
+  if (isNonPurchasableCustomErpPack(pack.code, pack.name)) return false;
+  if (pack.is_included === true && cycleUnitPrice(pack, cycle) <= 0) return false;
+  return cycleUnitPrice(pack, cycle) > 0;
 }
 
 function resolveOwnedCodes(input: {
@@ -1106,7 +1150,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         snap?.modules ||
         null,
       catalog: serverModules.map((m) => ({ code: m.code, name: m.name })),
-    })
+    }).filter((code) => !isNonPurchasableCustomErpModule(code))
   );
   const ownedPackCodes = new Set(
     resolveOwnedCodes({
@@ -1119,6 +1163,9 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
       labels: primary?.feature_packs ?? data.featurePacks,
       snapshotCodes: snap?.feature_packs || null,
       catalog: serverPacks.map((p) => ({ code: p.code, name: p.name })),
+    }).filter((code) => {
+      const pack = serverPacks.find((p) => normCode(p.code) === code);
+      return !isNonPurchasableCustomErpPack(code, pack?.name);
     })
   );
 
@@ -1135,6 +1182,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
   );
 
   const minUsers = positiveLimit(currentLimits.users, 1);
+  const minCompanies = positiveLimit(currentLimits.companies, 1);
   const minBranches = positiveLimit(currentLimits.branches, 1);
   const minWarehouses = positiveLimit(currentLimits.warehouses, 1);
 
@@ -1149,15 +1197,33 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     () => new Set(ownedPackCodes)
   );
   const [userLimit, setUserLimit] = useState<number>(minUsers);
+  const [companyLimit, setCompanyLimit] = useState<number>(minCompanies);
   const [branchLimit, setBranchLimit] = useState<number>(minBranches);
   const [warehouseLimit, setWarehouseLimit] = useState<number>(minWarehouses);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [liveQuote, setLiveQuote] = useState<CustomPackageQuoteResult | null>(null);
+  /** Engine upgrade payable — same value as checkout/invoice (from portal upgrade-quote BFF). */
+  const [upgradeDue, setUpgradeDue] = useState<number | null>(null);
+  const [quoteCurrency, setQuoteCurrency] = useState<string>("USD");
+  const [quoteBusy, setQuoteBusy] = useState(false);
+  const [quoteError, setQuoteError] = useState("");
+  const quoteRequestIdRef = useRef(0);
 
   useEffect(() => {
-    if (serverModules.length > 0) setCatalogModules(serverModules);
-    if (serverPacks.length > 0) setCatalogPacks(serverPacks);
+    if (serverModules.length > 0) {
+      setCatalogModules(
+        serverModules.filter(
+          (m) => !isNonPurchasableCustomErpModule(m.code, m.name)
+        )
+      );
+    }
+    if (serverPacks.length > 0) {
+      setCatalogPacks(
+        serverPacks.filter((p) => isPurchasableCatalogPack(p, billingCycle) || ownedPackCodes.has(normCode(p.code)))
+      );
+    }
     const productSlug = primary?.product_slug || "waamto-erp";
     const cycle = billingCycle || "monthly";
     setCatalogLoading(serverModules.length === 0 || serverPacks.length === 0);
@@ -1170,8 +1236,13 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     ])
       .then(([modRes, overviewRes]) => {
         if (modRes?.ok && Array.isArray(modRes.data)) {
-          const rows = (modRes.data as UpgradeCatalogModule[])
-            .filter((m) => m.code && m.name)
+          const rows = (modRes.data as Array<UpgradeCatalogModule & { status?: string; is_public?: boolean }>)
+            .filter(
+              (m) =>
+                m.code &&
+                m.name &&
+                !isNonPurchasableCustomErpModule(m.code, m.name, m.status, m.is_public)
+            )
             .map((m) => ({
               code: String(m.code),
               name: String(m.name),
@@ -1187,10 +1258,18 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         }
         if (overviewRes?.ok && Array.isArray(overviewRes.data?.feature_packs)) {
           const byCode = new Map<string, UpgradeCatalogPack>();
-          for (const row of serverPacks) byCode.set(normCode(row.code), row);
+          for (const row of serverPacks) {
+            if (
+              isPurchasableCatalogPack(row, cycle) ||
+              ownedPackCodes.has(normCode(row.code))
+            ) {
+              byCode.set(normCode(row.code), row);
+            }
+          }
           for (const pack of overviewRes.data.feature_packs) {
             const code = String(pack.code || pack.slug || "").trim();
             if (!code) continue;
+            if (isNonPurchasableCustomErpPack(code, pack.name)) continue;
             const key = normCode(code);
             const prev = byCode.get(key);
             const required =
@@ -1199,7 +1278,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                 : Array.isArray(pack.dependency_modules) && pack.dependency_modules.length
                   ? pack.dependency_modules.map(String)
                   : prev?.required_module_codes;
-            byCode.set(key, {
+            const next: UpgradeCatalogPack = {
               code,
               name: pack.name || prev?.name || code,
               description: pack.description ?? prev?.description ?? null,
@@ -1221,13 +1300,22 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                   ? pack.cycle_price
                   : prev?.cycle_price ?? null,
               price_display: pack.price_display ?? prev?.price_display,
-            });
+              is_included: pack.is_included ?? prev?.is_included,
+            };
+            if (
+              isPurchasableCatalogPack(next, cycle) ||
+              ownedPackCodes.has(key)
+            ) {
+              byCode.set(key, next);
+            }
           }
           if (byCode.size) setCatalogPacks([...byCode.values()]);
         }
       })
       .catch(() => {})
       .finally(() => setCatalogLoading(false));
+    // ownedPackCodes intentionally omitted — seed from initial snapshot only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [primary?.product_slug, billingCycle, serverModules.length, serverPacks.length]);
 
   const moduleByCode = new Map(
@@ -1237,6 +1325,13 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     catalogPacks.map((p) => [normCode(p.code), p] as const)
   );
 
+  const purchasablePacks = catalogPacks.filter((pack) => {
+    const code = normCode(pack.code);
+    if (ownedPackCodes.has(code) || selectedPacks.has(code)) return true;
+    if (!isPurchasableCatalogPack(pack, billingCycle)) return false;
+    return featurePackMatchesSelectedModules(pack, selectedModules);
+  });
+
   const selectedModuleList = [...selectedModules];
   const moduleColorIndex = new Map<string, number>();
   selectedModuleList.forEach((code, idx) => {
@@ -1245,7 +1340,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
   /** Which selected module(s) each pack depends on — for highlight chips. */
   const packSupportedBy = new Map<string, string[]>();
-  for (const pack of catalogPacks) {
+  for (const pack of purchasablePacks) {
     const code = normCode(pack.code);
     const required = (pack.required_module_codes || []).map(normCode).filter(Boolean);
     const supporters = required.filter((m) => selectedModules.has(m));
@@ -1258,7 +1353,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     const hay = `${m.name} ${m.code} ${m.description || ""}`.toLowerCase();
     return hay.includes(filterNorm);
   });
-  const filteredPacks = catalogPacks.filter((p) => {
+  const filteredPacks = purchasablePacks.filter((p) => {
     if (!filterNorm) return true;
     const hay = `${p.name} ${p.code} ${p.description || ""}`.toLowerCase();
     return hay.includes(filterNorm);
@@ -1271,6 +1366,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
   const limitIncreases =
     (currentLimits.users != null && userLimit > currentLimits.users) ||
+    (currentLimits.companies != null && companyLimit > currentLimits.companies) ||
     (currentLimits.branches != null && branchLimit > currentLimits.branches) ||
     (currentLimits.warehouses != null && warehouseLimit > currentLimits.warehouses);
 
@@ -1281,16 +1377,101 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
   // Paid adds go to checkout; removal-only heals polluted licenses without payment.
   const canCheckout = selectedModules.size > 0 && hasChanges;
 
-  const estimatedAddTotal = [
-    ...newlySelected.map((code) => {
-      const mod = moduleByCode.get(code);
-      return mod ? cycleUnitPrice(mod, billingCycle) : 0;
-    }),
-    ...newlySelectedPacks.map((code) => {
-      const pack = packByCode.get(code);
-      return pack ? cycleUnitPrice(pack, billingCycle) : 0;
-    }),
-  ].reduce((sum, n) => sum + (Number.isFinite(n) ? n : 0), 0);
+  const cycle = toBillingCycle(billingCycle);
+
+  useEffect(() => {
+    const moduleCodes = [...selectedModules]
+      .map((c) => moduleByCode.get(c)?.code || c)
+      .filter(Boolean);
+    if (!moduleCodes.length) {
+      setLiveQuote(null);
+      setUpgradeDue(null);
+      setQuoteError("");
+      setQuoteBusy(false);
+      return;
+    }
+
+    const packCodes = [...selectedPacks]
+      .map((c) => packByCode.get(c)?.code || c)
+      .filter((code) => !isNonPurchasableCustomErpPack(code));
+
+    const quoteBody = {
+      product_slug: primary?.product_slug || "waamto-erp",
+      billing_cycle: cycle,
+      selected_modules: moduleCodes,
+      selected_feature_packs: packCodes,
+      user_limit: positiveLimit(userLimit, 1),
+      company_limit: positiveLimit(companyLimit, 1),
+      branch_limit: positiveLimit(branchLimit, 1),
+      warehouse_limit: positiveLimit(warehouseLimit, 1),
+    };
+
+    const controller = new AbortController();
+    const requestId = ++quoteRequestIdRef.current;
+    const timer = window.setTimeout(async () => {
+      setQuoteBusy(true);
+      setQuoteError("");
+      try {
+        // Portal BFF → Engine RPIE quotes; returns payable amount (checkout/invoice SSOT).
+        const res = await fetch("/api/portal/billing/custom-upgrade-quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(quoteBody),
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          message?: string;
+          data?: {
+            amount?: number;
+            currency?: string;
+            quote?: CustomPackageQuoteResult | null;
+            pricing?: CustomPackageQuoteResult["pricing"];
+          } | null;
+        };
+        if (requestId !== quoteRequestIdRef.current) return;
+        if (!res.ok || json.success === false || !json.data?.quote?.pricing) {
+          setLiveQuote(null);
+          setUpgradeDue(null);
+          setQuoteError(json.message || "Live pricing is unavailable. Retry shortly.");
+          return;
+        }
+        setLiveQuote(json.data.quote);
+        setQuoteCurrency(String(json.data.currency || json.data.quote.pricing.currency || "USD"));
+        const due = Number(json.data.amount);
+        setUpgradeDue(Number.isFinite(due) && due >= 0 ? due : null);
+        setQuoteError("");
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        if (requestId !== quoteRequestIdRef.current) return;
+        setLiveQuote(null);
+        setUpgradeDue(null);
+        setQuoteError(
+          err instanceof Error ? err.message : "Live pricing request failed."
+        );
+      } finally {
+        if (requestId === quoteRequestIdRef.current) setQuoteBusy(false);
+      }
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    selectedModules,
+    selectedPacks,
+    userLimit,
+    companyLimit,
+    branchLimit,
+    warehouseLimit,
+    cycle,
+    primary?.product_slug,
+    catalogModules.length,
+    catalogPacks.length,
+  ]);
 
   function toggleModule(code: string) {
     const lower = normCode(code);
@@ -1379,11 +1560,28 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         body: JSON.stringify({
           subscription_id: sub.id,
           selected_modules: moduleCodes,
-          selected_feature_packs: packCodes,
+          selected_feature_packs: packCodes.filter(
+            (code) => !isNonPurchasableCustomErpPack(code)
+          ),
           user_limit: positiveLimit(userLimit, minUsers),
+          company_limit: positiveLimit(companyLimit, minCompanies),
           branch_limit: positiveLimit(branchLimit, minBranches),
           warehouse_limit: positiveLimit(warehouseLimit, minWarehouses),
           billing_cycle: billingCycle || undefined,
+          currency: quoteCurrency || liveQuote?.pricing?.currency || undefined,
+          pricing_summary:
+            upgradeDue != null
+              ? {
+                  // Payable SSOT = Engine upgrade amount (matches checkout session + invoice).
+                  currency: quoteCurrency || liveQuote?.pricing?.currency || "USD",
+                  subtotal: upgradeDue,
+                  discount_amount: 0,
+                  tax_amount: 0,
+                  grand_total: upgradeDue,
+                  upgrade_due: upgradeDue,
+                  package_grand_total: liveQuote?.pricing?.grand_total ?? null,
+                }
+              : undefined,
         }),
       });
       const json = (await res.json()) as {
@@ -1429,7 +1627,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     const isRequiredHint = requiredModuleHint === code;
     const colorIdx = moduleColorIndex.get(code);
     const moduleColor = colorIdx != null ? MODULE_PACK_COLORS[colorIdx] : null;
-    const linkedPacks = catalogPacks.filter((p) =>
+    const linkedPacks = purchasablePacks.filter((p) =>
       (p.required_module_codes || []).map(normCode).includes(code)
     );
     return (
@@ -1444,16 +1642,14 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
             : isSelected
               ? moduleColor
                 ? cn(moduleColor.border, moduleColor.bg, "ring-1", moduleColor.border)
-                : "border-[var(--portal-primary)] bg-[var(--portal-primary)]/5"
+                : SELECTED_CARD
               : "border-[var(--portal-border)] bg-[var(--portal-soft)] hover:border-[var(--portal-primary)]/40"
         )}
       >
         <span
           className={cn(
             "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-            isSelected
-              ? "border-[var(--portal-primary)] bg-[var(--portal-primary)] text-white"
-              : "border-[var(--portal-border)]"
+            isSelected ? SELECTED_CHECK : "border-[var(--portal-border)]"
           )}
         >
           {isSelected && <Check className="h-3 w-3" />}
@@ -1461,13 +1657,14 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium">{m.name}</span>
+            {!isOwned && isSelected ? <NewSelectionBadge /> : null}
             {isOwned && isSelected ? (
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                 Already purchased
               </span>
             ) : null}
             {isOwned && !isSelected ? (
-              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                 Will remove
               </span>
             ) : null}
@@ -1482,7 +1679,9 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
               {formatItemPrice(price, formatPrice)}
             </span>
           ) : (
-            <span className="mt-1 block text-xs text-[var(--portal-muted)]">Included</span>
+            <span className="mt-1 block text-xs text-[var(--portal-muted)]">
+              Already on license
+            </span>
           )}
           {isSelected && linkedPacks.length > 0 ? (
             <span className={cn("mt-1 block text-[10px]", moduleColor?.text || "text-[var(--portal-muted)]")}>
@@ -1521,7 +1720,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         className={cn(
           "portal-focus-ring flex items-start gap-3 rounded-xl border p-3 text-left transition",
           isSelected
-            ? "border-[var(--portal-primary)] bg-[var(--portal-primary)]/5"
+            ? SELECTED_CARD
             : highlight
               ? cn(highlight.border, highlight.bg, "hover:opacity-95")
               : "border-[var(--portal-border)] bg-[var(--portal-soft)] hover:border-[var(--portal-primary)]/40"
@@ -1530,9 +1729,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         <span
           className={cn(
             "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-            isSelected
-              ? "border-[var(--portal-primary)] bg-[var(--portal-primary)] text-white"
-              : "border-[var(--portal-border)]"
+            isSelected ? SELECTED_CHECK : "border-[var(--portal-border)]"
           )}
         >
           {isSelected && <Check className="h-3 w-3" />}
@@ -1540,13 +1737,14 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium">{pack.name}</span>
+            {!isOwned && isSelected ? <NewSelectionBadge /> : null}
             {isOwned && isSelected ? (
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                 Already purchased
               </span>
             ) : null}
             {isOwned && !isSelected ? (
-              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                 Will remove
               </span>
             ) : null}
@@ -1595,7 +1793,9 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
               {formatItemPrice(price, formatPrice)}
             </span>
           ) : (
-            <span className="mt-1 block text-xs text-[var(--portal-muted)]">Included</span>
+            <span className="mt-1 block text-xs text-[var(--portal-muted)]">
+              Already on license
+            </span>
           )}
         </span>
       </button>
@@ -1630,7 +1830,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
             {packNotice}
           </p>
         ) : null}
-        {selectedModuleList.length > 0 && catalogPacks.some((p) => (p.required_module_codes || []).length) ? (
+        {selectedModuleList.length > 0 && purchasablePacks.some((p) => (p.required_module_codes || []).length) ? (
           <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
             <span className="text-[var(--portal-muted)]">Module → pack highlight:</span>
             {selectedModuleList.slice(0, MODULE_PACK_COLORS.length).map((modCode, idx) => {
@@ -1686,9 +1886,9 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
           <PortalPanel
             title="Feature packs"
-            description={`${catalogPacks.length} pack${catalogPacks.length !== 1 ? "s" : ""} in catalog. Highlighted packs match your selected modules — select required modules before adding a pack.`}
+            description={`${purchasablePacks.length} purchasable pack${purchasablePacks.length !== 1 ? "s" : ""} for your selected modules. Internal / plan entitlement packs are hidden.`}
           >
-            {catalogPacks.length ? (
+            {purchasablePacks.length ? (
               filteredPacks.length === 0 ? (
                 <p className="text-sm text-[var(--portal-muted)]">
                   No feature packs match your search.
@@ -1700,16 +1900,16 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
               )
             ) : (
               <p className="text-sm text-[var(--portal-muted)]">
-                No feature packs are available in the catalog for this product.
+                Select modules to see matching purchasable feature packs.
               </p>
             )}
           </PortalPanel>
 
           <PortalPanel
             title="Adjust limits"
-            description="Increase user, branch, or warehouse limits for your tenant."
+            description="Paid commercial limits — Users, Companies, Branches, and Warehouses. Pricing recalculates from the License Engine."
           >
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 {
                   label: "Users",
@@ -1717,6 +1917,13 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                   min: minUsers,
                   set: setUserLimit,
                   current: currentLimits.users,
+                },
+                {
+                  label: "Companies",
+                  value: companyLimit,
+                  min: minCompanies,
+                  set: setCompanyLimit,
+                  current: currentLimits.companies,
                 },
                 {
                   label: "Branches",
@@ -1743,7 +1950,12 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                     value={f.value}
                     onChange={(e) => {
                       const v = parseInt(e.target.value, 10);
-                      if (!isNaN(v) && v >= f.min) f.set(v);
+                      if (Number.isNaN(v)) return;
+                      if (v < f.min) {
+                        f.set(f.min);
+                        return;
+                      }
+                      f.set(v);
                     }}
                     className="w-full rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-2 text-sm focus:border-[var(--portal-primary)] focus:outline-none"
                   />
@@ -1759,7 +1971,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         <aside className="lg:sticky lg:top-6 lg:self-start">
           <PortalPanel
             title="Order summary"
-            description="Review adds, removals, and estimated new charges before checkout."
+            description="Live License Engine quote — updates when modules, packs, or limits change."
           >
             <div className="space-y-4 text-sm">
               <div>
@@ -1768,7 +1980,31 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                 </p>
                 <p className="mt-1 font-medium">
                   {formatBillingCycleLabel(billingCycle)}
+                  {quoteCurrency
+                    ? ` · ${String(quoteCurrency).toUpperCase()}`
+                    : ""}
                 </p>
+              </div>
+
+              <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2 text-xs text-[var(--portal-muted)]">
+                  <span>Modules selected</span>
+                  <span className="font-medium text-[var(--portal-ink)]">
+                    {selectedModules.size}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs text-[var(--portal-muted)]">
+                  <span>Feature packs</span>
+                  <span className="font-medium text-[var(--portal-ink)]">
+                    {selectedPacks.size}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs text-[var(--portal-muted)]">
+                  <span>Limits</span>
+                  <span className="font-medium text-[var(--portal-ink)] text-right">
+                    {userLimit}u · {companyLimit}c · {branchLimit}b · {warehouseLimit}w
+                  </span>
+                </div>
               </div>
 
               {newlySelected.length > 0 ? (
@@ -1777,14 +2013,8 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                   <ul className="mt-1 space-y-1 text-[var(--portal-muted)]">
                     {newlySelected.map((code) => {
                       const mod = moduleByCode.get(code);
-                      const price = mod ? cycleUnitPrice(mod, billingCycle) : 0;
                       return (
-                        <li key={code} className="flex justify-between gap-2">
-                          <span>{mod?.name || titleCaseCode(code)}</span>
-                          <span className="shrink-0 font-medium text-[var(--portal-ink)]">
-                            {formatItemPrice(price, formatPrice)}
-                          </span>
-                        </li>
+                        <li key={code}>{mod?.name || titleCaseCode(code)}</li>
                       );
                     })}
                   </ul>
@@ -1797,16 +2027,41 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                   <ul className="mt-1 space-y-1 text-[var(--portal-muted)]">
                     {newlySelectedPacks.map((code) => {
                       const pack = packByCode.get(code);
-                      const price = pack ? cycleUnitPrice(pack, billingCycle) : 0;
                       return (
-                        <li key={code} className="flex justify-between gap-2">
-                          <span>{pack?.name || titleCaseCode(code)}</span>
-                          <span className="shrink-0 font-medium text-[var(--portal-ink)]">
-                            {formatItemPrice(price, formatPrice)}
-                          </span>
-                        </li>
+                        <li key={code}>{pack?.name || titleCaseCode(code)}</li>
                       );
                     })}
+                  </ul>
+                </div>
+              ) : null}
+
+              {limitIncreases ? (
+                <div>
+                  <p className="font-medium">Limit increases</p>
+                  <ul className="mt-1 space-y-1 text-[var(--portal-muted)]">
+                    {currentLimits.users != null && userLimit > currentLimits.users ? (
+                      <li>
+                        Users: {currentLimits.users} → {userLimit}
+                      </li>
+                    ) : null}
+                    {currentLimits.companies != null &&
+                    companyLimit > currentLimits.companies ? (
+                      <li>
+                        Companies: {currentLimits.companies} → {companyLimit}
+                      </li>
+                    ) : null}
+                    {currentLimits.branches != null &&
+                    branchLimit > currentLimits.branches ? (
+                      <li>
+                        Branches: {currentLimits.branches} → {branchLimit}
+                      </li>
+                    ) : null}
+                    {currentLimits.warehouses != null &&
+                    warehouseLimit > currentLimits.warehouses ? (
+                      <li>
+                        Warehouses: {currentLimits.warehouses} → {warehouseLimit}
+                      </li>
+                    ) : null}
                   </ul>
                 </div>
               ) : null}
@@ -1836,25 +2091,56 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
               {!hasChanges ? (
                 <p className="text-[var(--portal-muted)]">
-                  Select modules or feature packs to build your upgrade.
+                  Select modules, feature packs, or increase limits to build your upgrade.
                 </p>
               ) : null}
 
-              <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-3">
+              <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-3 space-y-2">
+                {quoteBusy ? (
+                  <div className="flex items-center gap-2 text-xs text-[var(--portal-muted)]">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Recalculating price…
+                  </div>
+                ) : null}
+                {quoteError ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">{quoteError}</p>
+                ) : null}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[var(--portal-muted)]">Estimated new items</span>
-                  <span className="font-semibold">
-                    {estimatedAddTotal > 0
-                      ? formatPrice(estimatedAddTotal)
-                      : hasPaidChanges
-                        ? "Quoted at checkout"
-                        : formatPrice(0)}
+                  <span className="text-[var(--portal-muted)]">Subtotal</span>
+                  <span className="font-medium tabular-nums">
+                    {upgradeDue != null ? formatPrice(upgradeDue) : "—"}
                   </span>
                 </div>
-                <p className="mt-1 text-[11px] text-[var(--portal-muted)]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[var(--portal-muted)]">Discounts</span>
+                  <span className="font-medium tabular-nums">
+                    {upgradeDue != null ? formatPrice(0) : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[var(--portal-muted)]">Tax</span>
+                  <span className="font-medium tabular-nums">
+                    {upgradeDue != null ? formatPrice(0) : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 border-t border-[var(--portal-border)] pt-2">
+                  <span className="font-semibold">Grand total</span>
+                  <span className="font-semibold tabular-nums">
+                    {upgradeDue != null ? formatPrice(upgradeDue) : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-[var(--portal-primary)]">
+                    Upgrade due
+                  </span>
+                  <span className="font-semibold tabular-nums text-[var(--portal-primary)]">
+                    {upgradeDue != null ? formatPrice(upgradeDue) : "—"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[var(--portal-muted)]">
                   {hasPaidChanges
-                    ? "Final amount (including seat overages) is confirmed on checkout from the License Engine upgrade quote."
-                    : "Removals apply immediately at no charge. ERP will sync to only the modules you keep selected."}
+                    ? "Upgrade due is returned by the License Engine upgrade quote (same amount as checkout and invoice)."
+                    : "Removals apply immediately at no charge. ERP syncs to the modules you keep selected."}
                 </p>
               </div>
 
@@ -1867,7 +2153,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
               <Button
                 size="sm"
                 className="w-full rounded-xl"
-                disabled={!canCheckout || submitting || !sub?.id}
+                disabled={!canCheckout || submitting || !sub?.id || quoteBusy}
                 onClick={handleUpgrade}
               >
                 {submitting ? (

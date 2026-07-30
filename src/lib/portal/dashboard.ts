@@ -281,12 +281,17 @@ function toPortalLicense(
   moduleLabels?: Map<string, string>,
   featurePackLabels?: Map<string, string>
 ): PortalLicense {
+  const isCustom = String(lic.package_type || "").toLowerCase() === "custom";
+  const selected = (lic.selected_modules || []).filter(Boolean);
+  const deps = (lic.dependency_modules || []).filter(Boolean);
+  const all = (lic.modules || []).filter(Boolean);
+  // Custom ERP: show purchased selection (+ deps), never dump polluted modules_included alone.
   const codes = Array.from(
-    new Set([
-      ...(lic.modules || []),
-      ...(lic.selected_modules || []),
-      ...(lic.dependency_modules || []),
-    ])
+    new Set(
+      isCustom && selected.length > 0
+        ? [...selected, ...deps]
+        : [...all, ...selected, ...deps]
+    )
   ).filter(Boolean);
   const modules = codes.map((code) => moduleLabels?.get(code) || code);
   const packCodes = extractFeaturePackNames(lic.feature_packs);

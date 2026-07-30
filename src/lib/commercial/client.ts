@@ -870,6 +870,9 @@ export async function requestCustomErpUpgrade(
     amount: number;
     currency: string;
     quote: unknown;
+    applied_without_payment?: boolean;
+    removed_modules?: string[];
+    removed_feature_packs?: string[];
   }>(
     "/v1/public/billing/custom-erp-upgrade",
     {

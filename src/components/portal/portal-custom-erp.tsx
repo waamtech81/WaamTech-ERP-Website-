@@ -1010,7 +1010,13 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
   const ownedModuleCodes = new Set(
     resolveOwnedCodes({
-      codes: primary?.module_codes,
+      // Prefer commercial snapshot selected_modules (Custom ERP SSOT) over polluted license dumps.
+      codes:
+        (Array.isArray(snap?.selected_modules) && snap.selected_modules.length
+          ? snap.selected_modules
+          : null) ||
+        primary?.module_codes ||
+        null,
       labels: primary?.modules ?? data.modules,
       snapshotCodes:
         snap?.selected_modules ||
@@ -1022,7 +1028,12 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
   );
   const ownedPackCodes = new Set(
     resolveOwnedCodes({
-      codes: primary?.feature_pack_codes,
+      codes:
+        (Array.isArray(snap?.feature_packs) && snap.feature_packs.length
+          ? snap.feature_packs
+          : null) ||
+        primary?.feature_pack_codes ||
+        null,
       labels: primary?.feature_packs ?? data.featurePacks,
       snapshotCodes: snap?.feature_packs || null,
       catalog: catalogPacks.map((p) => ({ code: p.code, name: p.name })),
@@ -1107,7 +1118,8 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     newlySelected.length > 0 || newlySelectedPacks.length > 0 || limitIncreases;
   const hasRemovals = removedModules.length > 0 || removedPacks.length > 0;
   const hasChanges = hasPaidChanges || hasRemovals;
-  const canCheckout = hasPaidChanges && selectedModules.size > 0;
+  // Paid adds go to checkout; removal-only heals polluted licenses without payment.
+  const canCheckout = selectedModules.size > 0 && hasChanges;
 
   const estimatedAddTotal = [
     ...newlySelected.map((code) => {
@@ -1171,9 +1183,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     }
     if (!canCheckout) {
       setSubmitError(
-        hasRemovals && !hasPaidChanges
-          ? "Removals alone cannot be checked out here. Add a module, feature pack, or increase a limit — removals are applied with that paid upgrade. For removal-only changes, contact support."
-          : "Select at least one new module, feature pack, or higher limit to continue."
+        "Select at least one module change — add, remove, or increase a limit — to continue."
       );
       return;
     }
@@ -1208,10 +1218,23 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
       });
       const json = (await res.json()) as {
         success?: boolean;
-        data?: { session_token?: string };
+        data?: {
+          session_token?: string;
+          applied_without_payment?: boolean;
+        };
         message?: string;
       };
-      if (!res.ok || !json.success || !json.data?.session_token) {
+      if (!res.ok || !json.success) {
+        setSubmitError(
+          json.message || "Unable to update Custom ERP package. Please try again."
+        );
+        return;
+      }
+      if (json.data?.applied_without_payment) {
+        router.push("/portal/modules?updated=1");
+        return;
+      }
+      if (!json.data?.session_token) {
         setSubmitError(
           json.message || "Unable to create upgrade checkout. Please try again."
         );
@@ -1557,7 +1580,9 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-[var(--portal-muted)]">
-                  Final amount (including seat overages) is confirmed on checkout from the License Engine upgrade quote.
+                  {hasPaidChanges
+                    ? "Final amount (including seat overages) is confirmed on checkout from the License Engine upgrade quote."
+                    : "Removals apply immediately at no charge. ERP will sync to only the modules you keep selected."}
                 </p>
               </div>
 
@@ -1576,11 +1601,16 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                 {submitting ? (
                   <>
                     <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    Creating checkout…
+                    {hasPaidChanges ? "Creating checkout…" : "Applying changes…"}
+                  </>
+                ) : hasPaidChanges ? (
+                  <>
+                    Upgrade &amp; Checkout
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                   </>
                 ) : (
                   <>
-                    Upgrade &amp; Checkout
+                    Apply module changes
                     <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                   </>
                 )}

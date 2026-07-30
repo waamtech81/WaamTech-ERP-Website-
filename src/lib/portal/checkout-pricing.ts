@@ -67,6 +67,12 @@ function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+function isUsdSnapshot(snapshot: CheckoutPricingSnapshot): boolean {
+  const currency = isoCurrency(snapshot.currency, "USD");
+  const base = isoCurrency(snapshot.base_currency || currency, "USD");
+  return base === "USD" || currency === "USD";
+}
+
 /** Parse Engine checkout metadata.pricing_summary (or equivalent). */
 export function parseCheckoutPricingSummary(
   metadata: unknown
@@ -86,12 +92,13 @@ export function parseCheckoutPricingSummary(
       ? roundMoney(subtotal - discountAmount + taxAmount)
       : null;
 
+  // Prefer the larger of grand_total vs reconstructed parts — never undercharge.
   const resolvedGrand =
-    grandTotal != null && grandTotal > 0
-      ? fromParts != null && fromParts > grandTotal + 0.01
-        ? fromParts
-        : grandTotal
-      : fromParts;
+    grandTotal != null && grandTotal > 0 && fromParts != null && fromParts > 0
+      ? Math.max(grandTotal, fromParts)
+      : grandTotal != null && grandTotal > 0
+        ? grandTotal
+        : fromParts;
 
   if (resolvedGrand == null || resolvedGrand <= 0) return null;
 
@@ -114,33 +121,61 @@ export function parseCheckoutPricingSummary(
   };
 }
 
-/**
- * Frozen Signup/Builder Grand Total as USD.
- * Never use incomplete monthly/yearly cycle fields — those can be module-only list prices.
- */
-function frozenUsdGrandTotal(
-  snapshot: CheckoutPricingSnapshot | null
+function cycleAmountFromSnapshot(
+  snapshot: CheckoutPricingSnapshot
 ): number | null {
-  if (!snapshot?.grand_total || snapshot.grand_total <= 0) return null;
-
-  const currency = isoCurrency(snapshot.currency, "USD");
-  const base = isoCurrency(snapshot.base_currency || currency, "USD");
-
-  if (base === "USD" || currency === "USD") {
-    return snapshot.grand_total;
-  }
-
-  const rate = finiteNumber(snapshot.exchange_rate);
-  if (rate != null && rate > 0) {
-    return roundMoney(snapshot.grand_total / rate);
-  }
-
+  const cycle = String(snapshot.billing_cycle || "").toLowerCase();
+  if (cycle === "lifetime") return finiteNumber(snapshot.lifetime);
+  if (cycle === "yearly") return finiteNumber(snapshot.yearly);
+  if (cycle === "monthly") return finiteNumber(snapshot.monthly);
   return null;
 }
 
 /**
+ * Frozen Signup/Builder Grand Total as USD.
+ * Never use incomplete monthly/yearly cycle fields alone when grand_total exists.
+ */
+function frozenUsdCandidates(
+  snapshot: CheckoutPricingSnapshot | null,
+  sessionAmount: number | null,
+  sessionCurrency: string
+): number[] {
+  const out: number[] = [];
+
+  if (snapshot?.grand_total && snapshot.grand_total > 0 && isUsdSnapshot(snapshot)) {
+    out.push(snapshot.grand_total);
+  }
+
+  if (snapshot && isUsdSnapshot(snapshot)) {
+    const cycleAmt = cycleAmountFromSnapshot(snapshot);
+    if (cycleAmt != null && cycleAmt > 0) out.push(cycleAmt);
+
+    const fromParts =
+      snapshot.subtotal != null && snapshot.subtotal > 0
+        ? roundMoney(
+            snapshot.subtotal -
+              (snapshot.discount_amount ?? 0) +
+              (snapshot.tax_amount ?? 0)
+          )
+        : null;
+    if (fromParts != null && fromParts > 0) out.push(fromParts);
+  }
+
+  if (
+    sessionAmount != null &&
+    sessionAmount > 0 &&
+    isoCurrency(sessionCurrency, "USD") === "USD"
+  ) {
+    out.push(sessionAmount);
+  }
+
+  return out;
+}
+
+/**
  * Resolve the payable USD amount for checkout display and payment handoff.
- * Uses Engine checkout metadata.pricing_summary.grand_total (reconciled with line parts).
+ * Uses the highest USD candidate so a stale/incomplete freeze cannot undercharge
+ * vs the Custom ERP cart grand total that was already shown to the customer.
  */
 export function resolveCheckoutCharge(input: {
   checkout: BillingCheckoutSession | null | undefined;
@@ -151,25 +186,21 @@ export function resolveCheckoutCharge(input: {
   const sessionCurrency = isoCurrency(checkout?.currency, "USD");
   const sessionAmount = finiteNumber(checkout?.amount);
 
-  const frozenUsd = frozenUsdGrandTotal(pricingSummary);
-  if (frozenUsd != null && frozenUsd > 0) {
+  const candidates = frozenUsdCandidates(
+    pricingSummary,
+    sessionAmount,
+    sessionCurrency
+  );
+  if (candidates.length) {
     return {
-      usdAmount: frozenUsd,
+      usdAmount: roundMoney(Math.max(...candidates)),
       chargeCurrency: "USD",
       pricingSummary,
     };
   }
 
-  if (sessionAmount != null && sessionAmount > 0 && sessionCurrency === "USD") {
-    return {
-      usdAmount: sessionAmount,
-      chargeCurrency: sessionCurrency,
-      pricingSummary,
-    };
-  }
-
   return {
-    usdAmount: sessionCurrency === "USD" ? sessionAmount : null,
+    usdAmount: null,
     chargeCurrency: sessionCurrency,
     pricingSummary,
   };

@@ -198,9 +198,22 @@ export const POST = withApiHandler(
       }
 
       const pkg = custom.data.package;
+      // Cart SSOT: never freeze a lower re-quote than the Custom ERP / signup grand total.
+      const clientGrandTotal =
+        Number(body?.estimated_total) ||
+        Number(
+          body?.pricing_summary &&
+            typeof body.pricing_summary === "object" &&
+            !Array.isArray(body.pricing_summary)
+            ? (body.pricing_summary as { grand_total?: unknown }).grand_total
+            : null
+        ) ||
+        Number(pkg.money?.grand_total ?? pkg.estimated_total) ||
+        0;
       const pricingSummary = buildCustomSignupPricingSummary({
         pkg,
         effectiveModules: custom.data.effective_modules,
+        clientGrandTotal,
       });
       signupMode = resolveSignupCommercialMode({
         packageType: "custom",

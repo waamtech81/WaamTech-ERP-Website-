@@ -76,6 +76,7 @@ import {
   resolveSignupCommercialMode,
   signupModeCtaLabel,
 } from "@/lib/signup/commercial-mode";
+import { buildCustomSignupPricingSummary } from "@/lib/signup/custom-pricing-summary";
 import { saveCheckoutSessionToken } from "@/lib/portal/checkout-session";
 
 export type SignUpClientProps = {
@@ -988,6 +989,11 @@ function SignUpForm({
                 lifetime_price: customPackage.lifetime_price,
                 estimated_total:
                   customPackage.money?.grand_total ?? customPackage.estimated_total,
+                pricing_summary: buildCustomSignupPricingSummary({
+                  pkg: customPackage,
+                  clientGrandTotal:
+                    customPackage.money?.grand_total ?? customPackage.estimated_total,
+                }),
                 selected_module_count: customPackage.selected_module_count,
                 ...(customPackage.industry_id
                   ? { industry_id: customPackage.industry_id }

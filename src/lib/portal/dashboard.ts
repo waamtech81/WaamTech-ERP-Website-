@@ -590,9 +590,12 @@ function mapEngineNotifications(
 function toPortalInvoice(inv: CommercialInvoice, index: number): PortalInvoice {
   const id = inv.id || String(index);
   const status = String(inv.status || "").toLowerCase();
+  const total = Number(inv.grand_total ?? inv.total ?? 0);
+  const amountPaid = Number(inv.amount_paid ?? 0);
+  const amountDue = Math.max(0, total - amountPaid);
   const isPaid =
     status === "paid" ||
-    (typeof inv.amount_due === "number" && inv.amount_due <= 0 && Number(inv.amount_paid || 0) > 0);
+    (total > 0 && amountDue <= 0 && amountPaid > 0);
   return {
     id,
     number: inv.invoice_number || inv.id || `INV-${index + 1}`,
@@ -605,20 +608,18 @@ function toPortalInvoice(inv: CommercialInvoice, index: number): PortalInvoice {
     date: inv.issue_date || null,
     dueDate: inv.due_date || null,
     amount:
-      inv.total != null
-        ? `${inv.currency || "USD"} ${Number(inv.total).toFixed(2)}`
-        : inv.amount_paid != null && Number(inv.amount_paid) > 0
-          ? `${inv.currency || "USD"} ${Number(inv.amount_paid).toFixed(2)}`
-          : inv.amount_due != null
-            ? `${inv.currency || "USD"} ${Number(inv.amount_due).toFixed(2)}`
+      inv.grand_total != null || inv.total != null
+        ? `${inv.currency || "USD"} ${total.toFixed(2)}`
+        : inv.amount_paid != null && amountPaid > 0
+          ? `${inv.currency || "USD"} ${amountPaid.toFixed(2)}`
             : null,
     /** PDF download only after License Engine confirms payment. */
     pdfUrl: isPaid ? portalInvoicePdfPath(id) : null,
     documentUrl: portalInvoiceDocumentPath(id),
-    amountDue: inv.amount_due ?? null,
+    amountDue: inv.grand_total != null || inv.total != null ? amountDue : inv.amount_due ?? null,
     amountPaid: inv.amount_paid ?? null,
     currency: inv.currency ?? null,
-    total: inv.total ?? null,
+    total: inv.grand_total ?? inv.total ?? null,
   };
 }
 

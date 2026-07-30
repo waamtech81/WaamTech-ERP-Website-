@@ -52,6 +52,8 @@ import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import {
   executeRecaptcha,
   hasRecaptchaV3SiteKey,
+  RecaptchaV3,
+  useRecaptchaReady,
 } from "@/components/security/recaptcha-v3";
 import {
   industryDisplayIcon,
@@ -319,8 +321,9 @@ function SignUpForm({
   categorySlug: categorySlugProp = "",
   hierarchyValidated = false,
 }: SignUpClientProps) {
+  const captcha = useRecaptchaReady();
   const searchParams = useSearchParams();
-  const { country: detectedCountry, formatPrice, currency: localeCurrency } = useLocale();
+  const { country: detectedCountry, formatPrice } = useLocale();
 
   // Display-only slugs from server props — never bind commercial IDs from path params
   const industrySlug = normalizePermalinkSlug(industrySlugProp);
@@ -1038,8 +1041,6 @@ function SignUpForm({
           website: honeypot,
           _t: formStartedAt,
           ...(captchaToken ? { captcha_token: captchaToken } : {}),
-          // Pass visitor's selected currency so Engine invoices use it.
-          ...(localeCurrency ? { currency: localeCurrency } : {}),
         }),
       });
       let json: {
@@ -1263,6 +1264,10 @@ function SignUpForm({
     }
   }
 
+  const captchaLoading = hasRecaptchaV3SiteKey() && captcha.status === "loading";
+  const captchaFailed = hasRecaptchaV3SiteKey() && captcha.status === "error";
+  const submitBlocked = captchaLoading || captchaFailed;
+
   if (paidCheckoutReady) {
     return (
       <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
@@ -1380,6 +1385,7 @@ function SignUpForm({
   if (otpStep) {
     return (
       <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
+        <RecaptchaV3 />
         <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
         <div className="container-site relative flex justify-center py-16 lg:py-24">
           <Card className="w-full max-w-lg shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
@@ -1421,11 +1427,38 @@ function SignUpForm({
                     {success}
                   </div>
                 ) : null}
-                <Button type="submit" className="w-full" size="lg" disabled={loading || otpCode.length < 4}>
+                {captchaLoading ? (
+                  <div className="rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+                    Preparing security check...
+                  </div>
+                ) : null}
+                {captchaFailed ? (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-black">
+                    <p>Captcha failed to load. Please try again.</p>
+                    <button
+                      type="button"
+                      onClick={captcha.retry}
+                      className="mt-2 font-medium text-primary hover:underline"
+                    >
+                      Retry security check
+                    </button>
+                  </div>
+                ) : null}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  size="lg"
+                  disabled={loading || submitBlocked || otpCode.length < 4}
+                >
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Verifying...
+                    </>
+                  ) : captchaLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading security check...
                     </>
                   ) : isPaidSignup ? (
                     "Verify & create account"
@@ -1440,7 +1473,7 @@ function SignUpForm({
                   variant="outline"
                   size="lg"
                   className="rounded-full px-8"
-                  disabled={loading || !registrationId}
+                  disabled={loading || !registrationId || submitBlocked}
                   onClick={onResendOtp}
                 >
                   Resend code
@@ -1470,6 +1503,7 @@ function SignUpForm({
   // Form continues below
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
+      <RecaptchaV3 />
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <div className="container-site relative grid gap-6 py-8 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:items-start lg:gap-8 lg:py-10">
         <div className="max-w-xl lg:sticky lg:top-20 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:pr-1">
@@ -2424,6 +2458,23 @@ function SignUpForm({
                   {success}
                 </div>
               ) : null}
+              {captchaLoading ? (
+                <div className="rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+                  Preparing security check...
+                </div>
+              ) : null}
+              {captchaFailed ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-black">
+                  <p>Captcha failed to load. Please try again.</p>
+                  <button
+                    type="button"
+                    onClick={captcha.retry}
+                    className="mt-2 font-medium text-primary hover:underline"
+                  >
+                    Retry security check
+                  </button>
+                </div>
+              ) : null}
 
               <Button
                 type="submit"
@@ -2431,6 +2482,7 @@ function SignUpForm({
                 size="lg"
                 disabled={
                   loading ||
+                  submitBlocked ||
                   !countryCode ||
                   !passwordStrong ||
                   !passwordsMatch ||
@@ -2443,6 +2495,11 @@ function SignUpForm({
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Creating workspace...
+                  </>
+                ) : captchaLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading security check...
                   </>
                 ) : (
                   signupCtaLabel

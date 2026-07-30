@@ -245,7 +245,13 @@ export function PortalInvoicesView() {
                         size="sm"
                         variant="ghost"
                         className="h-8 shrink-0 rounded-lg px-2"
-                        onClick={() => setSelected(invoice)}
+                        onClick={() => {
+                          if (invoice.documentUrl) {
+                            window.open(invoice.documentUrl, "_blank", "noopener,noreferrer");
+                          } else {
+                            setSelected(invoice);
+                          }
+                        }}
                       >
                         Preview
                       </Button>

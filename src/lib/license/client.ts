@@ -343,8 +343,6 @@ export async function startRegistrationOnLicenseServer(
         (input.signup_mode === "paid" ? 0 : authConfig.trialDays),
       source: "waamto-website",
       ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
-      // Forward visitor's selected currency so Engine invoices/profile use it.
-      ...(input.currency ? { customer_currency: input.currency } : {}),
     }
   );
 

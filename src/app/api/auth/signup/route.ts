@@ -109,10 +109,6 @@ export const POST = withApiHandler(
       sanitizeText(body?.discount_code || body?.coupon_code, 64).toUpperCase() ||
       undefined;
     const marketing_opt_in = Boolean(body?.marketing_opt_in);
-    const selectedCurrency = sanitizeText(
-      body?.currency || body?.selected_currency || body?.customer_currency,
-      3
-    ).toUpperCase() || undefined;
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
       8192
@@ -249,7 +245,6 @@ export const POST = withApiHandler(
         captcha_token: captchaToken || undefined,
         signup_mode: signupMode,
         trial_days: signupMode === "paid" ? 0 : authConfig.trialDays,
-        ...(selectedCurrency ? { currency: selectedCurrency } : {}),
       });
     } else {
       const commercial = await validateSignupCommercialSelection({
@@ -299,13 +294,11 @@ export const POST = withApiHandler(
         captcha_token: captchaToken || undefined,
         signup_mode: signupMode,
         trial_days: signupMode === "paid" ? 0 : authConfig.trialDays,
-        ...(selectedCurrency ? { currency: selectedCurrency } : {}),
         ...(signupMode === "paid"
           ? {
               pricing_summary: buildPredefinedSignupPricingSummary({
                 plan: commercial.data.plan,
                 billingCycle: billing_cycle,
-                currency: selectedCurrency,
               }),
             }
           : {}),

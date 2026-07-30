@@ -439,7 +439,9 @@ export type CommercialInvoice = {
   status: string;
   currency?: string;
   subtotal?: number | null;
+  discount_amount?: number | null;
   tax_amount?: number | null;
+  grand_total?: number | null;
   total?: number | null;
   amount_due?: number | null;
   amount_paid?: number | null;

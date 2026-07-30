@@ -1,7 +1,7 @@
 "use client";
 
 import Script from "next/script";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const SITE_KEY =
   process.env.NEXT_PUBLIC_GOOGLE_CAPTCHA_SITE_KEY?.trim() || "";
@@ -17,6 +17,8 @@ type GoogleRecaptcha = {
     options: { action: string }
   ) => Promise<string>;
 };
+
+export type RecaptchaReadyStatus = "disabled" | "loading" | "ready" | "error";
 
 function googleRecaptcha(): GoogleRecaptcha | undefined {
   if (typeof window === "undefined") return undefined;
@@ -35,79 +37,173 @@ function recaptchaScriptSrc(siteKey: string): string {
   return `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}`;
 }
 
-export function isRecaptchaScriptLoaded(): boolean {
-  if (typeof document === "undefined") return false;
-  return Boolean(
-    document.querySelector('script[src*="recaptcha/api.js"]') ||
-      googleRecaptcha()?.execute
-  );
+function recaptchaScriptElement(): HTMLScriptElement | null {
+  if (typeof document === "undefined") return null;
+  return document.querySelector('script[src*="recaptcha/api.js"]');
 }
 
-async function waitForRecaptcha(timeoutMs = 12_000): Promise<GoogleRecaptcha | null> {
+export function isRecaptchaScriptLoaded(): boolean {
+  return Boolean(recaptchaScriptElement() || googleRecaptcha()?.execute);
+}
+
+function waitForRecaptchaExecute(timeoutMs = 15_000): Promise<GoogleRecaptcha | null> {
   const startedAt = Date.now();
-  while (Date.now() - startedAt < timeoutMs) {
-    const recaptcha = googleRecaptcha();
-    if (recaptcha?.execute) return recaptcha;
-    await new Promise((resolve) => window.setTimeout(resolve, 50));
-  }
-  return null;
+  return new Promise((resolve) => {
+    const tick = () => {
+      const recaptcha = googleRecaptcha();
+      if (recaptcha?.execute) {
+        resolve(recaptcha);
+        return;
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        resolve(null);
+        return;
+      }
+      window.setTimeout(tick, 50);
+    };
+    tick();
+  });
+}
+
+function waitForScriptElement(
+  script: HTMLScriptElement,
+  timeoutMs = 15_000
+): Promise<void> {
+  if (googleRecaptcha()?.execute) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      fn();
+    };
+
+    const onLoad = () => finish(resolve);
+    const onError = () => finish(() => reject(new Error("recaptcha_script_error")));
+
+    script.addEventListener("load", onLoad, { once: true });
+    script.addEventListener("error", onError, { once: true });
+
+    const timer = window.setTimeout(() => {
+      finish(() => reject(new Error("recaptcha_script_timeout")));
+    }, timeoutMs);
+  });
+}
+
+function injectRecaptchaScript(siteKey: string): Promise<void> {
+  const existing = recaptchaScriptElement();
+  if (existing) return waitForScriptElement(existing);
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.id = "google-recaptcha-v3-fallback";
+    script.src = recaptchaScriptSrc(siteKey);
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("recaptcha_script_error"));
+    document.head.appendChild(script);
+  });
+}
+
+function waitForRecaptchaReady(recaptcha: GoogleRecaptcha, timeoutMs = 15_000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error("recaptcha_ready_timeout"));
+    }, timeoutMs);
+
+    recaptcha.ready(() => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
+let recaptchaReadyPromise: Promise<GoogleRecaptcha | null> | null = null;
+
+/** Clears cached readiness so the next call re-initializes (retry path). */
+export function resetRecaptchaReady(): void {
+  recaptchaReadyPromise = null;
+}
+
+/** Loads api.js if needed and waits until grecaptcha.ready has fired once. */
+export async function ensureRecaptchaReady(): Promise<GoogleRecaptcha | null> {
+  const siteKey = recaptchaSiteKey();
+  if (!siteKey) return null;
+
+  if (recaptchaReadyPromise) return recaptchaReadyPromise;
+
+  recaptchaReadyPromise = (async () => {
+    try {
+      const existing = googleRecaptcha();
+      if (!existing?.execute) {
+        await injectRecaptchaScript(siteKey);
+      }
+
+      const recaptcha = await waitForRecaptchaExecute();
+      if (!recaptcha) {
+        recaptchaReadyPromise = null;
+        return null;
+      }
+
+      await waitForRecaptchaReady(recaptcha);
+      return recaptcha;
+    } catch {
+      recaptchaReadyPromise = null;
+      return null;
+    }
+  })();
+
+  return recaptchaReadyPromise;
 }
 
 async function executeRecaptchaOnce(action: string): Promise<string | null> {
   const siteKey = recaptchaSiteKey();
   if (!siteKey || !action.trim()) return null;
 
-  const recaptcha = await waitForRecaptcha();
+  const recaptcha = await ensureRecaptchaReady();
   if (!recaptcha) return null;
 
-  return new Promise((resolve) => {
-    let settled = false;
-    const timeout = window.setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        resolve(null);
-      }
-    }, 12_000);
-
-    recaptcha.ready(() => {
-      recaptcha
-        .execute(siteKey, { action })
-        .then((token) => {
-          if (settled) return;
-          settled = true;
-          window.clearTimeout(timeout);
-          resolve(token?.trim() || null);
-        })
-        .catch(() => {
-          if (settled) return;
-          settled = true;
-          window.clearTimeout(timeout);
-          resolve(null);
-        });
-    });
-  });
+  try {
+    const token = await recaptcha.execute(siteKey, { action });
+    return token?.trim() || null;
+  } catch {
+    return null;
+  }
 }
 
-/** Optional per-page loader — skipped when layout bootstrap already injected api.js. */
+/** Pre-warm reCAPTCHA on auth surfaces; loads script when layout bootstrap is absent. */
 export function RecaptchaV3() {
   const siteKey = recaptchaSiteKey();
-  const [needsScript, setNeedsScript] = useState(false);
 
   useEffect(() => {
-    if (!siteKey) {
-      setNeedsScript(false);
-      return;
-    }
-    setNeedsScript(!isRecaptchaScriptLoaded());
+    if (!siteKey) return;
+    void ensureRecaptchaReady();
   }, [siteKey]);
 
-  if (!siteKey || !needsScript) return null;
+  if (!siteKey) return null;
+
+  // Next.js Script fallback when neither layout bootstrap nor injectRecaptchaScript ran yet.
+  if (isRecaptchaScriptLoaded()) return null;
 
   return (
     <Script
       id="google-recaptcha-v3"
       src={recaptchaScriptSrc(siteKey)}
       strategy="afterInteractive"
+      onLoad={() => {
+        void ensureRecaptchaReady();
+      }}
+      onError={() => {
+        resetRecaptchaReady();
+      }}
     />
   );
 }
@@ -115,11 +211,51 @@ export function RecaptchaV3() {
 export async function executeRecaptcha(action: string): Promise<string | null> {
   let token = await executeRecaptchaOnce(action);
   if (token) return token;
-  await new Promise((resolve) => window.setTimeout(resolve, 350));
+
+  resetRecaptchaReady();
+  await new Promise((resolve) => window.setTimeout(resolve, 400));
   token = await executeRecaptchaOnce(action);
   return token;
 }
 
 export function hasRecaptchaV3SiteKey(): boolean {
   return Boolean(recaptchaSiteKey());
+}
+
+export function useRecaptchaReady(): {
+  status: RecaptchaReadyStatus;
+  retry: () => void;
+  isReady: boolean;
+  isBlocking: boolean;
+} {
+  const siteKey = recaptchaSiteKey();
+  const [status, setStatus] = useState<RecaptchaReadyStatus>(() =>
+    siteKey ? "loading" : "disabled"
+  );
+
+  const warm = useCallback(async () => {
+    if (!siteKey) {
+      setStatus("disabled");
+      return;
+    }
+    setStatus("loading");
+    const ready = await ensureRecaptchaReady();
+    setStatus(ready ? "ready" : "error");
+  }, [siteKey]);
+
+  useEffect(() => {
+    void warm();
+  }, [warm]);
+
+  const retry = useCallback(() => {
+    resetRecaptchaReady();
+    void warm();
+  }, [warm]);
+
+  return {
+    status,
+    retry,
+    isReady: status === "ready" || status === "disabled",
+    isBlocking: status === "loading" || status === "error",
+  };
 }

@@ -25,6 +25,8 @@ import { wouldTriggerLoopbackPermission } from "@/lib/network/address-space";
 import {
   executeRecaptcha,
   hasRecaptchaV3SiteKey,
+  RecaptchaV3,
+  useRecaptchaReady,
 } from "@/components/security/recaptcha-v3";
 
 type LoginStep = "credentials" | "otp" | "totp";
@@ -92,6 +94,7 @@ function postPlatformSso(payload: {
 }
 
 function LoginForm() {
+  const captcha = useRecaptchaReady();
   const searchParams = useSearchParams();
   const prefill = searchParams.get("username") || searchParams.get("email") || "";
   const registered = searchParams.get("registered") === "1";
@@ -527,8 +530,13 @@ function LoginForm() {
         ? "Enter the 6-digit code from your authenticator app."
         : "Choose WAAMTO ERP app login or Customer Portal login. Platform Super Admins sign in with the same email here.";
 
+  const captchaLoading = hasRecaptchaV3SiteKey() && captcha.status === "loading";
+  const captchaFailed = hasRecaptchaV3SiteKey() && captcha.status === "error";
+  const submitBlocked = captchaLoading || captchaFailed;
+
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
+      <RecaptchaV3 />
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <div className="container-site relative flex min-h-[calc(100vh-4rem)] items-center justify-center py-14 sm:py-20 lg:py-24">
         <div className="w-full max-w-5xl">
@@ -675,13 +683,40 @@ function LoginForm() {
                         {info}
                       </div>
                     ) : null}
+                    {captchaLoading ? (
+                      <div className="rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+                        Preparing security check...
+                      </div>
+                    ) : null}
+                    {captchaFailed ? (
+                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-black">
+                        <p>Captcha failed to load. Please try again.</p>
+                        <button
+                          type="button"
+                          onClick={captcha.retry}
+                          className="mt-2 font-medium text-primary hover:underline"
+                        >
+                          Retry security check
+                        </button>
+                      </div>
+                    ) : null}
 
                     <div className="mt-auto space-y-5 pt-1">
-                      <Button type="submit" className="w-full rounded-full" size="lg" disabled={loading}>
+                      <Button
+                        type="submit"
+                        className="w-full rounded-full"
+                        size="lg"
+                        disabled={loading || submitBlocked}
+                      >
                         {loading ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
                             Signing in...
+                          </>
+                        ) : captchaLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading security check...
                           </>
                         ) : (
                           "Continue"
@@ -769,12 +804,21 @@ function LoginForm() {
                         type="submit"
                         className="w-full rounded-full"
                         size="lg"
-                        disabled={loading || (totp.length < 6 && recoveryCode.trim().length < 8)}
+                        disabled={
+                          loading ||
+                          submitBlocked ||
+                          (totp.length < 6 && recoveryCode.trim().length < 8)
+                        }
                       >
                         {loading ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
                             Verifying...
+                          </>
+                        ) : captchaLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading security check...
                           </>
                         ) : accountKind === "platform" ? (
                           "Verify & open Admin Portal"
@@ -782,7 +826,19 @@ function LoginForm() {
                           "Verify & continue"
                         )}
                       </Button>
-                      <button
+                    {captchaFailed ? (
+                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-black">
+                        <p>Captcha failed to load. Please try again.</p>
+                        <button
+                          type="button"
+                          onClick={captcha.retry}
+                          className="mt-2 font-medium text-primary hover:underline"
+                        >
+                          Retry security check
+                        </button>
+                      </div>
+                    ) : null}
+                    <button
                         type="button"
                         onClick={resetToCredentials}
                         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -848,12 +904,17 @@ function LoginForm() {
                         type="submit"
                         className="w-full rounded-full"
                         size="lg"
-                        disabled={loading || otp.length < 4}
+                        disabled={loading || submitBlocked || otp.length < 4}
                       >
                         {loading ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
                             Verifying...
+                          </>
+                        ) : captchaLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading security check...
                           </>
                         ) : accountKind === "platform" ? (
                           "Verify & open Admin Portal"
@@ -861,6 +922,18 @@ function LoginForm() {
                           "Verify & continue"
                         )}
                       </Button>
+                      {captchaFailed ? (
+                        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-black">
+                          <p>Captcha failed to load. Please try again.</p>
+                          <button
+                            type="button"
+                            onClick={captcha.retry}
+                            className="mt-2 font-medium text-primary hover:underline"
+                          >
+                            Retry security check
+                          </button>
+                        </div>
+                      ) : null}
 
                       <div className="flex items-center justify-between gap-3 text-sm">
                         <button
@@ -874,7 +947,7 @@ function LoginForm() {
                         <button
                           type="button"
                           onClick={resendOtp}
-                          disabled={resending || cooldown > 0}
+                          disabled={resending || cooldown > 0 || submitBlocked}
                           className="font-medium text-primary hover:underline disabled:opacity-50 disabled:no-underline"
                         >
                           {resending

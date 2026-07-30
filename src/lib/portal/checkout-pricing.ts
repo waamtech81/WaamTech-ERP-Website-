@@ -68,12 +68,45 @@ export function parseCheckoutPricingSummary(
   };
 }
 
+/** USD list price for the selected billing cycle when frozen on the snapshot. */
+function cycleUsdFromSnapshot(
+  snapshot: CheckoutPricingSnapshot | null
+): number | null {
+  if (!snapshot) return null;
+  const cycle = String(snapshot.billing_cycle || "").toLowerCase();
+  const pick =
+    cycle === "lifetime"
+      ? snapshot.lifetime
+      : cycle === "yearly"
+        ? snapshot.yearly
+        : cycle === "monthly"
+          ? snapshot.monthly
+          : null;
+  const amount = finiteNumber(pick);
+  return amount != null && amount > 0 ? amount : null;
+}
+
 function snapshotUsdAmount(snapshot: CheckoutPricingSnapshot | null): number | null {
   if (!snapshot?.grand_total || snapshot.grand_total <= 0) return null;
-  const base = String(snapshot.base_currency || snapshot.currency || "USD")
+  const currency = String(snapshot.currency || "USD").toUpperCase().slice(0, 3);
+  const base = String(snapshot.base_currency || currency || "USD")
     .toUpperCase()
     .slice(0, 3);
-  if (base === "USD") return snapshot.grand_total;
+
+  // Fully USD snapshot — grand_total is the SSOT.
+  if (base === "USD" && currency === "USD") return snapshot.grand_total;
+
+  // Engine converts grand_total to customer currency but keeps base_currency USD.
+  // Never treat the converted grand_total as USD (e.g. 7226 PKR ≠ $7226).
+  if (base === "USD" && currency !== "USD") {
+    return cycleUsdFromSnapshot(snapshot);
+  }
+
+  // Customer-currency snapshot without base_currency — cycle fields remain USD plan prices.
+  if (currency !== "USD") {
+    return cycleUsdFromSnapshot(snapshot);
+  }
+
   return null;
 }
 
@@ -94,9 +127,12 @@ export function resolveCheckoutCharge(input: {
 
   const snapshotUsd = snapshotUsdAmount(pricingSummary);
   if (snapshotUsd != null && snapshotUsd > 0) {
+    const snapCurrency = String(pricingSummary?.currency || "USD")
+      .toUpperCase()
+      .slice(0, 3);
     return {
       usdAmount: snapshotUsd,
-      chargeCurrency: "USD",
+      chargeCurrency: snapCurrency,
       pricingSummary,
     };
   }
@@ -109,8 +145,17 @@ export function resolveCheckoutCharge(input: {
     };
   }
 
+  const cycleUsd = cycleUsdFromSnapshot(pricingSummary);
+  if (cycleUsd != null && cycleUsd > 0) {
+    return {
+      usdAmount: cycleUsd,
+      chargeCurrency: sessionCurrency,
+      pricingSummary,
+    };
+  }
+
   return {
-    usdAmount: sessionAmount,
+    usdAmount: sessionCurrency === "USD" ? sessionAmount : null,
     chargeCurrency: sessionCurrency,
     pricingSummary,
   };

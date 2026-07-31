@@ -1,3 +1,6 @@
+import {
+  normalizeCustomErpBillingCycle,
+} from "@/lib/commercial/custom-erp-billing";
 import type { BillingCycle } from "@/lib/commercial/types";
 
 export const CUSTOM_PACKAGE_SESSION_KEY = "waamto-custom-erp-package:v1";
@@ -214,17 +217,13 @@ export function loadCustomErpPackage(): CustomErpPackagePayload | null {
     if (!Array.isArray(parsed.selected_modules) || !parsed.selected_modules.length) {
       return null;
     }
-    if (
-      parsed.billing_cycle !== "monthly" &&
-      parsed.billing_cycle !== "yearly" &&
-      parsed.billing_cycle !== "lifetime"
-    ) {
-      return null;
-    }
+    // Lifetime is never valid for Custom ERP — coerce stale session payloads.
+    const billingCycle = normalizeCustomErpBillingCycle(parsed.billing_cycle);
     const tenantAddon = Number(parsed.tenant_addon_total) || 0;
     const featurePackTotal = Number(parsed.feature_pack_total) || 0;
     const normalized: CustomErpPackagePayload = {
       ...parsed,
+      billing_cycle: billingCycle,
       dependency_modules: Array.isArray(parsed.dependency_modules)
         ? parsed.dependency_modules
         : [],

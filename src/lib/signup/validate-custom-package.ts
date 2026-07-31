@@ -8,6 +8,9 @@ import {
   resolveRecommendedModules,
   resolveRequiredDependencies,
 } from "@/lib/commercial/module-builder";
+import {
+  validateCustomErpBillingCycle,
+} from "@/lib/commercial/custom-erp-billing";
 import type { BillingCycle, CatalogProduct } from "@/lib/commercial/types";
 import {
   buildCustomErpPackagePayload,
@@ -109,14 +112,16 @@ export async function validateSignupCustomPackage(input: {
     };
   }
 
-  if (cycle !== "monthly" && cycle !== "yearly" && cycle !== "lifetime") {
+  const cycleCheck = validateCustomErpBillingCycle(cycle);
+  if (!cycleCheck.ok) {
     return {
       ok: false,
       status: 400,
-      code: "BILLING_CYCLE_INVALID",
-      message: "Choose a valid billing cycle.",
+      code: cycleCheck.code,
+      message: cycleCheck.message,
     };
   }
+  const billingCycle = cycleCheck.cycle;
 
   const [products, modulesPrefetch] = await Promise.all([
     fetchPublicProducts(),
@@ -182,7 +187,7 @@ export async function validateSignupCustomPackage(input: {
 
   const quote = await fetchCustomPackageQuote({
     product_slug: product.slug,
-    billing_cycle: cycle,
+    billing_cycle: billingCycle,
     selected_module_codes: effective,
     discount_code: discountCode,
     industry_id: input.industry_id || null,
@@ -233,7 +238,7 @@ export async function validateSignupCustomPackage(input: {
           Array.isArray(input.recommended_modules) && input.recommended_modules.length
             ? input.recommended_modules.filter((c) => known.has(c))
             : recommended_modules,
-        billing_cycle: cycle,
+        billing_cycle: billingCycle,
         monthly_price,
         yearly_price,
         lifetime_price,

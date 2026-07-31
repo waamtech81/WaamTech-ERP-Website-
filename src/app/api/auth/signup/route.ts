@@ -21,6 +21,7 @@ import { validateSignupCustomPackage } from "@/lib/signup/validate-custom-packag
 import { buildPredefinedSignupPricingSummary } from "@/lib/signup/predefined-pricing-summary";
 import { buildCustomSignupPricingSummary } from "@/lib/signup/custom-pricing-summary";
 import { resolveSignupCommercialMode } from "@/lib/signup/commercial-mode";
+import { validateCustomErpBillingCycle } from "@/lib/commercial/custom-erp-billing";
 import type { BillingCycle } from "@/lib/commercial/types";
 
 function maskEmail(email: string): string {
@@ -165,9 +166,16 @@ export const POST = withApiHandler(
           code: ApiErrorCode.VALIDATION_ERROR,
         });
       }
+      const cycleGuard = validateCustomErpBillingCycle(billing_cycle);
+      if (!cycleGuard.ok) {
+        return apiFail(cycleGuard.message, {
+          status: 400,
+          code: ApiErrorCode.VALIDATION_ERROR,
+        });
+      }
       const custom = await validateSignupCustomPackage({
         selected_modules,
-        billing_cycle,
+        billing_cycle: cycleGuard.cycle,
         product_slug: sanitizeText(body?.product_slug, 100) || "waamto-erp",
         recommended_modules: Array.isArray(body?.recommended_modules)
           ? body.recommended_modules.map((c: unknown) => sanitizeText(c, 80)).filter(Boolean)

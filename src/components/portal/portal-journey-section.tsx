@@ -7,7 +7,7 @@ import {
   type CustomErpSectionKey,
 } from "@/components/portal/portal-custom-erp";
 import { PortalErrorState, PortalSkeleton } from "@/components/portal/portal-ui";
-import { isCustomErpPackageType } from "@/lib/portal/package-type";
+import { resolvePortalJourneyFromDashboard } from "@/lib/portal/package-type";
 
 type JourneySectionConfig =
   | { predefinedSection: PortalSectionKey; customSection: CustomErpSectionKey }
@@ -16,7 +16,7 @@ type JourneySectionConfig =
 /**
  * Shared portal routes: Custom ERP customers get dedicated section UI;
  * predefined customers keep the existing portal section unchanged.
- * Journey SSOT = commercial snapshot package_type / package_mode (via dashboard + local check).
+ * Journey SSOT = centralized commercialJourney from dashboard API.
  */
 export function PortalJourneySection({
   predefinedSection,
@@ -29,11 +29,7 @@ export function PortalJourneySection({
     return <PortalErrorState message={error} onRetry={reload} />;
   }
 
-  const snap = data?.commercialSnapshot;
-  const isCustom =
-    data?.commercialJourney === "custom" ||
-    isCustomErpPackageType(snap?.package_type) ||
-    isCustomErpPackageType(snap?.package_mode);
+  const isCustom = resolvePortalJourneyFromDashboard(data) === "custom";
 
   if (isCustom && customSection) {
     return <PortalCustomErpSectionView section={customSection} />;

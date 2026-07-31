@@ -2,6 +2,7 @@ import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess } from "@/lib/api/response";
 import { requestCustomErpUpgrade } from "@/lib/commercial/client";
+import { validateCustomErpBillingCycle } from "@/lib/commercial/custom-erp-billing";
 import { readPortalTokens } from "@/lib/auth/session";
 import {
   applyPortalRefreshCookies,
@@ -42,6 +43,18 @@ export const POST = withApiHandler(
       });
     }
 
+    let billingCycle = body.billing_cycle;
+    if (billingCycle != null && String(billingCycle).trim() !== "") {
+      const cycleCheck = validateCustomErpBillingCycle(billingCycle);
+      if (!cycleCheck.ok) {
+        return apiFail(cycleCheck.message, {
+          status: 400,
+          code: ApiErrorCode.VALIDATION_ERROR,
+        });
+      }
+      billingCycle = cycleCheck.cycle;
+    }
+
     const selectedModules = Array.isArray(body.selected_modules)
       ? body.selected_modules.filter(Boolean)
       : [];
@@ -77,7 +90,7 @@ export const POST = withApiHandler(
       company_limit: body.company_limit ?? null,
       branch_limit: body.branch_limit ?? null,
       warehouse_limit: body.warehouse_limit ?? null,
-      billing_cycle: body.billing_cycle,
+      billing_cycle: billingCycle,
       coupon: body.coupon ?? null,
       gateway,
       success_url: `${origin}/portal/checkout/success`,

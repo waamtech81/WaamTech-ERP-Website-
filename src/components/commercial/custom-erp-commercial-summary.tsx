@@ -56,7 +56,7 @@ type Props = {
 const MODULE_PREVIEW = 5;
 
 function cycleSuffix(cycle: BillingCycle): string {
-  if (cycle === "lifetime") return "one-time";
+  // Custom ERP never presents Lifetime; coerce defensive leftovers.
   if (cycle === "yearly") return "year";
   return "month";
 }

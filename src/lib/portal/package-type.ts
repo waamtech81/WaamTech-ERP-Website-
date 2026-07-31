@@ -34,8 +34,10 @@ export function primaryPortalLicense(
 }
 
 /**
- * Portal journey SSOT = commercial snapshot package_type / package_mode.
- * Do not infer Custom ERP from plan_name, display titles, or module counts.
+ * Portal journey SSOT = active commercial license package_type (primary license).
+ * Snapshot package_type is secondary when license is unset.
+ * Custom ERP is sticky: license package_type=custom never reverts due to stale snapshot data.
+ * Never infer from module counts, feature packs, cart, or UI state.
  */
 export function resolveJourneyFromLicenses(
   licenses: PortalLicense[] | null | undefined,
@@ -44,22 +46,43 @@ export function resolveJourneyFromLicenses(
     commercialSnapshotPackageMode?: string | null;
   }
 ): PortalCommercialJourney {
+  const primary = primaryPortalLicense(licenses);
+  const licenseType = primary?.package_type;
+  const licenseJourney =
+    licenseType != null && String(licenseType).trim() !== ""
+      ? resolvePortalCommercialJourney(licenseType)
+      : null;
+
+  // Sticky custom — active license is authoritative; snapshot cannot downgrade.
+  if (licenseJourney === "custom") {
+    return "custom";
+  }
+
   const snapType = opts?.commercialSnapshotPackageType;
   const snapMode = opts?.commercialSnapshotPackageMode;
   if (isCustomErpPackageType(snapType) || isCustomErpPackageType(snapMode)) {
     return "custom";
   }
-  // Explicit non-custom snapshot → predefined (Starter / Business / Enterprise).
+
+  if (licenseJourney === "predefined") {
+    return "predefined";
+  }
+
   if (snapType != null && String(snapType).trim() !== "") {
     return resolvePortalCommercialJourney(snapType);
   }
   if (snapMode != null && String(snapMode).trim() !== "") {
     return resolvePortalCommercialJourney(snapMode);
   }
-  // No snapshot: license package_type only (never plan_name / module heuristics).
-  const primary = primaryPortalLicense(licenses);
-  if (!primary) return "predefined";
-  return resolvePortalCommercialJourney(primary.package_type);
+
+  return "predefined";
+}
+
+/** Read journey from aggregated dashboard payload (centralized consumer entry point). */
+export function resolvePortalJourneyFromDashboard(
+  data: { commercialJourney?: PortalCommercialJourney | null } | null | undefined
+): PortalCommercialJourney {
+  return data?.commercialJourney === "custom" ? "custom" : "predefined";
 }
 
 export function licenseIsCustomErp(license: PortalLicense | null | undefined): boolean {

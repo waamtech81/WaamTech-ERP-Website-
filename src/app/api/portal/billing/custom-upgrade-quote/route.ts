@@ -2,7 +2,7 @@ import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess } from "@/lib/api/response";
 import { fetchBillingCompany } from "@/lib/commercial/client";
-import type { BillingCycle } from "@/lib/commercial/types";
+import { validateCustomErpBillingCycle } from "@/lib/commercial/custom-erp-billing";
 import {
   applyPortalRefreshCookies,
   clearPortalOnUnauthorized,
@@ -11,13 +11,6 @@ import {
 import { quoteCustomErpUpgradePayable } from "@/lib/portal/custom-upgrade-quote";
 import { isSameOrigin } from "@/lib/security/guards";
 import { readPortalTokens } from "@/lib/auth/session";
-
-function toCycle(raw: unknown): BillingCycle {
-  const c = String(raw || "monthly").toLowerCase();
-  if (/lifetime|one.?time|once/.test(c)) return "lifetime";
-  if (/year/.test(c)) return "yearly";
-  return "monthly";
-}
 
 export const POST = withApiHandler(
   async (req) => {
@@ -59,6 +52,14 @@ export const POST = withApiHandler(
       });
     }
 
+    const cycleCheck = validateCustomErpBillingCycle(body.billing_cycle || "monthly");
+    if (!cycleCheck.ok) {
+      return apiFail(cycleCheck.message, {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
+    }
+
     const companyRes = await fetchBillingCompany(resolved.access.accessToken);
     const company =
       companyRes.ok && companyRes.data && typeof companyRes.data === "object"
@@ -69,7 +70,7 @@ export const POST = withApiHandler(
       company,
       body: {
         product_slug: body.product_slug || "waamto-erp",
-        billing_cycle: toCycle(body.billing_cycle),
+        billing_cycle: cycleCheck.cycle,
         selected_modules: selectedModules,
         selected_feature_packs: Array.isArray(body.selected_feature_packs)
           ? body.selected_feature_packs.filter(Boolean)

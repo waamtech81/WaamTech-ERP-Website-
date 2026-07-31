@@ -214,7 +214,7 @@ export type PortalDashboard = {
   /** License Engine Commercial Snapshot SSOT (from GET /public/billing/company). */
   commercialSnapshot: PortalCommercialSnapshot | null;
   /**
-   * Portal rendering journey — SSOT: commercial snapshot package_type / package_mode.
+   * Portal rendering journey — SSOT: active license package_type (via resolveJourneyFromLicenses).
    * Does not change License Engine commercial logic.
    */
   commercialJourney: PortalCommercialJourney;
@@ -1014,11 +1014,13 @@ async function loadPortalDashboardUncached(
   let licenses = rawLicenses.map((lic) =>
     toPortalLicense(lic, moduleLabels, featurePackLabels)
   );
-  // Snapshot package_type=custom is journey SSOT — align primary license composition.
+  // Align primary license composition when active license or snapshot is Custom ERP.
+  const primaryMapped = primaryPortalLicense(licenses);
+  const licenseIsCustom = isCustomErpPackageType(primaryMapped?.package_type);
   const snapIsCustom =
     isCustomErpPackageType(commercialSnapshot?.package_type) ||
     isCustomErpPackageType(commercialSnapshot?.package_mode);
-  if (snapIsCustom) {
+  if (snapIsCustom || licenseIsCustom) {
     const snapSelected = (commercialSnapshot?.selected_modules || []).filter(Boolean);
     const snapDeps = (commercialSnapshot?.dependency_modules || []).filter(Boolean);
     const snapPacks = (commercialSnapshot?.feature_packs || []).filter(

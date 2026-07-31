@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocale } from "@/components/providers/locale-provider";
 import { USER_LIMIT_NOTE } from "@/lib/commercial/module-builder";
+import { normalizeCustomErpBillingCycle } from "@/lib/commercial/custom-erp-billing";
 import type { BillingCycle } from "@/lib/commercial/types";
 import {
   moduleLabel,
@@ -44,24 +45,21 @@ function usePackageTotals(
   moneyProp?: CustomErpPackageMoneyBreakdown | null,
   modulesSubtotalProp?: number | null
 ) {
-  const cycle = cycleProp || pkg.billing_cycle;
+  const cycle = normalizeCustomErpBillingCycle(cycleProp || pkg.billing_cycle);
   const totals = totalsProp || {
     monthly: pkg.monthly_price,
     yearly: pkg.yearly_price,
     lifetime: pkg.lifetime_price,
   };
-  const cycleSubtotal =
-    cycle === "yearly" ? totals.yearly : cycle === "lifetime" ? totals.lifetime : totals.monthly;
+  const cycleSubtotal = cycle === "yearly" ? totals.yearly : totals.monthly;
   const money = moneyProp ?? pkg.money ?? null;
   const tenantAddon = Number(pkg.tenant_addon_total) || 0;
   const featurePackTotal = Number(pkg.feature_pack_total) || 0;
   // Engine grand_total is SSOT when present (already includes seats/packs/tax).
   const displayTotal = money?.grand_total != null ? money.grand_total : cycleSubtotal;
   const modulePayable = money?.subtotal ?? cycleSubtotal;
-  const cycleLabel =
-    cycle === "lifetime" ? "one-time" : cycle === "yearly" ? "/ year" : "/ month";
-  const cycleName =
-    cycle === "lifetime" ? "Lifetime" : cycle === "yearly" ? "Yearly" : "Monthly";
+  const cycleLabel = cycle === "yearly" ? "/ year" : "/ month";
+  const cycleName = cycle === "yearly" ? "Yearly" : "Monthly";
   const discountAmount = money?.discount_amount ?? 0;
   const taxAmount = money?.tax_amount ?? 0;
   return {

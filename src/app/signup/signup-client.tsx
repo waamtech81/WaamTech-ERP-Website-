@@ -30,6 +30,9 @@ import {
 } from "@/lib/data/countries";
 import { getIcon } from "@/lib/icons";
 import {
+  normalizeCustomErpBillingCycle,
+} from "@/lib/commercial/custom-erp-billing";
+import {
   parseBillingCycle,
   readPlanSelection,
   savePlanSelection,
@@ -423,7 +426,13 @@ function SignUpForm({
     const saved = loadCustomErpPackage();
     if (fromUrl || saved) {
       setPackageType("custom");
-      if (saved) setCustomPackage(saved);
+      if (saved) {
+        setCustomPackage(saved);
+        setBillingCycle(normalizeCustomErpBillingCycle(saved.billing_cycle));
+      } else {
+        const fromQuery = parseBillingCycle(searchParams.get("billing_cycle"));
+        setBillingCycle(normalizeCustomErpBillingCycle(fromQuery));
+      }
       return;
     }
     setPackageType("predefined");
@@ -460,7 +469,16 @@ function SignUpForm({
         draft.billingCycle === "yearly" ||
         draft.billingCycle === "lifetime"
       ) {
-        setBillingCycle(draft.billingCycle);
+        const customSession = loadCustomErpPackage();
+        if (customSession || searchParams.get("package_type")?.toLowerCase() === "custom") {
+          setBillingCycle(
+            draft.billingCycle === ""
+              ? normalizeCustomErpBillingCycle(customSession?.billing_cycle)
+              : normalizeCustomErpBillingCycle(draft.billingCycle)
+          );
+        } else {
+          setBillingCycle(draft.billingCycle);
+        }
       }
       if (typeof draft.industryId === "string") setIndustryId(draft.industryId);
       if (typeof draft.categoryId === "string") setCategoryId(draft.categoryId);

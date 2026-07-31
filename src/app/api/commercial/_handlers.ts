@@ -20,6 +20,7 @@ import {
   submitCustomPackageRequest,
 } from "@/lib/commercial/client";
 import { normalizeCatalogModules } from "@/lib/commercial/module-builder";
+import { validateCustomErpBillingCycle } from "@/lib/commercial/custom-erp-billing";
 import type {
   CustomPackageQuotePayload,
   CustomPackageRequestPayload,
@@ -208,9 +209,16 @@ export async function POST_customPackageQuote(req: Request) {
       code: ApiErrorCode.VALIDATION_ERROR,
     });
   }
+  const cycleCheck = validateCustomErpBillingCycle(body.billing_cycle || "monthly");
+  if (!cycleCheck.ok) {
+    return apiFail(cycleCheck.message, {
+      status: 400,
+      code: ApiErrorCode.VALIDATION_ERROR,
+    });
+  }
   const result = await fetchCustomPackageQuote({
     product_slug: body.product_slug || "waamto-erp",
-    billing_cycle: body.billing_cycle || "monthly",
+    billing_cycle: cycleCheck.cycle,
     selected_module_codes: body.selected_module_codes,
     discount_code: body.discount_code || null,
     industry_id: body.industry_id || null,

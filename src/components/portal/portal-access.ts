@@ -3,20 +3,14 @@ import {
   portalNavForJourney,
   type PortalNavItem,
 } from "@/components/portal/portal-nav";
-import { isCustomErpPackageType } from "@/lib/portal/package-type";
+import { resolvePortalJourneyFromDashboard } from "@/lib/portal/package-type";
 
 /**
  * Resolves which portal pages a customer may see.
- * Journey SSOT = commercial snapshot package_type / package_mode (via commercialJourney).
+ * Journey SSOT = centralized commercialJourney from dashboard (license package_type).
  */
 export function getAccessibleNav(data: PortalDashboard | null): PortalNavItem[] {
-  const snap = data?.commercialSnapshot;
-  const journey =
-    data?.commercialJourney === "custom" ||
-    isCustomErpPackageType(snap?.package_type) ||
-    isCustomErpPackageType(snap?.package_mode)
-      ? "custom"
-      : data?.commercialJourney || "predefined";
+  const journey = resolvePortalJourneyFromDashboard(data);
   const baseNav = portalNavForJourney(journey);
 
   if (!data) {

@@ -97,10 +97,14 @@ import {
   resolveRequiredDependencies,
   uniqueCategories,
 } from "@/lib/commercial/module-builder";
+import {
+  CUSTOM_ERP_BILLING_CYCLE_OPTIONS,
+  normalizeCustomErpBillingCycle,
+  type CustomErpBillingCycle,
+} from "@/lib/commercial/custom-erp-billing";
 import { browseCategoryForModule, type ModuleBrowseCategory } from "@/lib/commercial/modules-taxonomy";
 import { savePlanSelection } from "@/lib/commercial/plan-selection";
 import type {
-  BillingCycle,
   CatalogBusinessCategory,
   CatalogBuilderRecommendations,
   CatalogIndustry,
@@ -118,16 +122,16 @@ import {
 } from "@/lib/signup/custom-package";
 import { cn } from "@/lib/utils";
 
+/** Custom ERP only — Monthly / Yearly. Lifetime never offered (custom-erp-billing SSOT). */
 const CYCLES: {
-  id: BillingCycle;
+  id: CustomErpBillingCycle;
   label: string;
   hint: string;
   icon: LucideIcon;
-}[] = [
-  { id: "monthly", label: "Monthly", hint: "Billed every month", icon: Calendar },
-  { id: "yearly", label: "Yearly", hint: "Billed once a year", icon: CalendarDays },
-  { id: "lifetime", label: "Lifetime", hint: "One-time purchase", icon: Sparkles },
-];
+}[] = CUSTOM_ERP_BILLING_CYCLE_OPTIONS.map((opt) => ({
+  ...opt,
+  icon: opt.id === "yearly" ? CalendarDays : Calendar,
+}));
 
 /** Shared select-card shell — every builder card matches the module card. */
 function BuilderSelectCard({
@@ -399,7 +403,7 @@ function ModuleCard({
   selected: boolean;
   required: boolean;
   recommended: boolean;
-  cycle: BillingCycle;
+  cycle: CustomErpBillingCycle;
   onToggle: () => void;
   formatPrice: (n: number) => string;
   depNames: string[];
@@ -407,7 +411,7 @@ function ModuleCard({
   const Icon = resolveModuleIcon(mod.name, mod.icon);
   const price = cycleUnitPrice(mod, cycle);
   const hasDeps = depNames.length > 0;
-  const cycleLabel = cycle === "lifetime" ? "once" : cycle === "yearly" ? "yr" : "mo";
+  const cycleLabel = cycle === "yearly" ? "yr" : "mo";
   const categoryLabel = browseCategoryForModule(mod);
   const iconColors = moduleIconColors(mod, { selected, required, recommended });
 
@@ -599,11 +603,11 @@ function matchesSearch(haystack: Array<string | null | undefined>, query: string
 }
 
 function featurePackCyclePriceLabel(
-  cycle: BillingCycle,
+  cycle: CustomErpBillingCycle,
   amount: number,
   formatPrice: (n: number) => string
 ): string {
-  const suffix = cycle === "lifetime" ? "one-time" : cycle === "yearly" ? "year" : "month";
+  const suffix = cycle === "yearly" ? "year" : "month";
   return `+${formatPrice(amount)}/${suffix}`;
 }
 
@@ -617,18 +621,14 @@ const FeaturePackCard = memo(function FeaturePackCard({
 }: {
   pack: BuilderFeaturePack;
   selected: boolean;
-  cycle: BillingCycle;
+  cycle: CustomErpBillingCycle;
   formatPrice: (n: number) => string;
   moduleLabels: Record<string, string>;
   onToggle: () => void;
 }) {
   const locked = isFeaturePackLocked(pack);
   const cyclePrice =
-    cycle === "yearly"
-      ? Number(pack.yearly_price) * 12
-      : cycle === "lifetime"
-        ? pack.lifetime_price
-        : pack.monthly_price;
+    cycle === "yearly" ? Number(pack.yearly_price) * 12 : pack.monthly_price;
   const requiredModuleNames = (pack.required_module_codes || [])
     .map((code) => moduleLabels[code] || code)
     .filter(Boolean);
@@ -701,11 +701,11 @@ function TenantStepper({
   min: number;
   unitPrice: number;
   formatPrice: (n: number) => string;
-  cycle: BillingCycle;
+  cycle: CustomErpBillingCycle;
   liveAmount?: number;
   onChange: (n: number) => void;
 }) {
-  const cycleSuffix = cycle === "lifetime" ? "once" : cycle === "yearly" ? "year" : "month";
+  const cycleSuffix = cycle === "yearly" ? "year" : "month";
   const nextValue = value + 1;
   const nextExtra =
     nextValue > min && unitPrice > 0 ? (nextValue - min) * unitPrice : 0;
@@ -831,7 +831,7 @@ export function BuildYourOwnErpBuilder() {
     [categoriesQuery.data]
   );
 
-  const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  const [cycle, setCycle] = useState<CustomErpBillingCycle>("monthly");
   const [selected, setSelected] = useState<string[]>([]);
   const [categoryRequired, setCategoryRequired] = useState<string[]>([]);
   const [featurePacks, setFeaturePacks] = useState<BuilderFeaturePack[]>([]);
@@ -1123,11 +1123,7 @@ export function BuildYourOwnErpBuilder() {
         key: p.code,
         name: p.name,
         amount:
-          cycle === "yearly"
-            ? Number(p.yearly_price) * 12
-            : cycle === "lifetime"
-              ? p.lifetime_price
-              : p.monthly_price,
+          cycle === "yearly" ? Number(p.yearly_price) * 12 : p.monthly_price,
         included: Boolean(p.included),
       })),
     [activePacks, cycle]
@@ -1162,8 +1158,7 @@ export function BuildYourOwnErpBuilder() {
       }));
     }
     const keys = ["users", "companies", "branches", "warehouses"] as const;
-    const priceKey =
-      cycle === "yearly" ? "yearly" : cycle === "lifetime" ? "lifetime" : "monthly";
+    const priceKey = cycle === "yearly" ? "yearly" : "monthly";
     return keys.map((key) => {
       const qty = tenantLimits[key];
       const included = unitPrices[key].included;
@@ -1518,7 +1513,7 @@ export function BuildYourOwnErpBuilder() {
       const deps = saved.dependency_modules || [];
       setSelected(optional);
       setCategoryRequired(deps);
-      setCycle(saved.billing_cycle);
+      setCycle(normalizeCustomErpBillingCycle(saved.billing_cycle));
       if (saved.discount_code) {
         setAppliedCoupon(saved.discount_code);
         setCouponInput(saved.discount_code);
@@ -2063,11 +2058,7 @@ export function BuildYourOwnErpBuilder() {
   const showSidebar = stepIndex(step) >= stepIndex("recommended");
   const cycleUnit = (key: keyof BuilderTenantLimits) => {
     const row = unitPrices[key];
-    return cycle === "yearly"
-      ? row.yearly
-      : cycle === "lifetime"
-        ? row.lifetime
-        : row.monthly;
+    return cycle === "yearly" ? row.yearly : row.monthly;
   };
 
   const showBillingToggle = stepIndex(step) >= stepIndex("modules");
@@ -2905,16 +2896,14 @@ export function BuildYourOwnErpBuilder() {
                       No billing cycles match your search.
                     </div>
                   ) : (
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                       {filteredCycles.map((c) => {
                         const amount =
                           c.id === cycle && money?.grand_total != null
                             ? money.grand_total
                             : c.id === "yearly"
                               ? totals.yearly
-                              : c.id === "lifetime"
-                                ? totals.lifetime
-                                : totals.monthly;
+                              : totals.monthly;
                         const active = cycle === c.id;
                         return (
                           <BuilderSelectCard
@@ -2930,13 +2919,7 @@ export function BuildYourOwnErpBuilder() {
                             footerLeft={
                               quoteBusy && active ? "…" : formatPrice(amount)
                             }
-                            footerRight={
-                              c.id === "lifetime"
-                                ? "once"
-                                : c.id === "yearly"
-                                  ? "/ yr"
-                                  : "/ mo"
-                            }
+                            footerRight={c.id === "yearly" ? "/ yr" : "/ mo"}
                           />
                         );
                       })}
@@ -3019,11 +3002,7 @@ export function BuildYourOwnErpBuilder() {
                           offer={liveQuote.bundle_offer}
                           mode="bundle"
                           cycleLabel={
-                            cycle === "lifetime"
-                              ? "one-time"
-                              : cycle === "yearly"
-                                ? "/ year"
-                                : "/ month"
+                            cycle === "yearly" ? "/ year" : "/ month"
                           }
                           onSwitchToPlan={switchToRecommendedPlan}
                           onContinueCustom={() => setBundleDismissed(true)}
@@ -3035,11 +3014,7 @@ export function BuildYourOwnErpBuilder() {
                           offer={liveQuote.bundle_offer}
                           mode="close"
                           cycleLabel={
-                            cycle === "lifetime"
-                              ? "one-time"
-                              : cycle === "yearly"
-                                ? "/ year"
-                                : "/ month"
+                            cycle === "yearly" ? "/ year" : "/ month"
                           }
                           onSwitchToPlan={switchToRecommendedPlan}
                           onContinueCustom={() => setBundleDismissed(true)}
@@ -3191,11 +3166,7 @@ export function BuildYourOwnErpBuilder() {
                       offer={liveQuote.bundle_offer}
                       mode={shouldShowBundleOffer(liveQuote) ? "bundle" : "close"}
                       cycleLabel={
-                        cycle === "lifetime"
-                          ? "one-time"
-                          : cycle === "yearly"
-                            ? "/ year"
-                            : "/ month"
+                        cycle === "yearly" ? "/ year" : "/ month"
                       }
                       onSwitchToPlan={switchToRecommendedPlan}
                       onContinueCustom={() => setBundleDismissed(true)}
@@ -3266,7 +3237,7 @@ export function BuildYourOwnErpBuilder() {
                   {formatPrice(packagePreview.estimated_total)}
                 </span>
                 <span className="ml-1">
-                  {cycle === "lifetime" ? "once" : cycle === "yearly" ? "/ yr" : "/ mo"}
+                  {cycle === "yearly" ? "/ yr" : "/ mo"}
                 </span>
                 <span className="ml-1.5">
                   · {packagePreview.selected_module_count} mod

@@ -1,0 +1,40 @@
+---
+description: Customer Portal routing freeze 2026-08-01 — license-first journey SSOT
+alwaysApply: true
+---
+
+# Customer Portal Routing Freeze — 2026-08-01
+
+**Status: FROZEN — PRODUCTION BASELINE** (2026-08-01)
+
+Authority: `docs/architecture/PORTAL_ROUTING_FREEZE_2026_08_01.md`
+
+Report: `docs/architecture/PORTAL_ROUTING_FREEZE_2026_08_01_REPORT.md`
+
+Applies to **ERP Website Customer Portal routing only**. Does not freeze ERP SaaS app, marketing pages, billing architecture, or licensing rules.
+
+## Frozen (do not redesign)
+
+1. **SSOT** — active license `package_type` via `resolveJourneyFromLicenses()` in `src/lib/portal/package-type.ts`
+2. **Sticky Custom ERP** — license `custom` never downgraded by snapshot, modules, feature packs, renewals, or cache
+3. **Centralized consumers** — `resolvePortalJourneyFromDashboard()` / `dashboard.commercialJourney` only
+4. **Snapshot secondary** — used only when license `package_type` is unset
+5. **Portal gates** — `portal-dashboard-router`, `portal-journey-section`, `portal-plans-gate`, `portal-access`
+
+## Forbidden inference
+
+Never route portal type from: module count, feature pack count, cart, upgrade history, snapshot order alone, UI/session cache.
+
+## Allowed
+
+- Critical bug fixes preserving frozen rules
+- Security fixes
+- Documentation updates
+
+## Forbidden without approved architecture CR
+
+- Per-page snapshot OR-checks for journey
+- Module/feature-pack-based portal routing
+- Snapshot-first routing overriding custom license
+
+Parent freeze remains in force: `portal-architecture-freeze.mdc`, `architecture-freeze-v1.mdc`

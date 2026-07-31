@@ -51,6 +51,7 @@ import {
   featurePackMatchesSelectedModules,
   isNonPurchasableCustomErpModule,
   isNonPurchasableCustomErpPack,
+  PLATFORM_BUILTIN_DISPLAY,
 } from "@/lib/commercial/erp-builder-config";
 import type { BillingCycle, CustomPackageQuoteResult } from "@/lib/commercial/types";
 import { useLocale } from "@/components/providers/locale-provider";
@@ -1727,6 +1728,18 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         title="Upgrade Configuration"
         description="Choose modules, then feature packs. Prices and required modules are shown before License Engine checkout."
       />
+
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100">
+        <p className="font-semibold">Included with every ERP SaaS subscription</p>
+        <ul className="mt-2 space-y-1">
+          {PLATFORM_BUILTIN_DISPLAY.map((row) => (
+            <li key={row.code}>✓ {row.name}</li>
+          ))}
+        </ul>
+        <p className="mt-2 text-emerald-900/80 dark:text-emerald-200/80">
+          No additional purchase required. Built-in platform modules are not listed below.
+        </p>
+      </div>
 
       <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-4">
         <label className="sr-only" htmlFor="custom-erp-filter">

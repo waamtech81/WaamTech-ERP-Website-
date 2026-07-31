@@ -362,10 +362,41 @@ export function isNonPurchasableCustomErpModule(
   if (isPublic === false) return true;
   const st = String(status || "active").trim().toLowerCase();
   if (st && !["active", "enabled", "published"].includes(st)) return true;
-  const key = `${code || ""} ${name || ""}`.toLowerCase();
-  if (/^(dev_|test_|internal_|trial_)/.test(String(code || "").toLowerCase())) return true;
+  const raw = String(code || "").trim();
+  const key = `${raw} ${name || ""}`.toLowerCase();
+  const codeKey = raw.toLowerCase();
+  // Platform built-ins — included with every ERP SaaS subscription.
+  if (
+    codeKey === "whatsapp" ||
+    codeKey === "support_system" ||
+    codeKey === "chat" ||
+    codeKey === "sup" ||
+    /\b(whatsapp|support system|collaboration)\b/.test(key)
+  ) {
+    return true;
+  }
+  // Legacy License Engine seed aliases only (uppercase codes) — not SaaS Core runtime ids.
+  if (
+    /^(DASH|INV|CRM|FIN|POS|PROC|SALES|WH|HR|MFG|RPT|NTF|SET|FILE|API|SUP)$/.test(
+      raw
+    )
+  ) {
+    return true;
+  }
+  if (/^(dev_|test_|internal_|trial_)/.test(codeKey)) return true;
   if (/\b(trial[- ]?only|internal module|development module)\b/.test(key)) return true;
   return false;
+}
+
+/** Customer-facing included platform services (not in purchasable count). */
+export const PLATFORM_BUILTIN_DISPLAY = [
+  { code: "whatsapp", name: "WhatsApp" },
+  { code: "support_system", name: "Support System" },
+] as const;
+
+export function isPlatformBuiltinModule(code: string | null | undefined): boolean {
+  const c = String(code || "").trim().toLowerCase();
+  return c === "whatsapp" || c === "support_system" || c === "chat";
 }
 
 export function resolveBuilderRecommendationPackRows(

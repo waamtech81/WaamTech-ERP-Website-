@@ -73,10 +73,12 @@ import {
   filterRecommendedFeaturePacks,
   initialSelectedFeaturePackCodes,
   isFeaturePackLocked,
+  isNonPurchasableCustomErpModule,
   mapBuilderRecommendations,
   mergeFeaturePackCatalogPrices,
   normPackKey,
   parseInvalidFeaturePackCodes,
+  PLATFORM_BUILTIN_DISPLAY,
   prepareFeaturePackCodesForQuote,
   resolveBuilderRecommendationPackRows,
   pruneSelectedFeaturePackCodes,
@@ -799,7 +801,13 @@ export function BuildYourOwnErpBuilder() {
   const modulesQuery = useCatalogModules("waamto-erp");
   const industriesQuery = useCatalogIndustries();
   const catalogBundle = useCatalogBundle("waamto-erp");
-  const modules = modulesQuery.data;
+  const modules = useMemo(
+    () =>
+      (modulesQuery.data || []).filter(
+        (m) => !isNonPurchasableCustomErpModule(m.code, m.name, m.status, m.is_public)
+      ),
+    [modulesQuery.data]
+  );
   const industries = useMemo(
     () =>
       [...industriesQuery.data].sort(
@@ -2510,6 +2518,28 @@ export function BuildYourOwnErpBuilder() {
                         aria-hidden
                       />
                     </div>
+                  </div>
+
+                  <div
+                    role="note"
+                    className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-950"
+                  >
+                    <p className="font-semibold">
+                      Included with every ERP SaaS subscription
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {PLATFORM_BUILTIN_DISPLAY.map((row) => (
+                        <li key={row.code} className="flex items-center gap-2">
+                          <Check className="h-3.5 w-3.5 shrink-0 text-emerald-700" aria-hidden />
+                          <span>{row.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-emerald-900/80">
+                      No additional purchase required. These are not counted in the purchasable
+                      module list below ({modules.length} module
+                      {modules.length === 1 ? "" : "s"}).
+                    </p>
                   </div>
 
                   {notice ? (

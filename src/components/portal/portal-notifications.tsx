@@ -40,10 +40,16 @@ type FilterId = (typeof FILTER_OPTIONS)[number]["id"];
 
 function categoryTone(category: string) {
   const c = category.toLowerCase();
-  if (c === "payment" || c === "invoice") return "text-amber-700 bg-amber-500/10 border-amber-500/20";
-  if (c === "license" || c === "subscription") return "text-emerald-700 bg-emerald-500/10 border-emerald-500/20";
+  if (c === "payment" || c === "invoice" || c === "billing") {
+    return "text-amber-700 bg-amber-500/10 border-amber-500/20";
+  }
+  if (c === "license" || c === "subscription") {
+    return "text-emerald-700 bg-emerald-500/10 border-emerald-500/20";
+  }
   if (c === "support") return "text-sky-700 bg-sky-500/10 border-sky-500/20";
-  if (c === "announcement") return "text-violet-700 bg-violet-500/10 border-violet-500/20";
+  if (c === "announcement" || c === "announcements") {
+    return "text-violet-700 bg-violet-500/10 border-violet-500/20";
+  }
   return "text-[var(--portal-muted)] bg-[var(--portal-muted-soft)] border-[var(--portal-border)]";
 }
 
@@ -63,47 +69,56 @@ function mapNotificationRows(rows: Record<string, unknown>[]): PortalNotificatio
   }));
 }
 
+function buildFilterParams(filter: FilterId): URLSearchParams {
+  const params = new URLSearchParams({ limit: "100" });
+  if (filter === "unread") {
+    params.set("filter", "unread");
+  } else if (filter === "all") {
+    params.set("filter", "all");
+  } else if (filter === "payment") {
+    params.set("type", "billing");
+  } else {
+    params.set("type", filter);
+  }
+  return params;
+}
+
 export function PortalNotificationsView() {
   const { data } = usePortalContext();
-  const [items, setItems] = useState<PortalNotification[]>(data?.notifications ?? []);
+  const [items, setItems] = useState<PortalNotification[]>([]);
   const [filter, setFilter] = useState<FilterId>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    setItems(data?.notifications ?? []);
-  }, [data?.notifications]);
-
   const fetchNotifications = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      const params = new URLSearchParams({ limit: "100" });
-      if (filter === "unread") params.set("unread", "1");
-      else if (filter !== "all") params.set("category", filter);
-
+      const params = buildFilterParams(filter);
       const res = await fetch(`/api/portal/notifications?${params.toString()}`, {
         cache: "no-store",
         credentials: "include",
       });
       const json = await res.json();
-      if (!json.success) return;
+      if (!json.success) {
+        setError(apiMessageFromJson(json, "Unable to load notifications."));
+        setItems([]);
+        return;
+      }
       const rows = Array.isArray(json.data) ? json.data : [];
       setItems(mapNotificationRows(rows as Record<string, unknown>[]));
-    } catch {
-      /* polling failures are silent */
+    } catch (err) {
+      setError(friendlyNetworkError(err, "Unable to load notifications."));
+      setItems([]);
     } finally {
       setLoading(false);
     }
   }, [filter]);
 
   useEffect(() => {
-    if (filter === "all" && (data?.notifications?.length ?? 0) > 0) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
     void fetchNotifications();
-  }, [fetchNotifications, filter, data?.notifications]);
+  }, [fetchNotifications]);
 
   useEffect(() => {
     const refresh = () => {
@@ -155,16 +170,7 @@ export function PortalNotificationsView() {
     });
   };
 
-  const filteredItems = useMemo(() => {
-    if (filter === "all") return items;
-    if (filter === "unread") return items.filter((n) => !n.read);
-    return items.filter((n) => {
-      const category = String(n.category || "system").toLowerCase();
-      if (filter === "payment") return category === "payment" || category === "billing";
-      return category === filter;
-    });
-  }, [filter, items]);
-
+  const displayItems = useMemo(() => items, [items]);
   const unreadCount = items.filter((n) => !n.read).length;
 
   if (loading && !items.length) {
@@ -176,152 +182,127 @@ export function PortalNotificationsView() {
     );
   }
 
-  if (!items.length) {
+  if (!loading && !displayItems.length) {
     return (
-      <PortalEmptyState
-        title="You're all caught up"
-        description="Notifications from License Engine will appear in this center."
-        icon={Bell}
-      />
+      <div className="space-y-4">
+        <FilterBar filter={filter} onFilter={setFilter} unreadCount={unreadCount} />
+        {error ? <PortalFlash tone="error">{error}</PortalFlash> : null}
+        <PortalEmptyState
+          icon={Bell}
+          title={filter === "all" ? "You're all caught up" : "No matching notifications"}
+          description={
+            filter === "all"
+              ? "New billing, license, and system alerts will appear here."
+              : "Try another filter to see more notifications."
+          }
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-[var(--portal-muted)]">
-          {unreadCount ? `${unreadCount} unread` : "All notifications read"}
-          {filteredItems.length !== items.length
-            ? ` · Showing ${filteredItems.length} of ${items.length}`
-            : ` · ${items.length} total`}
-        </p>
-        {unreadCount ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="rounded-xl"
-            disabled={pending}
-            onClick={markAllRead}
-          >
-            {pending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCheck className="h-4 w-4" />
-            )}
-            Mark all read
-          </Button>
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Notification filters">
-        {FILTER_OPTIONS.map((option) => (
-          <Button
-            key={option.id}
-            type="button"
-            size="sm"
-            variant={filter === option.id ? "default" : "outline"}
-            className="rounded-full"
-            onClick={() => setFilter(option.id)}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
-
+      <FilterBar
+        filter={filter}
+        onFilter={setFilter}
+        unreadCount={unreadCount}
+        onMarkAllRead={markAllRead}
+        pending={pending}
+      />
       {error ? <PortalFlash tone="error">{error}</PortalFlash> : null}
-
-      {filteredItems.length ? (
-        <ul className="space-y-2" aria-label="Notifications">
-          {filteredItems.map((n) => {
-            const category = (n.category || "system").toLowerCase();
-            const label = CATEGORY_LABELS[category] || category;
-            return (
-              <li key={n.id}>
-                <article
+      <ul className="divide-y divide-[var(--portal-border)] rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)]">
+        {displayItems.map((n) => (
+          <li
+            key={n.id}
+            className={cn(
+              "flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between",
+              !n.read && "bg-[var(--portal-muted-soft)]/40"
+            )}
+          >
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-[var(--portal-fg)]">{n.title}</span>
+                <span
                   className={cn(
-                    "flex items-start justify-between gap-3 rounded-xl border px-4 py-3.5 transition",
-                    n.read
-                      ? "border-[var(--portal-border)] bg-[var(--portal-soft)] opacity-80"
-                      : "border-[var(--portal-primary)]/25 bg-[var(--portal-primary-soft)]/30"
+                    "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    categoryTone(String(n.category || "system"))
                   )}
                 >
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span
-                      className={cn(
-                        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                        n.read
-                          ? "bg-[var(--portal-muted-soft)] text-[var(--portal-muted)]"
-                          : "bg-[var(--portal-primary-soft)] text-[var(--portal-primary)]"
-                      )}
-                    >
-                      <Bell className="h-4 w-4" aria-hidden />
-                    </span>
-                    <div className="min-w-0">
-                      <p
-                        className={cn(
-                          "text-sm",
-                          n.read
-                            ? "font-medium text-[var(--portal-fg)]"
-                            : "font-semibold text-[var(--portal-fg)]"
-                        )}
-                      >
-                        {n.title}
-                      </p>
-                      {n.body ? (
-                        <p className="mt-1 text-sm text-[var(--portal-muted)]">{n.body}</p>
-                      ) : null}
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
-                            categoryTone(category)
-                          )}
-                        >
-                          {label}
-                        </span>
-                        {n.created_at ? (
-                          <time
-                            className="text-xs text-[var(--portal-muted)]"
-                            dateTime={n.created_at}
-                          >
-                            {formatPortalDateTime(n.created_at)}
-                          </time>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    {!n.read ? (
-                      <>
-                        <PortalStatusBadge status="Unread" />
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 rounded-lg px-2 text-xs"
-                          disabled={pending}
-                          onClick={() => markRead(n.id)}
-                        >
-                          Mark read
-                        </Button>
-                      </>
-                    ) : (
-                      <PortalStatusBadge status="Read" />
-                    )}
-                  </div>
-                </article>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <PortalEmptyState
-          title="No notifications in this filter"
-          description="Try another category or switch back to All."
-          icon={Bell}
-        />
-      )}
+                  {CATEGORY_LABELS[String(n.category || "system").toLowerCase()] ||
+                    n.category ||
+                    "System"}
+                </span>
+                {!n.read ? (
+                  <PortalStatusBadge status="Unread" />
+                ) : null}
+              </div>
+              {n.body ? (
+                <p className="text-sm text-[var(--portal-muted-strong)]">{n.body}</p>
+              ) : null}
+              {n.created_at ? (
+                <p className="text-xs text-[var(--portal-muted)]">
+                  {formatPortalDateTime(n.created_at)}
+                </p>
+              ) : null}
+            </div>
+            {!n.read ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="shrink-0"
+                disabled={pending}
+                onClick={() => markRead(n.id)}
+              >
+                Mark read
+              </Button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function FilterBar({
+  filter,
+  onFilter,
+  unreadCount,
+  onMarkAllRead,
+  pending,
+}: {
+  filter: FilterId;
+  onFilter: (id: FilterId) => void;
+  unreadCount: number;
+  onMarkAllRead?: () => void;
+  pending?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap gap-2">
+        {FILTER_OPTIONS.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onFilter(opt.id)}
+            className={cn(
+              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              filter === opt.id
+                ? "border-[var(--portal-accent)] bg-[var(--portal-accent-soft)] text-[var(--portal-accent-fg)]"
+                : "border-[var(--portal-border)] text-[var(--portal-muted-strong)] hover:bg-[var(--portal-muted-soft)]"
+            )}
+          >
+            {opt.label}
+            {opt.id === "unread" && unreadCount > 0 ? ` (${unreadCount})` : ""}
+          </button>
+        ))}
+      </div>
+      {onMarkAllRead && unreadCount > 0 ? (
+        <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={onMarkAllRead}>
+          <CheckCheck className="mr-1 h-4 w-4" />
+          Mark all read
+        </Button>
+      ) : null}
     </div>
   );
 }

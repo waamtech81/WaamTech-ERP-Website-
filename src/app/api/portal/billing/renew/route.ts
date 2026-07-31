@@ -9,6 +9,7 @@ import {
   resolvePortalAccess,
 } from "@/lib/portal/access";
 import { resolvePreferredGateway } from "@/lib/portal/gateway";
+import { invalidatePortalDashboardCache } from "@/lib/portal/dashboard";
 import { isSameOrigin } from "@/lib/security/guards";
 import { getSiteOrigin } from "@/lib/urls";
 
@@ -64,6 +65,7 @@ export const POST = withApiHandler(
     }
 
     const { remember } = await readPortalTokens();
+    invalidatePortalDashboardCache();
     const res = apiSuccess(result.message || "Renewal checkout created.", {
       data: result.data,
     });

@@ -8,6 +8,7 @@ import {
   clearPortalOnUnauthorized,
   resolvePortalAccess,
 } from "@/lib/portal/access";
+import { invalidatePortalDashboardCache } from "@/lib/portal/dashboard";
 import { isSameOrigin } from "@/lib/security/guards";
 
 export const POST = withApiHandler(
@@ -51,6 +52,7 @@ export const POST = withApiHandler(
     }
 
     const { remember } = await readPortalTokens();
+    invalidatePortalDashboardCache();
     const res = apiSuccess(
       result.message || "Auto-renewal has been re-enabled for this subscription.",
       { data: result.data }

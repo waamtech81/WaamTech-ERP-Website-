@@ -33,9 +33,18 @@ export const GET = withApiHandler(
     }
 
     const url = new URL(req.url);
+    const filterParam = url.searchParams.get("filter");
+    const typeParam = url.searchParams.get("type") || url.searchParams.get("category");
+    const filter =
+      filterParam === "unread" || filterParam === "archived"
+        ? filterParam
+        : url.searchParams.get("unread") === "1"
+          ? "unread"
+          : "all";
+
     const result = await fetchMyNotifications(resolved.access.accessToken, {
-      category: url.searchParams.get("category") || undefined,
-      unread: url.searchParams.get("unread") === "1",
+      filter,
+      type: typeParam || undefined,
       limit: Number(url.searchParams.get("limit") || 50) || 50,
       page: Number(url.searchParams.get("page") || 1) || 1,
     });

@@ -504,6 +504,7 @@ export type PaginatedResult<T> = {
   page?: number;
   limit?: number;
   totalPages?: number;
+  unread_count?: number;
 };
 
 /** Billing cycle selected on the Website pricing UI (passed through to signup). */

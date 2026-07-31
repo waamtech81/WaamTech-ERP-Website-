@@ -13,8 +13,10 @@ import { formatFeaturePackLabel } from "@/lib/portal/display-labels";
 import {
   normalizePortalCommercialSnapshot,
   normalizeSnapshotLimits,
+  resolvePortalTenantLimits,
   type PortalCommercialSnapshot,
 } from "@/lib/portal/commercial-snapshot";
+import { normalizePortalCommercialDate } from "@/lib/portal/commercial-dates";
 import { authConfig, normalizeApiBase } from "@/lib/auth/config";
 import {
   fetchBillingCompany,
@@ -384,22 +386,42 @@ function extractFeaturePackNames(source: unknown): string[] {
 }
 
 function normalizeCommercialRenewal(raw: Record<string, unknown>): CommercialRenewal {
-  const renewalDate =
-    raw.renewal_date || raw.payment_date || raw.completed_at || raw.created_at || null;
+  const renewalDate = normalizePortalCommercialDate(
+    raw.new_renewal_date || raw.renewal_date || raw.new_expiry || raw.payment_date
+  );
   return {
     id: String(raw.id || ""),
     subscription_id: raw.subscription_id ? String(raw.subscription_id) : undefined,
     license_id: raw.license_id ? String(raw.license_id) : null,
     status: raw.status ? String(raw.status) : undefined,
-    renewal_date: renewalDate ? String(renewalDate).slice(0, 10) : null,
-    previous_expiry:
-      raw.previous_expiry || raw.old_expiry
-        ? String(raw.previous_expiry || raw.old_expiry).slice(0, 10)
-        : null,
-    new_expiry: raw.new_expiry ? String(raw.new_expiry).slice(0, 10) : null,
+    renewal_date: renewalDate,
+    previous_expiry: normalizePortalCommercialDate(raw.previous_expiry || raw.old_expiry),
+    new_expiry: normalizePortalCommercialDate(raw.new_expiry || raw.new_renewal_date),
     amount: raw.amount != null ? Number(raw.amount) : null,
     currency: raw.currency ? String(raw.currency) : null,
   };
+}
+
+function normalizeCommercialPayment(raw: Record<string, unknown>): CommercialPayment {
+  const row = raw as CommercialPayment;
+  return {
+    ...row,
+    paid_date: normalizePortalCommercialDate(row.paid_date) ?? row.paid_date ?? null,
+  };
+}
+
+function resolvePortalRenewalDates(input: {
+  primarySub?: CommercialSubscription | null;
+  primaryRaw?: IdentityLicense | null;
+}): { renewalDate: string | null; expiryDate: string | null } {
+  const subRenewal = normalizePortalCommercialDate(input.primarySub?.renewal_date);
+  const subExpiry = normalizePortalCommercialDate(input.primarySub?.expiry_date);
+  const nextRenewal = normalizePortalCommercialDate(input.primaryRaw?.next_renewal);
+  const validUntil = normalizePortalCommercialDate(input.primaryRaw?.valid_until);
+  const licExpiry = normalizePortalCommercialDate(input.primaryRaw?.expiry_date);
+  const renewalDate = subRenewal || nextRenewal || validUntil || licExpiry || subExpiry;
+  const expiryDate = validUntil || subExpiry || licExpiry || renewalDate;
+  return { renewalDate, expiryDate };
 }
 
 function extractModuleLabels(
@@ -779,8 +801,13 @@ async function tryFetchErpStats(email: string): Promise<Record<string, unknown> 
   return null;
 }
 
-const DASHBOARD_CACHE_MS = 45_000;
+const DASHBOARD_CACHE_MS = 15_000;
 const dashboardCache = new Map<string, { expires: number; data: PortalDashboard }>();
+
+/** Bust in-memory portal aggregate after billing mutations (renew, upgrade, checkout). */
+export function invalidatePortalDashboardCache(): void {
+  dashboardCache.clear();
+}
 
 export async function loadPortalDashboard(
   accessToken: string,
@@ -1050,23 +1077,23 @@ async function loadPortalDashboardUncached(
     });
   }
   const primaryRaw = primaryLicense(rawLicenses);
-  const snapshotLimits = normalizeSnapshotLimits(
-    (commercialSnapshot?.purchased_limits as Record<string, unknown> | undefined) ||
-      (commercialSnapshot?.limits as Record<string, unknown> | undefined)
+  const portalTenantLimits = resolvePortalTenantLimits(
+    commercialSnapshot,
+    primaryRaw?.tenant_limits || null
   );
-  if (Object.values(snapshotLimits).some((v) => v != null)) {
+  if (Object.values(portalTenantLimits).some((v) => v != null)) {
     const primaryLicId = primaryRaw?.id;
     licenses = licenses.map((lic) => {
       if (primaryLicId && lic.id !== primaryLicId) return lic;
       return {
         ...lic,
         tenant_limits: {
-          ...lic.tenant_limits,
-          users: snapshotLimits.users ?? lic.tenant_limits?.users ?? null,
-          companies: snapshotLimits.companies ?? lic.tenant_limits?.companies ?? null,
-          branches: snapshotLimits.branches ?? lic.tenant_limits?.branches ?? null,
-          warehouses: snapshotLimits.warehouses ?? lic.tenant_limits?.warehouses ?? null,
-          storage: snapshotLimits.storage ?? lic.tenant_limits?.storage ?? null,
+          users: portalTenantLimits.users ?? lic.tenant_limits?.users ?? null,
+          companies: portalTenantLimits.companies ?? lic.tenant_limits?.companies ?? null,
+          branches: portalTenantLimits.branches ?? lic.tenant_limits?.branches ?? null,
+          warehouses: portalTenantLimits.warehouses ?? lic.tenant_limits?.warehouses ?? null,
+          storage: portalTenantLimits.storage ?? lic.tenant_limits?.storage ?? null,
+          api: portalTenantLimits.api ?? lic.tenant_limits?.api ?? null,
         },
       };
     });
@@ -1199,7 +1226,9 @@ async function loadPortalDashboardUncached(
 
   const commercialSubs = subsRes.ok ? subsRes.data.data : [];
   const commercialInvoices = invoicesRes.ok ? invoicesRes.data.data : [];
-  const commercialPayments = paymentsRes.ok ? paymentsRes.data.data : [];
+  const commercialPayments = (paymentsRes.ok ? paymentsRes.data.data : []).map((row) =>
+    normalizeCommercialPayment(row as unknown as Record<string, unknown>)
+  );
   const commercialRenewals = renewalsRes.ok
     ? (renewalsRes.data || []).map((row) =>
         normalizeCommercialRenewal(row as unknown as Record<string, unknown>)
@@ -1291,9 +1320,36 @@ async function loadPortalDashboardUncached(
         trialStatus:
           primarySub.status === "trial" || primarySub.trial_ends_at ? "trial" : trial.trialStatus,
         trialRemainingDays: trial.trialRemainingDays,
-        renewalDate: primarySub.renewal_date || primarySub.expiry_date || null,
+        renewalDate: null as string | null,
       }
     : subscription;
+
+  const renewalDates = resolvePortalRenewalDates({
+    primarySub,
+    primaryRaw: primary,
+  });
+
+  const subscriptionResolved = subscriptionFromCommercial
+    ? { ...subscriptionFromCommercial, renewalDate: renewalDates.renewalDate }
+    : subscription
+      ? { ...subscription, renewalDate: renewalDates.renewalDate ?? subscription.renewalDate }
+      : null;
+
+  const licenseResolved = license
+    ? { ...license, expiry: renewalDates.expiryDate ?? license.expiry }
+    : license;
+
+  const billingResolved = billing
+    ? { ...billing, nextInvoice: renewalDates.renewalDate ?? billing.nextInvoice }
+    : billing;
+
+  if (renewalDates.expiryDate && primary?.id) {
+    licenses = licenses.map((lic) =>
+      lic.id === primary.id
+        ? { ...lic, expiry_date: renewalDates.expiryDate ?? lic.expiry_date }
+        : lic
+    );
+  }
 
   const engineNotificationRows =
     notificationsRes.ok && Array.isArray(notificationsRes.data)
@@ -1501,11 +1557,11 @@ async function loadPortalDashboardUncached(
     identity,
     customer,
     overview,
-    subscription: subscriptionFromCommercial,
-    license,
+    subscription: subscriptionResolved,
+    license: licenseResolved,
     licenses,
     sessions,
-    billing,
+    billing: billingResolved,
     invoices,
     subscriptions: commercialSubs,
     payments: commercialPayments,

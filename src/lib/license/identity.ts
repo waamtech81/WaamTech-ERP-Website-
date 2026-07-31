@@ -71,6 +71,9 @@ export type IdentityLicense = {
   in_grace?: boolean;
   days_remaining?: number | null;
   expiry_date?: string | null;
+  /** Lifecycle SSOT from License Engine renewal service. */
+  valid_until?: string | null;
+  next_renewal?: string | null;
   grace_period_days?: number | null;
   /** Custom / entitlement fields when Engine returns them. */
   package_type?: string | null;
@@ -562,7 +565,14 @@ export function normalizeIdentityLicense(raw: unknown): IdentityLicense | null {
       row.days_remaining != null && Number.isFinite(Number(row.days_remaining))
         ? Number(row.days_remaining)
         : null,
-    expiry_date: row.expiry_date != null ? String(row.expiry_date) : null,
+    expiry_date:
+      row.valid_until != null
+        ? String(row.valid_until).slice(0, 10)
+        : row.expiry_date != null
+          ? String(row.expiry_date).slice(0, 10)
+          : null,
+    valid_until: row.valid_until != null ? String(row.valid_until).slice(0, 10) : null,
+    next_renewal: row.next_renewal != null ? String(row.next_renewal).slice(0, 10) : null,
     grace_period_days:
       row.grace_period_days != null &&
       Number.isFinite(Number(row.grace_period_days))

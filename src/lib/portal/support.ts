@@ -292,14 +292,25 @@ function normalizeCustomerNotification(row: Record<string, unknown>): PortalCust
 
 export async function fetchMyNotifications(
   accessToken: string,
-  query?: { category?: string; unread?: boolean; page?: number; limit?: number }
+  query?: {
+    filter?: "all" | "unread" | "archived";
+    type?: string;
+    page?: number;
+    limit?: number;
+  }
 ) {
-  // Prefer billing customer_notifications. Soft-fail when Engine table/migration is missing
-  // so dashboard does not burn rate-limit quota on legacy 404 fallbacks.
+  const mapPortalType = (type?: string): string | undefined => {
+    const raw = String(type || "").trim().toLowerCase();
+    if (!raw || raw === "all") return undefined;
+    if (raw === "invoice") return "billing";
+    if (raw === "announcement") return "announcements";
+    return raw;
+  };
+
   try {
     const billing = await fetchCustomerNotifications(accessToken, {
-      filter: query?.unread ? "unread" : "all",
-      type: query?.category,
+      filter: query?.filter ?? (query?.type === "unread" ? "unread" : "all"),
+      type: mapPortalType(query?.type),
       page: query?.page,
       limit: query?.limit ?? 50,
     });
@@ -315,7 +326,10 @@ export async function fetchMyNotifications(
         message: billing.message || "OK",
         data: mapped,
         total: billing.data?.total ?? mapped.length,
-        unread_count: mapped.filter((n) => !n.is_read).length,
+        unread_count:
+          typeof billing.data?.unread_count === "number"
+            ? billing.data.unread_count
+            : mapped.filter((n) => !n.is_read).length,
       };
     }
   } catch {

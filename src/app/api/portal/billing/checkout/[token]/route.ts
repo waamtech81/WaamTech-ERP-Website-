@@ -11,6 +11,7 @@ import {
   clearPortalOnUnauthorized,
   resolvePortalAccess,
 } from "@/lib/portal/access";
+import { invalidatePortalDashboardCache } from "@/lib/portal/dashboard";
 import { isSameOrigin } from "@/lib/security/guards";
 
 export const GET = withApiHandler(
@@ -105,6 +106,7 @@ export const POST = withApiHandler(
     }
 
     const { remember } = await readPortalTokens();
+    invalidatePortalDashboardCache();
     const res = apiSuccess(result.message || "Payment confirmed.", {
       data: result.data,
     });

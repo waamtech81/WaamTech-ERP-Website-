@@ -118,22 +118,52 @@ export function normalizePortalCommercialSnapshot(
   };
 }
 
-/** Purchased limits from snapshot SSOT — no hardcoded defaults. */
+/** Purchased / merged tenant limits from snapshot SSOT — never plan baseline alone. */
 export function resolvePurchasedLimits(
   snapshot: PortalCommercialSnapshot | null | undefined,
   licenseLimits?: PortalSnapshotLimits | null
 ): PortalSnapshotLimits {
+  return resolvePortalTenantLimits(snapshot, licenseLimits);
+}
+
+/**
+ * Merged tenant caps for portal display.
+ * Priority: snapshot.limits (Engine merged) → purchased_limits → included + purchased → license flat fields.
+ */
+export function resolvePortalTenantLimits(
+  snapshot: PortalCommercialSnapshot | null | undefined,
+  licenseLimits?: PortalSnapshotLimits | null
+): PortalSnapshotLimits {
+  const merged = normalizeSnapshotLimits(snapshot?.limits as Record<string, unknown> | undefined);
   const purchased = normalizeSnapshotLimits(
-    (snapshot?.purchased_limits as Record<string, unknown> | undefined) ||
-      (snapshot?.limits as Record<string, unknown> | undefined)
+    snapshot?.purchased_limits as Record<string, unknown> | undefined
+  );
+  const included = normalizeSnapshotLimits(
+    snapshot?.included_limits as Record<string, unknown> | undefined
   );
   const fromLicense = normalizeSnapshotLimits(licenseLimits as Record<string, unknown> | undefined);
+
+  const pick = (...values: Array<number | null | undefined>): number | null => {
+    for (const v of values) {
+      if (v != null && Number.isFinite(v) && v > 0) return v;
+    }
+    for (const v of values) {
+      if (v != null && Number.isFinite(v)) return v;
+    }
+    return null;
+  };
+
   return {
-    users: purchased.users ?? fromLicense.users ?? null,
-    companies: purchased.companies ?? fromLicense.companies ?? null,
-    branches: purchased.branches ?? fromLicense.branches ?? null,
-    warehouses: purchased.warehouses ?? fromLicense.warehouses ?? null,
-    storage: purchased.storage ?? fromLicense.storage ?? null,
-    api: purchased.api ?? fromLicense.api ?? null,
+    users: pick(merged.users, purchased.users, included.users, fromLicense.users),
+    companies: pick(merged.companies, purchased.companies, included.companies, fromLicense.companies),
+    branches: pick(merged.branches, purchased.branches, included.branches, fromLicense.branches),
+    warehouses: pick(
+      merged.warehouses,
+      purchased.warehouses,
+      included.warehouses,
+      fromLicense.warehouses
+    ),
+    storage: pick(merged.storage, purchased.storage, included.storage, fromLicense.storage),
+    api: pick(merged.api, purchased.api, included.api, fromLicense.api),
   };
 }

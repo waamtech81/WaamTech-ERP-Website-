@@ -623,7 +623,7 @@ const FeaturePackCard = memo(function FeaturePackCard({
   const locked = isFeaturePackLocked(pack);
   const cyclePrice =
     cycle === "yearly"
-      ? pack.yearly_price
+      ? Number(pack.yearly_price) * 12
       : cycle === "lifetime"
         ? pack.lifetime_price
         : pack.monthly_price;
@@ -1116,7 +1116,7 @@ export function BuildYourOwnErpBuilder() {
         name: p.name,
         amount:
           cycle === "yearly"
-            ? p.yearly_price
+            ? Number(p.yearly_price) * 12
             : cycle === "lifetime"
               ? p.lifetime_price
               : p.monthly_price,
@@ -1491,57 +1491,60 @@ export function BuildYourOwnErpBuilder() {
   useEffect(() => {
     if (hydrated || !modules.length) return;
     const params = new URLSearchParams(window.location.search);
-    const editMode = params.get("edit") === "1";
+    const forceFresh = params.get("fresh") === "1";
     const addCodeRaw = (params.get("add") || "").trim().toUpperCase();
     const addCode =
       addCodeRaw && modules.some((m) => m.code.toUpperCase() === addCodeRaw)
         ? modules.find((m) => m.code.toUpperCase() === addCodeRaw)!.code
         : null;
 
-    if (editMode) {
-      const saved = loadCustomErpPackage();
-      if (saved?.selected_modules?.length || saved?.dependency_modules?.length) {
-        const optional = saved.selected_modules || [];
-        const deps = saved.dependency_modules || [];
-        setSelected(optional);
-        setCategoryRequired(deps);
-        setCycle(saved.billing_cycle);
-        if (saved.discount_code) {
-          setAppliedCoupon(saved.discount_code);
-          setCouponInput(saved.discount_code);
-        }
-        if (saved.money) setMoney(saved.money);
-        if (saved.industry_id) setIndustryId(saved.industry_id);
-        if (saved.category_id) {
-          setCategoryId(saved.category_id);
-          restoreCategoryMetaRef.current = true;
-        }
-        if (saved.tenant_limits) setTenantLimits(saved.tenant_limits);
-        if (saved.feature_packs?.length) {
-          setFeaturePacks(
-            saved.feature_packs.map((p) => ({
-              code: p.code,
-              name: p.name,
-              description: p.name,
-              required: Boolean(p.required),
-              monthly_price: Number(p.monthly_price) || 0,
-              yearly_price: Number(p.yearly_price) || 0,
-              lifetime_price: Number(p.lifetime_price) || 0,
-            }))
-          );
-          setSelectedPacks(saved.feature_packs.map((p) => p.code));
-        }
-        if (saved.industry_id && saved.category_id) {
-          setStep("review");
-          setMaxReached("review");
-        } else if (saved.industry_id) {
-          setStep("category");
-          setMaxReached("category");
-        }
+    // Keep Custom ERP selections until signup is finalized (or user switches to a recommended plan / ?fresh=1).
+    // Do not wipe session just because the user left signup or reopened the builder without ?edit=1.
+    const saved = forceFresh ? null : loadCustomErpPackage();
+    const hasSaved =
+      Boolean(saved?.selected_modules?.length || saved?.dependency_modules?.length);
+
+    if (hasSaved && saved) {
+      pendingAddCodeRef.current = addCode;
+      const optional = saved.selected_modules || [];
+      const deps = saved.dependency_modules || [];
+      setSelected(optional);
+      setCategoryRequired(deps);
+      setCycle(saved.billing_cycle);
+      if (saved.discount_code) {
+        setAppliedCoupon(saved.discount_code);
+        setCouponInput(saved.discount_code);
+      }
+      if (saved.money) setMoney(saved.money);
+      if (saved.industry_id) setIndustryId(saved.industry_id);
+      if (saved.category_id) {
+        setCategoryId(saved.category_id);
+        restoreCategoryMetaRef.current = true;
+      }
+      if (saved.tenant_limits) setTenantLimits(saved.tenant_limits);
+      if (saved.feature_packs?.length) {
+        setFeaturePacks(
+          saved.feature_packs.map((p) => ({
+            code: p.code,
+            name: p.name,
+            description: p.name,
+            required: Boolean(p.required),
+            monthly_price: Number(p.monthly_price) || 0,
+            yearly_price: Number(p.yearly_price) || 0,
+            lifetime_price: Number(p.lifetime_price) || 0,
+          }))
+        );
+        setSelectedPacks(saved.feature_packs.map((p) => p.code));
+      }
+      if (saved.industry_id && saved.category_id) {
+        setStep("review");
+        setMaxReached("review");
+      } else if (saved.industry_id) {
+        setStep("category");
+        setMaxReached("category");
       }
     } else {
-      // Always open a fresh builder unless the user came from Signup "Edit package".
-      clearCustomErpPackage();
+      if (forceFresh) clearCustomErpPackage();
       pendingAddCodeRef.current = addCode;
       setStep("industry");
       setMaxReached("industry");

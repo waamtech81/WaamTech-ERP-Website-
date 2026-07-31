@@ -416,17 +416,17 @@ function SignUpForm({
   const industriesQuery = useCatalogIndustries();
   const categoriesQuery = useCatalogBusinessCategories(industryId || null);
 
-  // Custom mode only when arriving from the builder (`?package_type=custom`).
-  // Do not flip normal signup just because a prior draft exists in session.
+  // Custom mode when arriving from the builder (`?package_type=custom`) OR when a
+  // saved Custom ERP package still exists (kept until OTP / signup finalize).
   useEffect(() => {
     const fromUrl = searchParams.get("package_type")?.toLowerCase() === "custom";
-    if (!fromUrl) {
-      setPackageType("predefined");
+    const saved = loadCustomErpPackage();
+    if (fromUrl || saved) {
+      setPackageType("custom");
+      if (saved) setCustomPackage(saved);
       return;
     }
-    setPackageType("custom");
-    const saved = loadCustomErpPackage();
-    if (saved) setCustomPackage(saved);
+    setPackageType("predefined");
   }, [searchParams]);
 
   // Keep an unfinished signup in this browser tab across refresh/back navigation.
@@ -1609,7 +1609,7 @@ function SignUpForm({
                     No custom package selected yet. Assemble modules first, then continue to signup.
                   </p>
                   <Button asChild className="mt-3 cursor-pointer rounded-full" size="sm">
-                    <Link href="/build-your-own-erp">Build your own custom ERP</Link>
+                    <Link href="/build-your-own-erp?edit=1">Build your own custom ERP</Link>
                   </Button>
                 </div>
               )}
@@ -1727,7 +1727,7 @@ function SignUpForm({
                       No custom package selected yet. Assemble modules first, then continue to signup.
                     </p>
                     <Button asChild className="mt-3 cursor-pointer rounded-full" size="sm">
-                      <Link href="/build-your-own-erp">Build your own custom ERP</Link>
+                      <Link href="/build-your-own-erp?edit=1">Build your own custom ERP</Link>
                     </Button>
                   </div>
                 )}

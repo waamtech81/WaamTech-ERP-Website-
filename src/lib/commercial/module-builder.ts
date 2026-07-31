@@ -1,6 +1,18 @@
 import type { BillingCycle, CatalogModule } from "@/lib/commercial/types";
 
 export const DEFAULT_MODULE_PRICE_USD = 10;
+export const DEFAULT_MODULE_YEARLY_USD = 8;
+export const DEFAULT_MODULE_LIFETIME_USD = 50;
+
+function priceOrDefault(value: unknown, fallback = DEFAULT_MODULE_PRICE_USD): number {
+  if (value == null || value === "") return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 /** Alias map: Engine seed codes / legacy codes → live catalog codes. */
 const CODE_ALIASES: Record<string, string> = {
@@ -76,11 +88,6 @@ function uniq(codes: string[]): string[] {
   return out;
 }
 
-function priceOrDefault(value: unknown): number {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : DEFAULT_MODULE_PRICE_USD;
-}
-
 /** Display-only acronym fixes when Engine sends title-cased codes (Pos/Crm/Hr…). */
 const MODULE_DISPLAY_NAMES: Record<string, string> = {
   pos: "POS",
@@ -133,9 +140,9 @@ export function normalizeCatalogModules(modules: CatalogModule[]): CatalogModule
         description: m.description || `${name} module`,
         dependencies: deps,
         recommended_modules: recommended,
-        monthly_price: priceOrDefault(m.monthly_price),
-        yearly_price: priceOrDefault(m.yearly_price),
-        lifetime_price: priceOrDefault(m.lifetime_price),
+        monthly_price: priceOrDefault(m.monthly_price, DEFAULT_MODULE_PRICE_USD),
+        yearly_price: priceOrDefault(m.yearly_price, DEFAULT_MODULE_YEARLY_USD),
+        lifetime_price: priceOrDefault(m.lifetime_price, DEFAULT_MODULE_LIFETIME_USD),
       };
     })
     .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || a.name.localeCompare(b.name));
@@ -205,9 +212,14 @@ export function resolveRecommendedModules(
 }
 
 export function cycleUnitPrice(mod: CatalogModule, cycle: BillingCycle): number {
-  if (cycle === "yearly") return priceOrDefault(mod.yearly_price);
-  if (cycle === "lifetime") return priceOrDefault(mod.lifetime_price);
-  return priceOrDefault(mod.monthly_price);
+  // Catalog yearly_* is a per-month annual rate — show billed total as × 12.
+  if (cycle === "yearly") {
+    return roundMoney(priceOrDefault(mod.yearly_price, DEFAULT_MODULE_YEARLY_USD) * 12);
+  }
+  if (cycle === "lifetime") {
+    return priceOrDefault(mod.lifetime_price, DEFAULT_MODULE_LIFETIME_USD);
+  }
+  return priceOrDefault(mod.monthly_price, DEFAULT_MODULE_PRICE_USD);
 }
 
 export function sumModulePrices(modules: CatalogModule[], codes: string[]): {
@@ -222,11 +234,15 @@ export function sumModulePrices(modules: CatalogModule[], codes: string[]): {
   for (const code of uniq(codes)) {
     const mod = byCode.get(code);
     if (!mod) continue;
-    monthly += priceOrDefault(mod.monthly_price);
-    yearly += priceOrDefault(mod.yearly_price);
-    lifetime += priceOrDefault(mod.lifetime_price);
+    monthly += priceOrDefault(mod.monthly_price, DEFAULT_MODULE_PRICE_USD);
+    yearly += roundMoney(priceOrDefault(mod.yearly_price, DEFAULT_MODULE_YEARLY_USD) * 12);
+    lifetime += priceOrDefault(mod.lifetime_price, DEFAULT_MODULE_LIFETIME_USD);
   }
-  return { monthly, yearly, lifetime };
+  return {
+    monthly: roundMoney(monthly),
+    yearly: roundMoney(yearly),
+    lifetime: roundMoney(lifetime),
+  };
 }
 
 export function uniqueCategories(modules: CatalogModule[]): string[] {

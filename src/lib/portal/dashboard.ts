@@ -46,6 +46,7 @@ import type {
 } from "@/lib/commercial/types";
 import {
   isCustomErpPackageType,
+  primaryPortalLicense,
   resolveJourneyFromLicenses,
   resolvePrimaryBillingCycle,
   showRenewalUi,

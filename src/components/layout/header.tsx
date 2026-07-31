@@ -61,10 +61,10 @@ function NavDropdown({
       <button
         type="button"
         className={cn(
-          "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 font-sans text-nav font-medium transition-colors",
+          "notranslate inline-flex items-center gap-1 rounded-md px-3 py-1.5 font-sans text-[13px] font-medium transition-colors",
           active || open
-            ? "text-primary bg-primary/5"
-            : "text-foreground/80 hover:text-primary hover:bg-muted"
+            ? "text-primary bg-primary/[0.06]"
+            : "text-[#0b1220]/75 hover:text-primary hover:bg-muted"
         )}
         aria-expanded={open}
         translate="no"
@@ -87,7 +87,7 @@ function MegaPanel({ children, className }: { children: React.ReactNode; classNa
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-border bg-white shadow-[var(--shadow-lg)] ring-1 ring-black/[0.03]",
+        "overflow-hidden rounded-2xl border border-border/90 bg-white shadow-[0_24px_80px_rgba(11,18,32,0.12)] ring-1 ring-black/[0.04]",
         className
       )}
     >
@@ -253,14 +253,14 @@ export function Header() {
         className={cn(
           "sticky top-0 z-50 border-b transition-[border-color,box-shadow,background-color] duration-200 ease-out",
           scrolled
-            ? "border-border bg-white/95 shadow-[var(--shadow-xs)] backdrop-blur-md"
-            : "border-transparent bg-white"
+            ? "border-border/90 bg-white/90 shadow-[0_8px_30px_rgba(11,18,32,0.06)] backdrop-blur-xl"
+            : "border-border/60 bg-white/95 backdrop-blur-md"
         )}
       >
-        <div className="container-site flex h-[3.75rem] md:h-[4.25rem] items-center justify-between gap-2 sm:gap-3 lg:gap-4">
-          <BrandLogo priority height={34} className="min-w-0 max-w-[min(52vw,11rem)] sm:max-w-none" />
+        <div className="container-site flex h-14 md:h-16 items-center justify-between gap-2 sm:gap-3 lg:gap-5">
+          <BrandLogo priority height={30} className="min-w-0 max-w-[min(52vw,10.5rem)] sm:max-w-none" />
 
-          <nav className="hidden xl:flex items-center gap-0.5">
+          <nav className="hidden xl:flex items-center gap-1">
             {/* Full-width Products mega menu */}
             <div
               className="relative"
@@ -270,10 +270,10 @@ export function Header() {
               <button
                 type="button"
                 className={cn(
-                  "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 font-sans text-nav font-medium transition-colors",
+                  "notranslate inline-flex items-center gap-1 rounded-md px-3 py-1.5 font-sans text-[13px] font-medium transition-colors",
                   isActive("/products") || dropdown === "products"
-                    ? "text-primary bg-primary/5"
-                    : "text-foreground/80 hover:text-primary hover:bg-muted"
+                    ? "text-primary bg-primary/[0.06]"
+                    : "text-[#0b1220]/75 hover:text-primary hover:bg-muted"
                 )}
                 aria-expanded={dropdown === "products"}
                 translate="no"
@@ -288,7 +288,7 @@ export function Header() {
               </button>
               {dropdown === "products" ? (
                 <div
-                  className="fixed inset-x-0 top-16 md:top-[4.25rem] z-50 px-3 sm:px-4 md:px-6"
+                  className="fixed inset-x-0 top-14 md:top-16 z-50 px-3 sm:px-4 md:px-6"
                   onMouseEnter={() => {
                     cancelClose();
                     openMenu("products");
@@ -311,7 +311,7 @@ export function Header() {
                                     <li key={link.href + link.title}>
                                       <Link
                                         href={link.href}
-                                        className="group flex gap-3 rounded-xl px-2.5 py-2.5 hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent transition-all"
+                                        className="group flex gap-3 rounded-lg px-2 py-2 hover:bg-muted/80 transition-colors"
                                       >
                                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                                           <Icon className="h-4 w-4" />
@@ -335,13 +335,13 @@ export function Header() {
                           ))}
                         </div>
                       </div>
-                      <div className="relative bg-gradient-to-br from-[#0b1f3a] via-[#132d54] to-primary p-6 text-white flex flex-col justify-center">
-                        <Badge className="mb-3 w-fit bg-white/15 text-white border-white/20 hover:bg-white/15">
+                      <div className="relative bg-[#0b1220] p-6 text-white flex flex-col justify-center">
+                        <Badge className="mb-3 w-fit bg-white/10 text-white border-white/15 hover:bg-white/10">
                           <Sparkles className="h-3 w-3 mr-1" />
                           Launch offer
                         </Badge>
-                        <p className="text-lg font-semibold leading-snug">50% off all plans</p>
-                        <p className="mt-2 text-sm text-white/70 leading-relaxed">
+                        <p className="text-lg font-semibold leading-snug tracking-tight">50% off all plans</p>
+                        <p className="mt-2 text-sm text-white/65 leading-relaxed">
                           No card required. Start your 14-day free trial. From{" "}
                           <span translate="no" suppressHydrationWarning>
                             {fromUsd != null ? formatPrice(fromUsd) : "…"}
@@ -351,7 +351,8 @@ export function Header() {
                         <Button
                           asChild
                           size="sm"
-                          className="mt-5 w-full rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
+                          variant="accent"
+                          className="mt-5 w-full rounded-lg font-semibold"
                         >
                           <Link href="/signup">Start free trial</Link>
                         </Button>
@@ -371,10 +372,10 @@ export function Header() {
               <button
                 type="button"
                 className={cn(
-                  "notranslate inline-flex items-center gap-1 rounded-lg px-3 py-2 font-sans text-nav font-medium transition-colors",
+                  "notranslate inline-flex items-center gap-1 rounded-md px-3 py-1.5 font-sans text-[13px] font-medium transition-colors",
                   isActive("/industries") || dropdown === "industries"
-                    ? "text-primary bg-primary/5"
-                    : "text-foreground/80 hover:text-primary hover:bg-muted"
+                    ? "text-primary bg-primary/[0.06]"
+                    : "text-[#0b1220]/75 hover:text-primary hover:bg-muted"
                 )}
                 aria-expanded={dropdown === "industries"}
                 translate="no"
@@ -392,7 +393,7 @@ export function Header() {
               </button>
               {dropdown === "industries" ? (
                 <div
-                  className="fixed inset-x-0 top-16 md:top-[4.25rem] z-50 px-3 sm:px-4 md:px-6"
+                  className="fixed inset-x-0 top-14 md:top-16 z-50 px-3 sm:px-4 md:px-6"
                   onMouseEnter={() => {
                     cancelClose();
                     openMenu("industries");
@@ -703,7 +704,7 @@ export function Header() {
               asChild
               variant="outline"
               size="sm"
-              className="hidden sm:inline-flex rounded-full px-4 lg:px-5 notranslate"
+              className="hidden sm:inline-flex rounded-full px-4 h-9 text-[13px] notranslate"
             >
               <a
                 href={`${siteConfig.appUrl.replace(/\/+$/, "")}/login`}
@@ -717,7 +718,8 @@ export function Header() {
             <Button
               asChild
               size="sm"
-              className="hidden sm:inline-flex rounded-full px-4 lg:px-5 shadow-sm shadow-primary/15 notranslate"
+              variant="accent"
+              className="hidden sm:inline-flex rounded-lg px-5 h-9 text-[13px] font-semibold notranslate"
             >
               <Link href="/signup" translate="no">
                 {t("header.createAccount", "Create account")}

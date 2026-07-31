@@ -59,9 +59,12 @@ export function HomeCatalogSearch({
 
   const inner = (
     <>
-      <div ref={wrapRef} className="relative mx-auto max-w-2xl">
-          <div className="flex items-center gap-3 rounded-full border border-amber-600 bg-[linear-gradient(135deg,#fff8d6_0%,#fef3c7_100%)] px-5 py-2 shadow-[0_12px_32px_rgba(2,6,23,0.08)] transition-all duration-200 focus-within:border-amber-700 focus-within:shadow-[0_14px_36px_rgba(2,6,23,0.12)]">
-            <Search className="h-5 w-5 shrink-0 text-amber-600" aria-hidden />
+      <div
+        ref={wrapRef}
+        className={cn("relative w-full max-w-2xl", variant !== "hero" && "mx-auto")}
+      >
+          <div className="flex items-center gap-3 rounded-full border border-border bg-white px-5 py-1.5 shadow-[var(--shadow-sm)] transition-[border-color,box-shadow] duration-200 focus-within:border-primary/35 focus-within:shadow-[var(--shadow-md)]">
+            <Search className="h-4.5 w-4.5 h-[18px] w-[18px] shrink-0 text-muted-foreground" aria-hidden />
             <input
               ref={inputRef}
               type="text"
@@ -83,7 +86,7 @@ export function HomeCatalogSearch({
               aria-controls={listId}
               aria-expanded={showPanel}
               autoComplete="off"
-              className="wt-search-field h-14 w-full min-w-0 flex-1 border-0 bg-transparent text-base font-medium text-slate-800 shadow-none outline-none ring-0 placeholder:text-slate-500"
+              className="wt-search-field h-12 w-full min-w-0 flex-1 border-0 bg-transparent text-[0.9375rem] font-medium text-foreground shadow-none outline-none ring-0 placeholder:text-muted-foreground/80"
             />
             {query ? (
               <button
@@ -92,7 +95,7 @@ export function HomeCatalogSearch({
                   setQuery("");
                   inputRef.current?.focus();
                 }}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/70 hover:text-slate-700"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
@@ -116,7 +119,7 @@ export function HomeCatalogSearch({
                       setOpen(true);
                       inputRef.current?.focus();
                     }}
-                    className="shrink-0 whitespace-nowrap rounded-full border border-border bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-white hover:text-primary"
+                    className="shrink-0 whitespace-nowrap rounded-md border border-border bg-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
                   >
                     {hint}
                   </button>
@@ -129,7 +132,7 @@ export function HomeCatalogSearch({
             <div
               id={listId}
               role="listbox"
-              className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-2xl border border-border bg-white shadow-[0_20px_60px_rgba(15,23,42,0.12)]"
+              className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-xl border border-border bg-white shadow-[var(--shadow-lg)]"
             >
               <div className="flex items-center justify-between border-b border-border bg-slate-50/80 px-4 py-2.5">
                 <p className="text-xs font-medium text-muted-foreground">
@@ -242,7 +245,7 @@ export function HomeCatalogSearch({
   );
 
   if (variant === "hero") {
-    return <div className="mx-auto max-w-2xl">{inner}</div>;
+    return <div className="w-full max-w-xl">{inner}</div>;
   }
 
   return (

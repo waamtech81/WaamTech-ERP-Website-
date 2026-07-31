@@ -1,95 +1,134 @@
 import Link from "next/link";
-import { ArrowRight, Play } from "lucide-react";
+import {
+  ArrowRight,
+  Boxes,
+  Calculator,
+  ClipboardList,
+  Factory,
+  ShoppingCart,
+  Users,
+  Warehouse,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/shared/section";
 import { HomeCatalogSearch } from "@/components/sections/home-catalog-search";
 import { authConfig } from "@/lib/auth/config";
 import { siteConfig } from "@/lib/data/site";
 
+const floatModules = [
+  { label: "Sales", Icon: ShoppingCart, className: "left-[-0.5rem] top-[12%] md:left-[-1.25rem]" },
+  { label: "Inventory", Icon: Warehouse, className: "right-[-0.25rem] top-[8%] md:right-[-1rem]" },
+  { label: "Finance", Icon: Calculator, className: "left-[-0.75rem] top-[48%] md:left-[-1.5rem]" },
+  { label: "CRM", Icon: Users, className: "right-[-0.5rem] top-[42%] md:right-[-1.25rem]" },
+  { label: "POS", Icon: Boxes, className: "left-[8%] bottom-[-0.75rem] md:bottom-[-1rem]" },
+  { label: "Ops", Icon: Factory, className: "right-[10%] bottom-[-0.5rem] md:bottom-[-0.85rem]" },
+  { label: "HR", Icon: ClipboardList, className: "left-[42%] top-[-0.85rem] hidden sm:flex" },
+];
+
 export function SwiverHero() {
   return (
-    <section className="relative overflow-hidden bg-white">
-      <div className="pointer-events-none absolute inset-0 bg-hero-glow" />
-      <Container className="relative pt-14 pb-10 md:pt-20 md:pb-14 text-center">
-        <p className="wt-fade-up mb-3 font-heading text-hero font-bold tracking-tight text-[#0b1220] leading-[1.05]">
-          {siteConfig.name}
-        </p>
+    <section className="relative overflow-hidden border-b border-border bg-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_85%_15%,rgba(29,191,115,0.08),transparent_50%),radial-gradient(ellipse_50%_40%_at_10%_80%,rgba(5,73,164,0.06),transparent_55%)]" />
 
-        <p className="wt-fade-up wt-fade-up-delay-1 mb-6 font-sans text-sm md:text-[0.9375rem] font-medium tracking-wide text-primary">
-          {siteConfig.productLine} by {siteConfig.companyName}
-        </p>
+      <Container className="relative py-12 md:py-16 lg:py-[4.5rem]">
+        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-10 xl:gap-14">
+          {/* Copy — Enerpize-inspired hierarchy, WAAMTO content */}
+          <div className="max-w-xl">
+            <p className="wt-fade-up font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-primary">
+              {siteConfig.name} · {siteConfig.productLine}
+            </p>
 
-        <h1 className="wt-fade-up wt-fade-up-delay-1 mx-auto max-w-3xl font-heading text-h2 font-semibold tracking-tight text-[#0b1220]/90 text-balance leading-[1.2]">
-          Control your business. Optimize operations. Unlock growth.
-        </h1>
-        <p className="wt-fade-up wt-fade-up-delay-2 mx-auto mt-4 max-w-2xl font-heading text-base md:text-lg font-semibold tracking-tight text-balance leading-snug text-[#0b1220]/80">
-          <Link
-            href="/build-your-own-erp"
-            className="text-primary underline-offset-4 transition-colors hover:text-[var(--brand-dark)] hover:underline"
-          >
-            Design your own ERP
-          </Link>{" "}
-          at runtime or launch instantly with a pre-built industry solution.
-        </p>
+            <h1 className="wt-fade-up wt-fade-up-delay-1 mt-5 font-heading text-[clamp(2.35rem,1.35rem+3.8vw,3.75rem)] font-extrabold tracking-tight text-[#213242] leading-[1.05] text-balance">
+              Control your business.
+              <span className="block">Optimize operations.</span>
+              <span className="block text-primary">Unlock growth.</span>
+            </h1>
 
-        <p className="wt-fade-up wt-fade-up-delay-2 mx-auto mt-4 max-w-xl font-sans text-[0.9375rem] font-normal text-muted-foreground leading-relaxed text-pretty">
-          One modular platform for Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing,
-          and built-in AI — configured for your industry in minutes.
-        </p>
+            <p className="wt-fade-up wt-fade-up-delay-2 mt-6 max-w-md font-sans text-[1.0625rem] text-[#5a6b7a] leading-relaxed text-pretty">
+              One modular platform for Inventory, POS, Sales, Purchasing, Finance, CRM, HR,
+              Manufacturing, and built-in AI — configured for your industry in minutes.{" "}
+              <Link
+                href="/build-your-own-erp"
+                className="font-semibold text-primary underline-offset-4 hover:underline"
+              >
+                Design your own ERP
+              </Link>{" "}
+              or launch with a pre-built industry solution.
+            </p>
 
-        <div className="wt-fade-up wt-fade-up-delay-3 mt-8">
-          <HomeCatalogSearch variant="hero" />
-        </div>
+            <div className="wt-fade-up wt-fade-up-delay-3 mt-8 flex flex-col sm:flex-row sm:items-center gap-3">
+              <Button
+                asChild
+                size="lg"
+                variant="accent"
+                className="h-[3.25rem] rounded-lg px-8 text-[0.9375rem] font-semibold shadow-[var(--shadow-sm)]"
+              >
+                <Link href="/signup">
+                  Start {authConfig.trialDays}-day free trial
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Link
+                href="/products"
+                className="inline-flex items-center justify-center gap-1.5 px-2 py-2 text-sm font-semibold text-[#213242] hover:text-primary transition-colors"
+              >
+                Explore modules
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
 
-        <div className="wt-fade-up wt-fade-up-delay-3 mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Button asChild size="xl" className="min-w-[240px] rounded-full px-8 shadow-[var(--shadow-sm)]">
-            <Link href="/signup">
-              Start {authConfig.trialDays}-day free trial
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="xl"
-            className="min-w-[200px] rounded-full px-8 border-border text-foreground/80 hover:border-primary/30 hover:text-primary"
-          >
-            <Link href="/products">
-              Explore modules
-              <Play className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
-        </div>
+            <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-medium text-[#5a6b7a]">
+              <li className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                No card required
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                {authConfig.trialDays}-day free trial
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                Start instantly
+              </li>
+            </ul>
 
-        <div className="mx-auto mt-8 max-w-md px-2 text-center">
-          <p className="font-heading text-base sm:text-lg font-semibold tracking-tight leading-snug text-[#0b1220]">
-            <span className="block sm:inline">No card. No payment.</span>{" "}
-            <span className="block sm:inline text-primary">
-              {authConfig.trialDays}-day free trial signup
-            </span>
-          </p>
-          <p className="mt-1.5 font-sans text-sm font-medium tracking-tight text-muted-foreground">
-            — start instantly
-          </p>
-        </div>
-      </Container>
-
-      <Container className="relative pb-10 md:pb-16">
-        <div className="relative mx-auto max-w-5xl">
-          <div className="pointer-events-none absolute -inset-x-6 -inset-y-4 rounded-[2rem] bg-primary/[0.04] blur-2xl" />
-          <div className="relative overflow-hidden rounded-xl md:rounded-2xl border border-border bg-white shadow-[var(--shadow-lg)] ring-1 ring-black/[0.03]">
-            <ProductShell />
+            <div className="mt-8 max-w-md">
+              <HomeCatalogSearch variant="hero" />
+            </div>
           </div>
 
-          <div className="mt-6 flex justify-center md:justify-end">
-            <div className="inline-flex max-w-full items-center gap-3 rounded-full border border-border bg-white/95 px-4 py-2.5 shadow-[var(--shadow-xs)] backdrop-blur-sm">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary ring-1 ring-primary/10">
-                WT
-              </span>
-              <p className="text-left text-sm text-muted-foreground leading-snug">
-                <span className="font-medium text-foreground">{siteConfig.name}</span> powers 17 industries & 100+ business categories
-              </p>
+          {/* Product visual with floating module chips */}
+          <div className="wt-fade-up wt-fade-up-delay-2 relative w-full lg:justify-self-end">
+            <div className="relative mx-auto max-w-[560px] lg:max-w-none px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
+              {floatModules.map(({ label, Icon, className }) => (
+                <div
+                  key={label}
+                  className={`pointer-events-none absolute z-10 hidden sm:flex items-center gap-2 rounded-full border border-border bg-white px-2.5 py-1.5 shadow-[var(--shadow-sm)] ${className}`}
+                >
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="pr-1 text-[11px] font-semibold text-[#213242]">{label}</span>
+                </div>
+              ))}
+
+              <div className="relative overflow-hidden rounded-xl border border-border bg-[#213242] shadow-[var(--shadow-lg)]">
+                <div className="flex items-center gap-2 border-b border-white/10 px-3.5 py-2">
+                  <span className="h-2 w-2 rounded-full bg-white/25" />
+                  <span className="h-2 w-2 rounded-full bg-white/25" />
+                  <span className="h-2 w-2 rounded-full bg-white/25" />
+                  <span className="ml-2 text-[11px] font-medium text-white/40">app.waamto.com</span>
+                </div>
+                <div className="bg-white">
+                  <ProductShell />
+                </div>
+              </div>
             </div>
+
+            <p className="mt-2 text-center text-sm text-[#5a6b7a]">
+              <span className="font-semibold text-[#213242]">{siteConfig.name}</span> powers 17
+              industries & 100+ business categories
+            </p>
           </div>
         </div>
       </Container>
@@ -99,76 +138,98 @@ export function SwiverHero() {
 
 function ProductShell() {
   return (
-    <div className="grid md:grid-cols-[200px_1fr] min-h-[320px] md:min-h-[420px]">
-      <aside className="hidden md:flex flex-col gap-0.5 bg-[#0b1220] p-4 text-white">
-        <div className="mb-5 flex items-center gap-2.5 px-2 py-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-xs font-bold">W</span>
-          <span className="text-sm font-semibold tracking-tight">{siteConfig.name}</span>
+    <div className="grid sm:grid-cols-[152px_1fr] min-h-[260px] sm:min-h-[340px]">
+      <aside className="hidden sm:flex flex-col gap-0.5 bg-[#213242] p-2.5 text-white">
+        <div className="mb-2.5 flex items-center gap-2 px-2 py-1.5">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-[10px] font-bold">
+            W
+          </span>
+          <span className="text-[12px] font-semibold tracking-tight">{siteConfig.name}</span>
         </div>
-        {["Dashboard", "Sales", "Inventory", "POS", "Purchasing", "Finance", "CRM", "HR", "Reports"].map((item, i) => (
-          <div
-            key={item}
-            className={`rounded-md px-3 py-2 text-[13px] transition-colors ${
-              i === 1 ? "bg-white/12 text-white" : "text-white/55"
-            }`}
-          >
-            {item}
-          </div>
-        ))}
+        {["Dashboard", "Sales", "Inventory", "POS", "Purchasing", "Finance", "CRM", "HR"].map(
+          (item, i) => (
+            <div
+              key={item}
+              className={`rounded-md px-2.5 py-1.5 text-[12px] ${
+                i === 1 ? "bg-white/12 text-white" : "text-white/45"
+              }`}
+            >
+              {item}
+            </div>
+          )
+        )}
       </aside>
 
-      <div className="bg-[#f6f8fb] p-4 md:p-6">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-[#f4f7fa] p-3 sm:p-3.5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Sales · Invoices</p>
-            <h2 className="mt-1 text-lg font-semibold tracking-tight text-[#0b1220]">Company workspace</h2>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5a6b7a]">
+              Sales · Invoices
+            </p>
+            <p className="mt-0.5 text-sm font-semibold tracking-tight text-[#213242]">
+              Company workspace
+            </p>
           </div>
-          <div className="flex gap-2">
-            <span className="rounded-md border border-border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-[var(--shadow-xs)]">
-              Export
-            </span>
-            <span className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-[var(--shadow-xs)]">
-              + New document
-            </span>
-          </div>
+          <span className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-white">
+            + New document
+          </span>
         </div>
 
-        <div className="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
           {[
-            { label: "Total", value: "₨ 2.41M", color: "text-[#0b1220]" },
+            { label: "Total", value: "₨ 2.41M", color: "text-[#213242]" },
             { label: "Paid", value: "₨ 1.92M", color: "text-emerald-700" },
             { label: "Due", value: "₨ 410K", color: "text-amber-700" },
             { label: "Overdue", value: "₨ 92K", color: "text-rose-600" },
           ].map((kpi) => (
-            <div key={kpi.label} className="rounded-lg border border-border bg-white p-3.5 shadow-[var(--shadow-xs)]">
-              <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">{kpi.label}</p>
-              <p className={`mt-1.5 text-lg font-semibold tracking-tight ${kpi.color}`}>{kpi.value}</p>
+            <div
+              key={kpi.label}
+              className="rounded-lg border border-border bg-white px-2.5 py-2 shadow-[var(--shadow-xs)]"
+            >
+              <p className="text-[9px] uppercase tracking-[0.12em] text-[#5a6b7a]">{kpi.label}</p>
+              <p className={`mt-0.5 text-sm font-semibold tabular-nums ${kpi.color}`}>{kpi.value}</p>
             </div>
           ))}
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-border bg-white shadow-[var(--shadow-xs)]">
-          <div className="grid grid-cols-12 gap-2 border-b border-border bg-[#f6f8fb] px-4 py-2.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-            <span className="col-span-3">Reference</span>
-            <span className="col-span-4">Customer</span>
-            <span className="col-span-2">Amount</span>
-            <span className="col-span-3">Status</span>
-          </div>
+        <div className="overflow-hidden rounded-lg border border-border bg-white">
           {[
-            { ref: "INV-24081", customer: "Northline Retail", amount: "₨ 128,000", status: "Paid", tone: "bg-emerald-50 text-emerald-700" },
-            { ref: "INV-24082", customer: "Cedar Traders", amount: "₨ 64,500", status: "Due", tone: "bg-amber-50 text-amber-700" },
-            { ref: "INV-24070", customer: "Harbor Distribution", amount: "₨ 91,200", status: "Overdue", tone: "bg-rose-50 text-rose-700" },
-            { ref: "INV-24085", customer: "City Mart", amount: "₨ 47,800", status: "Paid", tone: "bg-emerald-50 text-emerald-700" },
+            {
+              ref: "INV-24081",
+              customer: "Northline Retail",
+              amount: "₨ 128,000",
+              status: "Paid",
+              tone: "bg-emerald-50 text-emerald-700",
+            },
+            {
+              ref: "INV-24082",
+              customer: "Cedar Traders",
+              amount: "₨ 64,500",
+              status: "Due",
+              tone: "bg-amber-50 text-amber-700",
+            },
+            {
+              ref: "INV-24070",
+              customer: "Harbor Distribution",
+              amount: "₨ 91,200",
+              status: "Overdue",
+              tone: "bg-rose-50 text-rose-700",
+            },
           ].map((row) => (
-            <div key={row.ref} className="grid grid-cols-12 gap-2 border-b border-border last:border-0 px-4 py-3 text-sm">
-              <span className="col-span-3 font-medium text-[#0b1220]">{row.ref}</span>
-              <span className="col-span-4 text-muted-foreground truncate">{row.customer}</span>
-              <span className="col-span-2 font-medium tabular-nums">{row.amount}</span>
-              <span className="col-span-3">
-                <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium ${row.tone}`}>
+            <div
+              key={row.ref}
+              className="flex items-center justify-between gap-3 border-b border-border last:border-0 px-3 py-2.5 text-[12px]"
+            >
+              <div className="min-w-0">
+                <p className="font-medium text-[#213242] truncate">{row.ref}</p>
+                <p className="text-[11px] text-[#5a6b7a] truncate">{row.customer}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="font-medium tabular-nums text-[#213242]">{row.amount}</p>
+                <span className={`inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${row.tone}`}>
                   {row.status}
                 </span>
-              </span>
+              </div>
             </div>
           ))}
         </div>

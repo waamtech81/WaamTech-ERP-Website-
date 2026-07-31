@@ -2,28 +2,28 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #0b1220;
-  --muted: #f6f8fb;
-  --muted-foreground: #5b6b7c;
+  --foreground: #213242;
+  --muted: #f4f7fa;
+  --muted-foreground: #5a6b7a;
   --card: #ffffff;
-  --border: #e6ebf2;
+  --border: #e3e9ef;
   --primary: #0549a4;
   --primary-foreground: #ffffff;
-  --secondary: #4f46e5;
+  --secondary: #1e4d7b;
   --secondary-foreground: #ffffff;
-  --accent: #0f9f6e;
+  --accent: #1dbf73;
   --accent-foreground: #ffffff;
   --ring: #0549a4;
-  --brand-dark: #09215b;
-  --radius: 0.75rem;
+  --brand-dark: #0c2a4a;
+  --radius: 0.625rem;
 
   /* Surfaces & elevation (enterprise SSOT) */
-  --surface-subtle: #f6f8fb;
+  --surface-subtle: #f4f7fa;
   --surface-elevated: #ffffff;
-  --shadow-xs: 0 1px 2px rgba(11, 18, 32, 0.04);
-  --shadow-sm: 0 1px 2px rgba(11, 18, 32, 0.04), 0 4px 12px rgba(11, 18, 32, 0.04);
-  --shadow-md: 0 2px 4px rgba(11, 18, 32, 0.04), 0 12px 28px rgba(11, 18, 32, 0.08);
-  --shadow-lg: 0 8px 16px rgba(11, 18, 32, 0.06), 0 24px 48px rgba(11, 18, 32, 0.1);
+  --shadow-xs: 0 1px 2px rgba(33, 50, 66, 0.04);
+  --shadow-sm: 0 2px 8px rgba(33, 50, 66, 0.06);
+  --shadow-md: 0 8px 24px rgba(33, 50, 66, 0.08);
+  --shadow-lg: 0 16px 48px rgba(33, 50, 66, 0.12);
   --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
 
   /* ——— Enterprise typography tokens ——— */
@@ -34,22 +34,22 @@
 
   --font-weight-body: 400;
   --font-weight-body-medium: 500;
-  --font-weight-heading: 600;
-  --font-weight-heading-bold: 700;
+  --font-weight-heading: 700;
+  --font-weight-heading-bold: 800;
 
-  --tracking-heading: -0.025em;
-  --tracking-body: -0.01em;
-  --leading-body: 1.7;
-  --leading-heading: 1.15;
+  --tracking-heading: -0.035em;
+  --tracking-body: -0.006em;
+  --leading-body: 1.65;
+  --leading-heading: 1.08;
 
   /* Responsive type scale (fluid where it matters) */
-  --type-hero: clamp(2.5rem, 1.55rem + 3.4vw, 4rem);
-  --type-cta: clamp(1.75rem, 1.25rem + 1.6vw, 2.375rem);
-  --type-h1: clamp(2rem, 1.4rem + 2.2vw, 3rem);
-  --type-h2: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
-  --type-h3: clamp(1.1875rem, 1.08rem + 0.45vw, 1.375rem);
+  --type-hero: clamp(2.75rem, 1.4rem + 4.5vw, 4.5rem);
+  --type-cta: clamp(1.875rem, 1.3rem + 1.8vw, 2.5rem);
+  --type-h1: clamp(2.25rem, 1.4rem + 2.8vw, 3.5rem);
+  --type-h2: clamp(1.5rem, 1.2rem + 1.15vw, 2rem);
+  --type-h3: clamp(1.1875rem, 1.08rem + 0.4vw, 1.375rem);
   --type-h4: 1.125rem;
-  --type-section: clamp(1.875rem, 1.35rem + 1.7vw, 2.625rem);
+  --type-section: clamp(1.875rem, 1.3rem + 1.85vw, 2.75rem);
   --type-card-title: 1.0625rem;
   --type-feature-title: 1.0625rem;
   --type-pricing-title: 1.125rem;

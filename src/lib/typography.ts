@@ -19,7 +19,7 @@ export const typography = {
   /** Body copy */
   body: "font-sans text-body font-normal leading-relaxed",
   bodyMedium: "font-sans text-body font-medium leading-relaxed",
-  description: "font-sans text-description font-normal leading-relaxed text-muted-foreground",
+  description: "font-sans text-description font-normal leading-relaxed text-muted-foreground text-pretty",
   label: "font-sans text-label font-medium",
   nav: "font-sans text-nav font-medium",
   button: "font-sans font-medium",
@@ -27,6 +27,7 @@ export const typography = {
   table: "font-sans text-table font-normal",
   footer: "font-sans text-footer font-normal",
   tooltip: "font-sans text-tooltip font-normal leading-snug",
+  eyebrow: "font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-primary",
 } as const;
 
 export type TypographyKey = keyof typeof typography;

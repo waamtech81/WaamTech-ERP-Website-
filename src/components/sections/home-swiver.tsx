@@ -52,14 +52,14 @@ export function StatsBand() {
           {stats.map((stat, i) => (
             <AnimateIn key={stat.label} delay={i * 0.05}>
               <div className="text-center">
-                <p className="font-heading text-section font-semibold tracking-tight text-[#0b1f3a]">
+                <p className="font-heading text-section font-semibold tracking-tight text-[#0b1220] tabular-nums">
                   {catalog.loading && i > 0 ? (
-                    <span className="inline-block h-9 w-16 animate-pulse rounded bg-slate-200" />
+                    <span className="inline-block h-9 w-16 animate-pulse rounded-md bg-border/80" />
                   ) : (
                     <Counter value={stat.value} suffix={stat.suffix} />
                   )}
                 </p>
-                <p className="mt-2 text-sm text-muted-foreground">{stat.label}</p>
+                <p className="mt-2.5 text-sm font-medium text-muted-foreground">{stat.label}</p>
               </div>
             </AnimateIn>
           ))}
@@ -80,7 +80,7 @@ export function FeaturedProductsSection() {
           <p className="mb-3 text-sm font-medium text-primary tracking-wide uppercase">
             Featured products
           </p>
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
+          <h2 className="font-heading text-section font-semibold tracking-tight text-[#0b1220]">
             From the License Engine catalog
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
@@ -104,7 +104,7 @@ export function FeaturedProductsSection() {
               const Icon = getIcon(product.icon || "Boxes");
               return (
                 <AnimateIn key={product.id} delay={i * 0.05}>
-                  <Card className="h-full hover:-translate-y-1 hover:shadow-md transition-all">
+                  <Card className="h-full hover:border-primary/20 hover:shadow-[var(--shadow-md)]">
                     <CardHeader>
                       <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary">
                         <Icon className="h-5 w-5" />
@@ -138,7 +138,7 @@ export function CapabilitiesSection() {
       <Container>
         <div className="mx-auto mb-12 max-w-3xl text-center">
           <p className="mb-3 text-sm font-medium text-primary tracking-wide uppercase">Platform</p>
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
+          <h2 className="font-heading text-section font-semibold tracking-tight text-[#0b1220] text-balance">
             Built for how real businesses work
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
@@ -151,7 +151,7 @@ export function CapabilitiesSection() {
             const Icon = getIcon(item.icon);
             return (
               <AnimateIn key={item.title} delay={i * 0.06}>
-                <Card className="h-full group hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(15,23,42,0.08)] hover:border-primary/20">
+                <Card className="h-full group hover:shadow-[var(--shadow-md)] hover:border-primary/20">
                   <CardHeader>
                     <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary transition-transform duration-300 group-hover:scale-110">
                       <Icon className="h-5 w-5" />
@@ -182,7 +182,7 @@ function IndustryHomeCard({ industry, index }: { industry: CatalogIndustry; inde
   return (
     <AnimateIn delay={(index % 4) * 0.04}>
       <Link href={`/industries/${industry.slug || industry.id}`} className="group block h-full">
-        <Card className="h-full overflow-hidden hover:-translate-y-1.5 hover:shadow-[0_16px_40px_rgba(15,23,42,0.1)] hover:border-primary/20 transition-all duration-500">
+        <Card className="h-full overflow-hidden hover:shadow-[var(--shadow-md)] hover:border-primary/20">
           <div className="relative aspect-[16/10] overflow-hidden">
             <Image
               src={media.image}
@@ -192,11 +192,11 @@ function IndustryHomeCard({ industry, index }: { industry: CatalogIndustry; inde
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               className="object-cover transition-transform duration-700 group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a]/70 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0b1220]/70 to-transparent" />
             <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl bg-primary/90 text-white">
               <Icon className="h-4 w-4" />
             </div>
-            <Badge className="absolute right-3 top-3 bg-white/90 text-[#0b1f3a] hover:bg-white text-[10px]">
+            <Badge className="absolute right-3 top-3 bg-white/90 text-[#0b1220] hover:bg-white text-[10px]">
               Featured
             </Badge>
             <p className="absolute bottom-3 left-3 right-3 text-sm font-semibold text-white">
@@ -228,7 +228,7 @@ export function BusinessesSection() {
           <p className="mb-3 text-sm font-medium text-primary tracking-wide uppercase">
             Industries we serve
           </p>
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
+          <h2 className="font-heading text-section font-semibold tracking-tight text-[#0b1220] text-balance">
             {industryCount} industries · {categoryCount}+ business categories
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
@@ -272,7 +272,7 @@ export function SocialProofSection() {
     <Section>
       <Container>
         <div className="mx-auto mb-12 max-w-3xl text-center">
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
+          <h2 className="font-heading text-section font-semibold tracking-tight text-[#0b1220]">
             Operators trust {siteConfig.name} for clarity
           </h2>
         </div>
@@ -303,7 +303,7 @@ export function SocialProofSection() {
                       );
                     })}
                   </div>
-                  <p className="text-base leading-relaxed text-[#0b1f3a]">
+                  <p className="text-base leading-relaxed text-[#0b1220]">
                     {`\u201C${t.quote}\u201D`}
                   </p>
                   <div className="mt-auto flex items-center gap-3 border-t border-border pt-5">
@@ -364,7 +364,7 @@ export function PricingTeaser() {
           <Badge variant="accent" className="mb-3">
             Popular plans
           </Badge>
-          <h2 className="font-heading text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
+          <h2 className="font-heading text-section font-semibold tracking-tight text-[#0b1220]">
             {fromUsd != null ? (
               <>
                 Affordable ERP from <Price usd={fromUsd} />/mo
@@ -418,7 +418,7 @@ export function PricingTeaser() {
           </>
         ) : null}
         <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary to-[#0b1f3a] px-6 py-6 text-white flex flex-col">
+          <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary to-[#0b1220] px-6 py-6 text-white flex flex-col">
             <div className="flex-1">
               <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
                 Build your own custom ERP
@@ -432,13 +432,13 @@ export function PricingTeaser() {
             </div>
             <Button
               asChild
-              className="mt-4 self-start rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
+              className="mt-4 self-start rounded-full bg-white text-[#0b1220] hover:bg-slate-100"
             >
               <Link href="/build-your-own-erp">Build your own custom ERP</Link>
             </Button>
           </div>
           {enterprise ? (
-            <div className="rounded-2xl border border-border bg-[#0b1f3a] px-6 py-6 text-white flex flex-col">
+            <div className="rounded-2xl border border-border bg-[#0b1220] px-6 py-6 text-white flex flex-col">
               <div className="flex-1">
                 <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
                   {enterprise.ribbon || enterprise.badge || "Enterprise"}
@@ -455,7 +455,7 @@ export function PricingTeaser() {
               </div>
               <Button
                 asChild
-                className="mt-4 self-start rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
+                className="mt-4 self-start rounded-full bg-white text-[#0b1220] hover:bg-slate-100"
               >
                 <Link href={enterprise.href || "/contact?intent=enterprise"}>
                   {enterprise.cta || "Contact Sales"}
@@ -482,29 +482,29 @@ export function SoftCTA() {
     <Section className="!pb-20">
       <Container>
         <AnimateIn>
-          <div className="relative overflow-hidden rounded-[2rem] border border-border bg-[#0b1f3a] px-8 py-14 md:px-16 md:py-16 text-center text-white">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_70%_20%,rgba(37,99,235,0.35),transparent_60%)]" />
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0b1220] px-8 py-14 md:px-16 md:py-16 text-center text-white shadow-[var(--shadow-lg)]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_60%_at_50%_0%,rgba(5,73,164,0.28),transparent_70%)]" />
             <div className="relative">
-              <h2 className="font-heading text-3xl md:text-4xl font-semibold tracking-tight text-balance">
+              <h2 className="font-heading text-cta font-semibold tracking-tight text-balance">
                 Ready to run your business on {siteConfig.name}?
               </h2>
-              <p className="mt-4 font-heading text-base sm:text-lg md:text-xl font-bold tracking-tight text-white">
+              <p className="mt-5 font-heading text-base sm:text-lg font-semibold tracking-tight text-white">
                 <span className="block sm:inline">No card. No payment.</span>{" "}
-                <span className="block sm:inline text-sky-300">
+                <span className="block sm:inline text-sky-200">
                   {authConfig.trialDays}-day free trial signup
                 </span>
               </p>
-              <p className="mt-1 font-heading text-base sm:text-lg md:text-xl font-bold tracking-tight text-white/95">
+              <p className="mt-1.5 font-sans text-sm sm:text-base font-medium tracking-tight text-white/70">
                 — start instantly
               </p>
-              <p className="mt-2 text-white/70 text-base md:text-lg max-w-xl mx-auto">
+              <p className="mt-4 text-white/60 text-[0.9375rem] md:text-base max-w-lg mx-auto leading-relaxed text-pretty">
                 Pick product, plan, industry, and profile in minutes.
               </p>
-              <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
+              <div className="mt-9 flex flex-col sm:flex-row justify-center gap-3">
                 <Button
                   asChild
                   size="lg"
-                  className="rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
+                  className="rounded-full bg-white text-[#0b1220] hover:bg-slate-100 shadow-[var(--shadow-xs)]"
                 >
                   <Link href="/signup">
                     Start {authConfig.trialDays}-day free trial
@@ -515,7 +515,7 @@ export function SoftCTA() {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="rounded-full border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                  className="rounded-full border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
                 >
                   <Link href="/contact">Talk to sales</Link>
                 </Button>

@@ -1,0 +1,69 @@
+---
+description: WAAMTO Website V1/V2 Git workflow — branches, commits, deploys
+alwaysApply: true
+---
+
+# WAAMTO Website Version Management (Git)
+
+Permanent. Applies to **ERP Website** (`waamto-website`) only.
+
+## Branches
+
+| Branch | Version | Role |
+| --- | --- | --- |
+| `main` | Website Version 1 | Production (live) |
+| `website-v2` | Website Version 2 | Development |
+
+## Hard rules
+
+- Never develop Version 2 on `main`.
+- Never merge `website-v2` into `main` without explicit user approval.
+- Never deploy `website-v2` unless the user explicitly says **Deploy Version 2**.
+- Never deploy `main` unless the user explicitly says **Deploy Version 1**.
+- Never mix V1 and V2 changes in one change set.
+- If the version is ambiguous → **ask** before editing or deploying.
+
+## User commands
+
+| User says | Action |
+| --- | --- |
+| **Work on Version 1** | `git checkout main` → commit only to `main` |
+| **Work on Version 2** | `git checkout website-v2` → commit only to `website-v2` |
+| **Deploy Version 1** | Pull latest `main` → production build → deploy **main** to Webdock (build-only) |
+| **Deploy Version 2** | Checkout `website-v2` → pull latest → build → deploy **website-v2** to Webdock **only** because user explicitly requested it |
+
+Deploy scripts: `scripts/DEPLOY-WEBDOCK.md` / `scripts/deploy-website-build-only.ps1`  
+Touch only `waamto-website` / PM2 `waamto-website`.
+
+## Version intent
+
+### Version 1 (`main`) — Production
+
+- Live on Webdock
+- **Allowed:** critical bugs, security, performance, content, production hotfixes
+- **Forbidden:** major UI/UX redesign, experimental layout/illustration work
+
+### Version 2 (`website-v2`) — Development
+
+- Next-generation website
+- All design / UI / UX / illustration / layout / typography / animation / redesign → here
+
+## Approved release (only when user officially approves)
+
+1. Merge `website-v2` into `main` (explicit approval required)
+2. Tag release: `website-v2.0.0`
+3. Deploy **main** to Webdock (as production)
+4. After release: create `website-v3` — future development starts there
+
+## Safety
+
+- Do not assume which version to edit
+- Do not auto-merge V2 → V1
+- Do not treat “deploy” alone as Version 1 or Version 2 — require the explicit phrase
+- Keep versions completely separate until approved release
+
+## Objective
+
+- Version 1 = stable production (`main`)
+- Version 2 = active development (`website-v2`)
+- Do not mix them

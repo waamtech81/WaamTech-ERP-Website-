@@ -87,7 +87,7 @@ function MegaPanel({ children, className }: { children: React.ReactNode; classNa
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border border-border/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.14)] ring-1 ring-black/[0.03]",
+        "overflow-hidden rounded-xl border border-border bg-white shadow-[var(--shadow-lg)] ring-1 ring-black/[0.03]",
         className
       )}
     >
@@ -251,9 +251,9 @@ export function Header() {
     <>
       <header
         className={cn(
-          "sticky top-0 z-50 border-b transition-all duration-300",
+          "sticky top-0 z-50 border-b transition-[border-color,box-shadow,background-color] duration-200 ease-out",
           scrolled
-            ? "border-border/80 bg-white shadow-[0_1px_0_rgba(15,23,42,0.04)]"
+            ? "border-border bg-white/95 shadow-[var(--shadow-xs)] backdrop-blur-md"
             : "border-transparent bg-white"
         )}
       >

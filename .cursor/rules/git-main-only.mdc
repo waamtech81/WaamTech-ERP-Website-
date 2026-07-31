@@ -1,22 +1,30 @@
 ---
-description: Git workflow — main only (dev retired)
+description: Git workflow — Website V1 main + V2 website-v2 (supersedes main-only)
 alwaysApply: true
 ---
 
-# Git workflow — `main` only
+# Git workflow — Website Version branches
 
-**Status:** `dev` branch retired. Do **not** recreate it.
+**Status:** Dual-branch website versioning is active. The old “main only / no `dev`” rule is superseded for this repo.
+
+Authority: `.cursor/rules/website-version-management.mdc`
+
+## Branches
+
+- **`main`** = Website Version 1 (production)
+- **`website-v2`** = Website Version 2 (development)
 
 ## Rules
 
-- **`main`** is the only active development and production branch.
-- Commit, push, and open PRs against **`main`** only.
-- Deploy to Webdock from **`main`** (`scripts/deploy-website-build-only.ps1`).
-- Do **not** create, checkout, or push a `dev` branch unless the user explicitly asks to restore dual-branch flow.
-- Prefer short-lived feature branches only when the user requests them; merge into `main` with a normal merge (no force-push to `main`).
+- Commit Version 1 work only on `main`.
+- Commit Version 2 work only on `website-v2`.
+- Never develop V2 on `main`.
+- Never merge `website-v2` → `main` without explicit user approval.
+- Do **not** recreate a generic `dev` branch; use `website-v2` / future `website-v3`.
+- Short-lived feature branches only when the user asks; merge into the correct version branch.
 
-## Deploy order
+## Deploy
 
-1. Commit on `main` (or feature branch → merge into `main`)
-2. Push `origin/main`
-3. Build-only Webdock deploy from local `main`
+- Deploy Version 1 → only when user says **Deploy Version 1** (from `main`)
+- Deploy Version 2 → only when user says **Deploy Version 2** (from `website-v2`)
+- Build-only Webdock: `scripts/deploy-website-build-only.ps1`

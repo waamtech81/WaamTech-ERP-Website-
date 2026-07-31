@@ -24,21 +24,21 @@ export function CTASection({
       <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <Container>
         <AnimateIn>
-          <div className="relative rounded-3xl border border-border bg-white px-8 py-14 md:px-16 md:py-20 text-center shadow-[0_8px_40px_rgba(15,23,42,0.04)]">
-            <h2 className="font-heading text-cta font-semibold tracking-tight text-balance max-w-2xl mx-auto">
+          <div className="relative rounded-2xl border border-border bg-white px-8 py-14 md:px-16 md:py-16 text-center shadow-[var(--shadow-sm)]">
+            <h2 className="font-heading text-cta font-semibold tracking-tight text-balance max-w-2xl mx-auto text-[#0b1220]">
               {title}
             </h2>
-            <p className="mt-4 font-sans text-description font-normal text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            <p className="mt-4 font-sans text-description font-normal text-muted-foreground max-w-lg mx-auto leading-relaxed text-pretty">
               {description}
             </p>
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button asChild size="lg">
+            <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button asChild size="lg" className="rounded-full min-w-[180px]">
                 <Link href={primaryHref}>
                   {primaryLabel}
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg">
+              <Button asChild variant="outline" size="lg" className="rounded-full min-w-[160px]">
                 <Link href={secondaryHref}>{secondaryLabel}</Link>
               </Button>
             </div>

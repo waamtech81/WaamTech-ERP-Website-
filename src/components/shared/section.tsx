@@ -47,21 +47,26 @@ export function SectionHeader({
   return (
     <div
       className={cn(
-        "mb-12 md:mb-16 max-w-3xl",
+        "mb-12 md:mb-14 max-w-2xl",
         align === "center" && "mx-auto text-center",
         className
       )}
     >
       {eyebrow ? (
-        <p className="mb-3 text-sm font-medium tracking-wide text-primary uppercase font-sans">
+        <p className="mb-3 font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="font-heading text-section font-semibold tracking-tight text-balance text-[#0b1f3a]">
+      <h2 className="font-heading text-section font-semibold tracking-tight text-balance text-[#0b1220]">
         {title}
       </h2>
       {description ? (
-        <p className="mt-4 font-sans text-description font-normal text-muted-foreground leading-relaxed text-balance">
+        <p
+          className={cn(
+            "mt-4 font-sans text-description font-normal text-muted-foreground leading-relaxed text-pretty",
+            align === "center" && "mx-auto max-w-xl"
+          )}
+        >
           {description}
         </p>
       ) : null}

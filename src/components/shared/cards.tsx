@@ -19,20 +19,25 @@ export function FeatureCard({
   const Icon = getIcon(icon);
 
   return (
-    <Card className={cn("h-full hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)]", className)}>
+    <Card
+      className={cn(
+        "h-full hover:border-primary/20 hover:shadow-[var(--shadow-md)]",
+        className
+      )}
+    >
       <CardHeader>
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/8 text-primary">
-          <Icon className="h-5 w-5" />
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/[0.08] text-primary ring-1 ring-primary/10">
+          <Icon className="h-[18px] w-[18px]" />
         </div>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       {features?.length ? (
         <CardContent>
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {features.map((f) => (
-              <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+              <li key={f} className="flex items-start gap-2.5 text-sm text-muted-foreground leading-snug">
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent" />
                 {f}
               </li>
             ))}

@@ -846,6 +846,14 @@ function positiveLimit(value: number | null | undefined, floor = 1): number {
   return Math.floor(value);
 }
 
+function roundPortalMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Catalog yearly_* is a per-month annual rate — portal cart shows/bills × 12.
+ * `cycle_price` from Engine is already cycle-final (do not multiply again).
+ */
 function cycleUnitPrice(
   item: {
     monthly_price?: number | null;
@@ -872,7 +880,7 @@ function cycleUnitPrice(
     }
     if (/year/.test(c)) {
       const v = pd.yearly;
-      if (typeof v === "number" && v >= 0) return v;
+      if (typeof v === "number" && v >= 0) return roundPortalMoney(v * 12);
     }
     const v = pd.monthly;
     if (typeof v === "number" && v >= 0) return v;
@@ -883,7 +891,7 @@ function cycleUnitPrice(
   }
   if (/year/.test(c)) {
     const v = Number(item.yearly_price);
-    return Number.isFinite(v) && v >= 0 ? v : 0;
+    return Number.isFinite(v) && v >= 0 ? roundPortalMoney(v * 12) : 0;
   }
   const v = Number(item.monthly_price);
   return Number.isFinite(v) && v >= 0 ? v : 0;

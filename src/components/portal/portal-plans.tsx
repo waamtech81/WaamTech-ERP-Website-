@@ -13,7 +13,6 @@ import {
 import {
   cardPlans,
   publicMarketingPlans,
-  resolveCyclePrice,
 } from "@/lib/commercial/mappers";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import {
@@ -36,21 +35,43 @@ import type { BillingCycle } from "@/lib/commercial/types";
 type FlowMode = "upgrade" | "new_place" | "renew";
 type Step = "mode" | "industry" | "category" | "plan" | "confirm";
 
+/**
+ * Portal plan cart — pick the amount for the selected billing cycle only.
+ * - Monthly: monthlyPrice
+ * - Yearly: full annual (yearlyTotal), else yearlyPrice×12, else monthly×12
+ * - Lifetime: lifetimePrice (one-time)
+ * Do not reuse marketing resolveCyclePrice (it prefers lifetime whenever set).
+ */
 function priceForCycle(plan: PricingPlan, cycle: BillingCycle) {
-  if (cycle === "lifetime" && plan.lifetimePrice != null) {
+  if (cycle === "lifetime") {
     return {
       billingCycle: "lifetime" as BillingCycle,
       price: plan.lifetimePrice,
-      contactSales: Boolean(plan.contactSales),
+      contactSales: Boolean(plan.contactSales) || plan.lifetimePrice == null,
       unitLabel: "one-time",
     };
   }
-  const resolved = resolveCyclePrice(plan, cycle !== "monthly");
+  if (cycle === "yearly") {
+    const annual =
+      plan.yearlyTotal != null && Number.isFinite(plan.yearlyTotal)
+        ? plan.yearlyTotal
+        : plan.yearlyPrice != null && Number.isFinite(plan.yearlyPrice)
+          ? Number((plan.yearlyPrice * 12).toFixed(2))
+          : plan.monthlyPrice != null && Number.isFinite(plan.monthlyPrice)
+            ? Number((plan.monthlyPrice * 12).toFixed(2))
+            : null;
+    return {
+      billingCycle: "yearly" as BillingCycle,
+      price: annual,
+      contactSales: Boolean(plan.contactSales) || annual == null,
+      unitLabel: "/ year",
+    };
+  }
   return {
-    billingCycle: (resolved.billingCycle || cycle) as BillingCycle,
-    price: resolved.price,
-    contactSales: Boolean(resolved.contactSales),
-    unitLabel: resolved.unitLabel || "/user/mo",
+    billingCycle: "monthly" as BillingCycle,
+    price: plan.monthlyPrice,
+    contactSales: Boolean(plan.contactSales) || plan.monthlyPrice == null,
+    unitLabel: "/ month",
   };
 }
 

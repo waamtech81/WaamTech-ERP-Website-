@@ -1300,10 +1300,20 @@ export function BuildYourOwnErpBuilder() {
   function scrollWizardIntoView() {
     if (typeof window === "undefined") return;
     window.requestAnimationFrame(() => {
-      document.getElementById("builder")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      // Flush under sticky site header — avoid html scroll-padding (5.5rem) leaving a navy gap.
+      const el =
+        document.getElementById("erp-builder-sticky") ||
+        document.getElementById("builder");
+      if (!el) return;
+      const raw = getComputedStyle(document.documentElement)
+        .getPropertyValue("--wt-site-header-h")
+        .trim();
+      const rootFs = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const headerH = raw.endsWith("rem")
+        ? parseFloat(raw) * rootFs
+        : parseFloat(raw) || rootFs * 4.25;
+      const top = el.getBoundingClientRect().top + window.scrollY - headerH;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
     });
   }
 

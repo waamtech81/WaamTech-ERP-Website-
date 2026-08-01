@@ -387,6 +387,7 @@ export type CustomUpgradeLineItemsPayload = {
   added_feature_packs?: string[];
   payable_amount: number;
   campaign_active?: boolean;
+  limit_increases?: Array<{ label: string; previous: number; next: number }>;
 };
 
 export type CustomUpgradeLineItemsResult = {
@@ -421,6 +422,7 @@ export async function fetchCustomUpgradeLineItems(
         added_feature_packs: body.added_feature_packs || [],
         payable_amount: body.payable_amount,
         campaign_active: body.campaign_active,
+        limit_increases: body.limit_increases || [],
       }),
       cache: "no-store",
       signal: controller.signal,

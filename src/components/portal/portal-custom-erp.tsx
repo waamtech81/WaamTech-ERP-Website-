@@ -849,19 +849,21 @@ function normCode(value: string): string {
   return String(value || "").trim().toLowerCase();
 }
 
-function upgradeLineUnitPrice(
-  lines: Array<{ code?: string; kind: string; unit_price: number }>,
-  code: string,
-  kind: "module" | "feature_pack"
-): number | null {
-  const key = normCode(code);
-  const hit = lines.find(
-    (line) =>
-      line.kind === kind && line.code != null && normCode(String(line.code)) === key
+function UpgradeAdditionRow({ name }: { name: string }) {
+  return (
+    <li className="flex items-start gap-2.5">
+      <Check
+        className="mt-0.5 h-4 w-4 shrink-0 text-[var(--portal-primary)]"
+        aria-hidden
+      />
+      <div className="min-w-0">
+        <p className="font-medium text-[var(--portal-ink)]">{name}</p>
+        <p className="text-[11px] text-[var(--portal-muted)]">
+          Will be added to your license
+        </p>
+      </div>
+    </li>
   );
-  if (!hit) return null;
-  const unit = Number(hit.unit_price);
-  return Number.isFinite(unit) ? unit : null;
 }
 
 /** License Engine rejects 0 / negative / unlimited (-1) seat limits on upgrade. */
@@ -1153,15 +1155,6 @@ function PortalCustomErpUpgradeWizard({
     tax_amount: number;
     grand_total: number;
   } | null>(null);
-  const [upgradeLineItems, setUpgradeLineItems] = useState<
-    Array<{
-      description: string;
-      quantity: number;
-      unit_price: number;
-      code?: string;
-      kind: string;
-    }>
-  >([]);
   const [quoteCurrency, setQuoteCurrency] = useState<string>("USD");
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [quoteError, setQuoteError] = useState("");
@@ -1371,6 +1364,12 @@ function PortalCustomErpUpgradeWizard({
   const hasPaidChanges =
     newlySelected.length > 0 || newlySelectedPacks.length > 0 || limitIncreases;
   const hasRemovals = removedModules.length > 0 || removedPacks.length > 0;
+  const upgradeDiscountAmount = Number(upgradeDeltaPricing?.discount_amount ?? 0);
+  const upgradeCouponCode = String(
+    liveQuote?.pricing?.discount_code || appliedCoupon || ""
+  )
+    .trim()
+    .toUpperCase();
   const hasChanges = hasPaidChanges || hasRemovals;
   // Paid adds go to checkout; removal-only heals polluted licenses without payment.
   const canCheckout = selectedModules.size > 0 && hasChanges;
@@ -1449,7 +1448,6 @@ function PortalCustomErpUpgradeWizard({
           setLiveQuote(null);
           setUpgradeDue(null);
           setUpgradeDeltaPricing(null);
-          setUpgradeLineItems([]);
           setQuoteError(json.message || "Live pricing is unavailable. Retry shortly.");
           if (appliedCoupon) {
             setCouponError(json.message || "This coupon is invalid or not applicable.");
@@ -1461,7 +1459,6 @@ function PortalCustomErpUpgradeWizard({
         const due = Number(json.data.amount);
         setUpgradeDue(Number.isFinite(due) && due >= 0 ? due : null);
         setUpgradeDeltaPricing(json.data.delta_pricing ?? null);
-        setUpgradeLineItems(json.data.upgrade_line_items ?? []);
         const couponVisible = json.data.coupon_field_visible === true;
         setCouponFieldVisible(couponVisible);
         if (!couponVisible) {
@@ -1492,7 +1489,6 @@ function PortalCustomErpUpgradeWizard({
         setLiveQuote(null);
         setUpgradeDue(null);
         setUpgradeDeltaPricing(null);
-        setUpgradeLineItems([]);
         setQuoteError(
           err instanceof Error ? err.message : "Live pricing request failed."
         );
@@ -2062,8 +2058,8 @@ function PortalCustomErpUpgradeWizard({
 
         <aside className="lg:sticky lg:top-6 lg:self-start">
           <PortalPanel
-            title="Order summary"
-            description="Live quote — updates when modules, Feature Packs, or limits change."
+            title="Upgrade summary"
+            description="What you are adding and your payable upgrade total."
           >
             <div className="space-y-4 text-sm">
               <div>
@@ -2102,26 +2098,14 @@ function PortalCustomErpUpgradeWizard({
               {newlySelected.length > 0 ? (
                 <div>
                   <p className="font-medium">New modules</p>
-                  <p className="mt-0.5 text-[11px] text-[var(--portal-muted)]">
-                    Amounts are your prorated upgrade share from the License Engine quote
-                    (same as checkout and invoice).
-                  </p>
-                  <ul className="mt-1 space-y-1.5 text-[var(--portal-muted)]">
+                  <ul className="mt-2 space-y-2">
                     {newlySelected.map((code) => {
                       const mod = moduleByCode.get(code);
-                      const unit = upgradeLineUnitPrice(upgradeLineItems, code, "module");
                       return (
-                        <li
+                        <UpgradeAdditionRow
                           key={code}
-                          className="flex items-start justify-between gap-3"
-                        >
-                          <span className="min-w-0">{mod?.name || titleCaseCode(code)}</span>
-                          <span className="shrink-0 font-medium tabular-nums text-[var(--portal-ink)]">
-                            {unit != null && upgradeDue != null
-                              ? formatPrice(unit)
-                              : "—"}
-                          </span>
-                        </li>
+                          name={mod?.name || titleCaseCode(code)}
+                        />
                       );
                     })}
                   </ul>
@@ -2131,51 +2115,16 @@ function PortalCustomErpUpgradeWizard({
               {newlySelectedPacks.length > 0 ? (
                 <div>
                   <p className="font-medium">New Feature Packs</p>
-                  <ul className="mt-1 space-y-1.5 text-[var(--portal-muted)]">
+                  <ul className="mt-2 space-y-2">
                     {newlySelectedPacks.map((code) => {
                       const pack = packByCode.get(code);
-                      const unit = upgradeLineUnitPrice(upgradeLineItems, code, "feature_pack");
                       return (
-                        <li
+                        <UpgradeAdditionRow
                           key={code}
-                          className="flex items-start justify-between gap-3"
-                        >
-                          <span className="min-w-0">
-                            {pack?.name || titleCaseCode(code)}
-                          </span>
-                          <span className="shrink-0 font-medium tabular-nums text-[var(--portal-ink)]">
-                            {unit != null && upgradeDue != null
-                              ? formatPrice(unit)
-                              : "—"}
-                          </span>
-                        </li>
+                          name={pack?.name || titleCaseCode(code)}
+                        />
                       );
                     })}
-                  </ul>
-                </div>
-              ) : null}
-
-              {upgradeLineItems.some(
-                (line) => line.kind === "summary" && Number(line.unit_price) > 0
-              ) ? (
-                <div>
-                  <p className="font-medium">Other upgrade charges</p>
-                  <ul className="mt-1 space-y-1.5 text-[var(--portal-muted)]">
-                    {upgradeLineItems
-                      .filter(
-                        (line) => line.kind === "summary" && Number(line.unit_price) > 0
-                      )
-                      .map((line, idx) => (
-                        <li
-                          key={`summary-${idx}`}
-                          className="flex items-start justify-between gap-3"
-                        >
-                          <span className="min-w-0">{line.description}</span>
-                          <span className="shrink-0 font-medium tabular-nums text-[var(--portal-ink)]">
-                            {upgradeDue != null ? formatPrice(Number(line.unit_price)) : "—"}
-                          </span>
-                        </li>
-                      ))}
                   </ul>
                 </div>
               ) : null}
@@ -2265,11 +2214,20 @@ function PortalCustomErpUpgradeWizard({
                   couponBusy={quoteBusy}
                   couponApplied={Boolean(appliedCoupon) && !couponError}
                   appliedCode={appliedCoupon}
-                  discountAmount={Number(liveQuote?.pricing?.discount_amount ?? 0)}
+                  discountAmount={upgradeDiscountAmount}
                   formatPrice={formatPrice}
-                  showDiscount={Number(liveQuote?.pricing?.discount_amount ?? 0) > 0}
+                  showDiscount={upgradeDiscountAmount > 0}
                   className="border-[var(--portal-border)] bg-[var(--portal-soft)]"
                 />
+              ) : upgradeDiscountAmount > 0 && upgradeCouponCode ? (
+                <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-2 text-xs">
+                  <p className="font-medium text-[var(--portal-ink)]">
+                    Coupon applied: {upgradeCouponCode}
+                  </p>
+                  <p className="mt-1 text-[var(--portal-muted)]">
+                    Your upgrade discount is included in the payable total below.
+                  </p>
+                </div>
               ) : null}
 
               <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-3 space-y-2">
@@ -2283,7 +2241,7 @@ function PortalCustomErpUpgradeWizard({
                   <p className="text-xs text-amber-700 dark:text-amber-300">{quoteError}</p>
                 ) : null}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[var(--portal-muted)]">Prorated subtotal</span>
+                  <span className="text-[var(--portal-muted)]">Prorated Subtotal</span>
                   <span className="font-medium tabular-nums">
                     {upgradeDue != null
                       ? formatPrice(
@@ -2293,12 +2251,15 @@ function PortalCustomErpUpgradeWizard({
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[var(--portal-muted)]">Discounts</span>
+                  <span className="text-[var(--portal-muted)]">
+                    Discount
+                    {upgradeDiscountAmount > 0 && upgradeCouponCode
+                      ? ` (${upgradeCouponCode})`
+                      : ""}
+                  </span>
                   <span className="font-medium tabular-nums">
                     {upgradeDue != null
-                      ? formatPrice(
-                          Number(upgradeDeltaPricing?.discount_amount ?? 0)
-                        )
+                      ? formatPrice(upgradeDiscountAmount)
                       : "—"}
                   </span>
                 </div>
@@ -2311,7 +2272,7 @@ function PortalCustomErpUpgradeWizard({
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-[var(--portal-border)] pt-2">
-                  <span className="font-semibold">Payable total</span>
+                  <span className="font-semibold">Payable Total</span>
                   <span className="font-semibold tabular-nums">
                     {upgradeDue != null
                       ? formatPrice(
@@ -2322,16 +2283,16 @@ function PortalCustomErpUpgradeWizard({
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-[var(--portal-primary)]">
-                    Upgrade due
+                    Upgrade Due
                   </span>
                   <span className="font-semibold tabular-nums text-[var(--portal-primary)]">
                     {upgradeDue != null ? formatPrice(upgradeDue) : "—"}
                   </span>
                 </div>
-                <p className="text-[11px] text-[var(--portal-muted)]">
+                <p className="text-[11px] leading-relaxed text-[var(--portal-muted)]">
                   {hasPaidChanges
-                    ? "Line amounts and payable total are prorated Engine values (same as checkout and invoice). Catalog list prices are not payable totals."
-                    : "Removals apply immediately at no charge. ERP syncs to the modules you keep selected."}
+                    ? "Your upgrade amount has been calculated automatically based on your existing subscription and the selected additions."
+                    : "Removals apply immediately at no charge. Your license updates to the modules you keep selected."}
                 </p>
               </div>
 

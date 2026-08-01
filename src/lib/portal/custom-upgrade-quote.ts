@@ -118,11 +118,13 @@ function codesFromSnapshot(snap: PortalCommercialSnapshot | null): {
   packs: string[];
 } {
   if (!snap) return { modules: [], packs: [] };
+  // Match License Engine upgradeForCustomer baseline (selected_modules else module codes).
   const modules =
-    (snap.selected_modules?.length ? snap.selected_modules : null) ||
-    snap.effective_modules ||
-    snap.modules ||
-    [];
+    snap.selected_modules?.length
+      ? snap.selected_modules
+      : snap.modules?.length
+        ? snap.modules
+        : snap.effective_modules || [];
   const packs = snap.feature_packs || [];
   return {
     modules: modules.map(String).filter(Boolean),
@@ -211,8 +213,26 @@ export async function quoteCustomErpUpgradePayable(input: {
     (c) => !currentPackSet.has(normModuleCode(c))
   );
 
+  const limitIncreases: Array<{ label: string; previous: number; next: number }> = [];
+  const pushLimit = (
+    label: string,
+    previous: number | null | undefined,
+    next: number | null | undefined
+  ) => {
+    if (typeof previous !== "number" || typeof next !== "number") return;
+    if (!Number.isFinite(previous) || !Number.isFinite(next) || next <= previous) return;
+    limitIncreases.push({ label, previous, next });
+  };
+  pushLimit("Users", currentLimits.users, positiveSeat(input.body.user_limit));
+  pushLimit("Companies", currentLimits.companies, positiveSeat(input.body.company_limit));
+  pushLimit("Branches", currentLimits.branches, positiveSeat(input.body.branch_limit));
+  pushLimit("Warehouses", currentLimits.warehouses, positiveSeat(input.body.warehouse_limit));
+
   let upgrade_line_items: CustomUpgradeLineItem[] = [];
-  if (amount > 0 && (addedModules.length > 0 || addedPacks.length > 0)) {
+  if (
+    amount > 0 &&
+    (addedModules.length > 0 || addedPacks.length > 0 || limitIncreases.length > 0)
+  ) {
     const campaignActive =
       (proposed.data as { campaign?: { campaign_active?: boolean } }).campaign
         ?.campaign_active !== false;
@@ -222,6 +242,7 @@ export async function quoteCustomErpUpgradePayable(input: {
       added_feature_packs: addedPacks,
       payable_amount: amount,
       campaign_active: campaignActive,
+      limit_increases: limitIncreases,
     });
     if (linesRes.ok && linesRes.data?.upgrade_line_items?.length) {
       upgrade_line_items = linesRes.data.upgrade_line_items;

@@ -991,6 +991,15 @@ export async function requestCustomErpUpgrade(
   );
 }
 
+/** Custom ERP upgrade — whether coupon field may be shown (first post-purchase upgrade guard). */
+export async function fetchCustomErpUpgradeCouponVisibility(accessToken: string) {
+  return getPublic<{ coupon_field_visible: boolean }>(
+    "/v1/public/billing/custom-erp-upgrade/coupon-visibility",
+    undefined,
+    { accessToken, revalidate: false }
+  );
+}
+
 /**
  * Add a new place / subscription under the same customer identity.
  * Tries known Engine paths; returns first successful response.

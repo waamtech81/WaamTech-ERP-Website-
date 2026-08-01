@@ -57,7 +57,6 @@ import {
 } from "@/lib/commercial/erp-builder-config";
 import { canonicalModuleCode } from "@/lib/commercial/module-builder";
 import type { BillingCycle, CustomPackageQuoteResult } from "@/lib/commercial/types";
-import { shouldShowCheckoutCouponField } from "@/lib/commercial/coupon-visibility";
 import { CustomErpCouponField } from "@/components/commercial/custom-erp-coupon-field";
 import { useLocale } from "@/components/providers/locale-provider";
 import { resolvePurchasedLimits } from "@/lib/portal/commercial-snapshot";
@@ -1167,11 +1166,8 @@ function PortalCustomErpUpgradeWizard({
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [quoteError, setQuoteError] = useState("");
   const quoteRequestIdRef = useRef(0);
-  /** Post-license Custom ERP purchases — coupon field visible (not first-purchase handoff). */
-  const showCouponField = shouldShowCheckoutCouponField({
-    journey: "custom_erp",
-    phase: "post_license",
-  });
+  const [couponFieldVisible, setCouponFieldVisible] = useState(false);
+  const showCouponField = couponFieldVisible;
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -1445,6 +1441,7 @@ function PortalCustomErpUpgradeWizard({
               code?: string;
               kind: string;
             }>;
+            coupon_field_visible?: boolean;
           } | null;
         };
         if (requestId !== quoteRequestIdRef.current) return;
@@ -1465,6 +1462,13 @@ function PortalCustomErpUpgradeWizard({
         setUpgradeDue(Number.isFinite(due) && due >= 0 ? due : null);
         setUpgradeDeltaPricing(json.data.delta_pricing ?? null);
         setUpgradeLineItems(json.data.upgrade_line_items ?? []);
+        const couponVisible = json.data.coupon_field_visible === true;
+        setCouponFieldVisible(couponVisible);
+        if (!couponVisible) {
+          setAppliedCoupon(null);
+          setCouponInput("");
+          setCouponError(null);
+        }
         setQuoteError("");
         const pricedCode = String(
           json.data.quote.pricing.discount_code || appliedCoupon || ""
@@ -2279,7 +2283,7 @@ function PortalCustomErpUpgradeWizard({
                   <p className="text-xs text-amber-700 dark:text-amber-300">{quoteError}</p>
                 ) : null}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[var(--portal-muted)]">Subtotal</span>
+                  <span className="text-[var(--portal-muted)]">Prorated subtotal</span>
                   <span className="font-medium tabular-nums">
                     {upgradeDue != null
                       ? formatPrice(
@@ -2307,7 +2311,7 @@ function PortalCustomErpUpgradeWizard({
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-[var(--portal-border)] pt-2">
-                  <span className="font-semibold">Grand total</span>
+                  <span className="font-semibold">Payable total</span>
                   <span className="font-semibold tabular-nums">
                     {upgradeDue != null
                       ? formatPrice(
@@ -2326,7 +2330,7 @@ function PortalCustomErpUpgradeWizard({
                 </div>
                 <p className="text-[11px] text-[var(--portal-muted)]">
                   {hasPaidChanges
-                    ? "Upgrade due matches the live upgrade quote (same amount as checkout and invoice)."
+                    ? "Line amounts and payable total are prorated Engine values (same as checkout and invoice). Catalog list prices are not payable totals."
                     : "Removals apply immediately at no charge. ERP syncs to the modules you keep selected."}
                 </p>
               </div>

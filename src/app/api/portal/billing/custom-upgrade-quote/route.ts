@@ -1,7 +1,7 @@
 import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess } from "@/lib/api/response";
-import { fetchBillingCompany } from "@/lib/commercial/client";
+import { fetchBillingCompany, fetchCustomErpUpgradeCouponVisibility } from "@/lib/commercial/client";
 import { validateCustomErpBillingCycle } from "@/lib/commercial/custom-erp-billing";
 import {
   applyPortalRefreshCookies,
@@ -87,8 +87,17 @@ export const POST = withApiHandler(
       return apiFail(quoted.message, { status: quoted.status });
     }
 
+    const couponVis = await fetchCustomErpUpgradeCouponVisibility(resolved.access.accessToken);
+
     const { remember } = await readPortalTokens();
-    const res = apiSuccess("Custom ERP upgrade quote ready.", { data: quoted.data });
+    const res = apiSuccess("Custom ERP upgrade quote ready.", {
+      data: {
+        ...quoted.data,
+        coupon_field_visible: couponVis.ok
+          ? Boolean(couponVis.data?.coupon_field_visible)
+          : false,
+      },
+    });
     applyPortalRefreshCookies(res, resolved.access, Boolean(remember));
     return res;
   },

@@ -57,6 +57,8 @@ export type CustomUpgradeQuoteResult = {
   };
   /** Prorated payable lines — same rules as upgrade invoice (Engine SSOT). */
   upgrade_line_items: CustomUpgradeLineItem[];
+  /** UI guard — false on first post-purchase upgrade when initial coupon was applied. */
+  coupon_field_visible?: boolean;
 };
 
 function roundMoney(value: number): number {

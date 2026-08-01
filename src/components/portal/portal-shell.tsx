@@ -132,8 +132,13 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         )}
         aria-label="Customer portal navigation"
       >
-        <div className="flex h-16 items-center justify-between gap-3 border-b border-[var(--portal-border)] px-5">
-          <BrandLogo height={26} />
+        <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-[var(--portal-border)]/50 px-5">
+          <BrandLogo
+            priority
+            height={34}
+            href="/portal"
+            className="min-w-0 max-w-[min(52vw,11rem)]"
+          />
           <button
             type="button"
             className="portal-focus-ring rounded-lg p-2 text-[var(--portal-muted)] hover:bg-[var(--portal-soft)] lg:hidden"
@@ -144,7 +149,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
-        <div className="border-b border-[var(--portal-border)] px-4 py-4">
+        <div className="border-b border-[var(--portal-border)]/40 px-4 py-4">
           <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--portal-muted)]">
               Workspace
@@ -232,7 +237,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="portal-topbar sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-[var(--portal-border)] bg-[var(--portal-panel)]/90 px-4 backdrop-blur-xl sm:px-6">
+        <header className="portal-topbar sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-[var(--portal-border)]/50 bg-[var(--portal-panel)]/90 px-4 backdrop-blur-xl sm:px-6">
           <button
             type="button"
             className="portal-focus-ring rounded-xl border border-[var(--portal-border)] p-2 text-[var(--portal-muted)] hover:bg-[var(--portal-soft)] lg:hidden"

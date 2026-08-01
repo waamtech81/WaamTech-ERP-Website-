@@ -18,7 +18,7 @@
 export const ENTERPRISE_EMAIL_BRAND = {
   companyName: "WaamTech",
   productName: "WAAMTO",
-  productLine: "Enterprise ERP Platform",
+  productLine: "The Next-Generation ERP Cloud Platform",
   primary: "#0549a4",
   brandDark: "#09215b",
   accent: "#10b981",

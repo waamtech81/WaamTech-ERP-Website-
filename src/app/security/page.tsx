@@ -2,9 +2,17 @@ import type { Metadata } from "next";
 import { SecurityTrustPage } from "@/components/sections/security-trust";
 
 export const metadata: Metadata = {
-  title: "Security & Trust",
+  title: "Security & Trust — Enterprise Platform Controls",
   description:
-    "Enterprise-grade security for WAAMTO — secure authentication, OTP verification, RBAC, multi-tenant isolation, encrypted connections, backups, and audit trails.",
+    "WAAMTO security: secure authentication, OTP, RBAC, multi-tenant isolation, TLS, backups, audit trails, and a protected customer portal.",
+  keywords: [
+    "ERP security",
+    "multi-tenant isolation",
+    "RBAC ERP",
+    "WAAMTO trust",
+    "secure cloud ERP",
+  ],
+  alternates: { canonical: "/security" },
 };
 
 export default function SecurityPage() {

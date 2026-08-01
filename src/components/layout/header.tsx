@@ -153,6 +153,7 @@ export function Header() {
   const [activeIndustryId, setActiveIndustryId] = useState<string>("");
   const [industriesExpanded, setIndustriesExpanded] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const headerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!activeIndustryId && featured[0]?.id) setActiveIndustryId(featured[0].id);
@@ -209,6 +210,26 @@ export function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  /** Keep sticky wizard flush under the real header height (avoids navy html-bg gap). */
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const sync = () => {
+      document.documentElement.style.setProperty(
+        "--wt-site-header-h",
+        `${el.offsetHeight}px`
+      );
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    window.addEventListener("resize", sync);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", sync);
+    };
+  }, []);
+
   useEffect(() => {
     setMobileOpen(false);
     setDropdown(null);
@@ -250,6 +271,7 @@ export function Header() {
   return (
     <>
       <header
+        ref={headerRef}
         className={cn(
           "sticky top-0 z-50 border-b transition-all duration-300",
           scrolled
@@ -340,7 +362,7 @@ export function Header() {
                           <Sparkles className="h-3 w-3 mr-1" />
                           Launch offer
                         </Badge>
-                        <p className="text-lg font-semibold leading-snug">50% off all plans</p>
+                        <p className="text-lg font-semibold leading-snug">48% off all plans</p>
                         <p className="mt-2 text-sm text-white/70 leading-relaxed">
                           No card required. Start your 14-day free trial. From{" "}
                           <span translate="no" suppressHydrationWarning>

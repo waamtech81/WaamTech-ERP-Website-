@@ -42,8 +42,8 @@ const FLOW = [
 export default function IndustriesPage() {
   return (
     <>
-      {/* Full-bleed hero — one composition */}
-      <section className="relative isolate min-h-[min(78vh,640px)] overflow-hidden">
+      {/* Industries identity: full-bleed photo hero (distinct from Modules catalog intro) */}
+      <section className="relative isolate min-h-[min(62vh,520px)] overflow-hidden">
         <Image
           src={HERO_IMAGE}
           alt="Business teams collaborating across retail, warehouse, and operations"
@@ -53,26 +53,26 @@ export default function IndustriesPage() {
           sizes="100vw"
           className="object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#071528]/92 via-[#0b1f3a]/78 to-[#0b1f3a]/35" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#071528]/70 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#071528]/94 via-[#0b1f3a]/80 to-[#0b1f3a]/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#071528]/75 via-transparent to-transparent" />
 
-        <Container className="relative z-10 flex min-h-[min(78vh,640px)] flex-col justify-end pb-12 pt-24 md:pb-16 md:pt-28">
+        <Container className="relative z-10 flex min-h-[min(62vh,520px)] flex-col justify-end pb-10 pt-20 md:pb-14 md:pt-24">
           <Breadcrumbs
             items={[{ label: "Industries" }]}
-            className="!mb-6 [&_a]:text-white/70 [&_a:hover]:text-white [&_span]:!text-white/90 [&_svg]:text-white/40"
+            className="!mb-5 [&_a]:text-white/70 [&_a:hover]:text-white [&_span]:!text-white/90 [&_svg]:text-white/40"
           />
           <AnimateIn>
-            <p className="mb-3 font-heading text-sm font-semibold tracking-[0.2em] text-sky-300 uppercase sm:text-base">
-              {siteConfig.name}
+            <p className="mb-2 text-xs font-semibold tracking-[0.16em] text-sky-300 uppercase">
+              Industry solutions
             </p>
-            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight !text-white text-balance sm:text-5xl md:text-6xl leading-[1.08]">
+            <h1 className="max-w-3xl text-3xl font-semibold tracking-tight !text-white text-balance sm:text-4xl md:text-5xl leading-[1.1]">
               Built for how your industry actually runs
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
-              Start with your industry, then your business category — so modules match the way you
-              sell, stock, and serve.
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
+              Start with your industry, then your business type — so modules match the way you sell,
+              stock, and serve.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-2.5">
               <Button asChild size="lg" className="rounded-full bg-white text-[#0b1f3a] hover:bg-white/90">
                 <Link href="#industries-catalog">
                   Browse industries
@@ -92,19 +92,20 @@ export default function IndustriesPage() {
         </Container>
       </section>
 
-      <Section id="industries-catalog" className="!py-14 md:!py-20">
+      <Section id="industries-catalog" className="!py-12 md:!py-16">
         <Container>
           <AnimateIn>
-            <div className="mb-10 max-w-2xl">
-              <p className="mb-2 text-sm font-medium tracking-wide text-primary uppercase">
-                Industry catalog
-              </p>
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3a] md:text-3xl text-balance">
-                Find your vertical — then drill into categories
-              </h2>
-              <p className="mt-3 text-muted-foreground leading-relaxed">
-                Each industry opens real business categories and profiles. Pick one to configure
-                your workspace and start the trial.
+            <div className="mb-8 flex flex-col gap-2 border-b border-slate-100 pb-6 sm:flex-row sm:items-end sm:justify-between">
+              <div className="max-w-2xl">
+                <p className="mb-1.5 text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+                  Live catalog
+                </p>
+                <h2 className="text-xl font-semibold tracking-tight text-[#0b1f3a] md:text-2xl text-balance">
+                  Choose a vertical, then a business type
+                </h2>
+              </div>
+              <p className="max-w-sm text-sm text-muted-foreground leading-relaxed">
+                Each industry opens real categories. Pick one to configure your workspace.
               </p>
             </div>
           </AnimateIn>
@@ -112,36 +113,17 @@ export default function IndustriesPage() {
         </Container>
       </Section>
 
-      <Section className="relative !py-16 md:!py-20 overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_10%_20%,rgba(14,165,233,0.08),transparent_55%),radial-gradient(ellipse_50%_40%_at_90%_80%,rgba(37,99,235,0.07),transparent_50%)]" />
-        <Container className="relative">
-          <AnimateIn>
-            <div className="mb-10 max-w-2xl">
-              <p className="mb-2 text-sm font-medium tracking-wide text-primary uppercase">
-                How it works
-              </p>
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3a] md:text-3xl">
-                Industry → category → profile → go live
-              </h2>
-            </div>
-          </AnimateIn>
-          <ol className="grid gap-8 md:grid-cols-3 md:gap-10">
+      <Section muted className="!py-12 md:!py-14">
+        <Container>
+          <ol className="grid gap-6 sm:grid-cols-3 sm:gap-8">
             {FLOW.map((item, i) => (
-              <AnimateIn key={item.step} delay={i * 0.08}>
-                <li className="relative">
-                  <p className="font-heading text-4xl font-semibold tracking-tight text-primary/25 md:text-5xl">
-                    {item.step}
-                  </p>
-                  <h3 className="mt-2 text-lg font-semibold tracking-tight text-[#0b1f3a]">
+              <AnimateIn key={item.step} delay={i * 0.06}>
+                <li className="relative rounded-2xl border border-border/80 bg-white px-5 py-5 shadow-sm">
+                  <p className="text-xs font-semibold tracking-wide text-primary">{item.step}</p>
+                  <h3 className="mt-2 text-base font-semibold tracking-tight text-[#0b1f3a]">
                     {item.title}
                   </h3>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{item.text}</p>
-                  {i < FLOW.length - 1 ? (
-                    <div
-                      aria-hidden
-                      className="pointer-events-none absolute top-6 right-0 hidden h-px w-10 translate-x-1/2 bg-gradient-to-r from-primary/30 to-transparent md:block"
-                    />
-                  ) : null}
+                  <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{item.text}</p>
                 </li>
               </AnimateIn>
             ))}

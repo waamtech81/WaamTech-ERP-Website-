@@ -51,7 +51,8 @@ export function PricingComparisonTable({
   plans,
   rows,
   loading,
-  hierarchyNote = "Each plan includes everything from the previous plan plus additional features.",
+  hierarchyNote =
+    "Compare predefined plans with Custom ERP modules, feature packs, seats, storage, and enterprise controls. Higher packages generally include prior-tier capabilities plus more.",
 }: PricingComparisonTableProps) {
   if (loading) {
     return <CatalogSkeleton rows={2} className="xl:grid-cols-1" />;

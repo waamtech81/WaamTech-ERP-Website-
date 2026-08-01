@@ -18,6 +18,7 @@ import type {
   CatalogPlan,
   CatalogPricing,
   CatalogProduct,
+  PublicCommercialOverview,
 } from "@/lib/commercial/types";
 import type { PricingPlan, Product } from "@/types";
 
@@ -247,6 +248,22 @@ export function useCatalogBuilderRecommendations(categoryId?: string | null) {
   return useCommercialQuery<CatalogBuilderRecommendations | null>(
     enabled ? `catalog:builder-rec:${categoryId}` : null,
     enabled ? `/api/commercial/builder-recommendations${qs}` : null,
+    null
+  );
+}
+
+/** Feature packs + tenant unit prices for Custom ERP builder (SWR-backed). */
+export function useCommercialOverview(
+  productSlug?: string | null,
+  billingCycle?: string | null
+) {
+  const enabled = Boolean(productSlug && billingCycle);
+  const qs = enabled
+    ? `?product=${encodeURIComponent(productSlug!)}&billing_cycle=${encodeURIComponent(billingCycle!)}`
+    : "";
+  return useCommercialQuery<PublicCommercialOverview | null>(
+    enabled ? `catalog:commercial:${productSlug}:${billingCycle}` : null,
+    enabled ? `/api/commercial/commercial${qs}` : null,
     null
   );
 }

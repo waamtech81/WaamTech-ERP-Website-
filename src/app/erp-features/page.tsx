@@ -8,7 +8,6 @@ import {
   erpPreinstallSteps,
 } from "@/lib/data/site";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
-import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { FeatureCard } from "@/components/shared/cards";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { CTASection } from "@/components/shared/cta-section";
@@ -17,9 +16,16 @@ import { Button } from "@/components/ui/button";
 import { getIcon } from "@/lib/icons";
 
 export const metadata: Metadata = {
-  title: "ERP Features",
+  title: "ERP Features — Capabilities & Industry Setup | WAAMTO",
   description:
-    "Explore WAAMTO ERP features — 12+ modules, AI Workspace, industry-ready business profiles, and preinstalled workflows for retail, pharmacy, restaurant, manufacturing, and more.",
+    "Explore WAAMTO ERP capabilities: AI Workspace, finance, inventory, POS, CRM, HR, manufacturing, and industry-ready business profiles with preinstalled workflows.",
+  keywords: [
+    "WAAMTO ERP features",
+    "cloud ERP capabilities",
+    "industry ERP setup",
+    "AI ERP workspace",
+  ],
+  alternates: { canonical: "/erp-features" },
 };
 
 export default function ErpFeaturesPage() {
@@ -28,17 +34,16 @@ export default function ErpFeaturesPage() {
       <Section className="relative overflow-hidden !pb-10 !pt-12 md:!pt-16">
         <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
         <Container className="relative">
-          <Breadcrumbs items={[{ label: "ERP Features" }]} />
           <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
             <div className="lg:col-span-7">
               <Badge variant="accent" className="mb-4">
-                Everything in one ERP platform
+                Platform capabilities
               </Badge>
               <SectionHeader
                 align="left"
                 eyebrow="ERP Features"
-                title="So many features — ready before you even start"
-                description="WAAMTO is not a blank system. Choose your industry and business type, and the common modules and workflows arrive ready. Then add AI Assistant, mobile, finance, and more as you grow."
+                title="Capabilities ready when you start"
+                description="WAAMTO is not a blank system. Choose your industry and business type — common modules and workflows arrive ready. Browse the purchasable module library when you want every SKU, or build a Custom ERP package."
                 className="mb-0 max-w-3xl"
               />
               <div className="mt-8 flex flex-wrap gap-3">
@@ -49,7 +54,7 @@ export default function ErpFeaturesPage() {
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="rounded-full">
-                  <Link href="/contact?intent=demo">Book a demo</Link>
+                  <Link href="/modules">Browse module library</Link>
                 </Button>
               </div>
             </div>

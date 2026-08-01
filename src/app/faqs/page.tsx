@@ -1,18 +1,31 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
-import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { FaqBrowser } from "@/components/sections/faq-browser";
+import { siteConfig } from "@/lib/data/site";
+
+export const metadata: Metadata = {
+  title: "FAQs — Plans, Custom ERP, Billing & Support",
+  description:
+    "Answers about WAAMTO modules, Custom ERP, predefined plans, feature packs, seats, portal billing, security, and support at support@waamto.com.",
+  keywords: [
+    "WAAMTO FAQ",
+    "ERP pricing questions",
+    "custom ERP FAQ",
+    "cloud ERP support",
+  ],
+  alternates: { canonical: "/faqs" },
+};
 
 export default function FaqsPage() {
   return (
     <Section className="!pb-16 !pt-12 md:!pt-16">
       <Container>
-        <Breadcrumbs items={[{ label: "FAQs" }]} />
         <SectionHeader
           eyebrow="FAQs"
           as="h1"
           title="Answers to common questions"
-          description="Search by topic or browse product, billing, support, security, and integrations. Still stuck? Contact support or open Customer Portal."
+          description={`Search by topic or browse product, billing, Custom ERP, security, and integrations. Email ${siteConfig.supportEmail} or open the Customer Portal anytime.`}
         />
         <FaqBrowser />
         <p className="mt-10 text-center text-sm text-muted-foreground">

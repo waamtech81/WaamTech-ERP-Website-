@@ -1,15 +1,11 @@
 import dynamic from "next/dynamic";
 import { SwiverHero } from "@/components/sections/swiver-hero";
 import {
-  StatsBand,
-  CapabilitiesSection,
   BusinessesSection,
   SocialProofSection,
   PricingTeaser,
   SoftCTA,
 } from "@/components/sections/home-swiver";
-import { MobileAccessSection } from "@/components/sections/mobile-access-section";
-import { AiHighlightSection } from "@/components/sections/ai-highlight-section";
 import { TrustBadgesBand } from "@/components/sections/trust-badges-band";
 
 const ModuleShowcase = dynamic(
@@ -20,16 +16,17 @@ const ModuleShowcase = dynamic(
   { ssr: true }
 );
 
+/**
+ * Homepage composition — keep brand, search, product preview, and a short
+ * journey. Heavy duplicate bands (AI/stats/capabilities/mobile) removed to
+ * reduce scroll without changing routes or commercial APIs.
+ */
 export default function HomePage() {
   return (
     <>
       <SwiverHero />
       <div className="home-below-fold">
         <ModuleShowcase />
-        <AiHighlightSection />
-        <StatsBand />
-        <CapabilitiesSection />
-        <MobileAccessSection />
         <BusinessesSection />
         <SocialProofSection />
         <TrustBadgesBand />

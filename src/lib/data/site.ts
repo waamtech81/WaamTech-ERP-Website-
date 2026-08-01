@@ -14,14 +14,14 @@ export const siteConfig = {
   fullName: "WAAMTO",
   companyName: "WaamTech",
   companyUrl: "https://waamtech.com",
-  productLine: "Enterprise ERP Platform",
-  tagline: "Enterprise ERP Platform by WaamTech",
+  productLine: "The Next-Generation ERP Cloud Platform",
+  tagline: "The Next-Generation ERP Cloud Platform by WaamTech",
   description:
-    "Run your entire business from one secure cloud platform. Finance, CRM, HR, Inventory, POS, Manufacturing, Payroll, Procurement, Projects and much more—all in one modern ERP solution.",
+    "Run your entire business on The Next-Generation ERP Cloud Platform. Finance, CRM, HR, Inventory, POS, Manufacturing, Payroll, Procurement, Projects, and more — one secure cloud workspace.",
   url: "https://waamto.com",
   appUrl: "https://app.waamto.com",
   licensePortalUrl: "https://license.waamto.com",
-  email: "hello@waamto.com",
+  email: "support@waamto.com",
   supportEmail: "support@waamto.com",
   phone: "+971 563344886",
   address: "DXB, UAE. ISB, PK",
@@ -305,7 +305,7 @@ export const deploymentOptions: DeploymentOption[] = [
 ];
 
 export const pricingLaunchBanner = {
-  title: "50% Launch Discount",
+  title: "48% Launch Discount",
   description:
     "Limited-time launch pricing — aligned with Pakistan market rates (Finivo, Tredus, Splendid from PKR 2,000–5,500/mo). Lock in your rate today.",
 };
@@ -372,93 +372,93 @@ export { blogPosts } from "@/lib/data/blog-posts";
 export const faqs: FaqItem[] = [
   {
     id: "1",
-    question: "What modules are included in WAAMTO?",
+    question: "What is included in WAAMTO today?",
     answer:
-      "WAAMTO includes Inventory, POS, Sales, Purchasing, Finance, CRM, HR & Payroll, Manufacturing, Warehouse & Logistics, Documents, Service, Projects, and industry-ready setups (Restaurant, Pharmacy, Automotive, and more). Your plan controls how many users and which modules unlock — see Pricing for the full matrix.",
+      "WAAMTO is a modular cloud ERP: Inventory, POS, Sales, Purchasing, Finance, CRM, HR & Payroll, Manufacturing, Warehouse, Documents, Service, Projects, industry packs (Restaurant, Pharmacy, Automotive, and more), plus AI Workspace. Predefined plans unlock modules and limits; Custom ERP lets you assemble modules and feature packs yourself.",
     category: "Product",
   },
   {
     id: "2",
-    question: "Can I switch plans later?",
+    question: "What is Build Your Own (Custom ERP)?",
     answer:
-      "Yes. You can request plan changes through the customer portal. Upgrades may require immediate payment, while approved downgrades take effect at the next billing cycle. Enterprise changes are coordinated with sales.",
-    category: "Billing",
+      "Custom ERP lets you pick the modules and feature packs you need, see live pricing, and provision a workspace matching that snapshot. Related essentials stay attached automatically. You can upgrade later by adding modules or packs from the customer portal.",
+    category: "Product",
   },
   {
     id: "3",
-    question: "Is there a free trial?",
+    question: "How do predefined plans differ from Custom ERP?",
     answer:
-      "Yes. New workspaces start with a 14-day free trial. Pick your business profile at signup — no credit card required to begin.",
+      "Starter, Business, Lifetime, and Enterprise are packaged plans with fixed modules, seats, and storage. Custom ERP is à la carte — you choose modules, feature packs, and limits. Compare everything side by side on the Pricing page.",
     category: "Billing",
   },
   {
     id: "4",
-    question: "How many users are included in each plan?",
+    question: "Can I switch plans or upgrade modules later?",
     answer:
-      "Starter includes 1 user. Business includes 10 users, and Lifetime includes 25 users. Extra seats are available on demand for Business and Lifetime. Enterprise has unlimited users.",
+      "Yes. Use the customer portal for renewals, upgrades, downgrades, and Custom ERP changes. Upgrades may bill immediately; approved downgrades typically apply at the next cycle. Enterprise changes are handled with sales.",
     category: "Billing",
   },
   {
     id: "5",
-    question: "What AI features does WAAMTO include?",
+    question: "Is there a free trial?",
     answer:
-      "WAAMTO includes a private AI Workspace: AI Assistant (ask questions across your modules), Document AI with OCR, smart recommendations (reorder, sales, CRM follow-ups), plus Analytics and Reports AI. Inference stays on your stack — no external AI API keys required.",
-    category: "Product",
+      "Yes. New workspaces start with a 14-day free trial. Choose your industry/business profile at signup — no credit card required to begin.",
+    category: "Billing",
   },
   {
     id: "6",
-    question: "Do you support multi-company and multi-branch setups?",
+    question: "How do seats, storage, and feature packs work?",
     answer:
-      "Yes. Business, Lifetime, and Enterprise plans support multi-company, multi-branch, and multi-warehouse structures with role-based permissions.",
-    category: "Product",
+      "Each plan or Custom ERP quote includes seat and storage limits. Feature packs unlock advanced capabilities on top of modules. Extra seats or storage can be purchased from the portal when your plan allows.",
+    category: "Billing",
   },
   {
     id: "7",
-    question: "How does support work?",
+    question: "What AI features does WAAMTO include?",
     answer:
-      "All plans include email support. Higher tiers unlock priority response, WhatsApp support, dedicated success management, and optional SLAs.",
-    category: "Support",
+      "AI Workspace includes an in-product Assistant, Document AI with OCR, smart recommendations (reorder, sales, CRM), and analytics help. Inference stays on your stack — no external AI API keys required.",
+    category: "Product",
   },
   {
     id: "8",
-    question: "Is WAAMTO secure and compliant?",
+    question: "Do you support multi-company and multi-branch?",
     answer:
-      "We use industry-standard encryption, role-based access, audit trails, and enterprise security practices. AI activity is audited. Enterprise customers can request additional controls such as SSO.",
-    category: "Security",
+      "Yes. Business, Lifetime, Custom ERP (when entitled), and Enterprise support multi-company, multi-branch, and multi-warehouse structures with role-based permissions.",
+    category: "Product",
   },
   {
     id: "9",
-    question: "Can we integrate with existing tools?",
+    question: "Where do I manage licenses, invoices, and billing?",
     answer:
-      "Yes. API access is available on Business, Lifetime, and Enterprise plans for connecting accounting tools, e-commerce, payment gateways, and custom systems.",
-    category: "Integrations",
+      "The WAAMTO customer portal (on this website) is where you manage licenses, subscriptions, invoices, renewals, modules, feature packs, organizations, and notifications — powered by the License Engine.",
+    category: "Billing",
   },
   {
     id: "10",
-    question: "Do you offer onboarding and training?",
+    question: "How does support work?",
     answer:
-      "Yes. Guided onboarding is available on higher plans, and Enterprise includes tailored training for administrators and end users.",
+      "All plans include email support at support@waamto.com. Higher tiers unlock priority response, WhatsApp support, dedicated success management, and optional SLAs.",
     category: "Support",
   },
   {
     id: "11",
-    question: "How can the AI Assistant help my team use WAAMTO?",
+    question: "Is WAAMTO secure?",
     answer:
-      "The built-in AI Assistant helps users ask how-to questions in plain language, understand module workflows, and find the right next screen across areas such as Inventory, Sales, Finance, and CRM.",
-    category: "Product",
+      "We use TLS encryption, RBAC, OTP where required, tenant isolation, audit trails, and continuous platform updates. See the Security & Trust page for details. Enterprise customers can discuss additional controls such as SSO.",
+    category: "Security",
   },
   {
     id: "12",
-    question: "Where can I find complete WAAMTO ERP documentation?",
+    question: "Can we integrate with existing tools?",
     answer:
-      "Complete WAAMTO ERP documentation is available at https://doc.waamto.com, with guides to help users learn modules, workflows, configuration, and day-to-day operations.",
-    category: "Support",
+      "Yes. API access is available on Business, Lifetime, Custom ERP (when entitled), and Enterprise for accounting tools, e-commerce, payment gateways, and custom systems.",
+    category: "Integrations",
   },
   {
     id: "13",
-    question: "Is WAAMTO video training available?",
+    question: "Where is documentation and training?",
     answer:
-      "Yes. Visit the WAAMTO YouTube channel at https://youtube.com/@waamto for product walkthroughs and training videos.",
+      "Full product docs live at https://doc.waamto.com. Video walkthroughs are on https://youtube.com/@waamto. Higher plans include guided onboarding; Enterprise includes tailored training.",
     category: "Support",
   },
 ];

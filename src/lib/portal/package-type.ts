@@ -58,14 +58,16 @@ export function resolveJourneyFromLicenses(
     return "custom";
   }
 
+  // Explicit predefined license wins over any snapshot (snapshot is secondary only when unset).
+  if (licenseJourney === "predefined") {
+    return "predefined";
+  }
+
+  // License package_type unset — snapshot may establish journey (incl. custom).
   const snapType = opts?.commercialSnapshotPackageType;
   const snapMode = opts?.commercialSnapshotPackageMode;
   if (isCustomErpPackageType(snapType) || isCustomErpPackageType(snapMode)) {
     return "custom";
-  }
-
-  if (licenseJourney === "predefined") {
-    return "predefined";
   }
 
   if (snapType != null && String(snapType).trim() !== "") {

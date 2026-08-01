@@ -1,12 +1,12 @@
+import { clientIpFromHeaders } from "@/lib/client-ip";
 import { getRateLimitStore } from "@/lib/security/rate-limit-store";
 
 export { safeInternalPath, REDIRECT_QUERY_KEYS } from "@/lib/security/safe-redirect";
 export type { RateLimitStore, RateLimitHitResult } from "@/lib/security/rate-limit-store";
 
 export function getClientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
-  return req.headers.get("x-real-ip") || "unknown";
+  // Prefer trusted proxy / CDN headers; do not blindly trust first XFF hop.
+  return clientIpFromHeaders(req.headers) || "unknown";
 }
 
 /**

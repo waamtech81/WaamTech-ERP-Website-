@@ -1,35 +1,45 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/shared/section";
 import { HomeCatalogSearch } from "@/components/sections/home-catalog-search";
 import { authConfig } from "@/lib/auth/config";
 import { siteConfig } from "@/lib/data/site";
+import { cn } from "@/lib/utils";
 
 export function SwiverHero() {
   return (
-    <section className="relative overflow-hidden bg-white" aria-labelledby="home-hero-heading">
+    <section
+      className="relative overflow-hidden bg-[linear-gradient(180deg,#f7fafc_0%,#ffffff_42%,#ffffff_100%)]"
+      aria-labelledby="home-hero-heading"
+    >
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(37,99,235,0.09),transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[560px] bg-[radial-gradient(ellipse_70%_55%_at_50%_-8%,rgba(5,73,164,0.11),transparent_68%)]"
         aria-hidden
       />
-      <Container className="relative pt-14 pb-6 md:pt-20 md:pb-10 text-center">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] opacity-[0.35] [background-image:linear-gradient(rgba(11,31,58,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(11,31,58,0.035)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:linear-gradient(180deg,black,transparent)]"
+        aria-hidden
+      />
+      <Container className="relative pt-11 pb-4 md:pt-14 md:pb-6 text-center">
         <p className="mb-1 font-heading text-hero font-bold tracking-tight text-[#0b1f3a] leading-none">
           {siteConfig.name}
         </p>
-        <p className="mb-5 font-sans text-sm md:text-base font-medium tracking-wide text-primary leading-tight">
-          {siteConfig.productLine} by {siteConfig.companyName}
+        <p className="mb-3.5 font-sans text-xs md:text-sm font-semibold tracking-[0.12em] text-primary uppercase leading-tight">
+          {siteConfig.productLine}
         </p>
 
         <h1
           id="home-hero-heading"
-          className="mx-auto max-w-4xl font-heading text-h2 font-semibold tracking-tight text-[#0b1f3a] text-balance leading-[1.2]"
+          className="mx-auto max-w-4xl font-heading text-[1.65rem] font-semibold tracking-tight text-[#0b1f3a] text-balance leading-[1.2] sm:text-4xl md:text-[2.75rem] md:leading-[1.15] lg:text-5xl"
         >
           Control your business. Optimize operations. Unlock growth.
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl font-sans text-base md:text-lg font-normal text-muted-foreground leading-relaxed text-pretty">
-          One secure cloud ERP for inventory, POS, sales, finance, CRM, and AI — start from your
-          industry or{" "}
+        <p className="mx-auto mt-3 max-w-[22rem] font-sans text-sm font-normal leading-snug text-muted-foreground sm:max-w-xl sm:text-base md:max-w-2xl md:leading-relaxed">
+          One secure cloud workspace for inventory, POS, sales, finance, and CRM —
+          <br />
+          start from your industry or{" "}
           <Link
             href="/build-your-own-erp"
             className="font-medium text-primary underline-offset-4 hover:underline"
@@ -43,7 +53,7 @@ export function SwiverHero() {
           <HomeCatalogSearch variant="hero" />
         </div>
 
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Button asChild size="xl" className="rounded-full px-8 shadow-sm shadow-primary/20">
             <Link href="/signup">
               Start {authConfig.trialDays}-day free trial
@@ -54,7 +64,7 @@ export function SwiverHero() {
             asChild
             variant="outline"
             size="xl"
-            className="rounded-full px-8 border-primary/25 text-primary hover:bg-primary/5"
+            className="rounded-full px-8 border-[#0b1f3a]/15 text-[#0b1f3a] hover:bg-[#0b1f3a]/[0.03]"
           >
             <Link href="/products">
               Explore modules
@@ -63,7 +73,7 @@ export function SwiverHero() {
           </Button>
         </div>
 
-        <nav className="journey-chip-row mt-6" aria-label="Popular next steps">
+        <nav className="journey-chip-row mt-5" aria-label="Popular next steps">
           <Link href="/pricing" className="journey-chip">
             View plans
           </Link>
@@ -78,22 +88,30 @@ export function SwiverHero() {
           </Link>
         </nav>
 
-        <p className="mx-auto mt-5 max-w-md font-sans text-sm text-muted-foreground">
+        <p className="mx-auto mt-3.5 max-w-md font-sans text-sm text-muted-foreground">
           No card required · {authConfig.trialDays}-day free trial · Start instantly
         </p>
       </Container>
 
-      <Container className="relative pb-6 md:pb-10">
+      <Container className="relative pb-8 md:pb-12">
         <div className="relative mx-auto max-w-5xl">
           <div
-            className="absolute -inset-4 rounded-[2rem] bg-gradient-to-b from-primary/10 via-primary/5 to-transparent blur-2xl"
+            className="absolute -inset-3 rounded-[1.75rem] bg-gradient-to-b from-primary/12 via-sky-100/40 to-transparent blur-xl md:-inset-5 md:rounded-[2rem]"
             aria-hidden
           />
-          <div className="relative overflow-hidden rounded-2xl md:rounded-3xl border border-slate-200/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.12)]">
+          <div className="relative overflow-hidden rounded-2xl border border-[#0b1f3a]/10 bg-white shadow-[0_28px_90px_rgba(11,31,58,0.14)] md:rounded-[1.75rem]">
+            <div className="flex items-center gap-1.5 border-b border-slate-200/80 bg-[#0b1f3a] px-3.5 py-2.5">
+              <span className="h-2 w-2 rounded-full bg-white/25" aria-hidden />
+              <span className="h-2 w-2 rounded-full bg-white/25" aria-hidden />
+              <span className="h-2 w-2 rounded-full bg-white/25" aria-hidden />
+              <span className="ml-2 text-[11px] font-medium tracking-wide text-white/55">
+                {siteConfig.name} workspace
+              </span>
+            </div>
             <ProductShell />
           </div>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Live industry and business category catalog — configured for how you operate.
+          <p className="mt-3.5 text-center text-sm text-muted-foreground">
+            Live catalog of industries and business types — configured for how you operate.
           </p>
         </div>
       </Container>
@@ -101,35 +119,57 @@ export function SwiverHero() {
   );
 }
 
+const workspaceNav = [
+  { label: "Dashboard", href: "/products", panel: "dashboard" },
+  { label: "Sales", href: "/products#sales", panel: "sales" },
+  { label: "Inventory", href: "/products#inventory", panel: "inventory" },
+  { label: "POS", href: "/products#pos", panel: "pos" },
+  { label: "Purchasing", href: "/products#purchasing", panel: "purchasing" },
+  { label: "Finance", href: "/products#finance", panel: "finance" },
+  { label: "CRM", href: "/products#crm", panel: "crm" },
+  { label: "HR", href: "/products#hr", panel: "hr" },
+  { label: "Reports", href: "/erp-features", panel: "reports" },
+] as const;
+
 function ProductShell() {
   return (
-    <div
-      className="grid md:grid-cols-[200px_1fr] min-h-[320px] md:min-h-[420px]"
-      role="img"
-      aria-label={`${siteConfig.name} product workspace preview showing sales invoices dashboard`}
-    >
-      <aside className="hidden md:flex flex-col gap-1 bg-[#0b1f3a] p-4 text-white" aria-hidden>
-        <div className="mb-4 flex items-center gap-2 px-2 py-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold">
-            W
+    <div className="grid min-h-[320px] md:min-h-[420px] md:grid-cols-[200px_1fr]">
+      <aside className="hidden md:flex flex-col gap-1 bg-[#0b1f3a] p-4 text-white">
+        <Link
+          href="/"
+          className="mb-4 flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-white/10"
+          aria-label={`${siteConfig.name} home`}
+        >
+          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
+            <Image
+              src={siteConfig.logo}
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7 object-contain"
+            />
           </span>
           <span className="text-sm font-semibold tracking-tight">{siteConfig.name}</span>
-        </div>
-        {["Dashboard", "Sales", "Inventory", "POS", "Purchasing", "Finance", "CRM", "HR", "Reports"].map(
-          (item, i) => (
-            <div
-              key={item}
-              className={`rounded-lg px-3 py-2 text-sm ${
-                i === 1 ? "bg-white/15 text-white" : "text-white/65"
-              }`}
+        </Link>
+        <nav aria-label={`${siteConfig.name} workspace modules`} className="flex flex-col gap-0.5">
+          {workspaceNav.map((item, i) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={cn(
+                "rounded-lg px-3 py-2 text-sm transition-colors",
+                i === 1
+                  ? "bg-white/15 font-medium text-white"
+                  : "text-white/70 hover:bg-white/10 hover:text-white"
+              )}
             >
-              {item}
-            </div>
-          )
-        )}
+              {item.label}
+            </Link>
+          ))}
+        </nav>
       </aside>
 
-      <div className="bg-[#f4f7fb] p-4 md:p-6" aria-hidden>
+      <div className="bg-[#f4f7fb] p-4 md:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs text-muted-foreground">Sales · Invoices</p>

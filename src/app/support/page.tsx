@@ -27,7 +27,7 @@ export default function SupportPage() {
             as="h1"
             eyebrow="Support"
             title="Help when your operations need it"
-            description="Email our team, open live chat, or sign in to your ERP workspace to manage support tickets."
+            description="Email our team, open live chat, or sign in to your ERP workspace for operational support on The Next-Generation ERP Cloud Platform."
             className="mb-0 max-w-3xl"
           />
         </Container>

@@ -18,19 +18,22 @@ export function ModuleShowcase() {
   const ProductIcon = getIcon(activeModule.icon);
 
   return (
-    <Section className="!pt-10 md:!pt-14 bg-white">
+    <Section className="!pt-8 md:!pt-12 !pb-4 bg-white border-t border-slate-100">
       <Container>
-        <div className="mx-auto mb-8 md:mb-10 max-w-3xl text-center">
+        <div className="mx-auto mb-8 md:mb-10 max-w-2xl text-center">
+          <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+            Product modules
+          </p>
           <h2 className="font-heading text-section font-semibold tracking-tight text-[#0b1f3a] text-balance">
-            One solution to manage everything, in one place
+            One workspace for every department
           </h2>
-          <p className="mt-3 md:mt-4 font-sans text-description font-normal text-muted-foreground leading-relaxed">
-            Switch across {siteConfig.name} modules — Inventory, POS, Sales, Finance, CRM, HR,
-            Manufacturing, and AI — the same clean interface for every workflow.
+          <p className="mt-3 font-sans text-description font-normal text-muted-foreground leading-relaxed">
+            Switch across Inventory, POS, Sales, Finance, CRM, HR, Manufacturing, and AI — the same
+            clean {siteConfig.name} interface for every workflow.
           </p>
         </div>
 
-        <div className="mb-6 md:mb-8 flex gap-2 overflow-x-auto pb-2 scrollbar-none justify-start lg:justify-center">
+        <div className="mb-6 md:mb-8 flex justify-center gap-2 overflow-x-auto pb-2 scrollbar-none">
           {coreModules.map((m, i) => {
             const TabIcon = getIcon(m.icon);
             const selected = i === productIndex;

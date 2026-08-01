@@ -222,16 +222,16 @@ export function BusinessesSection() {
   const categoryCount = allCategories.data.length;
 
   return (
-    <Section muted>
+    <Section muted className="!py-12 md:!py-16">
       <Container>
-        <div className="mx-auto mb-10 md:mb-12 max-w-3xl text-center">
-          <p className="mb-3 text-sm font-medium text-primary tracking-wide uppercase">
+        <div className="mb-8 md:mb-10 max-w-2xl">
+          <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-primary uppercase">
             Industries we serve
           </p>
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
+          <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
             {industryCount} industries · {categoryCount}+ business categories
           </h2>
-          <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
+          <p className="mt-3 text-muted-foreground leading-relaxed">
             Pick an industry, choose your business type, then start a free trial with a setup that
             already matches how you work.
           </p>
@@ -269,17 +269,17 @@ export function BusinessesSection() {
 
 export function SocialProofSection() {
   return (
-    <Section>
+    <Section className="!py-12 md:!py-16">
       <Container>
-        <div className="mx-auto mb-12 max-w-3xl text-center">
-          <p className="mb-3 text-sm font-semibold tracking-[0.16em] text-primary uppercase">
-            Trust
+        <div className="mx-auto mb-10 max-w-2xl text-center">
+          <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+            Customer voices
           </p>
-          <h2 className="font-heading text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
+          <h2 className="font-heading text-2xl md:text-3xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
             Operators trust {siteConfig.name} for clarity
           </h2>
           <p className="mt-3 text-muted-foreground leading-relaxed">
-            Real teams using a modular ERP without the template clutter.
+            Real teams running a modular ERP without the template clutter.
           </p>
         </div>
         <div className="grid gap-6 lg:grid-cols-3">

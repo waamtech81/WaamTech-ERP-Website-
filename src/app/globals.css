@@ -60,6 +60,22 @@
   --scrollbar-thumb-hover: rgba(5, 73, 164, 0.54);
   --scrollbar-thumb-active: rgba(79, 70, 229, 0.62);
   --scrollbar-glow: rgba(5, 73, 164, 0.16);
+
+  /* Site header content height — sticky rails sit flush under the sticky header */
+  --wt-site-header-h: 3.75rem;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --wt-site-header-h: 4.25rem;
+  }
+}
+
+/* Custom ERP wizard progress — flush under sticky site header (no gap) */
+#erp-builder-sticky {
+  top: var(--wt-site-header-h) !important;
+  margin-top: 0;
+  border-top: none !important;
 }
 
 @theme inline {
@@ -963,10 +979,10 @@ html.portal-dark .portal-topbar {
 }
 
 .wt-trust-badge[data-tone="dark"] {
-  --wt-trust-ink: #93c5fd;
-  --wt-trust-label: #e2e8f0;
-  --wt-trust-fill: rgba(255, 255, 255, 0.04);
-  --wt-trust-inner: rgba(147, 197, 253, 0.06);
+  --wt-trust-ink: #bfdbfe;
+  --wt-trust-label: #f1f5f9;
+  --wt-trust-fill: rgba(255, 255, 255, 0.07);
+  --wt-trust-inner: rgba(147, 197, 253, 0.1);
   --wt-trust-tooltip-bg: #0d1626;
   --wt-trust-tooltip-border: #1c2d45;
   --wt-trust-tooltip-fg: #e8eef7;

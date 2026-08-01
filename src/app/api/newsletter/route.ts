@@ -41,6 +41,14 @@ export const POST = withApiHandler(
       return apiSuccess("Subscribed.");
     }
 
+    const started = Number(body._t || 0);
+    if (!started || Date.now() - started < 1500) {
+      return apiFail("Please complete the security check carefully.", {
+        status: 400,
+        code: ApiErrorCode.VALIDATION_ERROR,
+      });
+    }
+
     const email = sanitizeText(body?.email, 254).toLowerCase();
 
     if (!email || !isValidEmail(email)) {

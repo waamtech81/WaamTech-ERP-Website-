@@ -21,35 +21,43 @@ export function TrustBadgesBand({
   showLink?: boolean;
 }) {
   return (
-    <Section muted className="!py-12 md:!py-14">
+    <Section className="!py-12 md:!py-14 bg-[#0b1f3a] text-white">
       <Container>
-        <div className="mx-auto mb-8 max-w-2xl text-center">
-          <p className="mb-2 text-sm font-medium tracking-wide text-primary uppercase">
-            Security & Trust
-          </p>
-          <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
-            {title}
-          </h2>
-          <p className="mt-3 text-sm md:text-base text-muted-foreground leading-relaxed">
-            {description}
-          </p>
-        </div>
-        <TrustBadgeGrid
-          set={set}
-          tone={tone}
-          size="sm"
-          columns={set === "all" || set === "about" ? "full" : "compact"}
-        />
-        {showLink ? (
-          <div className="mt-8 flex justify-center">
-            <Button asChild variant="link" className="text-primary">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-xl">
+            <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-sky-300 uppercase">
+              Security & Trust
+            </p>
+            <h2 className="text-balance text-2xl font-semibold tracking-tight text-white md:text-3xl">
+              {title}
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-white/70 md:text-base">
+              {description}
+            </p>
+          </div>
+          {showLink ? (
+            <Button
+              asChild
+              variant="outline"
+              className="shrink-0 rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+            >
               <Link href="/security">
                 Explore Security & Trust
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
+
+        <div className="mt-9">
+          <TrustBadgeGrid
+            set={set}
+            tone="dark"
+            size="sm"
+            columns={set === "all" || set === "about" ? "full" : "compact"}
+            className="gap-x-3 gap-y-6 sm:gap-x-4 md:gap-x-5"
+          />
+        </div>
       </Container>
     </Section>
   );

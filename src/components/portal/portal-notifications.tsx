@@ -120,14 +120,32 @@ export function PortalNotificationsView() {
     void fetchNotifications();
   }, [fetchNotifications]);
 
+  // Instant first paint from dashboard aggregate (all filter only); API remains SSOT.
+  useEffect(() => {
+    if (filter !== "all" || !data?.notifications?.length) return;
+    setItems((prev) => (prev.length === 0 ? data.notifications! : prev));
+  }, [data?.notifications, filter]);
+
   useEffect(() => {
     const refresh = () => {
+      if (document.visibilityState !== "visible") return;
       void fetchNotifications();
     };
     window.addEventListener("portal-notifications-refresh", refresh);
-    const timer = window.setInterval(refresh, 180_000);
+    // Align with portal dashboard soft-refresh cadence to avoid dual Engine pressure.
+    const timer = window.setInterval(refresh, 300_000);
+    let lastVisibilityFetch = 0;
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastVisibilityFetch < 5_000) return;
+      lastVisibilityFetch = now;
+      void fetchNotifications();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("portal-notifications-refresh", refresh);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.clearInterval(timer);
     };
   }, [fetchNotifications]);

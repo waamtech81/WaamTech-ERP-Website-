@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, Minus } from "lucide-react";
-import { comparisonFeatures, products, siteConfig } from "@/lib/data/site";
+import { ArrowRight } from "lucide-react";
+import { products, siteConfig } from "@/lib/data/site";
 import { productShowcases } from "@/lib/data/product-showcase";
-import { Container, Section, SectionHeader } from "@/components/shared/section";
-import { Breadcrumbs } from "@/components/shared/breadcrumbs";
+import { Container, Section } from "@/components/shared/section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CTASection } from "@/components/shared/cta-section";
@@ -13,6 +12,13 @@ import { ProductStack } from "@/components/sections/product-stack";
 export const metadata: Metadata = {
   title: `ERP Products & Modules — ${siteConfig.name}`,
   description: `Explore ${siteConfig.name} modules: Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and AI Workspace — business outcomes and practical capabilities.`,
+  keywords: [
+    "WAAMTO modules",
+    "ERP products",
+    "inventory POS CRM",
+    "cloud ERP modules",
+    "manufacturing ERP",
+  ],
   alternates: { canonical: "/products" },
 };
 
@@ -22,8 +28,7 @@ export default function ProductsPage() {
       <Section className="relative !pb-8 !pt-12 md:!pt-16 overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(37,99,235,0.08),transparent_70%)]" />
         <Container className="relative">
-          <Breadcrumbs items={[{ label: "Products" }]} />
-          <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <Badge variant="accent" className="mb-3">
                 Modules & AI
@@ -65,70 +70,13 @@ export default function ProductsPage() {
 
       <ProductStack products={productShowcases} />
 
-      <Section className="!pt-10">
-        <Container>
-          <SectionHeader
-            eyebrow="Compare"
-            title="Feature comparison across plans"
-            description="See which capabilities unlock as you move from Starter to Enterprise."
-          />
-          <div className="overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-white scrollbar-thin">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/60">
-                  <th className="px-5 py-4 text-left font-semibold">Capability</th>
-                  {["Starter", "Business", "Lifetime", "Enterprise"].map((h) => (
-                    <th key={h} className="px-5 py-4 text-center font-semibold">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonFeatures.map((row) => (
-                  <tr key={String(row.name)} className="border-b border-border last:border-0">
-                    <td className="px-5 py-4 font-medium">{String(row.name)}</td>
-                    {(["starter", "business", "lifetime", "enterprise"] as const).map((key) => {
-                      const val = row[key];
-                      return (
-                        <td key={key} className="px-5 py-4 text-center text-muted-foreground">
-                          {typeof val === "boolean" ? (
-                            val ? (
-                              <Check className="mx-auto h-4 w-4 text-accent" />
-                            ) : (
-                              <Minus className="mx-auto h-4 w-4 text-slate-300" />
-                            )
-                          ) : (
-                            val
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Need a custom package?{" "}
-            <Link href="/build-your-own-erp" className="text-primary hover:underline">
-              Build Your Own ERP
-            </Link>
-            {" · "}
-            <Link href="/contact?intent=enterprise" className="text-primary hover:underline">
-              Contact sales
-            </Link>
-          </p>
-        </Container>
-      </Section>
-
       <CTASection
         title={`Build your ${siteConfig.name} stack`}
-        description="Start with the modules you need today and expand as your operations grow."
+        description="Start with the modules you need today and expand as your operations grow. Compare plan limits on Pricing."
         primaryLabel="Build Your Own ERP"
         primaryHref="/build-your-own-erp"
-        secondaryLabel="Browse all modules"
-        secondaryHref="/modules"
+        secondaryLabel="Compare plans"
+        secondaryHref="/pricing#compare"
       />
     </>
   );

@@ -158,48 +158,40 @@ export default function PricingPage() {
           ) : null}
 
           <div className="mt-10 grid gap-6 md:grid-cols-2">
-            <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary to-[#0b1f3a] px-6 py-8 md:px-8 text-white flex flex-col">
+            <div className="flex flex-col rounded-2xl border border-border bg-white px-6 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.08)] md:px-8">
               <div className="flex-1">
-                <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
+                <p className="text-sm font-semibold uppercase tracking-wide text-primary">
                   Build your own custom ERP
                 </p>
-                <h3 className="mt-2 text-2xl font-semibold tracking-tight">
+                <h3 className="mt-2 text-2xl font-semibold tracking-tight text-[#0b1f3a]">
                   Assemble modules instead of a fixed plan
                 </h3>
-                <p className="mt-2 text-sm text-white/80 leading-relaxed">
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                   Choose CRM, Inventory, POS, and the modules you need. Related essentials
                   stay included automatically. Live totals update as you build.
                 </p>
               </div>
-              <Button
-                asChild
-                size="lg"
-                className="rounded-full shrink-0 mt-6 self-start bg-white text-[#0b1f3a] hover:bg-slate-100"
-              >
+              <Button asChild size="lg" className="mt-6 shrink-0 self-start rounded-full">
                 <Link href="/build-your-own-erp">Build your own custom ERP</Link>
               </Button>
             </div>
 
             {enterprise ? (
-              <div className="rounded-2xl border border-border bg-[#0b1f3a] px-6 py-8 md:px-8 text-white flex flex-col">
+              <div className="flex flex-col rounded-2xl border border-border bg-white px-6 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.08)] md:px-8">
                 <div className="flex-1">
-                  <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-primary">
                     {enterprise.ribbon || enterprise.badge || "Enterprise"}
                   </p>
-                  <h3 className="mt-2 text-2xl font-semibold tracking-tight">
+                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-[#0b1f3a]">
                     {enterprise.subtitle || enterprise.name || "Enterprise"}
                   </h3>
                   {(enterprise.marketingSummary || enterprise.description) ? (
-                    <p className="mt-3 text-sm text-white/70 leading-relaxed">
+                    <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
                       {enterprise.marketingSummary || enterprise.description}
                     </p>
                   ) : null}
                 </div>
-                <Button
-                  asChild
-                  size="lg"
-                  className="rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100 mt-6 self-start"
-                >
+                <Button asChild size="lg" variant="outline" className="mt-6 self-start rounded-full">
                   <Link href={enterprise.href || "/contact?intent=enterprise"}>
                     {enterprise.cta || "Contact Sales"}
                   </Link>
@@ -262,8 +254,8 @@ export default function PricingPage() {
         <Container>
           <SectionHeader
             eyebrow="Compare plans"
-            title="Everything included, side by side"
-            description="Full feature-by-feature comparison across every published plan."
+            title="Plans, modules, and limits — side by side"
+            description="Compare predefined plans, Custom ERP modules, feature packs, seat and storage limits, white-label options, and enterprise controls — updated for the current WAAMTO cloud ecosystem."
           />
           <PricingComparisonTable
             plans={planColumns}

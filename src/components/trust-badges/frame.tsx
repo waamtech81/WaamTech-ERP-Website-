@@ -9,6 +9,7 @@ const STROKE = 1.5;
 
 /**
  * Icon seal only — label is rendered as HTML under the badge for crisp readability.
+ * Single soft plate (no nested border boxes).
  */
 export function TrustSealFrame({
   label,
@@ -29,27 +30,23 @@ export function TrustSealFrame({
     >
       <title>{title ?? label}</title>
       <rect
-        x="3"
-        y="3"
-        width="90"
-        height="90"
-        rx="18"
-        ry="18"
+        x="6"
+        y="6"
+        width="84"
+        height="84"
+        rx="22"
+        ry="22"
         className="wt-trust-fill"
-        stroke="currentColor"
-        strokeWidth={STROKE}
       />
       <rect
-        x="12"
-        y="12"
-        width="72"
-        height="72"
-        rx="14"
-        ry="14"
+        x="6"
+        y="6"
+        width="84"
+        height="84"
+        rx="22"
+        ry="22"
         className="wt-trust-inner"
-        stroke="currentColor"
-        strokeWidth={1}
-        strokeOpacity={0.35}
+        opacity={0.55}
       />
       <g
         transform="translate(48 48)"

@@ -19,7 +19,7 @@ export default function PrivacyPage() {
         <div className="mt-10 space-y-8 text-muted-foreground leading-relaxed">
           <p>
             {siteConfig.companyName} (&ldquo;WaamTech,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
-            &ldquo;our&rdquo;) operates {siteConfig.fullName}, a modular Enterprise ERP platform, together with
+            &ldquo;our&rdquo;) operates {siteConfig.fullName}, {siteConfig.productLine}, together with
             our marketing website ({siteConfig.url}), cloud ERP application ({siteConfig.appUrl}),
             customer portal ({siteConfig.url}/portal), licensing and billing services (
             {siteConfig.licensePortalUrl}), the Build Your Own ERP configurator, mobile apps, documentation

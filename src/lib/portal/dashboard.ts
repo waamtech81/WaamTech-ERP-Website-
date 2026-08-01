@@ -1042,13 +1042,13 @@ async function loadPortalDashboardUncached(
   let licenses = rawLicenses.map((lic) =>
     toPortalLicense(lic, moduleLabels, featurePackLabels)
   );
-  // Align primary license composition when active license or snapshot is Custom ERP.
-  const primaryMapped = primaryPortalLicense(licenses);
-  const licenseIsCustom = isCustomErpPackageType(primaryMapped?.package_type);
-  const snapIsCustom =
-    isCustomErpPackageType(commercialSnapshot?.package_type) ||
-    isCustomErpPackageType(commercialSnapshot?.package_mode);
-  if (snapIsCustom || licenseIsCustom) {
+  // Journey first (license SSOT) — never overwrite predefined package_type from snapshot.
+  const commercialJourneyEarly = resolveJourneyFromLicenses(licenses, {
+    commercialSnapshotPackageType: commercialSnapshot?.package_type,
+    commercialSnapshotPackageMode: commercialSnapshot?.package_mode,
+  });
+  // Enrich Custom ERP composition only when journey is already custom.
+  if (commercialJourneyEarly === "custom") {
     const snapSelected = (commercialSnapshot?.selected_modules || []).filter(Boolean);
     const snapDeps = (commercialSnapshot?.dependency_modules || []).filter(Boolean);
     const snapPacks = (commercialSnapshot?.feature_packs || []).filter(
@@ -1385,10 +1385,7 @@ async function loadPortalDashboardUncached(
   // Prefer license plan entitlements; do not union full ERP/catalog dumps into portal Modules.
   const modules = licenseModules.length > 0 ? licenseModules : [];
 
-  const commercialJourney = resolveJourneyFromLicenses(licenses, {
-    commercialSnapshotPackageType: commercialSnapshot?.package_type,
-    commercialSnapshotPackageMode: commercialSnapshot?.package_mode,
-  });
+  const commercialJourney = commercialJourneyEarly;
   const isCustomJourney = commercialJourney === "custom";
   const primaryBillingCycle = resolvePrimaryBillingCycle(
     licenses.find((l) => l.id === primary?.id) || licenses[0] || null,

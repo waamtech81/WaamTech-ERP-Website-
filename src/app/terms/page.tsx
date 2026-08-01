@@ -6,7 +6,7 @@ import { siteConfig } from "@/lib/data/site";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: `Terms governing use of ${siteConfig.name} Enterprise ERP and related WaamTech services.`,
+  description: `Terms governing use of ${siteConfig.name} — ${siteConfig.productLine} — and related WaamTech services.`,
 };
 
 export default function TermsPage() {
@@ -35,7 +35,7 @@ export default function TermsPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">1. The WAAMTO service</h2>
             <p>
-              WAAMTO is a modular Enterprise ERP platform by WaamTech. Depending on your plan and
+              WAAMTO is {siteConfig.productLine} by WaamTech. Depending on your plan and
               deployment option, the Service may include modules such as Inventory, POS, Sales,
               Purchasing, Finance, CRM, HR &amp; Payroll, Manufacturing, Warehouse &amp; Logistics,
               Documents, Service, Projects, industry packs, Mobile App access, and AI Workspace

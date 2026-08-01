@@ -2,10 +2,7 @@ import { ApiErrorCode } from "@/lib/api/codes";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiFail, apiSuccess } from "@/lib/api/response";
 import { normalizePasswordResetOrigin } from "@/lib/auth/reset-flow";
-import { sendPasswordResetEmail } from "@/lib/auth/email";
-import { identityCheckEmailExists } from "@/lib/license/identity";
-import { generatePasswordResetCode } from "@/lib/security/password-reset-code";
-import { getPasswordResetStore } from "@/lib/security/password-reset-store";
+import { identityForgotPassword } from "@/lib/license/identity";
 import {
   getClientIp,
   isSameOrigin,
@@ -14,27 +11,13 @@ import {
   sanitizeText,
 } from "@/lib/security/guards";
 
-function isUnregisteredEmail(result: {
-  status: number;
-  code?: string;
-  message?: string;
-}): boolean {
-  if (result.status === 404) return true;
+const GENERIC_RESET_MESSAGE =
+  "If an account exists for that email, a reset link has been sent.";
 
-  const code = String(result.code || "").toUpperCase();
-  if (
-    code === "EMAIL_NOT_FOUND" ||
-    code === "USER_NOT_FOUND" ||
-    code === "ACCOUNT_NOT_FOUND"
-  ) {
-    return true;
-  }
-
-  return /\b(not found|not registered|does not exist|no account)\b/i.test(
-    String(result.message || "")
-  );
-}
-
+/**
+ * Password reset request — forwards to License Engine (SSOT for reset tokens).
+ * Website never mints local reset codes (reset completion requires Engine tokens).
+ */
 export const POST = withApiHandler(
   async (req) => {
     if (!isSameOrigin(req)) {
@@ -55,7 +38,9 @@ export const POST = withApiHandler(
 
     const body = await req.json();
     const email = sanitizeText(body?.email, 254).toLowerCase();
-    const origin = normalizePasswordResetOrigin(body?.origin || body?.origin_value || body?.reset_origin);
+    const origin = normalizePasswordResetOrigin(
+      body?.origin || body?.origin_value || body?.reset_origin
+    );
     const captchaToken = sanitizeText(
       body?.captcha_token || body?.recaptchaToken || body?.recaptcha_token,
       8192
@@ -68,32 +53,16 @@ export const POST = withApiHandler(
       });
     }
 
-    // Check if email exists in identity system
-    const emailCheckResult = await identityCheckEmailExists(email).catch(() => null);
-    if (!emailCheckResult || !emailCheckResult.ok) {
-      if (emailCheckResult && isUnregisteredEmail(emailCheckResult)) {
-        return apiFail(
-          "This email is not registered. Please check the address or create an account.",
-          { status: 404, code: ApiErrorCode.NOT_FOUND }
-        );
-      }
-    }
+    // Engine owns token issuance + email. Always return a generic success
+    // (anti-enumeration); do not surface Engine not-found / errors to clients.
+    await identityForgotPassword(
+      email,
+      captchaToken || undefined,
+      origin === "erp" ? "erp" : "website"
+    ).catch(() => null);
 
-    // Generate and store password reset code (website-owned, not from License Engine)
-    // Code valid for 15 minutes
-    const code = generatePasswordResetCode();
-    const store = getPasswordResetStore();
-    await store.set(code, { email, createdAt: Date.now(), origin }, 15 * 60_000);
-
-    // Send password reset email
-    await sendPasswordResetEmail({
-      to: email,
-      code,
-      origin: origin === "erp" ? "erp" : "website",
-    });
-
-    return apiSuccess("If an account exists for that email, a reset link has been sent.", {
-      extra: { origin, code },
+    return apiSuccess(GENERIC_RESET_MESSAGE, {
+      extra: { origin },
     });
   },
   { endpoint: "/api/auth/forgot-password" }

@@ -11,6 +11,7 @@ export const seoKeywords = [
   "WAAMTO ERP",
   "Waamto ERP",
   "WaamTech ERP",
+  "app.waamto.com",
   // Core product intent
   "ERP software",
   "cloud ERP",
@@ -20,6 +21,9 @@ export const seoKeywords = [
   "SaaS ERP",
   "business ERP software",
   "modern cloud ERP",
+  "custom ERP builder",
+  "build your own ERP",
+  "feature packs ERP",
   // Module keywords
   "inventory management software",
   "POS system",
@@ -37,6 +41,8 @@ export const seoKeywords = [
   "retail ERP",
   "wholesale ERP",
   "distribution ERP",
+  "pharmacy ERP",
+  "restaurant ERP",
   "multi branch ERP",
   "multi warehouse inventory",
   "ERP for growing businesses",
@@ -49,18 +55,19 @@ export const seoKeywords = [
   "affordable ERP software",
   "best ERP for small business",
   "ERP for growing companies",
+  "lifetime ERP license",
 ] as const;
 
 /** Browser tab + search default title */
 export const seoTitleDefault =
-  "Waamto ERP — Modern Cloud ERP for Growing Businesses";
+  "WAAMTO ERP — Modular Cloud ERP, Custom Builder & AI Workspace";
 
 /** Primary meta / Open Graph / Twitter description */
 export const seoDescription =
-  "Run your entire business from one secure cloud platform. Finance, CRM, HR, Inventory, POS, Manufacturing, Payroll, Procurement, Projects and much more—all in one modern ERP solution.";
+  "Run your business on WAAMTO — modular cloud ERP with Inventory, POS, Finance, CRM, HR, Manufacturing, Custom ERP builder, feature packs, secure customer portal, and AI Workspace. Start a free trial.";
 
 export const seoShortDescription =
-  "Modern cloud ERP for growing businesses — Finance, CRM, HR, Inventory, POS, Manufacturing & Payroll in one secure platform.";
+  "Modular cloud ERP for growing businesses — plans, Custom ERP, AI Workspace, and secure billing in one platform.";
 
 /** Open Graph / social site name */
 export const seoSiteName = "Waamto";

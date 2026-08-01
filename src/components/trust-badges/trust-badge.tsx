@@ -55,8 +55,9 @@ export function TrustBadge({
     >
       <div
         className={cn(
-          "wt-trust-seal relative w-full overflow-visible rounded-2xl transition-[box-shadow,transform] duration-300",
-          "group-hover:shadow-[0_12px_32px_rgba(5,73,164,0.14)]",
+          "wt-trust-seal relative w-full overflow-visible rounded-[1.35rem] transition-[box-shadow,transform] duration-300",
+          "group-hover:shadow-[0_10px_28px_rgba(5,73,164,0.12)]",
+          "group-data-[tone=dark]:group-hover:shadow-[0_10px_28px_rgba(56,189,248,0.12)]",
           "group-focus-visible:ring-2 group-focus-visible:ring-primary/40 group-focus-visible:ring-offset-2"
         )}
       >

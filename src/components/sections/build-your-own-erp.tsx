@@ -20,7 +20,6 @@ import {
   Calendar,
   CalendarDays,
   Check,
-  ChevronDown,
   GitBranch,
   Link2,
   Lock,
@@ -37,8 +36,9 @@ import {
 import {
   useCatalogBusinessCategories,
   useCatalogBundle,
-  useCatalogIndustries,
+  useCatalogBuilderRecommendations,
   useCatalogModules,
+  useCommercialOverview,
 } from "@/hooks/use-commercial";
 import {
   CatalogEmptyState,
@@ -47,6 +47,7 @@ import {
 } from "@/components/commercial/catalog-states";
 import { BundleRecommendationCard } from "@/components/commercial/bundle-recommendation-card";
 import { CustomErpCommercialSummary } from "@/components/commercial/custom-erp-commercial-summary";
+import { CouponCelebrate } from "@/components/commercial/coupon-celebrate";
 import { CustomErpCouponField } from "@/components/commercial/custom-erp-coupon-field";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { Container, Section } from "@/components/shared/section";
@@ -94,7 +95,6 @@ import {
 import {
   cycleUnitPrice,
   resolveRequiredDependencies,
-  uniqueCategories,
 } from "@/lib/commercial/module-builder";
 import {
   CUSTOM_ERP_BILLING_CYCLE_OPTIONS,
@@ -109,7 +109,6 @@ import type {
   CatalogIndustry,
   CatalogModule,
   CustomPackageQuoteResult,
-  PublicCommercialOverview,
 } from "@/lib/commercial/types";
 import {
   buildCustomErpPackagePayload,
@@ -798,7 +797,6 @@ export function BuildYourOwnErpBuilder() {
   const { formatPrice } = useLocale();
   const router = useRouter();
   const modulesQuery = useCatalogModules("waamto-erp");
-  const industriesQuery = useCatalogIndustries();
   const catalogBundle = useCatalogBundle("waamto-erp");
   const modules = useMemo(
     () =>
@@ -807,13 +805,14 @@ export function BuildYourOwnErpBuilder() {
       ),
     [modulesQuery.data]
   );
+  // Prefer industries from catalog bundle (already fetched) — no second /industries hop.
   const industries = useMemo(
     () =>
-      [...industriesQuery.data].sort(
+      [...(catalogBundle.data.industries || [])].sort(
         (a, b) =>
           (a.display_order ?? 0) - (b.display_order ?? 0) || a.name.localeCompare(b.name)
       ),
-    [industriesQuery.data]
+    [catalogBundle.data.industries]
   );
 
   const [step, setStep] = useState<BuilderStepId>("industry");
@@ -831,6 +830,8 @@ export function BuildYourOwnErpBuilder() {
   );
 
   const [cycle, setCycle] = useState<CustomErpBillingCycle>("monthly");
+  const commercialOverviewQuery = useCommercialOverview("waamto-erp", cycle);
+  const recommendationsQuery = useCatalogBuilderRecommendations(categoryId || null);
   const [selected, setSelected] = useState<string[]>([]);
   const [categoryRequired, setCategoryRequired] = useState<string[]>([]);
   const [featurePacks, setFeaturePacks] = useState<BuilderFeaturePack[]>([]);
@@ -849,21 +850,31 @@ export function BuildYourOwnErpBuilder() {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [couponApplyPending, setCouponApplyPending] = useState(false);
+  const couponCelebrateArmedRef = useRef(false);
+  const [couponCelebrateOpen, setCouponCelebrateOpen] = useState(false);
+  const [couponCelebrateMeta, setCouponCelebrateMeta] = useState<{
+    code: string;
+    savingsLabel: string | null;
+  }>({ code: "", savingsLabel: null });
   const [bundleDismissed, setBundleDismissed] = useState(false);
   const [quoteNonce, setQuoteNonce] = useState(0);
-  const [commercialOverview, setCommercialOverview] =
-    useState<PublicCommercialOverview | null>(null);
-  const [builderRecommendations, setBuilderRecommendations] =
-    useState<CatalogBuilderRecommendations | null>(null);
+  const commercialOverview = commercialOverviewQuery.data;
+  const builderRecommendations = recommendationsQuery.data;
+  const recommendationsLoading = Boolean(categoryId) && recommendationsQuery.loading;
+  const recommendationsError = recommendationsQuery.error;
   const [builderRequiredModules, setBuilderRequiredModules] = useState<string[]>([]);
   const [builderRecommendedModules, setBuilderRecommendedModules] = useState<string[]>([]);
-  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
-  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const restoreCategoryMetaRef = useRef(false);
+  const preserveRecSelectionsRef = useRef(false);
+  const lastAppliedRecRef = useRef<string | null>(null);
   const pendingAddCodeRef = useRef<string | null>(null);
   const quoteCacheRef = useRef<Map<string, CustomPackageQuoteResult>>(new Map());
   const quoteRequestIdRef = useRef(0);
+  const commercialOverviewRef = useRef(commercialOverview);
+  const builderRecommendationsRef = useRef(builderRecommendations);
+  commercialOverviewRef.current = commercialOverview;
+  builderRecommendationsRef.current = builderRecommendations;
 
   const selectedIndustry = useMemo(
     () => industries.find((i) => i.id === industryId) || null,
@@ -912,7 +923,6 @@ export function BuildYourOwnErpBuilder() {
     [builderRecommendations, featurePacks, commercialOverview]
   );
 
-  const moduleCategories = useMemo(() => uniqueCategories(modules), [modules]);
   const seedForDeps = useMemo(
     () => Array.from(new Set([...selected, ...categoryRequired])),
     [selected, categoryRequired]
@@ -1287,18 +1297,30 @@ export function BuildYourOwnErpBuilder() {
     return true;
   }
 
+  function scrollWizardIntoView() {
+    if (typeof window === "undefined") return;
+    window.requestAnimationFrame(() => {
+      document.getElementById("builder")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
   function goTo(next: BuilderStepId) {
     if (!canAccessStep(next)) return;
     const nextIdx = stepIndex(next);
     const reachedIdx = stepIndex(maxReached);
     // Block skipping ahead — only revisit unlocked steps or open the next one.
     if (nextIdx > reachedIdx + 1) return;
-    if (next !== step) {
+    const changed = next !== step;
+    if (changed) {
       setQuery("");
       if (next !== "modules") setCategoryFilter("all");
     }
     setStep(next);
     if (nextIdx > reachedIdx) setMaxReached(next);
+    if (changed) scrollWizardIntoView();
   }
 
   const searchPlaceholder =
@@ -1349,60 +1371,26 @@ export function BuildYourOwnErpBuilder() {
       setQuery("");
       if (prev !== "modules") setCategoryFilter("all");
       setStep(prev);
+      scrollWizardIntoView();
     }
   }
 
   function selectIndustry(id: string) {
+    lastAppliedRecRef.current = null;
+    preserveRecSelectionsRef.current = false;
     setIndustryId(id);
     setCategoryId("");
     setSelected([]);
     setCategoryRequired([]);
     setBuilderRequiredModules([]);
     setBuilderRecommendedModules([]);
-    setBuilderRecommendations(null);
-    setRecommendationsError(null);
     setFeaturePacks([]);
     setSelectedPacks([]);
     setQuery("");
     setCategoryFilter("all");
     setMaxReached("category");
     setStep("category");
-  }
-
-  async function loadBuilderRecommendations(
-    cat: CatalogBusinessCategory,
-    opts?: { preserveSelections?: boolean }
-  ) {
-    setRecommendationsLoading(true);
-    setRecommendationsError(null);
-    try {
-      const res = await fetch(
-        `/api/commercial/builder-recommendations?category_id=${encodeURIComponent(cat.id)}`,
-        { cache: "no-store" }
-      );
-      const json = (await res.json()) as {
-        success?: boolean;
-        message?: string;
-        data?: CatalogBuilderRecommendations;
-      };
-      if (!res.ok || json.success === false || !json.data) {
-        throw new Error(json.message || "Builder recommendations unavailable.");
-      }
-      applyBuilderRecommendations(json.data, opts);
-    } catch (err) {
-      setBuilderRecommendations(null);
-      setBuilderRequiredModules([]);
-      setBuilderRecommendedModules([]);
-      setCategoryRequired([]);
-      setSelected([]);
-      setFeaturePacks([]);
-      setSelectedPacks([]);
-      setRecommendationsError(
-        err instanceof Error ? err.message : "Builder recommendations unavailable."
-      );
-    } finally {
-      setRecommendationsLoading(false);
-    }
+    scrollWizardIntoView();
   }
 
   function applyBuilderRecommendations(
@@ -1410,7 +1398,6 @@ export function BuildYourOwnErpBuilder() {
     opts?: { preserveSelections?: boolean }
   ) {
     if (!modules.length) return;
-    setBuilderRecommendations(rec);
     const mapped = mapBuilderRecommendations(rec, modules, commercialOverview);
     setBuilderRequiredModules(
       resolveModuleCodesFromLabels(rec.required_modules || [], modules)
@@ -1470,12 +1457,14 @@ export function BuildYourOwnErpBuilder() {
   }
 
   function selectCategory(cat: CatalogBusinessCategory) {
+    lastAppliedRecRef.current = null;
+    preserveRecSelectionsRef.current = false;
     setCategoryId(cat.id);
     setQuery("");
     setCategoryFilter("all");
     setMaxReached("recommended");
     setStep("recommended");
-    void loadBuilderRecommendations(cat);
+    scrollWizardIntoView();
   }
 
   useEffect(() => {
@@ -1565,41 +1554,47 @@ export function BuildYourOwnErpBuilder() {
     setHydrated(true);
   }, [modules, hydrated]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    void (async () => {
-      try {
-        const res = await fetch(
-          `/api/commercial/commercial?product=waamto-erp&billing_cycle=${encodeURIComponent(cycle)}`,
-          { signal: controller.signal, cache: "no-store" }
-        );
-        const json = (await res.json()) as {
-          success?: boolean;
-          data?: PublicCommercialOverview;
-        };
-        if (!cancelled && res.ok && json.success && json.data) {
-          setCommercialOverview(json.data);
-        }
-      } catch {
-        /* keep fallback catalog pricing */
-      }
-    })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [cycle]);
-
-  // Restore builder recommendations after edit-mode hydration.
+  // Restore builder recommendations after edit-mode hydration (SWR applies with preserve).
   useEffect(() => {
     if (!hydrated || !restoreCategoryMetaRef.current) return;
     if (!categoryId || !modules.length || !categories.length) return;
     const cat = categories.find((c) => c.id === categoryId);
     if (!cat) return;
     restoreCategoryMetaRef.current = false;
-    void loadBuilderRecommendations(cat, { preserveSelections: true });
+    preserveRecSelectionsRef.current = true;
+    lastAppliedRecRef.current = null;
   }, [hydrated, categoryId, categories, modules.length]);
+
+  // Apply SWR-backed builder recommendations (deduped, abort-safe via hook gen).
+  useEffect(() => {
+    if (!categoryId || !modules.length) return;
+    if (recommendationsQuery.loading) return;
+    if (recommendationsQuery.error && !recommendationsQuery.data) {
+      setBuilderRequiredModules([]);
+      setBuilderRecommendedModules([]);
+      setCategoryRequired([]);
+      setSelected([]);
+      setFeaturePacks([]);
+      setSelectedPacks([]);
+      return;
+    }
+    const rec = recommendationsQuery.data;
+    if (!rec) return;
+    const fingerprint = `${categoryId}:${JSON.stringify(rec.required_modules || [])}:${JSON.stringify(rec.recommended_modules || [])}:${JSON.stringify(rec.recommended_feature_packs || [])}`;
+    const preserve = preserveRecSelectionsRef.current;
+    if (!preserve && lastAppliedRecRef.current === fingerprint) return;
+    preserveRecSelectionsRef.current = false;
+    lastAppliedRecRef.current = fingerprint;
+    applyBuilderRecommendations(rec, { preserveSelections: preserve });
+    // applyBuilderRecommendations closes over latest modules/commercialOverview
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    categoryId,
+    modules.length,
+    recommendationsQuery.data,
+    recommendationsQuery.loading,
+    recommendationsQuery.error,
+  ]);
 
   // Rebuild eligible packs when modules, category recommendations, or catalog prices change.
   useEffect(() => {
@@ -1672,6 +1667,7 @@ export function BuildYourOwnErpBuilder() {
   useEffect(() => {
     if (!hydrated) return;
     if (!completeKey) {
+      couponCelebrateArmedRef.current = false;
       setMoney(null);
       setLiveQuote(null);
       setQuoteError(null);
@@ -1682,11 +1678,15 @@ export function BuildYourOwnErpBuilder() {
     }
 
     const moduleCodes = completeKey.split("|").filter(Boolean);
+    // Read overview/recs from refs so late catalog arrival does not re-POST an identical quote.
+    const overviewForQuote = commercialOverviewRef.current;
+    const recsForQuote = builderRecommendationsRef.current;
     const normalizedPacks = prepareFeaturePackCodesForQuote(
-      selectedPacks,
-      builderRecommendations,
-      commercialOverview
+      packKey.split("|").filter(Boolean),
+      recsForQuote,
+      overviewForQuote
     );
+    const tenantParts = tenantKey.split("|").map((n) => Number(n) || 0);
     const quoteBody = buildCustomPackageQuotePayload({
       product_slug: "waamto-erp",
       billing_cycle: cycle,
@@ -1695,19 +1695,39 @@ export function BuildYourOwnErpBuilder() {
       industry_id: industryId || null,
       category_id: categoryId || null,
       selected_feature_packs: normalizedPacks,
-      user_limit: tenantLimits.users,
-      company_limit: tenantLimits.companies,
-      branch_limit: tenantLimits.branches,
-      warehouse_limit: tenantLimits.warehouses,
+      user_limit: tenantParts[0] ?? 0,
+      company_limit: tenantParts[1] ?? 0,
+      branch_limit: tenantParts[2] ?? 0,
+      warehouse_limit: tenantParts[3] ?? 0,
     });
     const cacheKey = JSON.stringify(quoteBody);
     const cached = quoteCacheRef.current.get(cacheKey);
     if (cached?.pricing) {
+      const cachedMoney = engineMoneyFromQuote(cached);
       setLiveQuote(cached);
-      setMoney(engineMoneyFromQuote(cached));
+      setMoney(cachedMoney);
       setQuoteError(null);
       setQuoteBusy(false);
       setCouponApplyPending(false);
+      if (
+        couponCelebrateArmedRef.current &&
+        appliedCoupon &&
+        couponAppliedInPricing(cached.pricing)
+      ) {
+        couponCelebrateArmedRef.current = false;
+        const matched = String(
+          cached.pricing.discount_code || appliedCoupon
+        ).toUpperCase();
+        const saved = Number(cachedMoney?.discount_amount || 0);
+        setCouponCelebrateMeta({
+          code: matched,
+          savingsLabel: saved > 0 ? `You save ${formatPrice(saved)}` : null,
+        });
+        setCouponCelebrateOpen(true);
+        setCouponError(null);
+      } else if (couponCelebrateArmedRef.current && appliedCoupon) {
+        couponCelebrateArmedRef.current = false;
+      }
       return;
     }
 
@@ -1780,8 +1800,8 @@ export function BuildYourOwnErpBuilder() {
               : pruneSelectedFeaturePackCodes(selectedPacks, moduleVisibleFeaturePacks);
             const prunedPacks = prepareFeaturePackCodesForQuote(
               retrySelected,
-              builderRecommendations,
-              commercialOverview
+              recsForQuote,
+              overviewForQuote
             );
             if (
               prunedPacks.length &&
@@ -1844,6 +1864,7 @@ export function BuildYourOwnErpBuilder() {
 
         if (appliedCoupon) {
           if (!couponAppliedInPricing(pricing)) {
+            couponCelebrateArmedRef.current = false;
             setAppliedCoupon(null);
             setCouponError("This coupon is invalid or not applicable.");
             setQuoteError(null);
@@ -1853,6 +1874,16 @@ export function BuildYourOwnErpBuilder() {
           setAppliedCoupon(matched);
           setCouponInput(matched);
           setCouponError(null);
+          if (couponCelebrateArmedRef.current) {
+            couponCelebrateArmedRef.current = false;
+            const saved = Number(nextMoney?.discount_amount || 0);
+            setCouponCelebrateMeta({
+              code: matched,
+              savingsLabel:
+                saved > 0 ? `You save ${formatPrice(saved)}` : null,
+            });
+            setCouponCelebrateOpen(true);
+          }
           return;
         }
 
@@ -1860,6 +1891,7 @@ export function BuildYourOwnErpBuilder() {
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
         if (requestId !== quoteRequestIdRef.current) return;
+        couponCelebrateArmedRef.current = false;
         const msg =
           err instanceof Error && err.message
             ? err.message
@@ -1889,14 +1921,7 @@ export function BuildYourOwnErpBuilder() {
     categoryId,
     packKey,
     tenantKey,
-    selectedPacks,
-    tenantLimits.users,
-    tenantLimits.companies,
-    tenantLimits.branches,
-    tenantLimits.warehouses,
     quoteNonce,
-    commercialOverview,
-    builderRecommendations,
     moduleVisibleFeaturePacks,
   ]);
 
@@ -1918,15 +1943,21 @@ export function BuildYourOwnErpBuilder() {
     }
     setCouponError(null);
     setCouponInput(code);
+    couponCelebrateArmedRef.current = true;
     setCouponApplyPending(true);
     setAppliedCoupon(code);
   }, [couponInput, complete.length]);
 
   const handleClearCoupon = useCallback(() => {
+    couponCelebrateArmedRef.current = false;
     setCouponInput("");
     setAppliedCoupon(null);
     setCouponError(null);
     setCouponApplyPending(false);
+  }, []);
+
+  const closeCouponCelebrate = useCallback(() => {
+    setCouponCelebrateOpen(false);
   }, []);
 
   function toggleModule(code: string) {
@@ -2004,7 +2035,7 @@ export function BuildYourOwnErpBuilder() {
 
   const catalogLoading =
     (modulesQuery.loading && !modules.length) ||
-    (industriesQuery.loading && !industries.length);
+    (catalogBundle.loading && !industries.length);
 
   if (catalogLoading) {
     return (
@@ -2016,15 +2047,15 @@ export function BuildYourOwnErpBuilder() {
     );
   }
 
-  if ((modulesQuery.error && !modules.length) || (industriesQuery.error && !industries.length)) {
+  if ((modulesQuery.error && !modules.length) || (catalogBundle.error && !industries.length)) {
     return (
       <Section>
         <Container>
           <CatalogErrorState
-            message={modulesQuery.error || industriesQuery.error || "Unable to load catalog."}
+            message={modulesQuery.error || catalogBundle.error || "Unable to load catalog."}
             onRetry={() => {
               modulesQuery.retry();
-              industriesQuery.retry();
+              catalogBundle.retry();
             }}
           />
         </Container>
@@ -2052,60 +2083,43 @@ export function BuildYourOwnErpBuilder() {
 
   return (
     <>
-      <Section className="!pt-4 !pb-3 sm:!pb-6">
-        <Container>
-          <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <p className="mb-1.5 text-sm font-medium tracking-wide text-primary uppercase font-sans sm:mb-2">
-                Custom ERP Builder
-              </p>
-              <h2 className="max-w-4xl font-heading text-base font-semibold leading-snug tracking-tight text-[#0b1f3a] text-pretty sm:text-lg md:text-xl">
-                Industry → category → modules → packs → seats → signup.
-                <span className="mt-1.5 block font-normal text-muted-foreground">
-                  Required partners stay locked. Live pricing updates as you configure.
-                </span>
-              </h2>
-            </div>
-            {showBillingToggle ? (
-              <div className="inline-flex w-full shrink-0 rounded-full border border-border bg-white p-1 shadow-sm sm:w-auto">
-                {CYCLES.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setCycle(c.id)}
-                    className={cn(
-                      "min-w-0 flex-1 rounded-full px-3 py-2 text-xs font-medium transition-colors sm:flex-none sm:px-4 sm:text-sm",
-                      cycle === c.id
-                        ? "bg-[#0b1f3a] text-white"
-                        : "text-muted-foreground hover:text-[#0b1f3a]"
-                    )}
-                    title={c.hint}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </Container>
-      </Section>
-
-      {/* Sticky step rail — stays visible while the user scrolls the builder */}
+      {/* Flush under site header via --wt-site-header-h (globals.css) */}
       <div
         id="erp-builder-sticky"
-        className="sticky top-16 z-30 border-y border-border/80 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:top-20"
+        className="sticky z-40 border-b border-border/80 bg-white shadow-[0_1px_0_rgba(15,23,42,0.04)]"
+        style={{ top: "var(--wt-site-header-h)" }}
       >
-        <Container className="py-2.5 sm:py-3">
+        <Container className="flex flex-col gap-1.5 py-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-1.5">
           <BuilderStepRail
             step={step}
             maxReached={maxReached}
             canAccess={canAccessStep}
             onJump={goTo}
           />
+          {showBillingToggle ? (
+            <div className="inline-flex w-full shrink-0 rounded-full border border-border bg-white p-0.5 shadow-sm sm:w-auto">
+              {CYCLES.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCycle(c.id)}
+                  className={cn(
+                    "min-w-0 flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors sm:flex-none sm:px-3.5",
+                    cycle === c.id
+                      ? "bg-[#0b1f3a] text-white"
+                      : "text-muted-foreground hover:text-[#0b1f3a]"
+                  )}
+                  title={c.hint}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </Container>
       </div>
 
-      <Section className="!pt-5 !pb-24 sm:!pt-6 lg:!pb-16">
+      <Section className="!pt-3 !pb-24 sm:!pt-4 lg:!pb-16">
         <Container>
           <div className={cn("grid gap-6 sm:gap-8", showSidebar && "lg:grid-cols-12")}>
             <div className={cn("min-w-0", showSidebar ? "lg:col-span-8" : "max-w-5xl")}>
@@ -2115,13 +2129,6 @@ export function BuildYourOwnErpBuilder() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     Start with the industry that best matches how you operate.
                   </p>
-                  <BuilderSearchField
-                    value={query}
-                    onChange={setQuery}
-                    placeholder={searchPlaceholder}
-                    label={searchLabel}
-                    className="mt-4 sm:mt-5"
-                  />
                   {filteredIndustries.length === 0 ? (
                     <div className="mt-5 rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-12 text-center text-sm text-muted-foreground">
                       No industries match your search.
@@ -2152,24 +2159,12 @@ export function BuildYourOwnErpBuilder() {
                       })}
                     </div>
                   )}
-                  <div className="mt-5 hidden sm:flex">
-                    <Button
-                      type="button"
-                      className="rounded-full"
-                      disabled={!industryId}
-                      onClick={() => goTo("category")}
-                    >
-                      Next
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
                 </div>
               ) : null}
 
               {step === "category" ? (
                 <div>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
+                  <div>
                       <h3 className="text-lg font-semibold text-[#0b1f3a]">
                         Select your business type
                       </h3>
@@ -2180,26 +2175,7 @@ export function BuildYourOwnErpBuilder() {
                         </span>
                         — this shapes your recommended setup.
                       </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-full"
-                      onClick={() => goTo("industry")}
-                    >
-                      <ArrowLeft className="h-3.5 w-3.5" />
-                      Change industry
-                    </Button>
                   </div>
-
-                  <BuilderSearchField
-                    value={query}
-                    onChange={setQuery}
-                    placeholder={searchPlaceholder}
-                    label={searchLabel}
-                    className="mt-4 sm:mt-5"
-                  />
 
                   {categoriesQuery.loading && !categories.length ? (
                     <div className="mt-6">
@@ -2267,26 +2243,6 @@ export function BuildYourOwnErpBuilder() {
                       })}
                     </div>
                   )}
-                  <div className="mt-5 hidden gap-2 sm:flex">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-full"
-                      onClick={() => goTo("industry")}
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                      Back
-                    </Button>
-                    <Button
-                      type="button"
-                      className="rounded-full"
-                      disabled={!categoryId}
-                      onClick={() => goTo("recommended")}
-                    >
-                      Next
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
                 </div>
               ) : null}
 
@@ -2306,13 +2262,6 @@ export function BuildYourOwnErpBuilder() {
                         {builderRecommendations.provisioning_note}
                       </p>
                     ) : null}
-                    <BuilderSearchField
-                      value={query}
-                      onChange={setQuery}
-                      placeholder={searchPlaceholder}
-                      label={searchLabel}
-                      className="mt-4 sm:mt-5"
-                    />
                   </div>
 
                   {recommendationsLoading ? (
@@ -2329,7 +2278,10 @@ export function BuildYourOwnErpBuilder() {
                           size="sm"
                           variant="outline"
                           className="mt-3 rounded-full"
-                          onClick={() => void loadBuilderRecommendations(selectedCategory)}
+                          onClick={() => {
+                            lastAppliedRecRef.current = null;
+                            recommendationsQuery.retry();
+                          }}
                         >
                           Retry
                         </Button>
@@ -2404,92 +2356,17 @@ export function BuildYourOwnErpBuilder() {
                     </div>
                   )}
 
-                  <div className="hidden flex-wrap gap-3 sm:flex">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-full"
-                      onClick={() => goTo("category")}
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                      Back
-                    </Button>
-                    <Button
-                      type="button"
-                      className="rounded-full"
-                      disabled={!categoryId || recommendationsLoading || Boolean(recommendationsError)}
-                      onClick={() => goTo("modules")}
-                    >
-                      Customize modules
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
                 </div>
               ) : null}
 
               {step === "modules" ? (
                 <div>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-                    <div className="min-w-0">
-                      <h3 className="text-lg font-semibold text-[#0b1f3a]">Customize modules</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Essentials stay included. Suggested modules are pre-selected but optional.
-                        Add more from the full catalog below.
-                      </p>
-                    </div>
-                    <div className="hidden gap-2 sm:flex">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={() => goTo("recommended")}
-                      >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                        Back
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="rounded-full"
-                        disabled={!complete.length}
-                        onClick={() => goTo("feature-packs")}
-                      >
-                        Next
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex w-full flex-col gap-3 sm:mt-5 sm:flex-row sm:items-center sm:justify-between">
-                    <BuilderSearchField
-                      value={query}
-                      onChange={setQuery}
-                      placeholder={searchPlaceholder}
-                      label={searchLabel}
-                    />
-                    <div className="relative w-full shrink-0 sm:ml-auto sm:w-auto">
-                      <label className="sr-only" htmlFor="custom-erp-category-filter">
-                        Module category
-                      </label>
-                      <select
-                        id="custom-erp-category-filter"
-                        value={categoryFilter}
-                        onChange={(e) => setCategoryFilter(e.target.value)}
-                        className="h-11 w-full appearance-none rounded-full border border-border bg-white py-2 pl-4 pr-10 text-sm font-medium text-[#0b1f3a] shadow-sm outline-none transition-colors hover:border-primary/30 focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/20 sm:min-w-[11.5rem]"
-                      >
-                        <option value="all">All categories</option>
-                        {moduleCategories.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
-                        aria-hidden
-                      />
-                    </div>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-semibold text-[#0b1f3a]">Customize modules</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Essentials stay included. Suggested modules are pre-selected but optional.
+                      Add more from the full catalog below.
+                    </p>
                   </div>
 
                   <div
@@ -2654,44 +2531,13 @@ export function BuildYourOwnErpBuilder() {
 
               {step === "feature-packs" ? (
                 <div className="space-y-5">
-                  <div className="flex flex-wrap items-end justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-[#0b1f3a]">Feature packs</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Optional capability packs that match your industry, business type, and modules.
-                        Enable only what improves your operations — prices update live.
-                      </p>
-                    </div>
-                    <div className="hidden gap-2 sm:flex">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={() => goTo("modules")}
-                      >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                        Back
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={() => goTo("tenant")}
-                      >
-                        Next
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#0b1f3a]">Feature packs</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Optional capability packs that match your industry, business type, and modules.
+                      Enable only what improves your operations — prices update live.
+                    </p>
                   </div>
-
-                  <BuilderSearchField
-                    value={query}
-                    onChange={setQuery}
-                    placeholder={searchPlaceholder}
-                    label={searchLabel}
-                    className="mt-4 sm:mt-5"
-                  />
 
                   {!builderRecommendations ? (
                     <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted-foreground">
@@ -2764,44 +2610,13 @@ export function BuildYourOwnErpBuilder() {
 
               {step === "tenant" ? (
                 <div className="space-y-5">
-                  <div className="flex flex-wrap items-end justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-[#0b1f3a]">Limits</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Set users, companies, branches, and warehouses for how you operate.
-                        Extra limits prices update live.
-                      </p>
-                    </div>
-                    <div className="hidden gap-2 sm:flex">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={() => goTo("feature-packs")}
-                      >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                        Back
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={() => goTo("billing")}
-                      >
-                        Next
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#0b1f3a]">Limits</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Set users, companies, branches, and warehouses for how you operate.
+                      Extra limits prices update live.
+                    </p>
                   </div>
-
-                  <BuilderSearchField
-                    value={query}
-                    onChange={setQuery}
-                    placeholder={searchPlaceholder}
-                    label={searchLabel}
-                    className="mt-4 sm:mt-5"
-                  />
 
                   {tenantLimitCards.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted-foreground">
@@ -2834,43 +2649,12 @@ export function BuildYourOwnErpBuilder() {
 
               {step === "billing" ? (
                 <div className="space-y-5">
-                  <div className="flex flex-wrap items-end justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-[#0b1f3a]">Billing cycle</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Choose how you want to pay. Live pricing updates immediately.
-                      </p>
-                    </div>
-                    <div className="hidden gap-2 sm:flex">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={() => goTo("tenant")}
-                      >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                        Back
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={() => goTo("review")}
-                      >
-                        Review package
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#0b1f3a]">Billing cycle</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Choose how you want to pay. Live pricing updates immediately.
+                    </p>
                   </div>
-
-                  <BuilderSearchField
-                    value={query}
-                    onChange={setQuery}
-                    placeholder={searchPlaceholder}
-                    label={searchLabel}
-                    className="mt-4 sm:mt-5"
-                  />
 
                   {filteredCycles.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted-foreground">
@@ -3036,34 +2820,23 @@ export function BuildYourOwnErpBuilder() {
                         />
                       </div>
 
-                      <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-col gap-2 border-t border-border pt-4">
                         <Button
                           type="button"
-                          variant="outline"
-                          className="hidden rounded-full sm:inline-flex"
-                          onClick={() => goTo("billing")}
+                          size="lg"
+                          className="w-full rounded-full sm:w-auto sm:min-w-[14rem]"
+                          disabled={!canContinueSignup}
+                          onClick={continueToSignup}
                         >
-                          <ArrowLeft className="h-4 w-4" />
-                          Back
+                          Build my ERP — continue to checkout
+                          <ArrowRight className="h-4 w-4" />
                         </Button>
-                        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:items-end">
-                          <Button
-                            type="button"
-                            size="lg"
-                            className="w-full rounded-full sm:w-auto sm:min-w-[14rem]"
-                            disabled={!canContinueSignup}
-                            onClick={continueToSignup}
-                          >
-                            Build my ERP — continue to checkout
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                          <p className="text-xs text-muted-foreground sm:text-right">
-                            Prefer a fixed plan?{" "}
-                            <Link href="/pricing" className="text-primary hover:underline">
-                              View pricing
-                            </Link>
-                          </p>
-                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Prefer a fixed plan?{" "}
+                          <Link href="/pricing" className="text-primary hover:underline">
+                            View pricing
+                          </Link>
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -3073,7 +2846,7 @@ export function BuildYourOwnErpBuilder() {
 
             {showSidebar ? (
               <aside className="hidden lg:col-span-4 lg:block">
-                <div className="sticky top-24 space-y-4">
+                <div className="sticky top-[calc(var(--wt-site-header-h)+3.5rem)] space-y-4">
                   {quoteError ? (
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
                       <p className="font-semibold">Live pricing unavailable</p>
@@ -3177,17 +2950,48 @@ export function BuildYourOwnErpBuilder() {
                     </div>
                   ) : null}
 
-                  {step !== "review" ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full rounded-full border-sky-300 bg-sky-50"
-                      onClick={goNextStep}
-                    >
-                      Next step
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  ) : null}
+                  <div className="flex gap-2">
+                    {step !== "industry" ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full px-4"
+                        onClick={goPrevStep}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+                    ) : null}
+                    {step === "review" ? (
+                      <Button
+                        type="button"
+                        className="min-w-0 flex-1 rounded-full"
+                        disabled={!canContinueSignup}
+                        onClick={continueToSignup}
+                      >
+                        Signup
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        className="min-w-0 flex-1 rounded-full"
+                        disabled={
+                          (step === "industry" && !industryId) ||
+                          (step === "category" && !categoryId) ||
+                          (step === "modules" && !complete.length) ||
+                          (step === "recommended" &&
+                            (!categoryId ||
+                              recommendationsLoading ||
+                              Boolean(recommendationsError)))
+                        }
+                        onClick={goNextStep}
+                      >
+                        Next
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </aside>
             ) : null}
@@ -3208,7 +3012,7 @@ export function BuildYourOwnErpBuilder() {
               aria-label="Previous step"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back
+              Previous
             </Button>
           ) : null}
           <div className="min-w-0 flex-1">
@@ -3259,6 +3063,13 @@ export function BuildYourOwnErpBuilder() {
           )}
         </div>
       </div>
+
+      <CouponCelebrate
+        open={couponCelebrateOpen}
+        code={couponCelebrateMeta.code}
+        savingsLabel={couponCelebrateMeta.savingsLabel}
+        onClose={closeCouponCelebrate}
+      />
     </>
   );
 }

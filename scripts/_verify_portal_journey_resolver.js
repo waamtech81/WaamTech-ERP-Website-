@@ -39,11 +39,12 @@ function resolveJourneyFromLicenses(licenses, opts = {}) {
 
   if (licenseJourney === "custom") return "custom";
 
+  // Explicit predefined license wins — snapshot is secondary only when license unset.
+  if (licenseJourney === "predefined") return "predefined";
+
   const snapType = opts.commercialSnapshotPackageType;
   const snapMode = opts.commercialSnapshotPackageMode;
   if (isCustomErpPackageType(snapType) || isCustomErpPackageType(snapMode)) return "custom";
-
-  if (licenseJourney === "predefined") return "predefined";
 
   if (snapType != null && String(snapType).trim() !== "") {
     return resolvePortalCommercialJourney(snapType);
@@ -57,6 +58,7 @@ function resolveJourneyFromLicenses(licenses, opts = {}) {
 
 const customLicense = [{ id: "1", status: "active", package_type: "custom" }];
 const predefinedLicense = [{ id: "1", status: "active", package_type: "predefined" }];
+const starterLicense = [{ id: "1", status: "active", package_type: "starter" }];
 
 // Scenario: Custom license + stale predefined snapshot (addon purchase bug)
 assert(
@@ -73,6 +75,23 @@ assert(
     commercialSnapshotPackageType: "predefined",
   }) === "predefined",
   "Predefined customer stays predefined"
+);
+
+// Scenario: Predefined license must NOT be overridden by stale custom snapshot
+assert(
+  resolveJourneyFromLicenses(predefinedLicense, {
+    commercialSnapshotPackageType: "custom",
+    commercialSnapshotPackageMode: "custom",
+  }) === "predefined",
+  "Predefined license must win over custom snapshot"
+);
+
+// Scenario: Plan slug package_type (starter/business/etc.) stays predefined vs custom snap
+assert(
+  resolveJourneyFromLicenses(starterLicense, {
+    commercialSnapshotPackageType: "custom",
+  }) === "predefined",
+  "Starter (predefined journey) must win over custom snapshot"
 );
 
 // Scenario: No license package_type — snapshot custom

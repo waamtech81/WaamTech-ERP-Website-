@@ -9,6 +9,7 @@ import {
   clearPortalOnUnauthorized,
   resolvePortalAccess,
 } from "@/lib/portal/access";
+import { invalidatePortalDashboardCache } from "@/lib/portal/dashboard";
 import { resolvePreferredGateway } from "@/lib/portal/gateway";
 import { isSameOrigin } from "@/lib/security/guards";
 import { getSiteOrigin } from "@/lib/urls";
@@ -104,6 +105,8 @@ export const POST = withApiHandler(
     }
 
     const { remember } = await readPortalTokens();
+    // Bust portal aggregate so licenses/limits/modules refresh after upgrade checkout starts.
+    invalidatePortalDashboardCache();
     const res = apiSuccess("Upgrade checkout created.", { data: result.data });
     applyPortalRefreshCookies(res, resolved.access, Boolean(remember));
     return res;

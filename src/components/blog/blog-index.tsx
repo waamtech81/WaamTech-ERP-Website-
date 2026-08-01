@@ -71,8 +71,8 @@ export function BlogIndex({ posts }: { posts: BlogPost[] }) {
 
   return (
     <>
-      <div className="mb-8 space-y-4">
-        <div className="relative max-w-xl">
+      <div className="mb-10 rounded-2xl border border-border bg-white p-4 shadow-sm md:p-5">
+        <div className="relative mx-auto max-w-xl">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
@@ -81,7 +81,7 @@ export function BlogIndex({ posts }: { posts: BlogPost[] }) {
               setPage(1);
             }}
             placeholder="Search articles, industries, topics…"
-            className="h-11 rounded-full border-border bg-white pl-10 pr-10 shadow-sm"
+            className="h-11 rounded-full border-border bg-[#f8fafc] pl-10 pr-10"
             aria-label="Search blog"
           />
           {query ? (
@@ -99,70 +99,79 @@ export function BlogIndex({ posts }: { posts: BlogPost[] }) {
           ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {categories.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => {
-                setCategory(c);
-                setPage(1);
-              }}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                category === c
-                  ? "border-primary bg-primary text-white"
-                  : "border-border bg-white text-muted-foreground hover:border-primary/30 hover:text-primary"
-              )}
-            >
-              {c}
-            </button>
-          ))}
+        <div className="mt-5 grid gap-5 border-t border-border pt-5 md:grid-cols-2">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Category
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => {
+                    setCategory(c);
+                    if (c !== "Industry") setIndustry(null);
+                    setPage(1);
+                  }}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                    category === c
+                      ? "border-primary bg-primary text-white"
+                      : "border-border bg-[#f8fafc] text-muted-foreground hover:border-primary/30 hover:text-primary"
+                  )}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {industries.length > 0 ? (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Industry
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIndustry(null);
+                    setPage(1);
+                  }}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                    industry === null
+                      ? "border-primary/30 bg-primary/8 text-primary"
+                      : "border-border bg-[#f8fafc] text-muted-foreground hover:text-primary"
+                  )}
+                >
+                  All industries
+                </button>
+                {industries.map((ind) => (
+                  <button
+                    key={ind}
+                    type="button"
+                    onClick={() => {
+                      setIndustry(ind);
+                      setPage(1);
+                    }}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      industry === ind
+                        ? "border-primary/30 bg-primary/8 text-primary"
+                        : "border-border bg-[#f8fafc] text-muted-foreground hover:text-primary"
+                    )}
+                  >
+                    {ind}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
-        {industries.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground mr-1">
-              Industry
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setIndustry(null);
-                setPage(1);
-              }}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs transition-colors",
-                industry === null
-                  ? "border-sky-600/30 bg-sky-50 text-sky-900"
-                  : "border-border bg-white text-muted-foreground hover:text-primary"
-              )}
-            >
-              All industries
-            </button>
-            {industries.map((ind) => (
-              <button
-                key={ind}
-                type="button"
-                onClick={() => {
-                  setIndustry(ind);
-                  setCategory("Industry");
-                  setPage(1);
-                }}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs transition-colors",
-                  industry === ind
-                    ? "border-sky-600/30 bg-sky-50 text-sky-900"
-                    : "border-border bg-white text-muted-foreground hover:text-primary"
-                )}
-              >
-                {ind}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-sm text-muted-foreground">
           <p>
             {filtered.length} article{filtered.length === 1 ? "" : "s"}
             {hasFilters ? " matching filters" : ""}

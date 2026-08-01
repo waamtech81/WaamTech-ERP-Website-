@@ -7,6 +7,7 @@ import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { portalCheckoutHref } from "@/lib/portal/checkout-session";
 import { resolvePortalBillingGate } from "@/lib/portal/billing-gate";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
+import { resolvePortalJourneyFromDashboard } from "@/lib/portal/package-type";
 
 const SKIP_PREFIXES = [
   "/portal/checkout",
@@ -144,12 +145,21 @@ export function PortalBillingGate() {
             >
               Try again
             </button>
-            <a
-              href="/portal/plans?intent=renew"
-              className="rounded-xl border border-[var(--portal-border)] px-4 py-2 text-sm font-medium"
-            >
-              Open plans
-            </a>
+            {resolvePortalJourneyFromDashboard(data) === "custom" ? (
+              <a
+                href="/portal/billing"
+                className="rounded-xl border border-[var(--portal-border)] px-4 py-2 text-sm font-medium"
+              >
+                Open billing
+              </a>
+            ) : (
+              <a
+                href="/portal/plans?intent=renew"
+                className="rounded-xl border border-[var(--portal-border)] px-4 py-2 text-sm font-medium"
+              >
+                Open plans
+              </a>
+            )}
           </div>
         ) : null}
       </div>

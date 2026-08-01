@@ -1,51 +1,62 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Boxes } from "lucide-react";
 import { siteConfig } from "@/lib/data/site";
 import { Container, Section } from "@/components/shared/section";
-import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CTASection } from "@/components/shared/cta-section";
 import { ModulesCatalog } from "@/components/sections/modules-catalog";
 
 export const metadata: Metadata = {
-  title: `All ERP Modules — ${siteConfig.name}`,
-  description: `Browse the complete ${siteConfig.name} ERP module library — every module, category, and capability in one place.`,
+  title: `ERP Module Library — ${siteConfig.name}`,
+  description: `Browse every purchasable ${siteConfig.name} ERP module — inventory, sales, finance, CRM, POS, manufacturing, and more. Compose a Custom ERP package with live pricing.`,
+  keywords: [
+    "ERP modules",
+    "WAAMTO module library",
+    "custom ERP modules",
+    "inventory POS CRM modules",
+  ],
   alternates: { canonical: "/modules" },
 };
 
+/** Modules identity: compact catalog intro (not homepage, not industries photo hero). */
 export default function AllModulesPage() {
   return (
     <>
-      <Section className="relative !pb-6 !pt-12 md:!pt-16 overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(37,99,235,0.08),transparent_70%)]" />
+      <Section className="relative !pb-5 !pt-10 md:!pt-12 overflow-hidden border-b border-slate-100">
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(ellipse_60%_80%_at_90%_20%,rgba(5,73,164,0.08),transparent_70%)]"
+          aria-hidden
+        />
         <Container className="relative">
-          <Breadcrumbs items={[{ label: "Modules" }]} />
           <AnimateIn>
-            <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="mt-2 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_auto] lg:items-end">
               <div className="max-w-2xl">
-                <Badge variant="accent" className="mb-3">
-                  Module catalog
-                </Badge>
-                <h1 className="text-3xl font-semibold tracking-tight text-[#0b1f3a] text-balance sm:text-4xl md:text-5xl">
-                  All ERP Modules
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/[0.04] px-3 py-1 text-xs font-semibold text-primary">
+                  <Boxes className="h-3.5 w-3.5" aria-hidden />
+                  Purchasable module library
+                </div>
+                <h1 className="text-balance text-3xl font-semibold tracking-tight text-[#0b1f3a] sm:text-4xl">
+                  Every module you can add to your ERP
                 </h1>
-                <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                  See what each module does for your operations — inventory accuracy, faster sales,
-                  cleaner finance, stronger CRM. Browse freely, then build a custom package or start
-                  a trial.
+                <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                  Live catalog of modules and categories for Custom ERP and plan upgrades. For
+                  platform capability stories and industry preinstalls, see{" "}
+                  <Link href="/erp-features" className="font-medium text-primary hover:underline">
+                    ERP Features
+                  </Link>
+                  .
                 </p>
               </div>
-              <div className="flex flex-wrap gap-3">
-                <Button asChild size="lg" className="rounded-full">
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" className="h-10 rounded-full px-4">
                   <Link href="/build-your-own-erp">
-                    Build your own custom ERP
-                    <ArrowRight className="h-4 w-4" />
+                    Build your own ERP
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-full">
+                <Button asChild size="sm" variant="outline" className="h-10 rounded-full px-4">
                   <Link href="/signup">Start free trial</Link>
                 </Button>
               </div>

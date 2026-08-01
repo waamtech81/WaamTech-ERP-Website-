@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 import { blogPosts } from "@/lib/data/site";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
-import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { BlogIndex } from "@/components/blog/blog-index";
 
 export const metadata: Metadata = {
   title: "Blog — ERP, industries & operations insights",
   description:
-    "Practical guides on ERP, inventory, POS, finance, AI, and industry-specific operations from WaamTech. Written for operators who run real businesses.",
+    "Practical guides on ERP, inventory, POS, finance, AI, Custom ERP, and industry operations from WAAMTO / WaamTech.",
+  keywords: [
+    "ERP blog",
+    "inventory management tips",
+    "POS retail guide",
+    "WAAMTO insights",
+  ],
+  alternates: { canonical: "/blog" },
 };
 
 export default function BlogPage() {
@@ -15,13 +21,12 @@ export default function BlogPage() {
     <>
       <Section className="!pb-6 !pt-12 md:!pt-16">
         <Container>
-          <Breadcrumbs items={[{ label: "Blog" }]} />
           <SectionHeader
-            align="left"
             eyebrow="Blog"
+            as="h1"
             title="Insights for modern operators"
             description="Industry guides and practical writing on ERP, inventory, POS, finance, and AI — written for people who close the day on the floor."
-            className="mb-6 max-w-3xl"
+            className="mb-2"
           />
         </Container>
       </Section>

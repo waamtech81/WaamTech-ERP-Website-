@@ -147,6 +147,20 @@ export function usePortalData() {
     return () => window.clearInterval(id);
   }, [reload]);
 
+  // When the tab becomes visible again, pull fresh commercial state (debounced vs recent poll).
+  useEffect(() => {
+    let lastVisibilityFetch = 0;
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastVisibilityFetch < 5_000) return;
+      lastVisibilityFetch = now;
+      void reload({ silent: true });
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [reload]);
+
   return { data, loading, error, reload: reloadPublic };
 }
 

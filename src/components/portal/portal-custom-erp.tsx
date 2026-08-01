@@ -51,6 +51,7 @@ import {
   featurePackMatchesSelectedModules,
   isNonPurchasableCustomErpModule,
   isNonPurchasableCustomErpPack,
+  isPlatformBuiltinModule,
   PLATFORM_BUILTIN_DISPLAY,
 } from "@/lib/commercial/erp-builder-config";
 import type { BillingCycle, CustomPackageQuoteResult } from "@/lib/commercial/types";
@@ -528,7 +529,13 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
     section === "limits" ||
     section === "custom-erp"
   ) {
-    return <PortalCustomErpUpgradeWizard data={data} />;
+    return (
+      <PortalCustomErpUpgradeWizard
+        key={section}
+        data={data}
+        focusSection={section === "custom-erp" ? "modules" : section}
+      />
+    );
   }
 
   const primary = primaryPortalLicense(data.licenses);
@@ -1011,7 +1018,13 @@ function resolveOwnedCodes(input: {
   return Array.from(new Set(resolved));
 }
 
-function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
+function PortalCustomErpUpgradeWizard({
+  data,
+  focusSection = "modules",
+}: {
+  data: PortalDashboard;
+  focusSection?: "modules" | "feature-packs" | "limits";
+}) {
   const router = useRouter();
   const { formatPrice } = useLocale();
   const primary = primaryPortalLicense(data.licenses);
@@ -1038,7 +1051,11 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         snap?.modules ||
         null,
       catalog: serverModules.map((m) => ({ code: m.code, name: m.name })),
-    }).filter((code) => !isNonPurchasableCustomErpModule(code))
+    }).filter((code) => {
+      // Owned entitlements must remain visible even if catalog code is a legacy alias (e.g. CRM).
+      // Only hide platform built-ins from the owned checkbox set.
+      return !isPlatformBuiltinModule(code);
+    })
   );
   const ownedPackCodes = new Set(
     resolveOwnedCodes({
@@ -1051,9 +1068,6 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
       labels: primary?.feature_packs ?? data.featurePacks,
       snapshotCodes: snap?.feature_packs || null,
       catalog: serverPacks.map((p) => ({ code: p.code, name: p.name })),
-    }).filter((code) => {
-      const pack = serverPacks.find((p) => normCode(p.code) === code);
-      return !isNonPurchasableCustomErpPack(code, pack?.name);
     })
   );
 
@@ -1077,6 +1091,23 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
   const [filterQuery, setFilterQuery] = useState("");
   const [packNotice, setPackNotice] = useState("");
   const [requiredModuleHint, setRequiredModuleHint] = useState<string | null>(null);
+  const modulesPanelRef = useRef<HTMLDivElement | null>(null);
+  const packsPanelRef = useRef<HTMLDivElement | null>(null);
+  const limitsPanelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const target =
+      focusSection === "feature-packs"
+        ? packsPanelRef.current
+        : focusSection === "limits"
+          ? limitsPanelRef.current
+          : modulesPanelRef.current;
+    if (!target) return;
+    const t = window.setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 40);
+    return () => window.clearTimeout(t);
+  }, [focusSection]);
 
   const [selectedModules, setSelectedModules] = useState<Set<string>>(
     () => new Set(ownedModuleCodes)
@@ -1121,12 +1152,22 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
     const productSlug = primary?.product_slug || "waamto-erp";
     const cycle = billingCycle || "monthly";
     setCatalogLoading(serverModules.length === 0 || serverPacks.length === 0);
+    // Skip Engine overview when dashboard already supplied priced packs (reuse portal SSOT seed).
+    const serverPacksPriced =
+      serverPacks.length > 0 &&
+      serverPacks.some(
+        (p) =>
+          isPurchasableCatalogPack(p, cycle) ||
+          ownedPackCodes.has(normCode(p.code))
+      );
 
     Promise.all([
       serverModules.length
         ? Promise.resolve(null)
         : fetchPublicModules(productSlug),
-      fetchPublicCommercialOverview({ product: productSlug, billing_cycle: cycle as "monthly" | "yearly" | "lifetime" }),
+      serverPacksPriced
+        ? Promise.resolve(null)
+        : fetchPublicCommercialOverview({ product: productSlug, billing_cycle: cycle as "monthly" | "yearly" | "lifetime" }),
     ])
       .then(([modRes, overviewRes]) => {
         if (modRes?.ok && Array.isArray(modRes.data)) {
@@ -1787,6 +1828,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
+          <div ref={modulesPanelRef} id="portal-custom-erp-modules">
           <PortalPanel
             title="Modules"
             description={
@@ -1814,7 +1856,9 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
               </div>
             )}
           </PortalPanel>
+          </div>
 
+          <div ref={packsPanelRef} id="portal-custom-erp-feature-packs">
           <PortalPanel
             title="Feature Packs"
             description="Packs linked to your selected modules appear first. Other purchasable packs stay available below so you can add extras. Catalog default unit pricing (Custom ERP) is applied when a pack has no own price."
@@ -1871,7 +1915,9 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
               </div>
             )}
           </PortalPanel>
+          </div>
 
+          <div ref={limitsPanelRef} id="portal-custom-erp-limits">
           <PortalPanel
             title="Adjust limits"
             description="Paid limits — Users, Companies, Branches, and Warehouses. Pricing recalculates live."
@@ -1933,6 +1979,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
               ))}
             </div>
           </PortalPanel>
+          </div>
         </div>
 
         <aside className="lg:sticky lg:top-6 lg:self-start">

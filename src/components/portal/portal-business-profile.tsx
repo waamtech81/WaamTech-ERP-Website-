@@ -7,6 +7,7 @@ import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { formatPortalDate } from "@/components/portal/use-portal-data";
 import { PortalEmptyState, PortalStatusBadge } from "@/components/portal/portal-ui";
 import type { PortalBusinessCard } from "@/lib/portal/dashboard";
+import { resolvePortalJourneyFromDashboard } from "@/lib/portal/package-type";
 
 function BusinessCard({ business }: { business: PortalBusinessCard }) {
   const fields = [
@@ -106,6 +107,10 @@ function BusinessCard({ business }: { business: PortalBusinessCard }) {
 export function PortalBusinessProfileView({ embedded = false }: { embedded?: boolean }) {
   const { data } = usePortalContext();
   const businesses = data?.businesses ?? [];
+  const addBusinessHref =
+    resolvePortalJourneyFromDashboard(data) === "custom"
+      ? "/portal/custom-erp"
+      : "/portal/plans?intent=new_place";
 
   const hasContent = businesses.some(
     (b) =>
@@ -140,7 +145,7 @@ export function PortalBusinessProfileView({ embedded = false }: { embedded?: boo
             </p>
           </div>
           <Button asChild size="sm" className="rounded-xl">
-            <Link href="/portal/plans?intent=new_place" className="inline-flex items-center gap-2">
+            <Link href={addBusinessHref} className="inline-flex items-center gap-2">
               <Plus className="h-4 w-4" />
               Add another business
             </Link>
@@ -155,7 +160,7 @@ export function PortalBusinessProfileView({ embedded = false }: { embedded?: boo
             </p>
           </div>
           <Button asChild size="sm" variant="outline" className="rounded-xl h-8">
-            <Link href="/portal/plans?intent=new_place" className="inline-flex items-center gap-1.5">
+            <Link href={addBusinessHref} className="inline-flex items-center gap-1.5">
               <Plus className="h-3.5 w-3.5" />
               Add business
             </Link>

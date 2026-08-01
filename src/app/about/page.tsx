@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
-import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
 import { CTASection } from "@/components/shared/cta-section";
+import { JourneyTimeline } from "@/components/about/journey-timeline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,17 +12,49 @@ import { siteConfig } from "@/lib/data/site";
 import { TrustBadgeGrid } from "@/components/trust-badges";
 
 export const metadata: Metadata = {
-  title: "About",
-  description: "WaamTech Technologies — delivering software, ERP, and digital solutions since 2010.",
+  title: `About ${siteConfig.name} — Cloud ERP by WaamTech`,
+  description:
+    "Since 2010, WaamTech has built software and ERP for growing businesses. Meet WAAMTO — modular cloud ERP, Custom ERP builder, License Engine billing, and secure customer portal.",
+  keywords: [
+    "about WAAMTO",
+    "WaamTech ERP",
+    "cloud ERP company",
+    "modular ERP platform",
+  ],
+  alternates: { canonical: "/about" },
 };
 
 const timeline = [
-  { year: "2010", title: "WaamTech journey begins", text: "Started building web, software, and digital solutions for businesses — helping clients grow their online presence and operations." },
-  { year: "2015", title: "SaaS & enterprise apps", text: "Expanded into custom application development and SaaS products for mid to large organizations across the globe." },
-  { year: "2018", title: "ERP platform vision", text: "Began unified ERP development — inventory, finance, sales, and operations in one modular platform." },
-  { year: "2022", title: "Modular ERP platform", text: "Launched a modular ERP with industry and business-type setups, installable modules, and optional feature packs." },
-  { year: "2024", title: "Connected ecosystem", text: "Added WhatsApp, Maps, API integrations, and WaamHost cloud hosting for complete infrastructure solutions." },
-  { year: "2026", title: "ERP for everyone", text: "Launching affordable ERP with lifetime licenses, whitelabel, own-server, and local deployment options worldwide." },
+  {
+    year: "2010",
+    title: "WaamTech journey begins",
+    text: "Started building web, software, and digital solutions for businesses — helping clients grow their online presence and operations.",
+  },
+  {
+    year: "2015",
+    title: "SaaS & enterprise apps",
+    text: "Expanded into custom application development and SaaS products for mid to large organizations across the globe.",
+  },
+  {
+    year: "2018",
+    title: "ERP platform vision",
+    text: "Began unified ERP development — inventory, finance, sales, and operations in one modular platform.",
+  },
+  {
+    year: "2022",
+    title: "Modular ERP platform",
+    text: "Launched a modular ERP with industry profiles, installable modules, and optional feature packs.",
+  },
+  {
+    year: "2024",
+    title: "Connected ecosystem",
+    text: "Added integrations, WaamHost cloud hosting, and deeper multi-branch / multi-warehouse operations.",
+  },
+  {
+    year: "2026",
+    title: "WAAMTO cloud ecosystem",
+    text: "Predefined plans, Build Your Own Custom ERP, License Engine commercial SSOT, customer portal, Documentation Portal, and secure production cloud — ERP that scales with you.",
+  },
 ];
 
 const stats = [
@@ -43,21 +75,34 @@ export default function AboutPage() {
     <>
       <Section className="!pb-0 !pt-12 md:!pt-16 overflow-hidden">
         <Container>
-          <Breadcrumbs items={[{ label: "About" }]} />
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-center pb-16">
+          <div className="grid gap-10 pb-16 lg:grid-cols-2 lg:items-center">
             <AnimateIn>
-              <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">
+              <Badge className="mb-4 border-primary/20 bg-primary/10 text-primary hover:bg-primary/10">
                 Since 2010
               </Badge>
-              <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
-                {siteConfig.fullName}
+              <h1 className="text-balance text-4xl font-semibold tracking-tight text-[#0b1f3a] md:text-5xl">
+                {siteConfig.fullName} — built by WaamTech
               </h1>
-              <p className="mt-5 text-lg text-muted-foreground leading-relaxed max-w-xl">
-                We have been building software, ERP systems, web solutions, and cloud infrastructure for businesses worldwide since <strong>2010</strong>. From responsive websites to full enterprise platforms — WaamTech delivers results-driven technology.
+              <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
+                Since <strong>2010</strong> we have delivered software, ERP, and cloud infrastructure
+                worldwide. Today WAAMTO is our next-generation ERP cloud: modular apps, Custom ERP
+                builder, secure licensing, and a customer portal for billing and entitlements.
               </p>
-              <p className="mt-4 text-muted-foreground leading-relaxed max-w-xl">
-                Our passion is helping businesses through innovative technologies — modular ERP, managed hosting via{" "}
-                <Link href="/servers" className="text-primary hover:underline">WaamHost</Link>, and custom deployment on your own cloud or local server.
+              <p className="mt-4 max-w-xl leading-relaxed text-muted-foreground">
+                Run on managed cloud,{" "}
+                <Link href="/servers" className="text-primary hover:underline">
+                  WaamHost
+                </Link>
+                , your own cloud, or local server — with docs at{" "}
+                <a
+                  href="https://doc.waamto.com"
+                  className="text-primary hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  doc.waamto.com
+                </a>
+                .
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Button asChild className="rounded-full">
@@ -126,7 +171,8 @@ export default function AboutPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground leading-relaxed">
-                    Become the operating system for ambitious businesses — cloud SaaS, lifetime licenses, whitelabel, and on-premise deployment for every need.
+                    Become the operating system for ambitious businesses — predefined plans, Custom
+                    ERP, lifetime licenses, white-label, and on-premise when you need full control.
                   </p>
                 </CardContent>
               </Card>
@@ -137,46 +183,12 @@ export default function AboutPage() {
 
       <Section muted>
         <Container>
-          <SectionHeader eyebrow="Our journey" title="Building since 2010" />
-          <div className="relative mx-auto max-w-3xl">
-            <div
-              className="absolute left-[1.15rem] top-3 bottom-3 w-px bg-gradient-to-b from-primary/40 via-border to-border md:left-1/2 md:-translate-x-px"
-              aria-hidden
-            />
-            <ol className="space-y-8">
-              {timeline.map((item, i) => {
-                const right = i % 2 === 1;
-                return (
-                  <AnimateIn key={item.year} delay={i * 0.05}>
-                    <li
-                      className={`relative grid gap-3 pl-12 md:grid-cols-2 md:gap-10 md:pl-0 ${
-                        right ? "" : ""
-                      }`}
-                    >
-                      <span className="absolute left-3 top-1.5 z-[1] flex h-6 w-6 items-center justify-center rounded-full border-2 border-primary bg-white text-[10px] font-bold text-primary shadow-sm md:left-1/2 md:-translate-x-1/2">
-                        {String(item.year).slice(2)}
-                      </span>
-                      <div
-                        className={`rounded-2xl border border-border bg-white p-4 shadow-sm md:p-5 ${
-                          right
-                            ? "md:col-start-2"
-                            : "md:col-start-1 md:text-right"
-                        }`}
-                      >
-                        <p className="text-sm font-semibold text-primary">{item.year}</p>
-                        <h3 className="mt-1 text-lg font-semibold text-[#0b1f3a]">
-                          {item.title}
-                        </h3>
-                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                          {item.text}
-                        </p>
-                      </div>
-                    </li>
-                  </AnimateIn>
-                );
-              })}
-            </ol>
-          </div>
+          <SectionHeader
+            eyebrow="Our journey"
+            title="Building since 2010"
+            description="Scroll through the milestones that shaped WAAMTO — from early software projects to today’s modular cloud ERP ecosystem."
+          />
+          <JourneyTimeline items={timeline} />
         </Container>
       </Section>
 

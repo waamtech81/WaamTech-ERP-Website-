@@ -375,9 +375,8 @@ export function PortalCustomErpDashboardView() {
                 </div>
                 <PortalLicenseEntitlements
                   license={primary}
-                  industry={data.overview.industry}
-                  category={data.overview.businessCategory}
                   billingCycleFallback={sub?.billing_cycle}
+                  customerFacing
                 />
                 <div className="flex flex-wrap gap-2">
                   {canRenew ? (
@@ -558,23 +557,20 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
         <PortalPageHeader
           eyebrow="Custom ERP"
           title="License"
-          description="License ID, status, billing cycle, and package composition."
+          description="License status, billing cycle, and your purchased package entitlements."
         />
         {primary ? (
           <PortalPanel title="Active license" description="Custom ERP package entitlement.">
             <div className="space-y-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-lg font-semibold tracking-tight">Custom ERP Package</p>
-                  <p className="mt-2 text-sm text-[var(--portal-muted)]">
-                    License ID · <span className="font-mono text-xs">{primary.id}</span>
-                  </p>
-                  <p className="mt-1 font-mono text-xs tracking-wide text-[var(--portal-muted)]">
-                    {primary.keyMasked || "—"}
-                  </p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-semibold tracking-tight">Custom ERP Package</p>
+                    <p className="mt-2 font-mono text-xs tracking-wide text-[var(--portal-muted)]">
+                      {primary.keyMasked || "—"}
+                    </p>
+                  </div>
+                  <PortalStatusBadge status={primary.effective_status || primary.status} />
                 </div>
-                <PortalStatusBadge status={primary.effective_status || primary.status} />
-              </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {[
                   { label: "Status", value: primary.effective_status || primary.status },
@@ -585,10 +581,6 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                     : []),
                   { label: "Activated", value: formatPortalDate(primary.activation_date) },
                   { label: "Current package", value: "Custom ERP Package" },
-                  {
-                    label: "Version",
-                    value: String((data.erp as Record<string, unknown> | null)?.version || "—"),
-                  },
                 ]
                   .filter((r) => r.value && r.value !== "—")
                   .map((r) => (
@@ -605,9 +597,8 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
               </div>
               <PortalLicenseEntitlements
                 license={primary}
-                industry={data.overview.industry}
-                category={data.overview.businessCategory}
                 billingCycleFallback={sub?.billing_cycle}
+                customerFacing
               />
               {data.renewals?.length ? (
                 <div>
@@ -1876,28 +1867,6 @@ function PortalCustomErpUpgradeWizard({
             {packNotice}
           </p>
         ) : null}
-        {selectedModuleList.length > 0 && packsForSelectedModules.some((p) => (p.required_module_codes || []).length) ? (
-          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-            <span className="text-[var(--portal-muted)]">Module → pack highlight:</span>
-            {selectedModuleList.slice(0, MODULE_PACK_COLORS.length).map((modCode, idx) => {
-              const col = MODULE_PACK_COLORS[idx % MODULE_PACK_COLORS.length];
-              return (
-                <span
-                  key={modCode}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-medium",
-                    col.bg,
-                    col.border,
-                    col.text
-                  )}
-                >
-                  <span className={cn("h-2 w-2 rounded-full", col.dot)} />
-                  {moduleByCode.get(modCode)?.name || titleCaseCode(modCode)}
-                </span>
-              );
-            })}
-          </div>
-        ) : null}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -1908,7 +1877,7 @@ function PortalCustomErpUpgradeWizard({
             description={
               catalogLoading
                 ? "Loading catalog…"
-                : `${catalogModules.length} catalog module${catalogModules.length !== 1 ? "s" : ""}. Uncheck an already-purchased item to schedule removal with your next paid upgrade.`
+                : "Check modules you already own or add new ones. Uncheck a purchased module to schedule removal on your next paid upgrade."
             }
           >
             {catalogLoading ? (
@@ -1935,7 +1904,7 @@ function PortalCustomErpUpgradeWizard({
           <div ref={packsPanelRef} id="portal-custom-erp-feature-packs">
           <PortalPanel
             title="Feature Packs"
-            description="Packs linked to your selected modules appear first. Other purchasable packs stay available below so you can add extras. Catalog default unit pricing (Custom ERP) is applied when a pack has no own price."
+            description="Feature packs linked to your selected modules appear first. Other purchasable packs stay available below."
           >
             {selectedModuleList.length === 0 ? (
               <p className="text-sm text-[var(--portal-muted)]">

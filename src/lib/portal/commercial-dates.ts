@@ -1,8 +1,12 @@
 /**
  * Portal commercial date normalization — single SSOT for billing/payment/renewal display.
- * Date-only strings (YYYY-MM-DD) pass through unchanged.
- * ISO timestamps normalize to the user's local calendar date when formatted in the browser.
+ * Formatting delegates to `@/lib/format-display-datetime` (WAAMTO canonical format).
  */
+
+import {
+  formatDisplayDate,
+  formatDisplayDateTime,
+} from "@/lib/format-display-datetime";
 
 /** Normalize Engine/commercial values to stable YYYY-MM-DD for portal DTOs. */
 export function normalizePortalCommercialDate(value: unknown): string | null {
@@ -21,42 +25,15 @@ export function normalizePortalCommercialDate(value: unknown): string | null {
   return `${y}-${m}-${day}`;
 }
 
-/** Format for portal UI — local calendar date (never UTC-prefix shift). */
+/** Format for portal UI — date-only stays date-only; timestamps include time + PKT. */
 export function formatPortalCommercialDate(value?: string | null): string | null {
   if (!value) return null;
-  const raw = String(value).trim();
-  if (!raw) return null;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    const [y, m, d] = raw.split("-").map(Number);
-    const local = new Date(y, m - 1, d);
-    if (!Number.isNaN(local.getTime())) {
-      return local.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    }
-  }
-
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return raw;
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const formatted = formatDisplayDate(value);
+  return formatted === "—" ? null : formatted;
 }
 
 export function formatPortalCommercialDateTime(value?: string | null): string | null {
   if (!value) return null;
-  const d = new Date(String(value).trim());
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const formatted = formatDisplayDateTime(value);
+  return formatted === "—" ? null : formatted;
 }

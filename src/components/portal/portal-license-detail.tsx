@@ -50,6 +50,7 @@ export function PortalLicenseEntitlements({
   category,
   billingCycleFallback,
   primaryMeta = [],
+  customerFacing = false,
 }: {
   license: PortalLicense;
   industry?: string | null;
@@ -57,6 +58,8 @@ export function PortalLicenseEntitlements({
   billingCycleFallback?: string | null;
   /** License type, activation, expiry — merged into the same metadata grid. */
   primaryMeta?: MetaRow[];
+  /** Custom ERP portal — purchased entitlements only; hide industry/category meta. */
+  customerFacing?: boolean;
 }) {
   const pkg = packageLabel(lic);
   const cycle = formatCycle(lic.billing_cycle || billingCycleFallback);
@@ -65,8 +68,8 @@ export function PortalLicenseEntitlements({
     ...primaryMeta,
     pkg ? { label: "Package", value: pkg } : null,
     cycle ? { label: "Billing cycle", value: cycle } : null,
-    industry ? { label: "Industry", value: industry } : null,
-    category ? { label: "Category", value: category } : null,
+    !customerFacing && industry ? { label: "Industry", value: industry } : null,
+    !customerFacing && category ? { label: "Category", value: category } : null,
   ].filter((r): r is MetaRow => Boolean(r));
 
   const hasModules = lic.modules.length > 0;
@@ -88,7 +91,7 @@ export function PortalLicenseEntitlements({
       {hasModules ? (
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-            Modules ({lic.modules.length})
+            {customerFacing ? "Purchased modules" : `Modules (${lic.modules.length})`}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {lic.modules.map((m) => (
@@ -106,7 +109,7 @@ export function PortalLicenseEntitlements({
       {hasPacks ? (
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-            Feature Packs
+            {customerFacing ? "Purchased feature packs" : "Feature Packs"}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {lic.feature_packs.map((f) => (
@@ -124,7 +127,7 @@ export function PortalLicenseEntitlements({
       {hasTenant ? (
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-            Limits
+            {customerFacing ? "Purchased limits" : "Limits"}
           </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {tenantRows.map((r) => (

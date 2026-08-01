@@ -421,9 +421,8 @@ export function PortalDashboardView() {
                   </div>
                   <PortalLicenseEntitlements
                     license={primary}
-                    industry={overview.industry}
-                    category={overview.businessCategory}
                     billingCycleFallback={data.subscriptions?.[0]?.billing_cycle}
+                    customerFacing={data.commercialJourney === "custom"}
                     primaryMeta={[
                       { label: "Activation", value: formatPortalDate(primary.activation_date) || "—" },
                       { label: "Expiry", value: formatPortalDate(primary.expiry_date) || "—" },

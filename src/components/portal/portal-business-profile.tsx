@@ -9,18 +9,26 @@ import { PortalEmptyState, PortalStatusBadge } from "@/components/portal/portal-
 import type { PortalBusinessCard } from "@/lib/portal/dashboard";
 import { resolvePortalJourneyFromDashboard } from "@/lib/portal/package-type";
 
-function BusinessCard({ business }: { business: PortalBusinessCard }) {
+function BusinessCard({
+  business,
+  customerFacing = false,
+}: {
+  business: PortalBusinessCard;
+  customerFacing?: boolean;
+}) {
   const fields = [
-    { label: "Industry", value: business.industry },
-    { label: "Category", value: business.category },
-    { label: "Business profile", value: business.businessProfile },
+    !customerFacing ? { label: "Industry", value: business.industry } : null,
+    !customerFacing ? { label: "Category", value: business.category } : null,
+    !customerFacing ? { label: "Business profile", value: business.businessProfile } : null,
     { label: "Product", value: business.product },
-    { label: "Plan", value: business.plan },
+    customerFacing
+      ? { label: "Package", value: business.plan || "Custom ERP Package" }
+      : { label: "Plan", value: business.plan },
     { label: "Tenant / workspace", value: business.workspace },
     { label: "Activation", value: formatPortalDate(business.activationDate) },
     { label: "Renewal", value: formatPortalDate(business.renewalDate) },
     { label: "Expiry", value: formatPortalDate(business.expiryDate) },
-  ].filter((f) => f.value);
+  ].filter((f): f is { label: string; value: string | null } => Boolean(f && f.value));
 
   return (
     <article className="portal-card flex h-full flex-col rounded-2xl p-5">
@@ -67,7 +75,7 @@ function BusinessCard({ business }: { business: PortalBusinessCard }) {
       {business.featurePacks.length ? (
         <div className="mt-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--portal-muted)]">
-            Feature Packs
+            {customerFacing ? "Purchased feature packs" : "Feature Packs"}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {business.featurePacks.map((pack) => (
@@ -107,8 +115,8 @@ function BusinessCard({ business }: { business: PortalBusinessCard }) {
 export function PortalBusinessProfileView({ embedded = false }: { embedded?: boolean }) {
   const { data } = usePortalContext();
   const businesses = data?.businesses ?? [];
-  const addBusinessHref =
-    resolvePortalJourneyFromDashboard(data) === "custom"
+  const isCustomJourney = resolvePortalJourneyFromDashboard(data) === "custom";
+  const addBusinessHref = isCustomJourney
       ? "/portal/custom-erp"
       : "/portal/plans?intent=new_place";
 
@@ -172,6 +180,7 @@ export function PortalBusinessProfileView({ embedded = false }: { embedded?: boo
           <BusinessCard
             key={`${business.licenseId || business.subscriptionId || business.businessName}-${index}`}
             business={business}
+            customerFacing={isCustomJourney}
           />
         ))}
       </div>

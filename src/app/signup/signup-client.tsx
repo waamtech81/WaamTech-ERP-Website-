@@ -39,6 +39,7 @@ import {
 } from "@/lib/commercial/plan-selection";
 import type { BillingCycle, CatalogPlan, CatalogProduct } from "@/lib/commercial/types";
 import { cn } from "@/lib/utils";
+import { formatDisplayDate } from "@/lib/format-display-datetime";
 import {
   useCatalogBusinessCategories,
   useCatalogIndustries,
@@ -1373,7 +1374,7 @@ function SignUpForm({
                 <p className="font-medium text-[#0b1f3a] mb-2">Your next steps</p>
                 <ul className="space-y-1.5 list-disc list-inside">
                   <li>{authConfig.trialDays}-day full-featured trial</li>
-                  {trialEndsAt ? <li>Expires {new Date(trialEndsAt).toLocaleDateString()}</li> : null}
+                  {trialEndsAt ? <li>Expires {formatDisplayDate(trialEndsAt)}</li> : null}
                   <li>Open Customer Portal to manage your account</li>
                   <li>Open WAAMTO ERP to start working</li>
                   <li>Check email for your username and login link</li>

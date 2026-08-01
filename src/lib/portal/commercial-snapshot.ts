@@ -89,6 +89,12 @@ export function normalizePortalCommercialSnapshot(
         | Record<string, unknown>
         | undefined
   );
+  const topLevelPurchased = normalizeSnapshotLimits({
+    users: c.user_limit,
+    companies: c.company_limit,
+    branches: c.branch_limit,
+    warehouses: c.warehouse_limit,
+  });
 
   const billing = (c.billing || {}) as Record<string, unknown>;
   const subscription = (c.subscription || {}) as Record<string, unknown>;
@@ -107,7 +113,11 @@ export function normalizePortalCommercialSnapshot(
     selected_modules: selected.length ? selected : undefined,
     dependency_modules: dependency.length ? dependency : undefined,
     limits: Object.keys(limits).length ? limits : undefined,
-    purchased_limits: Object.keys(purchased).length ? purchased : undefined,
+    purchased_limits: Object.keys(purchased).length
+      ? purchased
+      : Object.keys(topLevelPurchased).length
+        ? topLevelPurchased
+        : undefined,
     included_limits: Object.keys(included).length ? included : undefined,
     billing_cycle:
       (billing.billing_cycle as string | undefined) ||
@@ -128,7 +138,7 @@ export function resolvePurchasedLimits(
 
 /**
  * Merged tenant caps for portal display.
- * Priority: snapshot.limits (Engine merged) → purchased_limits → included + purchased → license flat fields.
+ * Priority: purchased_limits → merged limits → included → license.
  */
 export function resolvePortalTenantLimits(
   snapshot: PortalCommercialSnapshot | null | undefined,
@@ -154,16 +164,16 @@ export function resolvePortalTenantLimits(
   };
 
   return {
-    users: pick(merged.users, purchased.users, included.users, fromLicense.users),
-    companies: pick(merged.companies, purchased.companies, included.companies, fromLicense.companies),
-    branches: pick(merged.branches, purchased.branches, included.branches, fromLicense.branches),
+    users: pick(purchased.users, merged.users, included.users, fromLicense.users),
+    companies: pick(purchased.companies, merged.companies, included.companies, fromLicense.companies),
+    branches: pick(purchased.branches, merged.branches, included.branches, fromLicense.branches),
     warehouses: pick(
-      merged.warehouses,
       purchased.warehouses,
+      merged.warehouses,
       included.warehouses,
       fromLicense.warehouses
     ),
-    storage: pick(merged.storage, purchased.storage, included.storage, fromLicense.storage),
-    api: pick(merged.api, purchased.api, included.api, fromLicense.api),
+    storage: pick(purchased.storage, merged.storage, included.storage, fromLicense.storage),
+    api: pick(purchased.api, merged.api, included.api, fromLicense.api),
   };
 }

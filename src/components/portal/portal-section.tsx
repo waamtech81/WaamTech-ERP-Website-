@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
-import { formatPortalDate } from "@/components/portal/use-portal-data";
+import { formatPortalDate, formatPortalDateTime } from "@/components/portal/use-portal-data";
 import {
   formatPortalReference,
   formatPortalRenewalLabel,
@@ -244,9 +244,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             </div>
             <PortalLicenseEntitlements
               license={lic}
-              industry={data.overview?.industry}
-              category={data.overview?.businessCategory}
               billingCycleFallback={linkedSub?.billing_cycle}
+              customerFacing={isCustomJourney}
               primaryMeta={[
                 { label: "License type", value: lic.plan_type || lic.deployment_type || "—" },
                 { label: "Activation", value: formatPortalDate(lic.activation_date) || "—" },
@@ -660,7 +659,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                       <td>
                         <PortalStatusBadge status={p.status} />
                       </td>
-                      <td>{formatPortalDate(p.paid_date) || "—"}</td>
+                      <td>{formatPortalDateTime(p.paid_date) || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -807,8 +806,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
       { label: "Customer name", value: data.overview.customerName },
       { label: "Primary email", value: data.overview.primaryEmail },
       { label: "Country", value: data.overview.country },
-      { label: "Industry", value: data.overview.industry },
-      { label: "Business category", value: data.overview.businessCategory },
+      !isCustomJourney ? { label: "Industry", value: data.overview.industry } : null,
+      !isCustomJourney ? { label: "Business category", value: data.overview.businessCategory } : null,
       { label: "Status", value: data.overview.status },
       { label: "Customer since", value: formatPortalDate(data.overview.customerSince) },
       {
@@ -836,7 +835,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               ? String(erp.warehouse_count)
               : null,
       },
-    ].filter((r) => r.value);
+    ].filter((r): r is { label: string; value: string | null } => Boolean(r && r.value));
     body = rows.length ? (
       <div className="space-y-8">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -890,7 +889,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             ))}
           </div>
         </div>
-        {typeof erp.version === "string" ? (
+        {typeof erp.version === "string" && !isCustomJourney ? (
           <PortalDataRow label="Version" value={erp.version} />
         ) : null}
         {!isCustomJourney ? (

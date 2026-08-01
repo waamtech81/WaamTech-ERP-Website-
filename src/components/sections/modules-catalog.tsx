@@ -112,7 +112,7 @@ function CatalogModuleCard({
               ) : null}
               {isIndustryPackModule(mod) ? (
                 <Badge className="bg-amber-100 text-[10px] text-amber-900 hover:bg-amber-100">
-                  Industry pack
+                  Industry setup
                 </Badge>
               ) : null}
             </div>

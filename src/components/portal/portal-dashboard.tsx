@@ -256,7 +256,7 @@ export function PortalDashboardView() {
       href: "/portal/modules",
     },
     {
-      label: "Feature packs",
+      label: "Feature Packs",
       value: featurePacks?.length || licenses[0]?.feature_packs?.length || null,
       icon: Package,
       href: "/portal/feature-packs",
@@ -364,7 +364,7 @@ export function PortalDashboardView() {
       <PortalPageHeader
         eyebrow="Customer success"
         title={`Welcome back, ${firstName}`}
-        description={`${overview.company} · Live entitlements from your License Engine identity session.`}
+        description={`${overview.company} · Live entitlements for your signed-in account.`}
         actions={
           <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={reload}>
             <RefreshCw className="h-4 w-4" />
@@ -393,7 +393,7 @@ export function PortalDashboardView() {
           <PortalFadeIn>
             <PortalPanel
               title="License"
-              description="Primary entitlement from License Engine."
+              description="Primary entitlement for your account."
               action={
                 <Button asChild variant="outline" size="sm" className="rounded-xl">
                   <Link href="/portal/licenses">License history</Link>
@@ -500,7 +500,7 @@ export function PortalDashboardView() {
               ) : (
                 <PortalEmptyState
                   title="No licenses yet"
-                  description="Licenses issued by License Engine will appear here."
+                  description="Licenses will appear here once your account is activated."
                   actionLabel="Open subscriptions"
                   actionHref="/portal/subscriptions"
                   icon={KeyRound}
@@ -541,7 +541,7 @@ export function PortalDashboardView() {
               ) : (
                 <PortalEmptyState
                   title="No notifications"
-                  description="Alerts from License Engine will appear here."
+                  description="Account alerts and reminders will appear here."
                   icon={Bell}
                 />
               )}
@@ -549,7 +549,7 @@ export function PortalDashboardView() {
 
             <PortalPanel
               title="Recent invoices"
-              description="Billing documents from License Engine."
+              description="Billing documents for your account."
               action={
                 <Button asChild variant="outline" size="sm" className="rounded-xl">
                   <Link href="/portal/invoices">View all</Link>
@@ -579,7 +579,7 @@ export function PortalDashboardView() {
               ) : (
                 <PortalEmptyState
                   title="No invoices yet"
-                  description="Invoices from License Engine billing will appear here."
+                  description="Invoices will appear here after billing activity."
                   icon={CreditCard}
                 />
               )}
@@ -612,13 +612,13 @@ export function PortalDashboardView() {
               ) : (
                 <PortalEmptyState
                   title="No sessions listed"
-                  description="Session history will appear when available from License Engine."
+                  description="Session history will appear when available for your account."
                   icon={Shield}
                 />
               )}
             </PortalPanel>
 
-            <PortalPanel title="Modules & feature packs">
+            <PortalPanel title="Modules & Feature Packs">
               {modules.length || featurePacks.length ? (
                 <div className="flex max-h-72 flex-wrap gap-2 overflow-y-auto pr-1">
                   {modules.map((m) => (
@@ -641,7 +641,7 @@ export function PortalDashboardView() {
               ) : (
                 <PortalEmptyState
                   title="No modules assigned"
-                  description="Installed modules and feature packs will show here."
+                  description="Installed modules and Feature Packs will show here."
                   actionLabel="View modules"
                   actionHref="/portal/modules"
                   icon={Package}

@@ -87,7 +87,7 @@ export default function PricingPage() {
             eyebrow="Pricing"
             as="h1"
             title="Choose the plan that fits how you grow"
-            description="Starter, Business, Lifetime, Build Your Own, and Enterprise — live commercial pricing. Start a free trial without a card; Enterprise is always Contact Sales."
+            description="Starter, Business, Lifetime, Build Your Own, and Enterprise — clear live pricing. Start a free trial without a card. Enterprise is always Contact Sales."
           />
 
           {promo ? (
@@ -167,9 +167,8 @@ export default function PricingPage() {
                   Assemble modules instead of a fixed plan
                 </h3>
                 <p className="mt-2 text-sm text-white/80 leading-relaxed">
-                  Choose CRM, Inventory, POS, and any supported combination. Required
-                  dependencies are added automatically. Live totals use License Engine
-                  module prices.
+                  Choose CRM, Inventory, POS, and the modules you need. Related essentials
+                  stay included automatically. Live totals update as you build.
                 </p>
               </div>
               <Button
@@ -264,7 +263,7 @@ export default function PricingPage() {
           <SectionHeader
             eyebrow="Compare plans"
             title="Everything included, side by side"
-            description="Full feature-by-feature comparison across every License Engine plan."
+            description="Full feature-by-feature comparison across every published plan."
           />
           <PricingComparisonTable
             plans={planColumns}

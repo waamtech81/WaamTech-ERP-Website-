@@ -391,7 +391,7 @@ export const CustomErpCommercialSummary = memo(function CustomErpCommercialSumma
 
         <AccordionSection
           id="summary-packs"
-          title="Feature packs"
+          title="Feature Packs"
           count={featurePackCount}
           amount={featurePackTotal}
           formatPrice={formatPrice}
@@ -425,7 +425,7 @@ export const CustomErpCommercialSummary = memo(function CustomErpCommercialSumma
               ))}
             </ul>
           ) : (
-            <p className="text-muted-foreground">No feature packs selected</p>
+            <p className="text-muted-foreground">No Feature Packs selected</p>
           )}
           <div className="mt-1.5 flex justify-between border-t border-border/50 pt-1.5 font-medium">
             <span className="text-muted-foreground">
@@ -445,7 +445,7 @@ export const CustomErpCommercialSummary = memo(function CustomErpCommercialSumma
 
         <AccordionSection
           id="summary-tenant"
-          title="Tenant limits"
+          title="Limits"
           amount={tenantAddonTotal}
           formatPrice={formatPrice}
           pending={quotePending}

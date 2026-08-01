@@ -141,7 +141,7 @@ export function ResetPasswordForm({ code, origin = "website" }: { code: string; 
                 <div className="flex items-start gap-3 rounded-xl border border-border/80 bg-muted/50 px-4 py-3">
                   <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Passwords are updated only by License Engine — never stored on this website.
+                    Passwords are updated securely in your account identity — never stored on this website.
                   </p>
                 </div>
 

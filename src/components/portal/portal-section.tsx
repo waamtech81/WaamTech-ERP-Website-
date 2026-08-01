@@ -87,81 +87,79 @@ const META: Record<
 > = {
   licenses: {
     title: "Licenses",
-    description: "Entitlements, expiry, and masked license keys from License Engine.",
+    description: "Your entitlements, expiry dates, and masked license keys.",
     emptyTitle: "No licenses",
-    emptyDescription: "Licenses will appear once issued by License Engine.",
+    emptyDescription: "Licenses will appear here once your account is activated.",
     eyebrow: "Entitlements",
   },
   subscriptions: {
     title: "Subscriptions",
-    description: "Current plan, trial status, renewal, and billing cycle signals.",
+    description: "Current plan, trial status, renewal, and billing cycle.",
     emptyTitle: "No subscription data",
-    emptyDescription: "Subscription details are derived from your licenses.",
+    emptyDescription: "Subscription details appear from your active licenses.",
     eyebrow: "Plan",
   },
   billing: {
     title: "Billing & payments",
-    description:
-      "Payment gateways, payment history, renewals, and outstanding balance from License Engine.",
+    description: "Payment methods, payment history, renewals, and outstanding balance.",
     emptyTitle: "Billing not available yet",
-    emptyDescription:
-      "Payment methods and history appear when License Engine billing APIs respond for your session.",
+    emptyDescription: "Payment methods and history appear after your first billing activity.",
     eyebrow: "Finance",
   },
   invoices: {
     title: "Invoices",
     description: "Invoice history, amounts, payment status, and downloadable PDFs.",
     emptyTitle: "No invoices yet",
-    emptyDescription: "Invoice history will appear when available for your identity session.",
+    emptyDescription: "Invoice history will appear when available for your account.",
     eyebrow: "Finance",
   },
   users: {
     title: "Users",
-    description: "Workspace users provisioned via License Engine and WAAMTO ERP Cloud.",
+    description: "Workspace users linked to your WAAMTO account.",
     emptyTitle: "No users yet",
-    emptyDescription: "Users set up from SaaS through your license will appear here.",
+    emptyDescription: "Users set up through your license will appear here.",
     eyebrow: "Workspace",
   },
   organization: {
     title: "Organizations",
     description: "Workspace, companies, branches, warehouses, and geography.",
     emptyTitle: "Organization profile unavailable",
-    emptyDescription: "Organization fields from License Engine and optional ERP data appear here.",
+    emptyDescription: "Organization details appear when available for your account.",
     eyebrow: "Workspace",
   },
   modules: {
     title: "Modules",
     description: "Licensed modules enabled on your WAAMTO workspace.",
     emptyTitle: "No modules assigned",
-    emptyDescription: "Modules appear from licenses and optional ERP workspace data.",
+    emptyDescription: "Modules appear from your plan or custom package.",
     eyebrow: "Products",
   },
   "feature-packs": {
     title: "Feature Packs",
-    description: "Purchased feature packs on your license from License Engine.",
+    description: "Optional capability packs included on your license.",
     emptyTitle: "No feature packs",
     emptyDescription: "Feature packs appear when included on your plan or custom package.",
     eyebrow: "Products",
   },
   limits: {
     title: "Limits",
-    description: "User, company, branch, and warehouse limits from License Engine.",
+    description: "User, company, branch, and warehouse limits on your account.",
     emptyTitle: "No limits data",
-    emptyDescription: "Tenant limits appear when returned on your license or subscription.",
+    emptyDescription: "Limits appear when available on your license or subscription.",
     eyebrow: "Workspace",
   },
   "business-profile": {
     title: "Business profile",
-    description: "Company identity, industry, category, and customer since date.",
+    description: "Company identity, industry, business type, and customer since date.",
     emptyTitle: "Profile unavailable",
-    emptyDescription: "Business profile fields will show when returned by License Engine.",
+    emptyDescription: "Business profile fields will show when available for your account.",
     eyebrow: "Company",
   },
   notifications: {
     title: "Notifications",
     description: "License, invoice, security, and system alerts.",
     emptyTitle: "You're all caught up",
-    emptyDescription: "Notifications from License Engine will appear in this center.",
+    emptyDescription: "Account alerts and reminders will appear in this center.",
     eyebrow: "Alerts",
   },
   settings: {
@@ -169,7 +167,7 @@ const META: Record<
     description:
       "Profile, password strength, Email OTP, authenticator 2FA, recovery codes, and sessions.",
     emptyTitle: "Settings unavailable",
-    emptyDescription: "Account settings load from your License Engine identity.",
+    emptyDescription: "Account settings load from your signed-in identity.",
     eyebrow: "Account",
   },
 };
@@ -328,7 +326,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 </>
               )}
               {linkedSub ? <PortalSubscriptionCancelActions subscription={linkedSub} /> : null}
-              <Button size="sm" variant="outline" className="rounded-xl" disabled title="Available when License Engine exposes downloadable license files">
+              <Button size="sm" variant="outline" className="rounded-xl" disabled title="Available when downloadable license files are enabled for your account">
                 <Download className="h-4 w-4" />
                 Download license
               </Button>
@@ -543,7 +541,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             {activeSub ? <PortalSubscriptionCancelActions subscription={activeSub} /> : null}
           </div>
           <p className="text-xs text-[var(--portal-muted)]">
-            Subscriptions load from License Engine public billing APIs.
+            Subscriptions load from your account billing data.
           </p>
         </div>
       ) : null;
@@ -735,7 +733,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     ) : (
       <PortalEmptyState
         title="No billing activity yet"
-        description="Payment gateways, invoices, and payment history from License Engine will appear here after your first renewal or upgrade."
+        description="Payment gateways, invoices, and payment history will appear here after your first renewal or upgrade."
         actionLabel={isCustomJourney ? "Open Custom ERP" : "Go to plans"}
         actionHref={isCustomJourney ? "/portal/custom-erp" : "/portal/plans?intent=renew"}
       />
@@ -1043,7 +1041,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
         <PortalErrorState
           message={
             data.commercialBilling?.message ||
-            "Billing data is temporarily unavailable from License Engine."
+            "Billing data is temporarily unavailable. Please try again shortly."
           }
           onRetry={reload}
         />

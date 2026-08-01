@@ -14,6 +14,7 @@ import {
 import {
   getIndustryLucideIcon,
   getIndustryMedia,
+  getIndustryOutcomes,
   getIndustryPresentation,
   isHotCategory,
 } from "@/lib/data/business-hierarchy";
@@ -105,6 +106,7 @@ export default async function IndustryDetailPage({ params }: Props) {
   const { industry, categories, highlightCategoryId } = resolved;
   const allIndustries = await getEnginePublicIndustries();
   const presentation = getIndustryPresentation(industry.id);
+  const outcomes = getIndustryOutcomes(industry.id, industry.name);
   const Icon = getIcon(
     getIndustryLucideIcon({ id: industry.id, icon: industry.icon || presentation.icon })
   );
@@ -148,8 +150,8 @@ export default async function IndustryDetailPage({ params }: Props) {
                 </div>
               </div>
               <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl">
-                {industry.description} Pick a business category below — {siteConfig.name} provisions
-                modules, POS, and mobile settings from SaaS Core.
+                {industry.description} Choose a business type below to start with workflows that
+                match {industry.name} — then grow modules as you need them.
               </p>
 
               <div className="mt-6 grid grid-cols-3 gap-3 max-w-md">
@@ -208,7 +210,7 @@ export default async function IndustryDetailPage({ params }: Props) {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-[#0b1f3a] truncate">{industry.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {categories.length} ready-to-provision categories
+                      {categories.length} business types ready to start
                     </p>
                   </div>
                 </div>
@@ -229,8 +231,8 @@ export default async function IndustryDetailPage({ params }: Props) {
                 {categories.length} categories in {industry.name}
               </h2>
               <p className="mt-3 text-muted-foreground leading-relaxed">
-                Each category is a SaaS Core profile with its own modules, POS mode, and mobile
-                settings. Click any card to start signup with it pre-selected.
+                Each business type comes with a practical starting setup — modules, POS where
+                relevant, and mobile options. Click a card to begin signup with it selected.
               </p>
             </div>
           </div>
@@ -288,7 +290,11 @@ export default async function IndustryDetailPage({ params }: Props) {
                       ) : (
                         <Monitor className="h-3 w-3" />
                       )}
-                      POS {cat.pos_mode}
+                      {cat.pos_mode === "required"
+                        ? "POS included"
+                        : cat.pos_mode === "optional"
+                          ? "POS optional"
+                          : "No POS"}
                     </span>
                     {cat.mobile_mode === "required" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-600">
@@ -310,19 +316,19 @@ export default async function IndustryDetailPage({ params }: Props) {
 
       <Section>
         <Container>
-          <div className="grid gap-4 md:grid-cols-3 mb-12">
+          <div className="grid gap-4 md:grid-cols-3 mb-10">
             {[
               {
-                title: "Industry first",
-                text: "Choose the parent industry that matches your market.",
+                title: "Problems we solve",
+                text: outcomes.problem,
               },
               {
-                title: "Then category",
-                text: "Select the exact business type — retail store, chain pharmacy, dealership, and more.",
+                title: "How WAAMTO helps",
+                text: outcomes.solution,
               },
               {
-                title: "Auto-provisioned",
-                text: "Modules, feature packs, POS, and mobile follow the SaaS Core category manifest.",
+                title: "Who it is for",
+                text: outcomes.audience,
               },
             ].map((item) => (
               <div key={item.title} className="rounded-2xl border border-border bg-white p-5 sm:p-6">
@@ -333,6 +339,32 @@ export default async function IndustryDetailPage({ params }: Props) {
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{item.text}</p>
               </div>
             ))}
+          </div>
+
+          <div className="mb-12 rounded-2xl border border-border bg-slate-50/80 px-5 py-6 sm:px-8">
+            <h2 className="text-xl font-semibold tracking-tight text-[#0b1f3a] sm:text-2xl">
+              Recommended next steps for {industry.name}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground leading-relaxed">
+              Start from a business type above, or explore modules and pricing — then continue to
+              signup when you are ready.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button asChild className="rounded-full">
+                <Link href="/build-your-own-erp">Build a custom ERP</Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link href="/modules">Browse modules</Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link href="/pricing">Compare plans</Link>
+              </Button>
+              <Button asChild variant="ghost" className="rounded-full">
+                <a href="https://doc.waamto.com" target="_blank" rel="noopener noreferrer">
+                  Open documentation
+                </a>
+              </Button>
+            </div>
           </div>
 
           <div>
@@ -377,7 +409,7 @@ export default async function IndustryDetailPage({ params }: Props) {
                         {rel.name}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        View categories
+                        View business types
                       </span>
                     </span>
                   </Link>

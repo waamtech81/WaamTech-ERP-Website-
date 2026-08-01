@@ -33,9 +33,9 @@ export default function AllModulesPage() {
                   All ERP Modules
                 </h1>
                 <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                  Explore every module in the {siteConfig.name} suite — what each one does, which
-                  business area it belongs to, and how modules work together. Browse freely, then
-                  assemble a custom package or start a trial.
+                  See what each module does for your operations — inventory accuracy, faster sales,
+                  cleaner finance, stronger CRM. Browse freely, then build a custom package or start
+                  a trial.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -58,7 +58,7 @@ export default function AllModulesPage() {
 
       <CTASection
         title="Compose only what you need"
-        description="Use the builder to select modules, resolve dependencies, and request a custom package."
+        description="Use the builder to pick modules, review a recommended setup, and continue to signup with live pricing."
         primaryLabel="Build Your Own ERP"
         primaryHref="/build-your-own-erp"
         secondaryLabel="View pricing"

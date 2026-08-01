@@ -1370,12 +1370,13 @@ function SignUpForm({
                 ) : null}
               </p>
               <div className="mt-6 rounded-2xl border border-border bg-slate-50 px-4 py-4 text-left text-sm text-muted-foreground leading-relaxed">
-                <p className="font-medium text-[#0b1f3a] mb-2">What&apos;s included</p>
+                <p className="font-medium text-[#0b1f3a] mb-2">Your next steps</p>
                 <ul className="space-y-1.5 list-disc list-inside">
                   <li>{authConfig.trialDays}-day full-featured trial</li>
                   {trialEndsAt ? <li>Expires {new Date(trialEndsAt).toLocaleDateString()}</li> : null}
-                  <li>Automatic license validation — no key to paste</li>
-                  <li>Welcome email with your username and login link</li>
+                  <li>Open Customer Portal to manage your account</li>
+                  <li>Open WAAMTO ERP to start working</li>
+                  <li>Check email for your username and login link</li>
                 </ul>
               </div>
               <div className="mt-8 flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-stretch">
@@ -1604,7 +1605,7 @@ function SignUpForm({
           {planLookupLoading ? (
             <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading plan from License Engine…
+              Loading your plan…
             </div>
           ) : null}
 

@@ -20,7 +20,7 @@ export default function TermsPage() {
           <p>
             These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of the{" "}
             {siteConfig.fullName} website ({siteConfig.url}), customer portal ({siteConfig.url}/portal),
-            Build Your Own ERP configurator, License Engine services ({siteConfig.licensePortalUrl}),
+            Build Your Own ERP configurator, licensing services ({siteConfig.licensePortalUrl}),
             cloud ERP application ({siteConfig.appUrl}), mobile apps, and related products operated by{" "}
             {siteConfig.companyName} (&ldquo;WaamTech,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
             &ldquo;our&rdquo;). By creating an account, starting a trial, purchasing a subscription
@@ -62,7 +62,7 @@ export default function TermsPage() {
               </li>
             </ul>
             <p>
-              Feature availability, included user seats, modules, feature packs, tenant limits,
+              Feature availability, included user seats, modules, optional feature packs, limits,
               multi-company / multi-branch support, API access, support channels, and SLAs depend on
               your selected plan (Starter, Business, Lifetime, Enterprise, or a custom ERP package
               built through our configurator) and any written order or enterprise agreement shown at
@@ -118,8 +118,8 @@ export default function TermsPage() {
             </p>
             <p>
               Custom ERP packages configured through Build Your Own ERP are priced from your selected
-              modules, feature packs, tenant limits, and billing cycle. Checkout totals, taxes, and
-              provisioning follow the quote shown before payment.
+              modules, optional feature packs, limits, and billing cycle. Checkout totals, taxes, and
+              workspace activation follow the quote shown before payment.
             </p>
             <p>
               You may add additional businesses on the same customer account where the product allows.
@@ -128,7 +128,7 @@ export default function TermsPage() {
             <p>
               Lifetime licenses, Enterprise pricing, own-cloud, on-premise, and whitelabel arrangements
               may be subject to separate quotes, invoices, or contracts. License and subscription status
-              are validated by our License Engine so product access stays aligned with your entitlements.
+              are validated by our licensing services so product access stays aligned with your entitlements.
             </p>
             <p>
               You may cancel subscription renewal from the customer portal. Cancellation typically takes

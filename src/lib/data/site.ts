@@ -52,7 +52,7 @@ export const otherMegaMenu: {
       {
         title: "Build Own ERP",
         href: "/build-your-own-erp",
-        description: "Pick modules with live pricing & dependencies.",
+        description: "Design a custom package with live pricing.",
         icon: "Layers",
       },
       {
@@ -105,7 +105,7 @@ export const productMegaMenu: {
     items: [
       { title: "AI Workspace", href: "/products#ai", description: "Assistant, Document AI, insights & recommendations.", icon: "Bot" },
       { title: "All Modules", href: "/modules", description: "Explore the full WAAMTO module suite.", icon: "Boxes" },
-      { title: "Build Own ERP", href: "/build-your-own-erp", description: "Pick modules with live pricing & dependencies.", icon: "Layers" },
+      { title: "Build Own ERP", href: "/build-your-own-erp", description: "Design a custom package with live pricing.", icon: "Layers" },
       { title: "ERP Features", href: "/erp-features", description: "Deep capabilities across every department.", icon: "Sparkles" },
       { title: "Mobile App", href: "/mobile-app", description: "Responsive web + native field app.", icon: "Smartphone" },
     ],
@@ -343,27 +343,27 @@ export const testimonials: Testimonial[] = [
 export const caseStudies: CaseStudy[] = [
   {
     id: "1",
-    title: "National retailer unified 48 stores",
+    title: "Multi-store retail inventory clarity",
     industry: "Retail",
-    result: "Stockouts reduced",
-    metric: "37%",
+    result: "Faster stock decisions",
+    metric: "Live stock",
     description: "Centralized inventory, POS, and promotions across regional stores with live stock visibility.",
   },
   {
     id: "2",
-    title: "Distributor cut order cycle time",
+    title: "Wholesale order-to-delivery control",
     industry: "Wholesale",
-    result: "Faster fulfillment",
-    metric: "2.4×",
+    result: "Clearer fulfillment",
+    metric: "One workflow",
     description: "Warehouse scanning and route planning streamlined B2B order-to-delivery operations.",
   },
   {
     id: "3",
-    title: "Pharmacy network improved compliance",
+    title: "Pharmacy stock and expiry control",
     industry: "Healthcare",
-    result: "Audit readiness",
-    metric: "100%",
-    description: "Expiry controls, batch tracking, and pharmacy workflows strengthened regulatory confidence.",
+    result: "Stronger compliance routines",
+    metric: "Batch-ready",
+    description: "Expiry controls, batch tracking, and pharmacy workflows strengthened operational confidence.",
   },
 ];
 
@@ -374,7 +374,7 @@ export const faqs: FaqItem[] = [
     id: "1",
     question: "What modules are included in WAAMTO?",
     answer:
-      "WAAMTO includes Inventory, POS, Sales, Purchasing, Finance, CRM, HR & Payroll, Manufacturing, Warehouse & Logistics, Documents, Service, Projects, and industry packs (Restaurant, Pharmacy, Automotive, and more). Your plan controls how many users and which modules unlock — see Pricing for the full matrix.",
+      "WAAMTO includes Inventory, POS, Sales, Purchasing, Finance, CRM, HR & Payroll, Manufacturing, Warehouse & Logistics, Documents, Service, Projects, and industry-ready setups (Restaurant, Pharmacy, Automotive, and more). Your plan controls how many users and which modules unlock — see Pricing for the full matrix.",
     category: "Product",
   },
   {
@@ -569,7 +569,7 @@ export const erpPreinstallSteps = [
   {
     title: "Common features come preinstalled",
     description:
-      "Modules, workflows, KPIs, POS layouts, and feature packs for your business type are ready on day one — no blank workspace.",
+      "Modules, workflows, KPIs, and POS layouts for your business type are ready on day one — no blank workspace.",
     icon: "Layers",
   },
   {

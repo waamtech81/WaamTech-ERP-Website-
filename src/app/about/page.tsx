@@ -20,7 +20,7 @@ const timeline = [
   { year: "2010", title: "WaamTech journey begins", text: "Started building web, software, and digital solutions for businesses — helping clients grow their online presence and operations." },
   { year: "2015", title: "SaaS & enterprise apps", text: "Expanded into custom application development and SaaS products for mid to large organizations across the globe." },
   { year: "2018", title: "ERP platform vision", text: "Began unified ERP development — inventory, finance, sales, and operations in one modular platform." },
-  { year: "2022", title: "WaamTech SaaS Core", text: "Launched modular SaaS Core with Industry → Business Category hierarchy, installable modules, and industry-specific feature packs." },
+  { year: "2022", title: "Modular ERP platform", text: "Launched a modular ERP with industry and business-type setups, installable modules, and optional feature packs." },
   { year: "2024", title: "Connected ecosystem", text: "Added WhatsApp, Maps, API integrations, and WaamHost cloud hosting for complete infrastructure solutions." },
   { year: "2026", title: "ERP for everyone", text: "Launching affordable ERP with lifetime licenses, whitelabel, own-server, and local deployment options worldwide." },
 ];
@@ -34,7 +34,7 @@ const stats = [
 
 const leaders = [
   { name: "WaamTech Leadership", role: "Founding Team", bio: "Experienced technology leaders focused on enterprise clarity, modular design, and customer success since 2010." },
-  { name: "Product & Engineering", role: "Core Team", bio: "Building secure, scalable SaaS Core platforms that teams actually love using every day." },
+  { name: "Product & Engineering", role: "Core Team", bio: "Building secure, scalable ERP platforms that teams actually love using every day." },
   { name: "Customer Success", role: "Support Team", bio: "24×7 availability to answer queries, onboard clients, and maintain high satisfaction levels." },
 ];
 

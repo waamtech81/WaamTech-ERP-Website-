@@ -28,8 +28,8 @@ export function SwiverHero() {
           Control your business. Optimize operations. Unlock growth.
         </h1>
         <p className="mx-auto mt-4 max-w-2xl font-sans text-base md:text-lg font-normal text-muted-foreground leading-relaxed text-pretty">
-          Modular ERP for inventory, POS, sales, finance, CRM, and AI — launch with an industry
-          profile or{" "}
+          One secure cloud ERP for inventory, POS, sales, finance, CRM, and AI — start from your
+          industry or{" "}
           <Link
             href="/build-your-own-erp"
             className="font-medium text-primary underline-offset-4 hover:underline"

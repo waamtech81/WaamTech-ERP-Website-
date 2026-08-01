@@ -47,13 +47,13 @@ function SuccessInner() {
   const description = awaitingReview
     ? "Finance is verifying your payment. Your license, subscription, and ERP workspace activate after approval. You can track status on the dashboard."
     : isSignupPaid
-      ? "Your payment is confirmed. License Engine activates your license, commercial snapshot, entitlements, and ERP provisioning automatically."
+      ? "Your payment is confirmed. Your license and ERP workspace activate automatically — check email for your invoice and next steps."
       : isTrialConvert
         ? "Your trial account is now paid. The same license continues — check your email for the paid invoice and welcome message."
         : isNewPlace
-          ? "Your new place subscription is recorded. License Engine updates the account; WAAMTO ERP Cloud shows it under multi-business after sync."
+          ? "Your new place subscription is recorded. It will appear under multi-business in WAAMTO ERP shortly."
           : isRenew
-            ? "Your subscription is active again. ERP access restores after license sync (usually within a minute)."
+            ? "Your subscription is active again. ERP access restores within about a minute."
             : "Your renewal or upgrade completed successfully.";
 
   return (

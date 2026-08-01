@@ -299,7 +299,7 @@ export function CustomErpPackageSummary({
             Coupon / discount code
           </label>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Enter a License Engine code — Apply recalculates the payable total.
+            Enter a promo code — Apply updates your payable total.
           </p>
           <div className="mt-2.5 flex gap-2">
             <input
@@ -373,7 +373,7 @@ export function CustomErpPackageSummary({
           {(featurePackTotal > 0 || packNames.length > 0) ? (
             <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">
-                Feature packs
+                Feature Packs
                 {packNames.length ? ` (${packNames.length})` : ""}
               </span>
               <span className="font-semibold tabular-nums text-[#0b1f3a]">
@@ -384,7 +384,7 @@ export function CustomErpPackageSummary({
           ) : null}
           {tenantAddon > 0 ? (
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Tenant limits</span>
+              <span className="text-muted-foreground">Extra limits</span>
               <span className="font-semibold tabular-nums text-[#0b1f3a]">
                 +{formatPrice(tenantAddon)}
               </span>
@@ -443,7 +443,7 @@ export function CustomErpPackageSummary({
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Required dependencies
+            Also included for workflow
           </p>
           <p className="mt-0.5 text-[#0b1f3a]">
             {pkg.dependency_modules.length
@@ -453,7 +453,7 @@ export function CustomErpPackageSummary({
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Feature packs
+            Feature Packs
           </p>
           <p className="mt-0.5 text-[#0b1f3a]">
             {packNames.length ? packNames.join(", ") : "None"}
@@ -461,7 +461,7 @@ export function CustomErpPackageSummary({
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Tenant limits
+            Limits
           </p>
           <p className="mt-0.5 text-[#0b1f3a]">
             {limits
@@ -479,7 +479,7 @@ export function CustomErpPackageSummary({
 
       <p className="mt-3 flex gap-1.5 border-t border-border pt-3 text-[11px] leading-snug text-muted-foreground">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        Mobile app included free · Module prices from License Engine · Seat rates from catalog plans
+        Mobile app included free · Prices update live · Limit rates from published plans
       </p>
     </div>
   );

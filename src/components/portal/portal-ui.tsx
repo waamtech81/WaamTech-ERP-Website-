@@ -384,7 +384,7 @@ export function PortalUsageMeter({
       >
         <div className={cn("h-full rounded-full transition-all duration-500", tone)} style={{ width: `${pct}%` }} />
       </div>
-      <p className="mt-2 text-xs text-[var(--portal-muted)]">{pct}% of plan capacity</p>
+      <p className="mt-2 text-xs text-[var(--portal-muted)]">{pct}% of plan limit</p>
     </div>
   );
 }

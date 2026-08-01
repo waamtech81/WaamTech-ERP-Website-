@@ -452,8 +452,7 @@ export function LaunchDiscountBanner({
         <div>
           <p className="font-semibold text-[#0b1f3a]">{title}</p>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-xl leading-relaxed">
-            Prices and discounts are loaded live from the License Engine commercial catalog —
-            billed in USD.
+            Prices and discounts update live from the published catalog — billed in USD.
           </p>
         </div>
       </div>

@@ -57,7 +57,7 @@ export const CustomErpCouponField = memo(function CustomErpCouponField({
         Coupon / discount code
       </label>
       <p className="mt-0.5 text-[11px] text-muted-foreground">
-        Enter a License Engine code — Apply recalculates the payable total.
+        Enter a promo code — Apply updates your payable total.
       </p>
       <div className="mt-2.5 flex gap-2">
         <input

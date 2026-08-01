@@ -342,7 +342,7 @@ export function PortalInvoicesView() {
                   className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-black"
                 >
                   Preview only with an <strong>UNPAID</strong> watermark. PDF download unlocks
-                  after License Engine confirms payment.
+                  after payment is confirmed.
                 </div>
               ) : null}
 

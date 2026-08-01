@@ -231,7 +231,7 @@ export function PortalPaymentMethodPicker({
             disabled={!paymentConfig}
           />
           <p className="text-xs text-[var(--portal-muted)]">
-            Required after you send the payment. This is stored on License Engine with your
+            Required after you send the payment. This is stored securely with your
             checkout and triggers a payment notification.
           </p>
         </div>

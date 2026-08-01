@@ -440,7 +440,7 @@ function ModuleCard({
             ) : null}
             {hasDeps && !selected ? (
               <Badge className="border-amber-300 bg-amber-50 text-[10px] text-amber-900">
-                Needs deps
+                Needs related modules
               </Badge>
             ) : null}
           </>
@@ -451,14 +451,14 @@ function ModuleCard({
           <>
             <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <p>
-              <span className="font-semibold">Also purchase for workflow:</span>{" "}
+              <span className="font-semibold">Also included for this workflow:</span>{" "}
               {depNames.join(", ")}
             </p>
           </>
         ) : null
       }
       noteTone={hasDeps && !selected ? "amber" : "primary"}
-      metaLine={hasDeps ? null : "Standalone — no required dependency"}
+      metaLine={hasDeps ? null : "Works on its own"}
       footerLeft={
         <>
           {formatPrice(price)}
@@ -656,7 +656,7 @@ const FeaturePackCard = memo(function FeaturePackCard({
       note={
         requiredModuleNames.length ? (
           <span className="text-xs leading-relaxed text-muted-foreground">
-            Requires module{requiredModuleNames.length > 1 ? "s" : ""}:{" "}
+            Works with:{" "}
             <span className="font-medium text-[#0b1f3a]">
               {requiredModuleNames.join(", ")}
             </span>
@@ -1313,22 +1313,22 @@ export function BuildYourOwnErpBuilder() {
             : step === "feature-packs"
               ? "Search feature packs…"
               : step === "tenant"
-                ? "Search tenant limits — users, branches…"
+                ? "Search limits — users, branches…"
                 : "Search billing cycles…";
 
   const searchLabel =
     step === "industry"
       ? "Search industries"
       : step === "category"
-        ? "Search categories"
+        ? "Search business types"
         : step === "recommended"
-          ? "Search recommended configuration"
+          ? "Search recommended setup"
           : step === "modules"
             ? "Search modules"
             : step === "feature-packs"
-              ? "Search feature packs"
+              ? "Search Feature Packs"
               : step === "tenant"
-                ? "Search tenant limits"
+                ? "Search limits"
                 : "Search billing cycles";
 
   function goNextStep() {
@@ -1863,7 +1863,7 @@ export function BuildYourOwnErpBuilder() {
         const msg =
           err instanceof Error && err.message
             ? err.message
-            : "Could not load live pricing from License Engine.";
+            : "Could not load live pricing. Please try again.";
         setQuoteError(msg);
         if (appliedCoupon) {
           setCouponError("Could not verify coupon right now.");
@@ -2111,9 +2111,9 @@ export function BuildYourOwnErpBuilder() {
             <div className={cn("min-w-0", showSidebar ? "lg:col-span-8" : "max-w-5xl")}>
               {step === "industry" ? (
                 <div>
-                  <h3 className="text-lg font-semibold text-[#0b1f3a]">Select industry</h3>
+                  <h3 className="text-lg font-semibold text-[#0b1f3a]">Select your industry</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    From the License Engine industry registry.
+                    Start with the industry that best matches how you operate.
                   </p>
                   <BuilderSearchField
                     value={query}
@@ -2140,12 +2140,12 @@ export function BuildYourOwnErpBuilder() {
                               title={ind.name}
                               description={
                                 ind.description ||
-                                "Industry profile from the Engine registry."
+                                `ERP setup tailored for ${ind.name} businesses.`
                               }
                               footerLeft={
                                 <span className="text-sm font-semibold">Industry</span>
                               }
-                              footerRight="Registry"
+                              footerRight="Explore"
                             />
                           </AnimateIn>
                         );
@@ -2171,14 +2171,14 @@ export function BuildYourOwnErpBuilder() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="text-lg font-semibold text-[#0b1f3a]">
-                        Select business category
+                        Select your business type
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Showing categories for{" "}
+                        Business types for{" "}
                         <span className="font-medium text-[#0b1f3a]">
                           {selectedIndustry?.name || "your industry"}
                         </span>
-                        .
+                        — this shapes your recommended setup.
                       </p>
                     </div>
                     <Button
@@ -2239,7 +2239,7 @@ export function BuildYourOwnErpBuilder() {
                               title={cat.name}
                               description={
                                 cat.description ||
-                                "Business category from the Engine registry."
+                                `A focused setup for ${cat.name} operations.`
                               }
                               badges={
                                 posRequired || mobileRequired ? (
@@ -2258,7 +2258,7 @@ export function BuildYourOwnErpBuilder() {
                                 ) : null
                               }
                               footerLeft={
-                                <span className="text-sm font-semibold">Category</span>
+                                <span className="text-sm font-semibold">Business type</span>
                               }
                               footerRight={selectedIndustry?.name || "Industry"}
                             />
@@ -2294,12 +2294,12 @@ export function BuildYourOwnErpBuilder() {
                 <div className="space-y-5">
                   <div>
                     <h3 className="text-lg font-semibold text-[#0b1f3a]">
-                      Recommended configuration
+                      Recommended for your business
                     </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Lean essentials from License Engine for{" "}
-                      {selectedCategory?.name || "your category"}. Required modules stay
-                      locked; recommended modules are editable in the next step.
+                      A practical starting setup for{" "}
+                      {selectedCategory?.name || "your business type"}. Essentials stay
+                      included; you can refine modules and Feature Packs in the next steps.
                     </p>
                     {builderRecommendations?.provisioning_note ? (
                       <p className="mt-2 text-xs text-muted-foreground">
@@ -2317,7 +2317,7 @@ export function BuildYourOwnErpBuilder() {
 
                   {recommendationsLoading ? (
                     <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted-foreground">
-                      Loading builder recommendations from License Engine…
+                      Preparing your recommended setup…
                     </div>
                   ) : recommendationsError ? (
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-900">
@@ -2339,7 +2339,7 @@ export function BuildYourOwnErpBuilder() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="rounded-2xl border border-border bg-white p-4">
                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Required modules
+                          Essentials included
                         </p>
                         <ul className="mt-2 space-y-1.5 text-sm text-[#0b1f3a]">
                           {filteredLockedCodes.length ? (
@@ -2348,13 +2348,13 @@ export function BuildYourOwnErpBuilder() {
                                 <Lock className="h-3.5 w-3.5 text-primary" />
                                 {byCode.get(code)?.name || code}
                                 <Badge className="ml-auto bg-primary/10 text-primary text-[10px]">
-                                  Required
+                                  Included
                                 </Badge>
                               </li>
                             ))
                           ) : (
                             <li className="text-muted-foreground">
-                              {searchQ ? "No required modules match" : "None required"}
+                              {searchQ ? "No essentials match" : "No fixed essentials"}
                             </li>
                           )}
                         </ul>
@@ -2381,7 +2381,7 @@ export function BuildYourOwnErpBuilder() {
                       </div>
                       <div className="rounded-2xl border border-border bg-white p-4 sm:col-span-2">
                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Recommended feature packs
+                          Suggested Feature Packs
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {recommendedConfigurationPackTags.length ? (
@@ -2393,10 +2393,10 @@ export function BuildYourOwnErpBuilder() {
                           ) : (
                             <span className="text-sm text-muted-foreground">
                               {searchQ
-                                ? "No recommended feature packs match"
+                                ? "No suggested Feature Packs match"
                                 : recommendationsLoading
                                   ? "Loading feature packs…"
-                                  : "No feature packs recommended for this category"}
+                                  : "No feature packs suggested for this business type"}
                             </span>
                           )}
                         </div>
@@ -2431,10 +2431,10 @@ export function BuildYourOwnErpBuilder() {
                 <div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
                     <div className="min-w-0">
-                      <h3 className="text-lg font-semibold text-[#0b1f3a]">Module builder</h3>
+                      <h3 className="text-lg font-semibold text-[#0b1f3a]">Customize modules</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Required modules stay locked. Recommended modules are pre-selected but
-                        optional. Add more from Additional modules.
+                        Essentials stay included. Suggested modules are pre-selected but optional.
+                        Add more from the full catalog below.
                       </p>
                     </div>
                     <div className="hidden gap-2 sm:flex">
@@ -2547,9 +2547,9 @@ export function BuildYourOwnErpBuilder() {
                   <div className="mt-5 space-y-8">
                     {filteredLockedCodes.length ? (
                       <section>
-                        <h4 className="text-sm font-semibold text-[#0b1f3a]">Required modules</h4>
+                        <h4 className="text-sm font-semibold text-[#0b1f3a]">Essentials included</h4>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Essential for {selectedCategory?.name || "your category"} — cannot be removed.
+                          Needed for {selectedCategory?.name || "your business type"} — kept for a complete workflow.
                         </p>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
                           {filteredLockedCodes.map((code, i) => {
@@ -2583,7 +2583,7 @@ export function BuildYourOwnErpBuilder() {
                           Recommended modules
                         </h4>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Suggested by License Engine — toggle freely.
+                          Suggested for your business — turn any on or off.
                         </p>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
                           {filteredRecommendedCodes.map((code, i) => {
@@ -2658,8 +2658,8 @@ export function BuildYourOwnErpBuilder() {
                     <div>
                       <h3 className="text-lg font-semibold text-[#0b1f3a]">Feature packs</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Packs shown match your industry, category, and selected modules.
-                        Prices load live from the Product Catalog.
+                        Optional capability packs that match your industry, business type, and modules.
+                        Enable only what improves your operations — prices update live.
                       </p>
                     </div>
                     <div className="hidden gap-2 sm:flex">
@@ -2695,13 +2695,13 @@ export function BuildYourOwnErpBuilder() {
 
                   {!builderRecommendations ? (
                     <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted-foreground">
-                      Select a category to load feature packs for your business profile.
+                      Select a business type to see Feature Packs that fit your setup.
                     </div>
                   ) : filteredFeaturePacks.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted-foreground">
                       {searchQ
-                        ? "No feature packs match your search."
-                        : "No Feature Packs available for your current configuration."}
+                        ? "No Feature Packs match your search."
+                        : "No Feature Packs available for your current setup."}
                     </div>
                   ) : (
                     <div className="space-y-8">
@@ -2736,10 +2736,10 @@ export function BuildYourOwnErpBuilder() {
                         <section className="space-y-3">
                           <div>
                             <h4 className="text-sm font-semibold text-[#0b1f3a]">
-                              Additional feature packs
+                              More Feature Packs
                             </h4>
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                              Optional add-ons from the Product Catalog — select manually.
+                              Optional capabilities you can enable when you need them.
                             </p>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
@@ -2766,10 +2766,10 @@ export function BuildYourOwnErpBuilder() {
                 <div className="space-y-5">
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-semibold text-[#0b1f3a]">Tenant limits</h3>
+                      <h3 className="text-lg font-semibold text-[#0b1f3a]">Limits</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Configure seats for your workspace. Unit prices come from the published
-                        Business plan catalog rates.
+                        Set users, companies, branches, and warehouses for how you operate.
+                        Extra limits prices update live.
                       </p>
                     </div>
                     <div className="hidden gap-2 sm:flex">
@@ -2805,7 +2805,7 @@ export function BuildYourOwnErpBuilder() {
 
                   {tenantLimitCards.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted-foreground">
-                      No tenant limits match your search.
+                      No limits match your search.
                     </div>
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -2959,7 +2959,7 @@ export function BuildYourOwnErpBuilder() {
                         </div>
                         <div className="rounded-xl border border-border bg-slate-50 px-3.5 py-3">
                           <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Category
+                            Business type
                           </p>
                           <p className="mt-1 text-sm font-semibold text-[#0b1f3a]">
                             {selectedCategory?.name || "Not selected"}

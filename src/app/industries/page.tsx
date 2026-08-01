@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: `Industries We Serve — ${siteConfig.name}`,
-  description: `Explore ${siteConfig.name} industry solutions — choose your vertical, business category, and profile, then start a free trial.`,
+  description: `Explore ${siteConfig.name} industry solutions — choose your vertical and business type, then start a free trial with a setup that matches how you operate.`,
 };
 
 const HERO_IMAGE = heroImageUrl(
@@ -29,13 +29,13 @@ const FLOW = [
   },
   {
     step: "02",
-    title: "Pick a business category",
-    text: "Categories appear for your industry so modules match your workflow.",
+    title: "Pick a business type",
+    text: "Business types for your industry recommend the right starting modules.",
   },
   {
     step: "03",
-    title: "Select a business profile",
-    text: "Confirm your profile, then continue to free-trial signup in minutes.",
+    title: "Start your free trial",
+    text: "Continue to signup in minutes — then manage your account in Customer Portal.",
   },
 ] as const;
 

@@ -274,7 +274,7 @@ export function IndustriesGallery() {
     );
   }
   if (all.length === 0) {
-    return <CatalogEmptyState message="No industries are published in License Engine yet." />;
+    return <CatalogEmptyState message="No industries are published yet." />;
   }
 
   return (

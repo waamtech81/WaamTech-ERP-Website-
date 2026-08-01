@@ -21,7 +21,7 @@ export default function PrivacyPage() {
             {siteConfig.companyName} (&ldquo;WaamTech,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
             &ldquo;our&rdquo;) operates {siteConfig.fullName}, a modular Enterprise ERP platform, together with
             our marketing website ({siteConfig.url}), cloud ERP application ({siteConfig.appUrl}),
-            customer portal ({siteConfig.url}/portal), License Engine and billing services (
+            customer portal ({siteConfig.url}/portal), licensing and billing services (
             {siteConfig.licensePortalUrl}), the Build Your Own ERP configurator, mobile apps, documentation
             at doc.waamto.com, and related support channels. This Privacy Policy explains how we collect,
             use, share, and protect personal information when you visit our sites, create an account, configure

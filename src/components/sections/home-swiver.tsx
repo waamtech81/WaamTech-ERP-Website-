@@ -40,9 +40,9 @@ export function StatsBand() {
   const industryCount = catalog.data.industries?.length || 0;
   const stats = [
     { label: "Working since", value: 2010, suffix: "" },
-    { label: "Industries", value: industryCount || 0, suffix: "" },
-    { label: "Catalog products", value: catalog.data.products?.length || 0, suffix: "" },
-    { label: "Public plans", value: catalog.data.pricingPlans?.length || 0, suffix: "" },
+    { label: "Industries served", value: industryCount || 0, suffix: "" },
+    { label: "Featured products", value: catalog.data.products?.length || 0, suffix: "" },
+    { label: "Plans available", value: catalog.data.pricingPlans?.length || 0, suffix: "" },
   ];
 
   return (
@@ -81,10 +81,10 @@ export function FeaturedProductsSection() {
             Featured products
           </p>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
-            From the License Engine catalog
+            Products built for how you sell and operate
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
-            Product listings are loaded live — the Website never owns commercial product data.
+            Start with a focused product path, then expand modules as your team grows.
           </p>
         </div>
         {catalog.loading ? <CatalogSkeleton rows={3} /> : null}
@@ -142,8 +142,8 @@ export function CapabilitiesSection() {
             Built for how real businesses work
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
-            Choose your industry, unlock the right modules and feature packs, and grow into AI-assisted
-            operations — without messy custom rebuilds.
+            Choose your industry, unlock the right modules and optional feature packs, and grow into
+            AI-assisted operations — without messy custom rebuilds.
           </p>
         </div>
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
@@ -232,8 +232,8 @@ export function BusinessesSection() {
             {industryCount} industries · {categoryCount}+ business categories
           </h2>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
-            Industry → business category → business profile — then start your free trial. Loaded
-            live from License Engine for signup and provisioning.
+            Pick an industry, choose your business type, then start a free trial with a setup that
+            already matches how you work.
           </p>
         </div>
         {catalog.loading ? <CatalogSkeleton rows={4} /> : null}
@@ -433,7 +433,7 @@ export function PricingTeaser() {
                 Assemble modules instead of a fixed plan
               </p>
               <p className="mt-1 text-sm text-white/80">
-                Pick CRM, Inventory, POS, and more — live prices, auto dependencies.
+                Pick CRM, Inventory, POS, and more — live prices, clear recommendations.
               </p>
             </div>
             <Button
@@ -499,7 +499,7 @@ export function SoftCTA() {
               </h2>
               <p className="mt-4 text-base md:text-lg text-white/80 max-w-xl mx-auto leading-relaxed">
                 No card required. Start a {authConfig.trialDays}-day free trial, or build a custom
-                package — then manage licenses in Customer Portal anytime.
+                package — then manage your account in Customer Portal anytime.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
                 <Button

@@ -224,6 +224,116 @@ function presentationKey(raw: string): string {
     .replace(/-/g, "_");
 }
 
+/** Customer-facing outcomes copy — presentation only (not commercial registry). */
+export const industryOutcomes: Record<
+  string,
+  { problem: string; solution: string; audience: string }
+> = {
+  retail_commerce: {
+    problem: "Stockouts, slow checkout, and disconnected store reporting hurt sales and cash flow.",
+    solution: "Unify POS, inventory, purchasing, and CRM so every store sells from accurate stock.",
+    audience: "Retail stores, chains, and ecommerce teams that need day-to-day operational clarity.",
+  },
+  wholesale_distribution: {
+    problem: "Credit terms, multi-warehouse stock, and complex order cycles are hard to track in spreadsheets.",
+    solution: "Run sales orders, purchasing, warehouses, and receivables in one connected workflow.",
+    audience: "Distributors and wholesalers managing volume, routes, and customer credit.",
+  },
+  warehouse_logistics: {
+    problem: "Pick errors, unclear warehouse capacity, and delayed fulfillment increase cost.",
+    solution: "Track inventory movements, warehouse capacity, and fulfillment status in real time.",
+    audience: "Logistics and warehouse operators who need accurate stock and faster turns.",
+  },
+  manufacturing: {
+    problem: "Production, BOM, and costing rarely stay aligned with purchasing and finance.",
+    solution: "Connect work orders, materials, inventory, and finance for clearer production control.",
+    audience: "Manufacturers who need shop-floor visibility without rebuilding their stack.",
+  },
+  restaurant_food_service: {
+    problem: "Recipe costs, waste, and multi-outlet stock often drift from the POS reality.",
+    solution: "Link POS, inventory, purchasing, and outlets so food cost and service stay controlled.",
+    audience: "Restaurants, cafes, and multi-outlet food businesses.",
+  },
+  automotive_vehicle: {
+    problem: "Parts availability, workshop jobs, and customer history are often split across tools.",
+    solution: "Manage parts, service jobs, sales, and customers in one automotive workspace.",
+    audience: "Dealerships, workshops, and auto-parts retailers.",
+  },
+  healthcare_pharmacy: {
+    problem: "Expiry, batch control, and dispensing accuracy are risky when systems are fragmented.",
+    solution: "Run pharmacy inventory, sales, and compliance-friendly workflows with clearer stock control.",
+    audience: "Pharmacies and healthcare retail operations.",
+  },
+  hospital_medical: {
+    problem: "Supplies, billing, and departmental operations rarely share a single operational view.",
+    solution: "Coordinate inventory, purchasing, and operational records for clearer care support.",
+    audience: "Clinics and medical facilities that need reliable operational systems.",
+  },
+  real_estate_property: {
+    problem: "Units, tenants, contracts, and collections are hard to manage across spreadsheets.",
+    solution: "Track properties, contracts, billing, and customer records in one place.",
+    audience: "Property managers and real-estate operators.",
+  },
+  education: {
+    problem: "Fees, inventory, and administrative workflows often live in disconnected tools.",
+    solution: "Bring finance, inventory, and operational records into a clearer campus workflow.",
+    audience: "Schools and education groups that need practical administration systems.",
+  },
+  agriculture: {
+    problem: "Farm inputs, harvest cycles, and sales visibility are difficult to keep current.",
+    solution: "Track inventory, purchasing, and sales across agricultural operations with less manual work.",
+    audience: "Farms, agri businesses, and related distribution teams.",
+  },
+  textile_garments: {
+    problem: "Style variants, production stages, and wholesale orders create constant stock confusion.",
+    solution: "Manage products, inventory, sales, and purchasing for garment and textile workflows.",
+    audience: "Garment makers, textile traders, and fashion retailers.",
+  },
+  furniture_interior: {
+    problem: "Made-to-order items, showroom stock, and delivery timelines are hard to coordinate.",
+    solution: "Connect sales, inventory, purchasing, and delivery planning for furniture operations.",
+    audience: "Furniture retailers, showrooms, and interior businesses.",
+  },
+  building_materials_hardware: {
+    problem: "Bulk SKUs, yard stock, and contractor credit can overwhelm basic POS tools.",
+    solution: "Run inventory, sales, purchasing, and customer accounts built for materials trade.",
+    audience: "Hardware stores and building-materials suppliers.",
+  },
+  beauty_cosmetics: {
+    problem: "Expiry-sensitive stock, appointments, and retail sales often sit in separate systems.",
+    solution: "Unify retail inventory, sales, and customer records for beauty operations.",
+    audience: "Salons, beauty retailers, and cosmetics businesses.",
+  },
+  pet_veterinary: {
+    problem: "Clinic services, retail products, and inventory rarely stay synchronized.",
+    solution: "Manage appointments-related operations, inventory, and sales in one workspace.",
+    audience: "Pet shops and veterinary clinics.",
+  },
+  water_management: {
+    problem: "Delivery cycles, deposits, and route stock are difficult to reconcile daily.",
+    solution: "Track inventory, deliveries, sales, and customer accounts for water operations.",
+    audience: "Water utilities and bottled-water distributors.",
+  },
+  services: {
+    problem: "Projects, billing, and resource tracking scatter across tools as the team grows.",
+    solution: "Bring CRM, projects, finance, and operations into one modular service workspace.",
+    audience: "Professional and field-service businesses that need clearer delivery and billing.",
+  },
+};
+
+export function getIndustryOutcomes(industryId: string | null | undefined, industryName?: string) {
+  const key = presentationKey(industryId || "");
+  const named = industryName?.trim() || "your industry";
+  return (
+    industryOutcomes[key] || {
+      problem: `Scattered stock, slow sales cycles, and unclear reporting are common in ${named}.`,
+      solution:
+        "Pick your business type, start with recommended modules, and run inventory, sales, finance, and CRM from one workspace.",
+      audience: `Growing ${named} teams that want clarity without rebuilding software for every process.`,
+    }
+  );
+}
+
 export function getIndustryPresentation(industryId: string | null | undefined) {
   const key = presentationKey(industryId || "");
   return (

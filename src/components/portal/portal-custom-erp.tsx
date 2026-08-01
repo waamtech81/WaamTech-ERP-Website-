@@ -175,13 +175,13 @@ export function PortalCustomErpDashboardView() {
     },
     {
       href: "/portal/feature-packs",
-      label: "Feature packs",
-      hint: "Active and available packs",
+      label: "Feature Packs",
+      hint: "Active and available capabilities",
       icon: Puzzle,
     },
     {
       href: "/portal/limits",
-      label: "Tenant limits",
+      label: "Limits",
       hint: "Users, companies, branches, warehouses",
       icon: Gauge,
     },
@@ -211,7 +211,7 @@ export function PortalCustomErpDashboardView() {
       <PortalPageHeader
         eyebrow="Custom ERP"
         title="Custom ERP Package"
-        description="Your workspace was built from modules, feature packs, and limits — not a predefined Starter / Business / Enterprise plan."
+        description="Your workspace was built from modules, Feature Packs, and limits — not a predefined Starter / Business / Enterprise plan."
         actions={
           <Button size="sm" variant="outline" className="rounded-xl" onClick={() => reload()}>
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
@@ -228,7 +228,7 @@ export function PortalCustomErpDashboardView() {
           Package actions
         </p>
         <p className="mt-1 text-sm text-[var(--portal-muted)]">
-          Upgrade through modules, feature packs, and limits only — predefined plans are not offered.
+          Upgrade through modules, Feature Packs, and limits only — predefined plans are not offered.
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {actions.map((item) => (
@@ -296,7 +296,7 @@ export function PortalCustomErpDashboardView() {
           href="/portal/modules"
         />
         <PortalStatCard
-          label="Feature packs"
+          label="Feature Packs"
           value={String(packCount)}
           hint="Active packs"
           icon={Puzzle}
@@ -312,7 +312,7 @@ export function PortalCustomErpDashboardView() {
         <PortalStatCard
           label="Outstanding"
           value={data.billing?.outstandingBalance || "—"}
-          hint="From License Engine"
+          hint="From your license"
           icon={CreditCard}
           href="/portal/billing"
         />
@@ -322,7 +322,7 @@ export function PortalCustomErpDashboardView() {
         <PortalFadeIn>
           <PortalPanel
             title="Custom ERP Package"
-            description="Active license and package composition from License Engine."
+            description="Active license and package composition for your account."
             action={
               <Button asChild variant="outline" size="sm" className="rounded-xl">
                 <Link href="/portal/licenses">License detail</Link>
@@ -403,7 +403,7 @@ export function PortalCustomErpDashboardView() {
             ) : (
               <PortalEmptyState
                 title="No custom package license yet"
-                description="Once License Engine issues your Custom ERP license, it will appear here."
+                description="Once your Custom ERP license is issued, it will appear here."
                 actionLabel="Open billing"
                 actionHref="/portal/billing"
                 icon={Package}
@@ -448,7 +448,7 @@ export function PortalCustomErpDashboardView() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <PortalPanel title="Recent changes" description="Payments, renewals, and invoices from License Engine.">
+        <PortalPanel title="Recent changes" description="Payments, renewals, and invoices for your account.">
           {(data.activities || []).length ? (
             <ul className="space-y-2">
               {(data.activities || []).slice(0, 8).map((item) => (
@@ -502,7 +502,7 @@ export function PortalCustomErpDashboardView() {
           ) : (
             <PortalEmptyState
               title="No invoices yet"
-              description="Invoices from License Engine billing will appear here."
+              description="Invoices will appear here after billing activity."
               icon={CreditCard}
             />
           )}
@@ -548,7 +548,7 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
         <PortalPageHeader
           eyebrow="Custom ERP"
           title="License"
-          description="License ID, status, billing cycle, and package composition from License Engine."
+          description="License ID, status, billing cycle, and package composition."
         />
         {primary ? (
           <PortalPanel title="Active license" description="Custom ERP package entitlement.">
@@ -636,7 +636,7 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
         ) : (
           <PortalEmptyState
             title="No license found"
-            description="Your Custom ERP license will appear when issued by License Engine."
+            description="Your Custom ERP license will appear when it is issued."
             actionLabel="Open billing"
             actionHref="/portal/billing"
           />
@@ -662,7 +662,7 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
         />
         <PortalPanel
           title="Current subscription"
-          description="Billing cycle, renewal, and payment status from License Engine."
+          description="Billing cycle, renewal, and payment status for your account."
         >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[
@@ -709,7 +709,7 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
           </div>
           {!canRenew ? (
             <p className="mt-4 text-sm text-[var(--portal-muted)]">
-              Lifetime packages do not renew. Upgrade modules, feature packs, or limits instead.
+              Lifetime packages do not renew. Upgrade modules, Feature Packs, or limits instead.
             </p>
           ) : null}
         </PortalPanel>
@@ -1726,7 +1726,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
       <PortalPageHeader
         eyebrow="Custom ERP"
         title="Upgrade Configuration"
-        description="Choose modules, then feature packs. Prices and required modules are shown before License Engine checkout."
+        description="Choose modules, then Feature Packs. Prices and essentials are shown before checkout."
       />
 
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100">
@@ -1743,7 +1743,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
       <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-4">
         <label className="sr-only" htmlFor="custom-erp-filter">
-          Search modules and feature packs
+          Search modules and Feature Packs
         </label>
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--portal-muted)]" />
@@ -1816,12 +1816,12 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
           </PortalPanel>
 
           <PortalPanel
-            title="Feature packs"
+            title="Feature Packs"
             description="Packs linked to your selected modules appear first. Other purchasable packs stay available below so you can add extras. Catalog default unit pricing (Custom ERP) is applied when a pack has no own price."
           >
             {selectedModuleList.length === 0 ? (
               <p className="text-sm text-[var(--portal-muted)]">
-                Select modules above to see matching feature packs.
+                Select modules above to see matching Feature Packs.
               </p>
             ) : (
               <div className="space-y-5">
@@ -1834,11 +1834,11 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                   </p>
                   {packsForSelectedModules.length === 0 ? (
                     <p className="text-sm text-[var(--portal-muted)]">
-                      No feature packs are linked to the modules you selected yet.
+                      No Feature Packs are linked to the modules you selected yet.
                     </p>
                   ) : filteredPacksForModules.length === 0 ? (
                     <p className="text-sm text-[var(--portal-muted)]">
-                      No linked feature packs match your search.
+                      No linked Feature Packs match your search.
                     </p>
                   ) : (
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -1850,7 +1850,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                 {otherAvailablePacks.length > 0 ? (
                   <div>
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--portal-muted)]">
-                      More feature packs · optional
+                      More Feature Packs · optional
                       {` · ${otherAvailablePacks.length}`}
                     </p>
                     <p className="mb-2 text-xs text-[var(--portal-muted)]">
@@ -1874,7 +1874,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
           <PortalPanel
             title="Adjust limits"
-            description="Paid commercial limits — Users, Companies, Branches, and Warehouses. Pricing recalculates from the License Engine."
+            description="Paid limits — Users, Companies, Branches, and Warehouses. Pricing recalculates live."
           >
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[
@@ -1938,7 +1938,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
         <aside className="lg:sticky lg:top-6 lg:self-start">
           <PortalPanel
             title="Order summary"
-            description="Live License Engine quote — updates when modules, packs, or limits change."
+            description="Live quote — updates when modules, Feature Packs, or limits change."
           >
             <div className="space-y-4 text-sm">
               <div>
@@ -1961,7 +1961,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-xs text-[var(--portal-muted)]">
-                  <span>Feature packs</span>
+                  <span>Feature Packs</span>
                   <span className="font-medium text-[var(--portal-ink)]">
                     {selectedPacks.size}
                   </span>
@@ -1999,7 +1999,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
               {newlySelectedPacks.length > 0 ? (
                 <div>
-                  <p className="font-medium">New feature packs</p>
+                  <p className="font-medium">New Feature Packs</p>
                   <ul className="mt-1 space-y-1.5 text-[var(--portal-muted)]">
                     {newlySelectedPacks.map((code) => {
                       const pack = packByCode.get(code);
@@ -2078,7 +2078,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
 
               {!hasChanges ? (
                 <p className="text-[var(--portal-muted)]">
-                  Select modules, feature packs, or increase limits to build your upgrade.
+                  Select modules, Feature Packs, or increase limits to build your upgrade.
                 </p>
               ) : null}
 
@@ -2126,7 +2126,7 @@ function PortalCustomErpUpgradeWizard({ data }: { data: PortalDashboard }) {
                 </div>
                 <p className="text-[11px] text-[var(--portal-muted)]">
                   {hasPaidChanges
-                    ? "Upgrade due is returned by the License Engine upgrade quote (same amount as checkout and invoice)."
+                    ? "Upgrade due matches the live upgrade quote (same amount as checkout and invoice)."
                     : "Removals apply immediately at no charge. ERP syncs to the modules you keep selected."}
                 </p>
               </div>

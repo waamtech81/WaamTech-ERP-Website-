@@ -38,7 +38,7 @@ export default function ErpFeaturesPage() {
                 align="left"
                 eyebrow="ERP Features"
                 title="So many features — ready before you even start"
-                description="WAAMTO is not a blank system. Choose your business profile and the common modules, workflows, KPIs, and feature packs for that business arrive preinstalled. Then add AI Assistant, mobile, finance, and more as you grow."
+                description="WAAMTO is not a blank system. Choose your industry and business type, and the common modules and workflows arrive ready. Then add AI Assistant, mobile, finance, and more as you grow."
                 className="mb-0 max-w-3xl"
               />
               <div className="mt-8 flex flex-wrap gap-3">

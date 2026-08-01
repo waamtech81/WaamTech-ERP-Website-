@@ -4,7 +4,7 @@ import { buildAbsoluteSiteUrl } from "@/lib/urls";
 
 export const metadata: Metadata = {
   title: "Pricing — ERP Plans & Free Trial",
-  description: `WAAMTO cloud ERP pricing — Starter, Business, Lifetime, and Enterprise plans. Inventory, POS, CRM, Finance & AI included. Start a free trial on ${siteConfig.name}.`,
+  description: `Clear ${siteConfig.name} cloud ERP pricing — Starter, Business, Lifetime, and Enterprise. Inventory, POS, CRM, Finance & AI. Start a free trial — no card required.`,
   keywords: [
     "ERP pricing",
     "cloud ERP plans",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: `Pricing | ${siteConfig.name}`,
     description:
-      "Compare WAAMTO ERP plans — Starter, Business, Lifetime, and Enterprise. Live pricing from WaamTech License Engine.",
+      "Compare WAAMTO ERP plans — Starter, Business, Lifetime, and Enterprise. Transparent live pricing for growing teams.",
     url: buildAbsoluteSiteUrl("/pricing"),
   },
 };

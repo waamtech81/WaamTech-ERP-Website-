@@ -106,7 +106,7 @@ export function PortalLicenseEntitlements({
       {hasPacks ? (
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-            Feature packs
+            Feature Packs
           </p>
           <div className="flex flex-wrap gap-1.5">
             {lic.feature_packs.map((f) => (
@@ -124,7 +124,7 @@ export function PortalLicenseEntitlements({
       {hasTenant ? (
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-            Tenant limits
+            Limits
           </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {tenantRows.map((r) => (

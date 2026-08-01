@@ -32,13 +32,13 @@ export type BuilderStepId =
 
 export const BUILDER_STEPS: { id: BuilderStepId; label: string }[] = [
   { id: "industry", label: "Industry" },
-  { id: "category", label: "Category" },
+  { id: "category", label: "Business type" },
   { id: "recommended", label: "Recommended" },
-  { id: "modules", label: "Modules" },
+  { id: "modules", label: "Customize" },
   { id: "feature-packs", label: "Feature packs" },
-  { id: "tenant", label: "Tenant limits" },
+  { id: "tenant", label: "Limits" },
   { id: "billing", label: "Billing" },
-  { id: "review", label: "Summary" },
+  { id: "review", label: "Review" },
 ];
 
 export type BuilderFeaturePack = {

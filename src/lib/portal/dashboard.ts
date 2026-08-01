@@ -1419,7 +1419,7 @@ async function loadPortalDashboardUncached(
         },
         {
           id: "limits",
-          label: "Tenant Limits",
+          label: "Limits",
           href: "/portal/limits",
         },
         {
@@ -1502,7 +1502,7 @@ async function loadPortalDashboardUncached(
         },
         {
           id: "limits",
-          label: "Tenant Limits",
+          label: "Limits",
           href: "/portal/limits",
         },
         {

@@ -118,7 +118,7 @@ export function BundleRecommendationCard({
             ) : null}
             {offer.included_feature_packs.length ? (
               <p>
-                <span className="font-semibold">Feature packs:</span>{" "}
+                <span className="font-semibold">Feature Packs:</span>{" "}
                 {offer.included_feature_packs.join(", ")}
               </p>
             ) : null}
@@ -151,7 +151,7 @@ export function BundleRecommendationCard({
           </Button>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Optional recommendation from License Engine — you can stay on custom.
+          Optional ready-made package — you can keep your custom selection.
         </p>
       </div>
     </div>

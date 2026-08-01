@@ -11,14 +11,14 @@ import { CTASection } from "@/components/shared/cta-section";
 import { BuildYourOwnErpBuilder } from "@/components/sections/build-your-own-erp";
 
 export const metadata: Metadata = {
-  title: `Build your own custom ERP — ${siteConfig.name}`,
+  title: `Build your own ERP — ${siteConfig.name}`,
   description:
-    "Build a custom ERP: choose industry and category, load recommended modules and feature packs, set tenant limits, pick billing, and continue to Signup with a live package total.",
+    "Design a custom ERP for your business: choose industry and business type, start from a recommended setup, adjust modules, feature packs, and limits, pick billing, then continue to signup with live pricing.",
   alternates: { canonical: "/build-your-own-erp" },
   openGraph: {
-    title: `Build your own custom ERP — ${siteConfig.name}`,
+    title: `Build your own ERP — ${siteConfig.name}`,
     description:
-      "Build a custom ERP: choose industry and category, load recommended modules and feature packs, set tenant limits, pick billing, and continue to Signup with a live package total.",
+      "Design a custom ERP for your business: choose industry and business type, start from a recommended setup, adjust modules, feature packs, and limits, pick billing, then continue to signup with live pricing.",
   },
 };
 
@@ -33,22 +33,22 @@ export default function BuildYourOwnErpPage() {
           <AnimateIn>
             <div className="mt-6 max-w-4xl">
               <Badge variant="accent" className="mb-3">
-                Custom package
+                Custom ERP
               </Badge>
               <p className="mb-2 font-heading text-sm font-semibold tracking-[0.18em] text-primary uppercase">
                 {siteConfig.name}
               </p>
               <h1 className="text-3xl font-semibold tracking-tight text-[#0b1f3a] text-balance sm:text-4xl md:text-5xl">
-                Build your own custom ERP
+                Build the ERP that fits your business
               </h1>
               <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg text-pretty">
-                Choose industry and category, start from recommended modules and feature packs,
-                tune seats and billing, then continue to signup — live pricing the whole way.
+                Tell us your industry and business type. We recommend a clear starting setup —
+                then you adjust modules, feature packs, limits, and billing with live pricing before signup.
               </p>
               <ol className="mt-5 flex flex-wrap gap-2 text-xs font-medium text-muted-foreground sm:text-sm" aria-label="Builder journey">
                 <li className="rounded-full border border-border bg-white px-3 py-1">1. Industry</li>
-                <li className="rounded-full border border-border bg-white px-3 py-1">2. Modules</li>
-                <li className="rounded-full border border-border bg-white px-3 py-1">3. Limits</li>
+                <li className="rounded-full border border-border bg-white px-3 py-1">2. Recommended</li>
+                <li className="rounded-full border border-border bg-white px-3 py-1">3. Customize</li>
                 <li className="rounded-full border border-border bg-white px-3 py-1">4. Signup</li>
               </ol>
               <div className="mt-6 flex flex-nowrap items-stretch gap-2 overflow-x-auto pb-0.5 scrollbar-thin sm:flex-wrap sm:overflow-visible sm:gap-3">

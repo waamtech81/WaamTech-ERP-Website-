@@ -122,7 +122,7 @@ export function PortalSettingsView() {
             Profile
           </h3>
           <p className="mt-1 text-xs text-[var(--portal-muted)]">
-            Shared with License Engine and WAAMTO ERP Cloud. Profile photo is managed in ERP Cloud only.
+            Shared across your WAAMTO account and ERP Cloud. Profile photo is managed in ERP Cloud only.
           </p>
 
           <div className="mt-5 flex items-center gap-4">
@@ -186,7 +186,7 @@ export function PortalSettingsView() {
             Password
           </h3>
           <p className="mt-1 text-xs text-[var(--portal-muted)]">
-            Password changes sync through License Engine identity.
+            Password changes sync through your account identity.
           </p>
           <div className="mt-5 space-y-4">
             <div className="space-y-2">

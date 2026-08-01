@@ -10,9 +10,10 @@ import { OpenLiveChatButton } from "@/components/support/open-live-chat-button";
 import { getAppLoginUrl } from "@/lib/auth/config";
 
 export const metadata: Metadata = {
-  title: "Support",
+  title: "Support — Help Center",
   description:
-    "Get help from WAAMTO through our secure contact form, live chat, documentation, and ERP support workspace.",
+    "Get help from WAAMTO through our secure contact form, live chat, documentation, and ERP support workspace. Fast answers when operations need them.",
+  alternates: { canonical: "/support" },
 };
 
 export default function SupportPage() {

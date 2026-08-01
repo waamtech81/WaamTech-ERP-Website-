@@ -429,8 +429,8 @@ export function PortalPlansView() {
             {title}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--portal-muted)]">
-            Choose industry, category, plan, and price. Then continue to billing
-            checkout with your preferred payment method. License Engine stays the
+            Choose industry, business type, plan, and price. Then continue to billing
+            checkout with your preferred payment method. Your account stays the
             source of truth — WAAMTO ERP Cloud picks up the update after payment.
           </p>
           {isTrial ? (
@@ -524,7 +524,7 @@ export function PortalPlansView() {
       {step === "industry" ? (
         <PortalPanel
           title="Choose industry"
-          description="Fetched live from License Engine catalog."
+          description="Fetched live from the published plan catalog."
         >
           {industriesQuery.loading ? (
             <PortalSkeleton rows={1} />
@@ -672,7 +672,7 @@ export function PortalPlansView() {
                     </p>
                   ) : (
                     <p className="mt-2 text-xs text-[var(--portal-muted)]">
-                      Upgrade price from License Engine catalog — optional recommendation.
+                      Upgrade price from the live catalog — optional recommendation.
                     </p>
                   )}
                 </div>
@@ -722,7 +722,7 @@ export function PortalPlansView() {
           {!displayPlans.length ? (
             <PortalPanel
               title="No plans available"
-              description="Plans could not be loaded from License Engine."
+              description="Plans could not be loaded right now."
             >
               <Button asChild variant="outline" className="rounded-xl">
                 <Link href="/portal/notifications">View notifications</Link>

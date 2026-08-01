@@ -66,7 +66,7 @@ function BusinessCard({ business }: { business: PortalBusinessCard }) {
       {business.featurePacks.length ? (
         <div className="mt-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--portal-muted)]">
-            Feature packs
+            Feature Packs
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {business.featurePacks.map((pack) => (
@@ -123,7 +123,7 @@ export function PortalBusinessProfileView({ embedded = false }: { embedded?: boo
     return (
       <PortalEmptyState
         title="Profile unavailable"
-        description="Business profile fields will show when returned by License Engine."
+        description="Business profile fields will show when available for your account."
         icon={Building2}
       />
     );

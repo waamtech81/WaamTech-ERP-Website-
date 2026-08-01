@@ -11,8 +11,9 @@ import { CTASection } from "@/components/shared/cta-section";
 import { ProductStack } from "@/components/sections/product-stack";
 
 export const metadata: Metadata = {
-  title: "Products",
-  description: `Explore ${siteConfig.name} modules: Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and AI Workspace — benefits, use cases, and live previews.`,
+  title: `ERP Products & Modules — ${siteConfig.name}`,
+  description: `Explore ${siteConfig.name} modules: Inventory, POS, Sales, Purchasing, Finance, CRM, HR, Manufacturing, and AI Workspace — business outcomes and practical capabilities.`,
+  alternates: { canonical: "/products" },
 };
 
 export default function ProductsPage() {
@@ -28,11 +29,11 @@ export default function ProductsPage() {
                 Modules & AI
               </Badge>
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
-                Products that stack as you scroll
+                Modules that grow with your business
               </h1>
               <p className="mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
-                One module at a time — what it is, who it&apos;s for, and why it helps. Includes the
-                new AI Workspace for Assistant, Document OCR, and smart recommendations.
+                One module at a time — what it does, who it&apos;s for, and the outcomes it unlocks.
+                Includes AI Workspace for assistant help, document capture, and smarter decisions.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">

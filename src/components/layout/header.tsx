@@ -129,8 +129,10 @@ export function Header() {
   const isAuthSurface = isAuthSurfacePath(pathname);
   const { t, formatPrice } = useLocale();
   const catalog = useCatalogBundle(undefined, !isAuthSurface);
-  const industriesQuery = useCatalogIndustries(!isAuthSurface);
-  const allCategoriesQuery = useCatalogAllBusinessCategories(!isAuthSurface);
+  // Industries mega-menu stays visible on login/signup — always load catalog lists.
+  // (Auth-surface disable was leaving the badge/menu at 0 after industry→signup navigation.)
+  const industriesQuery = useCatalogIndustries(true);
+  const allCategoriesQuery = useCatalogAllBusinessCategories(true);
   const prices = publicMarketingPlans(catalog.data.pricingPlans || [])
     .map((p) => p.yearlyPrice ?? p.monthlyPrice)
     .filter((v): v is number => typeof v === "number" && v > 0);

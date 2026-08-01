@@ -82,6 +82,7 @@ import {
   prepareFeaturePackCodesForQuote,
   resolveBuilderRecommendationPackRows,
   pruneSelectedFeaturePackCodes,
+  customerModuleDescription,
   resolveBuilderEligiblePackCodes,
   resolveModuleCodesFromLabels,
   resolveRecommendedConfigurationPackTags,
@@ -422,7 +423,7 @@ function ModuleCard({
       iconBadgeClassName={iconColors.badge}
       watermarkIconClassName={iconColors.watermark}
       title={mod.name}
-      description={mod.description}
+      description={customerModuleDescription(mod.description) || undefined}
       warnBorder={hasDeps && !selected}
       badges={
         required || (recommended && !selected) || (hasDeps && !selected) ? (

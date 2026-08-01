@@ -531,8 +531,7 @@ function LoginForm() {
         : "Two clear paths: open the ERP app to run your workspace, or sign in to Customer Portal for licenses, billing, and subscriptions.";
 
   const captchaLoading = hasRecaptchaV3SiteKey() && captcha.status === "loading";
-  const captchaFailed = hasRecaptchaV3SiteKey() && captcha.status === "error";
-  const submitBlocked = captchaLoading || captchaFailed;
+  const submitBlocked = captchaLoading;
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-muted">
@@ -687,19 +686,6 @@ function LoginForm() {
                         Preparing security check...
                       </div>
                     ) : null}
-                    {captchaFailed ? (
-                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-black">
-                        <p>Captcha failed to load. Please try again.</p>
-                        <button
-                          type="button"
-                          onClick={captcha.retry}
-                          className="mt-2 font-medium text-primary hover:underline"
-                        >
-                          Retry security check
-                        </button>
-                      </div>
-                    ) : null}
-
                     <div className="mt-auto space-y-5 pt-1">
                       <Button
                         type="submit"
@@ -825,18 +811,6 @@ function LoginForm() {
                           "Verify & continue"
                         )}
                       </Button>
-                    {captchaFailed ? (
-                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-black">
-                        <p>Captcha failed to load. Please try again.</p>
-                        <button
-                          type="button"
-                          onClick={captcha.retry}
-                          className="mt-2 font-medium text-primary hover:underline"
-                        >
-                          Retry security check
-                        </button>
-                      </div>
-                    ) : null}
                     <button
                         type="button"
                         onClick={resetToCredentials}
@@ -921,19 +895,6 @@ function LoginForm() {
                           "Verify & continue"
                         )}
                       </Button>
-                      {captchaFailed ? (
-                        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-black">
-                          <p>Captcha failed to load. Please try again.</p>
-                          <button
-                            type="button"
-                            onClick={captcha.retry}
-                            className="mt-2 font-medium text-primary hover:underline"
-                          >
-                            Retry security check
-                          </button>
-                        </div>
-                      ) : null}
-
                       <div className="flex items-center justify-between gap-3 text-sm">
                         <button
                           type="button"

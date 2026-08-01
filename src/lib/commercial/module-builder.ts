@@ -66,7 +66,8 @@ const FALLBACK_RECOMMENDED: Record<string, string[]> = {
   finance: ["sales"],
 };
 
-function canonicalCode(code: string, known?: Set<string>): string {
+/** Map legacy Engine seed codes → live catalog module ids. */
+export function canonicalModuleCode(code: string, known?: Set<string>): string {
   const raw = String(code || "").trim();
   if (!raw) return raw;
   const aliased = CODE_ALIASES[raw] || CODE_ALIASES[raw.toUpperCase()] || CODE_ALIASES[raw.toLowerCase()] || raw;
@@ -126,8 +127,8 @@ export function normalizeCatalogModules(modules: CatalogModule[]): CatalogModule
         Array.isArray(m.recommended_modules) && m.recommended_modules.length
           ? m.recommended_modules.map(String)
           : FALLBACK_RECOMMENDED[code] || FALLBACK_RECOMMENDED[m.slug] || [];
-      const deps = uniq(rawDeps.map((d) => canonicalCode(d, known))).filter((d) => known.has(d));
-      const recommended = uniq(rawRec.map((d) => canonicalCode(d, known))).filter(
+      const deps = uniq(rawDeps.map((d) => canonicalModuleCode(d, known))).filter((d) => known.has(d));
+      const recommended = uniq(rawRec.map((d) => canonicalModuleCode(d, known))).filter(
         (d) => known.has(d) && d !== code
       );
       const name = displayModuleName(code, m.name);
@@ -166,7 +167,7 @@ export function resolveRequiredDependencies(
   const byCode = moduleByCodeMap(modules);
   const known = new Set(modules.map((m) => m.code));
   const selected = new Set(
-    uniq(selectedCodes).map((c) => byCode.get(c)?.code || canonicalCode(c, known))
+    uniq(selectedCodes).map((c) => byCode.get(c)?.code || canonicalModuleCode(c, known))
   );
   const required = new Set<string>();
   const queue = [...selected];
@@ -176,7 +177,7 @@ export function resolveRequiredDependencies(
     const mod = byCode.get(code);
     const deps = mod?.dependencies || FALLBACK_REQUIRED[code] || [];
     for (const depRaw of deps) {
-      const dep = byCode.get(depRaw)?.code || canonicalCode(depRaw, known);
+      const dep = byCode.get(depRaw)?.code || canonicalModuleCode(depRaw, known);
       if (!dep || !known.has(dep) || selected.has(dep) || required.has(dep)) continue;
       required.add(dep);
       queue.push(dep);
@@ -195,7 +196,7 @@ export function resolveRecommendedModules(
   const known = new Set(modules.map((m) => m.code));
   const included = new Set(
     [...uniq(selectedCodes), ...uniq(requiredCodes)].map(
-      (c) => byCode.get(c)?.code || canonicalCode(c, known)
+      (c) => byCode.get(c)?.code || canonicalModuleCode(c, known)
     )
   );
   const recommended: string[] = [];
@@ -203,7 +204,7 @@ export function resolveRecommendedModules(
     const mod = byCode.get(code);
     const list = mod?.recommended_modules || FALLBACK_RECOMMENDED[code] || [];
     for (const recRaw of list) {
-      const rec = byCode.get(recRaw)?.code || canonicalCode(recRaw, known);
+      const rec = byCode.get(recRaw)?.code || canonicalModuleCode(recRaw, known);
       if (!rec || included.has(rec) || !known.has(rec)) continue;
       if (!recommended.includes(rec)) recommended.push(rec);
     }

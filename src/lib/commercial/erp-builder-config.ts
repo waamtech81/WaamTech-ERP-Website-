@@ -233,6 +233,19 @@ export function isNonPurchasableCustomErpModule(
   return false;
 }
 
+/** Customer-facing module description — strips internal Engine seed wording. */
+export function customerModuleDescription(
+  description: string | null | undefined
+): string | null {
+  const raw = String(description || "").trim();
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/\s*\(SaaS Core pack\)\s*/gi, " ")
+    .replace(/\s*—?\s*SaaS Core pack\s*/gi, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return cleaned || null;
+}
 /** Customer-facing included platform services (not in purchasable count). */
 export const PLATFORM_BUILTIN_DISPLAY = [
   { code: "whatsapp", name: "WhatsApp" },

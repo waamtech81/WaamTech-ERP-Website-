@@ -49,12 +49,16 @@ import { authConfig, getAppLoginUrl } from "@/lib/auth/config";
 import { fetchPublicCommercialOverview, fetchPublicModules } from "@/lib/commercial/client";
 import {
   featurePackMatchesSelectedModules,
+  customerModuleDescription,
   isNonPurchasableCustomErpModule,
   isNonPurchasableCustomErpPack,
   isPlatformBuiltinModule,
   PLATFORM_BUILTIN_DISPLAY,
 } from "@/lib/commercial/erp-builder-config";
+import { canonicalModuleCode } from "@/lib/commercial/module-builder";
 import type { BillingCycle, CustomPackageQuoteResult } from "@/lib/commercial/types";
+import { shouldShowCheckoutCouponField } from "@/lib/commercial/coupon-visibility";
+import { CustomErpCouponField } from "@/components/commercial/custom-erp-coupon-field";
 import { useLocale } from "@/components/providers/locale-provider";
 import { resolvePurchasedLimits } from "@/lib/portal/commercial-snapshot";
 import { cn } from "@/lib/utils";
@@ -846,6 +850,21 @@ function normCode(value: string): string {
   return String(value || "").trim().toLowerCase();
 }
 
+function upgradeLineUnitPrice(
+  lines: Array<{ code?: string; kind: string; unit_price: number }>,
+  code: string,
+  kind: "module" | "feature_pack"
+): number | null {
+  const key = normCode(code);
+  const hit = lines.find(
+    (line) =>
+      line.kind === kind && line.code != null && normCode(String(line.code)) === key
+  );
+  if (!hit) return null;
+  const unit = Number(hit.unit_price);
+  return Number.isFinite(unit) ? unit : null;
+}
+
 /** License Engine rejects 0 / negative / unlimited (-1) seat limits on upgrade. */
 function positiveLimit(value: number | null | undefined, floor = 1): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value < floor) {
@@ -991,8 +1010,11 @@ function resolveOwnedCodes(input: {
   snapshotCodes?: string[] | null;
   catalog: Array<{ code: string; name: string }>;
 }): string[] {
-  const fromCodes = (input.codes || []).map(normCode).filter(Boolean);
-  const fromSnap = (input.snapshotCodes || []).map(normCode).filter(Boolean);
+  const known = new Set(input.catalog.map((row) => normCode(row.code)).filter(Boolean));
+  const canonicalize = (code: string) => normCode(canonicalModuleCode(code, known));
+
+  const fromCodes = (input.codes || []).map(canonicalize).filter(Boolean);
+  const fromSnap = (input.snapshotCodes || []).map(canonicalize).filter(Boolean);
   if (fromCodes.length) return Array.from(new Set(fromCodes));
   if (fromSnap.length) return Array.from(new Set(fromSnap));
 
@@ -1009,6 +1031,7 @@ function resolveOwnedCodes(input: {
   for (const label of input.labels || []) {
     const key = normCode(label);
     const code =
+      canonicalize(label) ||
       byCode.get(key) ||
       byName.get(key) ||
       byName.get(key.replace(/_/g, " ")) ||
@@ -1125,10 +1148,33 @@ function PortalCustomErpUpgradeWizard({
   const [liveQuote, setLiveQuote] = useState<CustomPackageQuoteResult | null>(null);
   /** Engine upgrade payable — same value as checkout/invoice (from portal upgrade-quote BFF). */
   const [upgradeDue, setUpgradeDue] = useState<number | null>(null);
+  const [upgradeDeltaPricing, setUpgradeDeltaPricing] = useState<{
+    subtotal: number;
+    discount_amount: number;
+    tax_amount: number;
+    grand_total: number;
+  } | null>(null);
+  const [upgradeLineItems, setUpgradeLineItems] = useState<
+    Array<{
+      description: string;
+      quantity: number;
+      unit_price: number;
+      code?: string;
+      kind: string;
+    }>
+  >([]);
   const [quoteCurrency, setQuoteCurrency] = useState<string>("USD");
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [quoteError, setQuoteError] = useState("");
   const quoteRequestIdRef = useRef(0);
+  /** Post-license Custom ERP purchases — coupon field visible (not first-purchase handoff). */
+  const showCouponField = shouldShowCheckoutCouponField({
+    journey: "custom_erp",
+    phase: "post_license",
+  });
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   useEffect(() => {
     if (serverModules.length > 0) {
@@ -1342,6 +1388,7 @@ function PortalCustomErpUpgradeWizard({
     if (!moduleCodes.length) {
       setLiveQuote(null);
       setUpgradeDue(null);
+      setUpgradeDeltaPricing(null);
       setQuoteError("");
       setQuoteBusy(false);
       return;
@@ -1360,6 +1407,7 @@ function PortalCustomErpUpgradeWizard({
       company_limit: positiveLimit(companyLimit, 1),
       branch_limit: positiveLimit(branchLimit, 1),
       warehouse_limit: positiveLimit(warehouseLimit, 1),
+      ...(appliedCoupon ? { discount_code: appliedCoupon } : {}),
     };
 
     const controller = new AbortController();
@@ -1384,25 +1432,63 @@ function PortalCustomErpUpgradeWizard({
             currency?: string;
             quote?: CustomPackageQuoteResult | null;
             pricing?: CustomPackageQuoteResult["pricing"];
+            delta_pricing?: {
+              subtotal: number;
+              discount_amount: number;
+              tax_amount: number;
+              grand_total: number;
+            };
+            upgrade_line_items?: Array<{
+              description: string;
+              quantity: number;
+              unit_price: number;
+              code?: string;
+              kind: string;
+            }>;
           } | null;
         };
         if (requestId !== quoteRequestIdRef.current) return;
         if (!res.ok || json.success === false || !json.data?.quote?.pricing) {
           setLiveQuote(null);
           setUpgradeDue(null);
+          setUpgradeDeltaPricing(null);
+          setUpgradeLineItems([]);
           setQuoteError(json.message || "Live pricing is unavailable. Retry shortly.");
+          if (appliedCoupon) {
+            setCouponError(json.message || "This coupon is invalid or not applicable.");
+          }
           return;
         }
         setLiveQuote(json.data.quote);
         setQuoteCurrency(String(json.data.currency || json.data.quote.pricing.currency || "USD"));
         const due = Number(json.data.amount);
         setUpgradeDue(Number.isFinite(due) && due >= 0 ? due : null);
+        setUpgradeDeltaPricing(json.data.delta_pricing ?? null);
+        setUpgradeLineItems(json.data.upgrade_line_items ?? []);
         setQuoteError("");
+        const pricedCode = String(
+          json.data.quote.pricing.discount_code || appliedCoupon || ""
+        )
+          .trim()
+          .toUpperCase();
+        if (appliedCoupon) {
+          if (pricedCode) {
+            setAppliedCoupon(pricedCode);
+            setCouponInput(pricedCode);
+            setCouponError(null);
+          } else if (Number(json.data.quote.pricing.discount_amount) <= 0) {
+            setCouponError("This coupon is invalid or not applicable.");
+          } else {
+            setCouponError(null);
+          }
+        }
       } catch (err) {
         if (controller.signal.aborted) return;
         if (requestId !== quoteRequestIdRef.current) return;
         setLiveQuote(null);
         setUpgradeDue(null);
+        setUpgradeDeltaPricing(null);
+        setUpgradeLineItems([]);
         setQuoteError(
           err instanceof Error ? err.message : "Live pricing request failed."
         );
@@ -1427,6 +1513,7 @@ function PortalCustomErpUpgradeWizard({
     primary?.product_slug,
     catalogModules.length,
     catalogPacks.length,
+    appliedCoupon,
   ]);
 
   function toggleModule(code: string) {
@@ -1524,20 +1611,7 @@ function PortalCustomErpUpgradeWizard({
           branch_limit: positiveLimit(branchLimit, minBranches),
           warehouse_limit: positiveLimit(warehouseLimit, minWarehouses),
           billing_cycle: billingCycle || undefined,
-          currency: quoteCurrency || liveQuote?.pricing?.currency || undefined,
-          pricing_summary:
-            upgradeDue != null
-              ? {
-                  // Payable SSOT = Engine upgrade amount (matches checkout session + invoice).
-                  currency: quoteCurrency || liveQuote?.pricing?.currency || "USD",
-                  subtotal: upgradeDue,
-                  discount_amount: 0,
-                  tax_amount: 0,
-                  grand_total: upgradeDue,
-                  upgrade_due: upgradeDue,
-                  package_grand_total: liveQuote?.pricing?.grand_total ?? null,
-                }
-              : undefined,
+          ...(appliedCoupon ? { coupon: appliedCoupon } : {}),
         }),
       });
       const json = (await res.json()) as {
@@ -1638,7 +1712,7 @@ function PortalCustomErpUpgradeWizard({
           </span>
           {m.description ? (
             <span className="mt-0.5 block text-xs text-[var(--portal-muted)] line-clamp-1">
-              {m.description}
+              {customerModuleDescription(m.description)}
             </span>
           ) : null}
           {isSelected && linkedPacks.length > 0 ? (
@@ -2024,10 +2098,14 @@ function PortalCustomErpUpgradeWizard({
               {newlySelected.length > 0 ? (
                 <div>
                   <p className="font-medium">New modules</p>
+                  <p className="mt-0.5 text-[11px] text-[var(--portal-muted)]">
+                    Amounts are your prorated upgrade share from the License Engine quote
+                    (same as checkout and invoice).
+                  </p>
                   <ul className="mt-1 space-y-1.5 text-[var(--portal-muted)]">
                     {newlySelected.map((code) => {
                       const mod = moduleByCode.get(code);
-                      const unit = cycleUnitPrice(mod || {}, billingCycle);
+                      const unit = upgradeLineUnitPrice(upgradeLineItems, code, "module");
                       return (
                         <li
                           key={code}
@@ -2035,7 +2113,9 @@ function PortalCustomErpUpgradeWizard({
                         >
                           <span className="min-w-0">{mod?.name || titleCaseCode(code)}</span>
                           <span className="shrink-0 font-medium tabular-nums text-[var(--portal-ink)]">
-                            {formatItemPrice(unit, formatPrice)}
+                            {unit != null && upgradeDue != null
+                              ? formatPrice(unit)
+                              : "—"}
                           </span>
                         </li>
                       );
@@ -2050,7 +2130,7 @@ function PortalCustomErpUpgradeWizard({
                   <ul className="mt-1 space-y-1.5 text-[var(--portal-muted)]">
                     {newlySelectedPacks.map((code) => {
                       const pack = packByCode.get(code);
-                      const unit = cycleUnitPrice(pack || {}, billingCycle);
+                      const unit = upgradeLineUnitPrice(upgradeLineItems, code, "feature_pack");
                       return (
                         <li
                           key={code}
@@ -2060,11 +2140,38 @@ function PortalCustomErpUpgradeWizard({
                             {pack?.name || titleCaseCode(code)}
                           </span>
                           <span className="shrink-0 font-medium tabular-nums text-[var(--portal-ink)]">
-                            {formatItemPrice(unit, formatPrice)}
+                            {unit != null && upgradeDue != null
+                              ? formatPrice(unit)
+                              : "—"}
                           </span>
                         </li>
                       );
                     })}
+                  </ul>
+                </div>
+              ) : null}
+
+              {upgradeLineItems.some(
+                (line) => line.kind === "summary" && Number(line.unit_price) > 0
+              ) ? (
+                <div>
+                  <p className="font-medium">Other upgrade charges</p>
+                  <ul className="mt-1 space-y-1.5 text-[var(--portal-muted)]">
+                    {upgradeLineItems
+                      .filter(
+                        (line) => line.kind === "summary" && Number(line.unit_price) > 0
+                      )
+                      .map((line, idx) => (
+                        <li
+                          key={`summary-${idx}`}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <span className="min-w-0">{line.description}</span>
+                          <span className="shrink-0 font-medium tabular-nums text-[var(--portal-ink)]">
+                            {upgradeDue != null ? formatPrice(Number(line.unit_price)) : "—"}
+                          </span>
+                        </li>
+                      ))}
                   </ul>
                 </div>
               ) : null}
@@ -2129,6 +2236,38 @@ function PortalCustomErpUpgradeWizard({
                 </p>
               ) : null}
 
+              {showCouponField ? (
+                <CustomErpCouponField
+                  couponCode={couponInput}
+                  onCouponCodeChange={(value) => {
+                    setCouponInput(value);
+                    setCouponError(null);
+                  }}
+                  onApplyCoupon={() => {
+                    const code = couponInput.trim().toUpperCase();
+                    if (!code) {
+                      setCouponError("Enter a coupon code to apply.");
+                      return;
+                    }
+                    setAppliedCoupon(code);
+                    setCouponError(null);
+                  }}
+                  onClearCoupon={() => {
+                    setCouponInput("");
+                    setAppliedCoupon(null);
+                    setCouponError(null);
+                  }}
+                  couponError={couponError}
+                  couponBusy={quoteBusy}
+                  couponApplied={Boolean(appliedCoupon) && !couponError}
+                  appliedCode={appliedCoupon}
+                  discountAmount={Number(liveQuote?.pricing?.discount_amount ?? 0)}
+                  formatPrice={formatPrice}
+                  showDiscount={Number(liveQuote?.pricing?.discount_amount ?? 0) > 0}
+                  className="border-[var(--portal-border)] bg-[var(--portal-soft)]"
+                />
+              ) : null}
+
               <div className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] p-3 space-y-2">
                 {quoteBusy ? (
                   <div className="flex items-center gap-2 text-xs text-[var(--portal-muted)]">
@@ -2142,25 +2281,39 @@ function PortalCustomErpUpgradeWizard({
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[var(--portal-muted)]">Subtotal</span>
                   <span className="font-medium tabular-nums">
-                    {upgradeDue != null ? formatPrice(upgradeDue) : "—"}
+                    {upgradeDue != null
+                      ? formatPrice(
+                          Number(upgradeDeltaPricing?.subtotal ?? upgradeDue)
+                        )
+                      : "—"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[var(--portal-muted)]">Discounts</span>
                   <span className="font-medium tabular-nums">
-                    {upgradeDue != null ? formatPrice(0) : "—"}
+                    {upgradeDue != null
+                      ? formatPrice(
+                          Number(upgradeDeltaPricing?.discount_amount ?? 0)
+                        )
+                      : "—"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[var(--portal-muted)]">Tax</span>
                   <span className="font-medium tabular-nums">
-                    {upgradeDue != null ? formatPrice(0) : "—"}
+                    {upgradeDue != null
+                      ? formatPrice(Number(upgradeDeltaPricing?.tax_amount ?? 0))
+                      : "—"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-[var(--portal-border)] pt-2">
                   <span className="font-semibold">Grand total</span>
                   <span className="font-semibold tabular-nums">
-                    {upgradeDue != null ? formatPrice(upgradeDue) : "—"}
+                    {upgradeDue != null
+                      ? formatPrice(
+                          Number(upgradeDeltaPricing?.grand_total ?? upgradeDue)
+                        )
+                      : "—"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">

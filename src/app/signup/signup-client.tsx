@@ -69,6 +69,7 @@ import {
   normalizePermalinkSlug,
 } from "@/lib/signup/permalinks";
 import { CustomErpPackageSummary } from "@/components/commercial/custom-erp-package-summary";
+import { shouldShowCheckoutCouponField } from "@/lib/commercial/coupon-visibility";
 import {
   clearCustomErpPackage,
   loadCustomErpPackage,
@@ -1292,8 +1293,7 @@ function SignUpForm({
   }
 
   const captchaLoading = hasRecaptchaV3SiteKey() && captcha.status === "loading";
-  const captchaFailed = hasRecaptchaV3SiteKey() && captcha.status === "error";
-  const submitBlocked = captchaLoading || captchaFailed;
+  const submitBlocked = captchaLoading;
 
   if (paidCheckoutReady) {
     return (
@@ -1460,18 +1460,6 @@ function SignUpForm({
                     Preparing security check...
                   </div>
                 ) : null}
-                {captchaFailed ? (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-black">
-                    <p>Captcha failed to load. Please try again.</p>
-                    <button
-                      type="button"
-                      onClick={captcha.retry}
-                      className="mt-2 font-medium text-primary hover:underline"
-                    >
-                      Retry security check
-                    </button>
-                  </div>
-                ) : null}
                 <Button
                   type="submit"
                   className="w-full"
@@ -1618,6 +1606,12 @@ function SignUpForm({
                   readOnly
                   compact
                   showEditLink
+                  hideCoupon={
+                    !shouldShowCheckoutCouponField({
+                      journey: "custom_erp",
+                      phase: "first_purchase",
+                    })
+                  }
                 />
               ) : (
                 <div className="rounded-2xl border-2 border-sky-400 bg-sky-50 p-4 md:p-5 text-sm">
@@ -1736,6 +1730,12 @@ function SignUpForm({
                     readOnly
                     compact
                     showEditLink
+                    hideCoupon={
+                      !shouldShowCheckoutCouponField({
+                        journey: "custom_erp",
+                        phase: "first_purchase",
+                      })
+                    }
                   />
                 ) : (
                   <div className="rounded-2xl border-2 border-sky-400 bg-sky-50 p-4 text-sm">
@@ -2491,19 +2491,6 @@ function SignUpForm({
                   Preparing security check...
                 </div>
               ) : null}
-              {captchaFailed ? (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-black">
-                  <p>Captcha failed to load. Please try again.</p>
-                  <button
-                    type="button"
-                    onClick={captcha.retry}
-                    className="mt-2 font-medium text-primary hover:underline"
-                  >
-                    Retry security check
-                  </button>
-                </div>
-              ) : null}
-
               <Button
                 type="submit"
                 className="w-full"

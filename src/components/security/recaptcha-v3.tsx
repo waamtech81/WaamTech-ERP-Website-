@@ -222,6 +222,24 @@ export function hasRecaptchaV3SiteKey(): boolean {
   return Boolean(recaptchaSiteKey());
 }
 
+const RECAPTCHA_WARM_INTERVAL_MS = 90_000;
+const RECAPTCHA_BACKGROUND_RETRY_MS = 8_000;
+const RECAPTCHA_INIT_MAX_ATTEMPTS = 6;
+
+async function warmRecaptchaWithRetries(): Promise<boolean> {
+  for (let attempt = 0; attempt < RECAPTCHA_INIT_MAX_ATTEMPTS; attempt += 1) {
+    const ready = await ensureRecaptchaReady();
+    if (ready) return true;
+    resetRecaptchaReady();
+    if (attempt < RECAPTCHA_INIT_MAX_ATTEMPTS - 1) {
+      await new Promise((resolve) =>
+        window.setTimeout(resolve, 400 * (attempt + 1))
+      );
+    }
+  }
+  return false;
+}
+
 export function useRecaptchaReady(): {
   status: RecaptchaReadyStatus;
   retry: () => void;
@@ -233,19 +251,43 @@ export function useRecaptchaReady(): {
     siteKey ? "loading" : "disabled"
   );
 
-  const warm = useCallback(async () => {
+  const warm = useCallback(async (opts?: { background?: boolean }) => {
     if (!siteKey) {
       setStatus("disabled");
       return;
     }
-    setStatus("loading");
-    const ready = await ensureRecaptchaReady();
-    setStatus(ready ? "ready" : "error");
+    if (!opts?.background) {
+      setStatus("loading");
+    }
+    const ready = await warmRecaptchaWithRetries();
+    setStatus(ready ? "ready" : "loading");
   }, [siteKey]);
 
   useEffect(() => {
     void warm();
   }, [warm]);
+
+  useEffect(() => {
+    if (!siteKey || status === "disabled") return;
+
+    const refreshTimer = window.setInterval(() => {
+      void executeRecaptcha("portal_auth_warm").catch(() => {
+        resetRecaptchaReady();
+        void warm({ background: true });
+      });
+    }, RECAPTCHA_WARM_INTERVAL_MS);
+
+    const retryTimer = window.setInterval(() => {
+      if (status === "ready") return;
+      resetRecaptchaReady();
+      void warm({ background: true });
+    }, RECAPTCHA_BACKGROUND_RETRY_MS);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.clearInterval(retryTimer);
+    };
+  }, [siteKey, status, warm]);
 
   const retry = useCallback(() => {
     resetRecaptchaReady();
@@ -256,6 +298,7 @@ export function useRecaptchaReady(): {
     status,
     retry,
     isReady: status === "ready" || status === "disabled",
-    isBlocking: status === "loading" || status === "error",
+    // Never block auth — executeRecaptcha() mints a fresh token at submit time.
+    isBlocking: false,
   };
 }

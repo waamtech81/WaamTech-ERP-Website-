@@ -156,9 +156,12 @@ function SuccessInner() {
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </Button>
-        <Button asChild variant="ghost" className="rounded-xl">
-          <Link href="/portal">Dashboard</Link>
-        </Button>
+        {/* Under review already has primary "Go to dashboard" — avoid a second Dashboard CTA. */}
+        {!awaitingReview ? (
+          <Button asChild variant="ghost" className="rounded-xl">
+            <Link href="/portal">Dashboard</Link>
+          </Button>
+        ) : null}
       </div>
     </PortalPanel>
   );

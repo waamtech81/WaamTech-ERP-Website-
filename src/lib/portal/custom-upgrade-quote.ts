@@ -3,7 +3,7 @@
  * Mirrors Engine `upgradeForCustomer` delta: max(0, newQuote.grand_total − currentQuote.grand_total).
  * Never invents catalog prices; both grands come from RPIE `/custom-packages/quote`.
  */
-import { fetchCustomPackageQuote } from "@/lib/commercial/client";
+import { fetchCustomPackageQuote, fetchCustomUpgradeLineItems } from "@/lib/commercial/client";
 import {
   buildCustomPackageQuotePayload,
   engineMoneyFromQuote,
@@ -31,6 +31,14 @@ export type CustomUpgradeQuoteRequest = {
   discount_code?: string | null;
 };
 
+export type CustomUpgradeLineItem = {
+  description: string;
+  quantity: number;
+  unit_price: number;
+  code?: string;
+  kind: "module" | "feature_pack" | "limit" | "summary";
+};
+
 export type CustomUpgradeQuoteResult = {
   /** Engine payable upgrade amount (same formula as checkout/invoice). */
   amount: number;
@@ -40,6 +48,15 @@ export type CustomUpgradeQuoteResult = {
   /** Current-package Engine quote used as baseline (null when none). */
   current_quote: CustomPackageQuoteResult | null;
   pricing: CustomPackageQuoteResult["pricing"];
+  /** Upgrade delta pricing — matches checkout/invoice payable breakdown. */
+  delta_pricing: {
+    subtotal: number;
+    discount_amount: number;
+    tax_amount: number;
+    grand_total: number;
+  };
+  /** Prorated payable lines — same rules as upgrade invoice (Engine SSOT). */
+  upgrade_line_items: CustomUpgradeLineItem[];
 };
 
 function roundMoney(value: number): number {
@@ -60,6 +77,40 @@ function grandFromQuote(quote: CustomPackageQuoteResult | null | undefined): num
   return Number.isFinite(n) ? roundMoney(n) : null;
 }
 
+function pricingField(
+  quote: CustomPackageQuoteResult | null | undefined,
+  field: "subtotal" | "discount_amount" | "tax_amount" | "grand_total"
+): number {
+  if (!quote?.pricing) return 0;
+  const money = engineMoneyFromQuote(quote);
+  const raw =
+    field === "grand_total"
+      ? money?.grand_total ?? quote.pricing.grand_total
+      : quote.pricing[field];
+  const n = Number(raw);
+  return Number.isFinite(n) ? roundMoney(n) : 0;
+}
+
+function deltaPricingFromQuotes(
+  proposed: CustomPackageQuoteResult,
+  current: CustomPackageQuoteResult | null,
+  payableAmount: number
+): CustomUpgradeQuoteResult["delta_pricing"] {
+  const proposedSub = pricingField(proposed, "subtotal");
+  const currentSub = pricingField(current, "subtotal");
+  const proposedDisc = pricingField(proposed, "discount_amount");
+  const currentDisc = pricingField(current, "discount_amount");
+  const proposedTax = pricingField(proposed, "tax_amount");
+  const currentTax = pricingField(current, "tax_amount");
+
+  return {
+    subtotal: roundMoney(Math.max(0, proposedSub - currentSub)),
+    discount_amount: roundMoney(Math.max(0, proposedDisc - currentDisc)),
+    tax_amount: roundMoney(Math.max(0, proposedTax - currentTax)),
+    grand_total: roundMoney(Math.max(0, payableAmount)),
+  };
+}
+
 function codesFromSnapshot(snap: PortalCommercialSnapshot | null): {
   modules: string[];
   packs: string[];
@@ -75,6 +126,10 @@ function codesFromSnapshot(snap: PortalCommercialSnapshot | null): {
     modules: modules.map(String).filter(Boolean),
     packs: packs.map(String).filter(Boolean),
   };
+}
+
+function normModuleCode(code: string): string {
+  return String(code || "").trim().toUpperCase();
 }
 
 export async function quoteCustomErpUpgradePayable(input: {
@@ -147,6 +202,30 @@ export async function quoteCustomErpUpgradePayable(input: {
     }
   }
 
+  const currentModuleSet = new Set(currentCodes.modules.map(normModuleCode));
+  const currentPackSet = new Set(currentCodes.packs.map(normModuleCode));
+  const addedModules = selectedModules.filter((c) => !currentModuleSet.has(normModuleCode(c)));
+  const addedPacks = (input.body.selected_feature_packs || []).filter(
+    (c) => !currentPackSet.has(normModuleCode(c))
+  );
+
+  let upgrade_line_items: CustomUpgradeLineItem[] = [];
+  if (amount > 0 && (addedModules.length > 0 || addedPacks.length > 0)) {
+    const campaignActive =
+      (proposed.data as { campaign?: { campaign_active?: boolean } }).campaign
+        ?.campaign_active !== false;
+    const linesRes = await fetchCustomUpgradeLineItems({
+      billing_cycle: cycle,
+      added_modules: addedModules,
+      added_feature_packs: addedPacks,
+      payable_amount: amount,
+      campaign_active: campaignActive,
+    });
+    if (linesRes.ok && linesRes.data?.upgrade_line_items?.length) {
+      upgrade_line_items = linesRes.data.upgrade_line_items;
+    }
+  }
+
   return {
     ok: true,
     data: {
@@ -155,6 +234,8 @@ export async function quoteCustomErpUpgradePayable(input: {
       quote: proposed.data,
       current_quote: currentQuote,
       pricing: proposed.data.pricing,
+      delta_pricing: deltaPricingFromQuotes(proposed.data, currentQuote, amount),
+      upgrade_line_items,
     },
   };
 }

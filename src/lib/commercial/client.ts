@@ -381,6 +381,104 @@ export async function fetchCustomPackageQuote(
   }
 }
 
+export type CustomUpgradeLineItemsPayload = {
+  billing_cycle: BillingCycle;
+  added_modules: string[];
+  added_feature_packs?: string[];
+  payable_amount: number;
+  campaign_active?: boolean;
+};
+
+export type CustomUpgradeLineItemsResult = {
+  upgrade_line_items: Array<{
+    description: string;
+    quantity: number;
+    unit_price: number;
+    code?: string;
+    kind: "module" | "feature_pack" | "limit" | "summary";
+  }>;
+};
+
+/** Engine prorated upgrade lines — matches checkout/invoice itemization. */
+export async function fetchCustomUpgradeLineItems(
+  body: CustomUpgradeLineItemsPayload
+): Promise<CatalogFetchResult<CustomUpgradeLineItemsResult | null>> {
+  const base = commercialApiBase();
+  const url = `${base}/v1/public/catalog/custom-packages/upgrade-line-items`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...commercialHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        billing_cycle: body.billing_cycle,
+        added_modules: body.added_modules,
+        added_feature_packs: body.added_feature_packs || [],
+        payable_amount: body.payable_amount,
+        campaign_active: body.campaign_active,
+      }),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    let json: LicenseEnvelope<unknown> = {};
+    try {
+      json = (await res.json()) as LicenseEnvelope<unknown>;
+    } catch {
+      json = { success: false, message: "Invalid response from License Engine." };
+    }
+
+    const data = json.data as CustomUpgradeLineItemsResult | null | undefined;
+
+    if (!res.ok || json.success === false || !data?.upgrade_line_items) {
+      return {
+        ok: false,
+        status: res.status,
+        message: publicUpstreamMessage(
+          json.message || json.error?.message,
+          res.status,
+          `License Engine request failed (${res.status}).`,
+          json.code || json.error?.code
+        ),
+        data: null,
+      };
+    }
+
+    return {
+      ok: true,
+      status: res.status,
+      message: json.message || "OK",
+      data,
+    };
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
+    logApiError(error, {
+      httpStatus: aborted ? 504 : 502,
+      technicalMessage:
+        error instanceof Error ? error.message : "Upgrade line items failed",
+    });
+    return emptyResult(
+      null,
+      toPublicError(
+        friendlyNetworkError(
+          error,
+          aborted
+            ? "The upgrade preview timed out. Please retry."
+            : "Could not load upgrade line items. Please try again."
+        ),
+        aborted ? 504 : 502
+      ).message,
+      aborted ? 504 : 502
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 /** Anonymous custom package lead — no customer JWT required. */
 export async function submitCustomPackageRequest(
   body: CustomPackageRequestPayload

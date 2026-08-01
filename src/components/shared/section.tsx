@@ -37,31 +37,38 @@ export function SectionHeader({
   description,
   align = "center",
   className,
+  as: TitleTag = "h2",
 }: {
   eyebrow?: string;
   title: string;
   description?: string;
   align?: "left" | "center";
   className?: string;
+  as?: "h1" | "h2" | "h3";
 }) {
   return (
     <div
       className={cn(
-        "mb-12 md:mb-16 max-w-3xl",
+        "mb-10 md:mb-14 max-w-3xl",
         align === "center" && "mx-auto text-center",
         className
       )}
     >
       {eyebrow ? (
-        <p className="mb-3 text-sm font-medium tracking-wide text-primary uppercase font-sans">
+        <p className="mb-3 font-sans text-sm font-semibold tracking-[0.16em] text-primary uppercase">
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="font-heading text-section font-semibold tracking-tight text-balance text-[#0b1f3a]">
+      <TitleTag className="font-heading text-section font-semibold tracking-tight text-balance text-[#0b1f3a]">
         {title}
-      </h2>
+      </TitleTag>
       {description ? (
-        <p className="mt-4 font-sans text-description font-normal text-muted-foreground leading-relaxed text-balance">
+        <p
+          className={cn(
+            "mt-4 max-w-2xl font-sans text-description font-normal text-muted-foreground leading-relaxed text-pretty",
+            align === "center" && "mx-auto"
+          )}
+        >
           {description}
         </p>
       ) : null}

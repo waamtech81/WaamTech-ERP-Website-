@@ -272,9 +272,15 @@ export function SocialProofSection() {
     <Section>
       <Container>
         <div className="mx-auto mb-12 max-w-3xl text-center">
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
+          <p className="mb-3 text-sm font-semibold tracking-[0.16em] text-primary uppercase">
+            Trust
+          </p>
+          <h2 className="font-heading text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a] text-balance">
             Operators trust {siteConfig.name} for clarity
           </h2>
+          <p className="mt-3 text-muted-foreground leading-relaxed">
+            Real teams using a modular ERP without the template clutter.
+          </p>
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
           {testimonials.map((t, i) => (
@@ -367,18 +373,18 @@ export function PricingTeaser() {
           <h2 className="font-heading text-3xl md:text-4xl font-semibold tracking-tight text-[#0b1f3a]">
             {fromUsd != null ? (
               <>
-                Affordable ERP from <Price usd={fromUsd} />/mo
+                Clear ERP pricing from <Price usd={fromUsd} />/mo
               </>
             ) : (
-              "Plans & pricing from License Engine"
+              "Plans built for growing teams"
             )}
           </h2>
           <p className="mt-2 font-heading text-sm md:text-base font-semibold tracking-tight text-primary">
             No card required · Start your {authConfig.trialDays}-day free trial
           </p>
-          <p className="mt-2 text-muted-foreground leading-relaxed">
-            Sign up directly — no payment upfront. Pricing and billing cycles load live. Enterprise is
-            always Contact Sales.
+          <p className="mt-2 text-muted-foreground leading-relaxed text-pretty">
+            Pick Starter, Business, Lifetime, Custom, or Enterprise. Billing cycles load live —
+            Enterprise is always Contact Sales.
           </p>
         </div>
         {catalog.loading ? <CatalogSkeleton rows={3} /> : null}
@@ -483,22 +489,17 @@ export function SoftCTA() {
       <Container>
         <AnimateIn>
           <div className="relative overflow-hidden rounded-[2rem] border border-border bg-[#0b1f3a] px-8 py-14 md:px-16 md:py-16 text-center text-white">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_70%_20%,rgba(37,99,235,0.35),transparent_60%)]" />
+            <div
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_70%_20%,rgba(37,99,235,0.35),transparent_60%)]"
+              aria-hidden
+            />
             <div className="relative">
               <h2 className="font-heading text-3xl md:text-4xl font-semibold tracking-tight text-balance">
                 Ready to run your business on {siteConfig.name}?
               </h2>
-              <p className="mt-4 font-heading text-base sm:text-lg md:text-xl font-bold tracking-tight text-white">
-                <span className="block sm:inline">No card. No payment.</span>{" "}
-                <span className="block sm:inline text-sky-300">
-                  {authConfig.trialDays}-day free trial signup
-                </span>
-              </p>
-              <p className="mt-1 font-heading text-base sm:text-lg md:text-xl font-bold tracking-tight text-white/95">
-                — start instantly
-              </p>
-              <p className="mt-2 text-white/70 text-base md:text-lg max-w-xl mx-auto">
-                Pick product, plan, industry, and profile in minutes.
+              <p className="mt-4 text-base md:text-lg text-white/80 max-w-xl mx-auto leading-relaxed">
+                No card required. Start a {authConfig.trialDays}-day free trial, or build a custom
+                package — then manage licenses in Customer Portal anytime.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
                 <Button
@@ -517,9 +518,23 @@ export function SoftCTA() {
                   variant="outline"
                   className="rounded-full border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white"
                 >
+                  <Link href="/build-your-own-erp">Build your own ERP</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                >
                   <Link href="/contact">Talk to sales</Link>
                 </Button>
               </div>
+              <p className="mt-5 text-sm text-white/55">
+                Already a customer?{" "}
+                <Link href="/login" className="text-sky-300 underline-offset-4 hover:underline">
+                  Open Customer Portal
+                </Link>
+              </p>
             </div>
           </div>
         </AnimateIn>

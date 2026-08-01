@@ -1547,17 +1547,17 @@ function SignUpForm({
               ? "Create your account to continue"
               : "Create your workspace in minutes"}
           </h1>
-          <p className="mt-2 font-heading text-base sm:text-lg font-semibold tracking-tight text-primary">
+          <p className="mt-2 text-sm font-medium tracking-tight text-primary sm:text-base">
             {isPaidSignup
               ? "Verify your email, then complete payment."
-              : "No card. No payment. Direct signup."}
+              : `No card required · ${authConfig.trialDays}-day free trial`}
           </p>
-          <p className="mt-2 sm:mt-3 text-base sm:text-lg text-muted-foreground leading-relaxed">
+          <p className="mt-2 sm:mt-3 text-base sm:text-lg text-muted-foreground leading-relaxed text-pretty">
             {isPaidSignup
               ? isCustomPackage
-                ? "Confirm your custom ERP package details, create your portal account, and continue to secure checkout."
+                ? "Confirm your custom ERP package, create your portal account, and continue to secure checkout."
                 : "Confirm your plan, industry, and business category — then create your account and continue to checkout."
-              : "Choose your product, plan, industry, and business category — then verify your email to start your trial."}
+              : "Choose product, plan, industry, and category — verify email — start your trial workspace."}
           </p>
           <ul
             className={cn(

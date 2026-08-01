@@ -34,8 +34,8 @@ export default function AllModulesPage() {
                 </h1>
                 <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
                   Explore every module in the {siteConfig.name} suite — what each one does, which
-                  business area it belongs to, and how modules work together. Information only; no
-                  checkout on this page.
+                  business area it belongs to, and how modules work together. Browse freely, then
+                  assemble a custom package or start a trial.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -44,6 +44,9 @@ export default function AllModulesPage() {
                     Build your own custom ERP
                     <ArrowRight className="h-4 w-4" />
                   </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="rounded-full">
+                  <Link href="/signup">Start free trial</Link>
                 </Button>
               </div>
             </div>

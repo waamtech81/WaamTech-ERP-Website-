@@ -528,7 +528,7 @@ function LoginForm() {
       ? `Enter the code sent to ${username || "your email"}`
       : step === "totp"
         ? "Enter the 6-digit code from your authenticator app."
-        : "Choose WAAMTO ERP app login or Customer Portal login. Platform Super Admins sign in with the same email here.";
+        : "Two clear paths: open the ERP app to run your workspace, or sign in to Customer Portal for licenses, billing, and subscriptions.";
 
   const captchaLoading = hasRecaptchaV3SiteKey() && captcha.status === "loading";
   const captchaFailed = hasRecaptchaV3SiteKey() && captcha.status === "error";
@@ -556,15 +556,14 @@ function LoginForm() {
                 <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white mx-auto sm:mx-0">
                   <Boxes className="h-5 w-5" />
                 </div>
-                <CardTitle className="text-xl">WAAMTO ERP Login</CardTitle>
+                <CardTitle className="text-xl">ERP app login</CardTitle>
                 <CardDescription>
-                  Open the live ERP application to sign in and run your business workspace.
+                  Day-to-day operations — sales, inventory, finance, and the rest of your workspace.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col justify-between gap-5">
                 <div className="rounded-xl border border-border bg-slate-50 px-4 py-3 text-sm text-muted-foreground leading-relaxed">
-                  Use this if you already activated your license and work inside the WAAMTO ERP
-                  app at{" "}
+                  Best when your license is active and you work in the ERP app at{" "}
                   <span className="font-medium text-foreground">
                     {authConfig.appUrl.replace(/^https?:\/\//, "")}
                   </span>
@@ -601,16 +600,16 @@ function LoginForm() {
                     ? "Login verification"
                     : step === "totp"
                       ? "Authenticator code"
-                      : "Customer Portal Login"}
+                      : "Customer Portal"}
                 </CardTitle>
                 <CardDescription>
                   {step === "otp"
                     ? accountKind === "platform"
                       ? "Platform Super Admin email verification."
-                      : "No OTP — no portal access."
+                      : "Enter the verification code to continue securely."
                     : step === "totp"
                       ? "Required for Super Admin accounts with 2FA enabled."
-                      : "Customers use License Engine identity. Platform Super Admins use the same staff email/password as License Engine Admin."}
+                      : "Manage licenses, invoices, subscriptions, and organization access. Platform Super Admins can also sign in here."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col">

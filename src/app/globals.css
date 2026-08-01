@@ -368,6 +368,60 @@ select {
   }
 }
 
+/* Accessibility — keyboard skip target (visible on focus only) */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: 0;
+  z-index: 100;
+  transform: translateY(-120%);
+  border-radius: 9999px;
+  background: var(--brand-dark);
+  color: #fff;
+  padding: 0.65rem 1.1rem;
+  font-size: var(--type-nav);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 10px 30px rgba(9, 33, 91, 0.35);
+  transition: transform 160ms ease;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0.85rem);
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Lightweight journey chips — homepage / CTA strips */
+.journey-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.journey-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, var(--primary));
+  background: color-mix(in srgb, white 88%, var(--muted));
+  padding: 0.35rem 0.8rem;
+  font-size: var(--type-caption);
+  font-weight: 500;
+  color: color-mix(in srgb, var(--foreground) 78%, var(--muted-foreground));
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.journey-chip:hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  color: var(--primary);
+  background: color-mix(in srgb, white 70%, var(--primary) 6%);
+}
+
 .section-padding {
   padding-block: 3.5rem;
 }

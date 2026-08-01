@@ -41,11 +41,16 @@ export default function BuildYourOwnErpPage() {
               <h1 className="text-3xl font-semibold tracking-tight text-[#0b1f3a] text-balance sm:text-4xl md:text-5xl">
                 Build your own custom ERP
               </h1>
-              <p className="mt-4 max-w-4xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Select your industry and business category, start from the recommended modules and
-                feature packs, tune seats and billing, and continue to Signup — with live pricing
-                the whole way.
+              <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg text-pretty">
+                Choose industry and category, start from recommended modules and feature packs,
+                tune seats and billing, then continue to signup — live pricing the whole way.
               </p>
+              <ol className="mt-5 flex flex-wrap gap-2 text-xs font-medium text-muted-foreground sm:text-sm" aria-label="Builder journey">
+                <li className="rounded-full border border-border bg-white px-3 py-1">1. Industry</li>
+                <li className="rounded-full border border-border bg-white px-3 py-1">2. Modules</li>
+                <li className="rounded-full border border-border bg-white px-3 py-1">3. Limits</li>
+                <li className="rounded-full border border-border bg-white px-3 py-1">4. Signup</li>
+              </ol>
               <div className="mt-6 flex flex-nowrap items-stretch gap-2 overflow-x-auto pb-0.5 scrollbar-thin sm:flex-wrap sm:overflow-visible sm:gap-3">
                 <Button asChild size="sm" className="h-9 shrink-0 rounded-full px-3 text-xs whitespace-nowrap sm:h-11 sm:px-6 sm:text-sm">
                   <Link href="#builder">

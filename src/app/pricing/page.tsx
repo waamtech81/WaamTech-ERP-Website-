@@ -85,8 +85,9 @@ export default function PricingPage() {
           <Breadcrumbs items={[{ label: "Pricing" }]} />
           <SectionHeader
             eyebrow="Pricing"
-            title="Plans from the License Engine"
-            description="Starter, Business, Lifetime, and Enterprise — loaded live from WaamTech commercial catalog. Enterprise is always custom pricing."
+            as="h1"
+            title="Choose the plan that fits how you grow"
+            description="Starter, Business, Lifetime, Build Your Own, and Enterprise — live commercial pricing. Start a free trial without a card; Enterprise is always Contact Sales."
           />
 
           {promo ? (

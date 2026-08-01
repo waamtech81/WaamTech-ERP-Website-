@@ -33,9 +33,18 @@ export function SiteShellClient({
 
   return (
     <>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <OfflineBanner />
       {header}
-      <main className="relative z-[1] flex-1 overflow-x-clip bg-background">{children}</main>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="relative z-[1] flex-1 overflow-x-clip bg-background outline-none"
+      >
+        {children}
+      </main>
       {footer}
       {cookieBanner}
     </>

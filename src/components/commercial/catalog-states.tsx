@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Loader2, RefreshCw, AlertTriangle, Inbox, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,18 +8,26 @@ import { cn } from "@/lib/utils";
 export function CatalogSkeleton({
   rows = 3,
   className,
+  label = "Loading catalog",
 }: {
   rows?: number;
   className?: string;
+  label?: string;
 }) {
   return (
-    <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-3", className)} aria-busy>
+    <div
+      className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-3", className)}
+      aria-busy="true"
+      aria-live="polite"
+      aria-label={label}
+    >
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={i}
-          className="h-48 animate-pulse rounded-2xl border border-border bg-slate-100/80"
+          className="h-48 animate-pulse rounded-2xl border border-border bg-gradient-to-b from-slate-100/90 to-slate-50/80"
         />
       ))}
+      <span className="sr-only">{label}…</span>
     </div>
   );
 }
@@ -43,13 +52,14 @@ export function CatalogErrorState({
         className
       )}
       role="alert"
+      aria-live="assertive"
     >
-      <Icon className={cn("h-8 w-8", offline ? "text-amber-600" : "text-rose-500")} />
-      <p className={cn("max-w-md text-sm", offline ? "text-amber-950" : "text-rose-900")}>
+      <Icon className={cn("h-8 w-8", offline ? "text-amber-600" : "text-rose-500")} aria-hidden />
+      <p className={cn("max-w-md text-sm leading-relaxed", offline ? "text-amber-950" : "text-rose-900")}>
         {message ||
           (offline
             ? "You appear to be offline. Check your connection and try again."
-            : "Commercial catalog is temporarily unavailable.")}
+            : "Catalog is temporarily unavailable. Please try again in a moment.")}
       </p>
       {onRetry ? (
         <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onRetry}>
@@ -70,7 +80,7 @@ export function CatalogSelectError({
   onRetry?: () => void;
 }) {
   return (
-    <li className="space-y-2 px-3 py-4 text-center">
+    <li className="space-y-2 px-3 py-4 text-center" role="alert">
       <p className="text-sm text-rose-600">{message || "Unable to load options."}</p>
       {onRetry ? (
         <Button
@@ -94,30 +104,34 @@ export function CatalogSelectError({
 export function CatalogEmptyState({
   message,
   className,
+  action,
 }: {
   message?: string;
   className?: string;
+  action?: ReactNode;
 }) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-white px-6 py-12 text-center",
+        "flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-white px-6 py-12 text-center",
         className
       )}
+      role="status"
     >
-      <Inbox className="h-8 w-8 text-muted-foreground" />
-      <p className="max-w-md text-sm text-muted-foreground">
-        {message || "No commercial items are published yet."}
+      <Inbox className="h-8 w-8 text-muted-foreground" aria-hidden />
+      <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+        {message || "Nothing to show here yet."}
       </p>
+      {action ? <div className="mt-1">{action}</div> : null}
     </div>
   );
 }
 
 export function CatalogLoadingInline({ label = "Loading…" }: { label?: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      <Loader2 className="h-4 w-4 animate-spin" />
-      {label}
+    <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="polite">
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+      <span>{label}</span>
     </div>
   );
 }

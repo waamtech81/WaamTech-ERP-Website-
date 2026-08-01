@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: `Industries We Serve — ${siteConfig.name}`,
-  description: `Explore ${siteConfig.name} industries loaded live from the WaamTech License Engine commercial catalog.`,
+  description: `Explore ${siteConfig.name} industry solutions — choose your vertical, business category, and profile, then start a free trial.`,
 };
 
 const HERO_IMAGE = heroImageUrl(
@@ -25,17 +25,17 @@ const FLOW = [
   {
     step: "01",
     title: "Choose your industry",
-    text: "Select from the live License Engine industry catalog.",
+    text: "Browse live industry options tailored to how your sector operates.",
   },
   {
     step: "02",
     title: "Pick a business category",
-    text: "Categories load dynamically for the selected industry.",
+    text: "Categories appear for your industry so modules match your workflow.",
   },
   {
     step: "03",
     title: "Select a business profile",
-    text: "Profiles load for the selected category — then start registration.",
+    text: "Confirm your profile, then continue to free-trial signup in minutes.",
   },
 ] as const;
 
@@ -69,8 +69,8 @@ export default function IndustriesPage() {
               Built for how your industry actually runs
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
-              Industry first, then your business category — live from License Engine so modules
-              match the way you sell, stock, and serve.
+              Start with your industry, then your business category — so modules match the way you
+              sell, stock, and serve.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" className="rounded-full bg-white text-[#0b1f3a] hover:bg-white/90">
@@ -103,8 +103,8 @@ export default function IndustriesPage() {
                 Find your vertical — then drill into categories
               </h2>
               <p className="mt-3 text-muted-foreground leading-relaxed">
-                Each industry opens real business categories and profiles from License Engine.
-                Pick one to configure your workspace and start the trial.
+                Each industry opens real business categories and profiles. Pick one to configure
+                your workspace and start the trial.
               </p>
             </div>
           </AnimateIn>
@@ -151,7 +151,7 @@ export default function IndustriesPage() {
 
       <CTASection
         title="Ready for your industry profile?"
-        description={`We'll map ${siteConfig.name} using License Engine commercial selections — then you start the free trial.`}
+        description={`We'll map ${siteConfig.name} to your industry and category — then you start the free trial.`}
         primaryLabel="Start free trial"
         primaryHref="/signup"
         secondaryLabel="Talk to sales"

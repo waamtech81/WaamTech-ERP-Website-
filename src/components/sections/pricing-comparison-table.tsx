@@ -71,11 +71,22 @@ export function PricingComparisonTable({
         Sticky header lives inside this scrollport so it sticks while the table
         scrolls and naturally unsticks when the table leaves the viewport.
       */}
-      <div className="max-h-[min(70vh,40rem)] overflow-auto rounded-2xl border border-border bg-white -mx-1 px-1 sm:mx-0 sm:px-0">
+      <div
+        className="max-h-[min(70vh,40rem)] overflow-auto rounded-2xl border border-border bg-white -mx-1 px-1 sm:mx-0 sm:px-0"
+        role="region"
+        aria-label="Plan feature comparison"
+        tabIndex={0}
+      >
         <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
+          <caption className="sr-only">
+            Compare features across {plans.map((p) => planHeaderTitle(p)).join(", ")}
+          </caption>
           <thead className="sticky top-0 z-20">
             <tr>
-              <th className="sticky left-0 top-0 z-30 bg-slate-50 px-3 py-3 text-left font-semibold text-[#0b1f3a] shadow-[0_1px_0_0_rgba(15,23,42,0.08)] sm:px-4">
+              <th
+                scope="col"
+                className="sticky left-0 top-0 z-30 bg-slate-50 px-3 py-3 text-left font-semibold text-[#0b1f3a] shadow-[0_1px_0_0_rgba(15,23,42,0.08)] sm:px-4"
+              >
                 Feature
               </th>
               {plans.map((p) => {
@@ -83,6 +94,7 @@ export function PricingComparisonTable({
                 return (
                   <th
                     key={p.id}
+                    scope="col"
                     className="bg-slate-50 px-3 py-3 text-center font-semibold text-[#0b1f3a] shadow-[0_1px_0_0_rgba(15,23,42,0.08)] sm:px-4"
                   >
                     <span className="block">{planHeaderTitle(p)}</span>

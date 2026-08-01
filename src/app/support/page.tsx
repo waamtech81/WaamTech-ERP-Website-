@@ -23,6 +23,7 @@ export default function SupportPage() {
           <Breadcrumbs items={[{ label: "Support" }]} />
           <SectionHeader
             align="left"
+            as="h1"
             eyebrow="Support"
             title="Help when your operations need it"
             description="Email our team, open live chat, or sign in to your ERP workspace to manage support tickets."

@@ -407,8 +407,7 @@ export function PortalDashboardView() {
                       <p className="text-base font-semibold tracking-tight sm:text-lg">
                         {primary.product_name || "Product"} ·{" "}
                         {primary.plan_name ||
-                          (String(primary.package_type || "").toLowerCase() === "custom" ||
-                          primary.modules.length
+                          (String(primary.package_type || "").toLowerCase() === "custom"
                             ? "Custom package"
                             : "Plan")}
                       </p>

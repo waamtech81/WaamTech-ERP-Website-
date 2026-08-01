@@ -7,11 +7,12 @@ import { AnimateIn } from "@/components/shared/animate-in";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OpenLiveChatButton } from "@/components/support/open-live-chat-button";
+import { getAppLoginUrl } from "@/lib/auth/config";
 
 export const metadata: Metadata = {
   title: "Support",
   description:
-    "Get help from WAAMTO — secure contact form, live chat, and support tickets in the Customer Portal.",
+    "Get help from WAAMTO through our secure contact form, live chat, documentation, and ERP support workspace.",
 };
 
 export default function SupportPage() {
@@ -24,7 +25,7 @@ export default function SupportPage() {
             align="left"
             eyebrow="Support"
             title="Help when your operations need it"
-            description="Email our team, open live chat, or sign in to open support tickets from your Customer Portal."
+            description="Email our team, open live chat, or sign in to your ERP workspace to manage support tickets."
             className="mb-0 max-w-3xl"
           />
         </Container>
@@ -94,7 +95,9 @@ export default function SupportPage() {
                     workspace — support is not hosted in the customer portal.
                   </p>
                   <Button asChild className="mt-6 w-full rounded-full">
-                    <Link href="/login">Sign in to WAAMTO</Link>
+                    <a href={getAppLoginUrl()} target="_blank" rel="noopener noreferrer">
+                      Sign in to WAAMTO
+                    </a>
                   </Button>
                 </CardContent>
               </Card>

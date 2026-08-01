@@ -12,7 +12,7 @@ import { ModulesCatalog } from "@/components/sections/modules-catalog";
 
 export const metadata: Metadata = {
   title: `All ERP Modules — ${siteConfig.name}`,
-  description: `Explore every ${siteConfig.name} ERP module — name, description, category, industry, version, and pricing from License Engine.`,
+  description: `Browse the complete ${siteConfig.name} ERP module library — every module, category, and capability in one place.`,
   alternates: { canonical: "/modules" },
 };
 
@@ -33,8 +33,9 @@ export default function AllModulesPage() {
                   All ERP Modules
                 </h1>
                 <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                  The complete {siteConfig.name} module suite — live from License Engine with
-                  category, industry, version, dependencies, and default add-on pricing.
+                  Explore every module in the {siteConfig.name} suite — what each one does, which
+                  business area it belongs to, and how modules work together. Information only; no
+                  checkout on this page.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">

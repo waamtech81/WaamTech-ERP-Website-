@@ -805,7 +805,7 @@ export async function requestSubscriptionResumeRenewal(
   );
 }
 
-/** Request plan upgrade (Engine rejects downgrades when filtered client-side). */
+/** Request an Engine-authorized plan change; the Engine determines upgrade/downgrade policy. */
 export async function requestPlanChange(
   accessToken: string,
   body: {

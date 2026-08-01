@@ -1,11 +1,8 @@
 /**
  * Custom ERP Builder helpers — presentation + catalog matching only.
  * Industry/Category SSOT remains License Engine public registries.
- * Recommended modules prefer License Engine category defaults
- * (`category-recommended-modules.json`); marketing profiles are fallback only.
+ * Recommendations, required modules, and feature packs come from License Engine.
  */
-import { industriesServing, type IndustryProfile } from "@/lib/data/industries";
-import { legacyProfileMap } from "@/lib/data/business-hierarchy";
 import {
   moduleByCodeMap,
   resolveRequiredDependencies,
@@ -15,7 +12,6 @@ import type {
   BillingCycle,
   CatalogBuilderRecommendationPack,
   CatalogBuilderRecommendations,
-  CatalogBusinessCategory,
   CatalogComparisonBundle,
   CatalogModule,
   CatalogPlanLimits,
@@ -23,7 +19,6 @@ import type {
   PublicCommercialOverview,
 } from "@/lib/commercial/types";
 import type { PricingPlan } from "@/types";
-import categoryRecommendedModules from "@/lib/commercial/category-recommended-modules.json";
 
 export type BuilderStepId =
   | "industry"
@@ -110,35 +105,6 @@ function normKey(value: string): string {
     .replace(/\s+/g, "_");
 }
 
-/** Match Engine category → marketing IndustryProfile for recommendations. */
-export function matchCategoryProfile(
-  category: Pick<CatalogBusinessCategory, "code" | "slug" | "name" | "id"> | null | undefined
-): IndustryProfile | null {
-  if (!category) return null;
-  const keys = [category.slug, category.code, category.id, category.name]
-    .map((v) => normKey(String(v || "")))
-    .filter(Boolean);
-  const aliased = keys.map((k) => normKey(legacyProfileMap[k] || k));
-  const all = [...new Set([...keys, ...aliased])];
-
-  for (const key of all) {
-    const hit = industriesServing.find(
-      (p) =>
-        normKey(p.id) === key ||
-        normKey(p.name) === key ||
-        slugifyLabel(p.name).replace(/-/g, "_") === key
-    );
-    if (hit) return hit;
-  }
-
-  // Loose: profile id contained in category slug or vice versa
-  for (const profile of industriesServing) {
-    const pid = normKey(profile.id);
-    if (all.some((k) => k.includes(pid) || pid.includes(k))) return profile;
-  }
-  return null;
-}
-
 /** Map display module names / codes onto live catalog module codes. */
 export function resolveModuleCodesFromLabels(
   labels: string[],
@@ -172,127 +138,6 @@ export function resolveModuleCodesFromLabels(
     out.push(found.code);
   }
   return out;
-}
-
-export function resolveCategoryRequiredModuleCodes(
-  category: CatalogBusinessCategory | null | undefined,
-  modules: CatalogModule[]
-): string[] {
-  if (!category) return [];
-  const posMode = String(category.pos_requirement || category.pos_mode || "")
-    .trim()
-    .toLowerCase();
-  if (posMode !== "required") return [];
-  return resolveModuleCodesFromLabels(["POS", "pos"], modules);
-}
-
-export type CategoryRecommendation = {
-  profile: IndustryProfile | null;
-  recommended_modules: string[];
-  required_modules: string[];
-  feature_packs: BuilderFeaturePack[];
-};
-
-function resolveEngineCategoryRecommendedCodes(
-  category: CatalogBusinessCategory | null | undefined,
-  modules: CatalogModule[]
-): string[] {
-  if (!category) return [];
-  const table = (categoryRecommendedModules as { categories?: Record<string, string[]> })
-    ?.categories || {};
-  const keys = [category.code, category.slug, category.id]
-    .map((v) => String(v || "").trim().toLowerCase().replace(/-/g, "_"))
-    .filter(Boolean);
-  for (const key of keys) {
-    const list = table[key];
-    if (Array.isArray(list) && list.length) {
-      return resolveModuleCodesFromLabels(list, modules);
-    }
-  }
-  return [];
-}
-
-export function buildCategoryRecommendation(
-  category: CatalogBusinessCategory | null | undefined,
-  modules: CatalogModule[]
-): CategoryRecommendation {
-  const profile = matchCategoryProfile(category);
-  const recommendedFromEngine = resolveEngineCategoryRecommendedCodes(category, modules);
-  const recommendedFromProfile = resolveModuleCodesFromLabels(
-    profile?.modules || [],
-    modules
-  );
-  // License Engine category defaults first; marketing profile is fallback only.
-  const recommendedBase = recommendedFromEngine.length
-    ? recommendedFromEngine
-    : recommendedFromProfile;
-  const categoryRequired = resolveCategoryRequiredModuleCodes(category, modules);
-  // Lock category-required modules and their dependency tree (even if also recommended).
-  const categoryDeps = resolveRequiredDependencies(categoryRequired, modules);
-  const required_modules = Array.from(
-    new Set([...categoryRequired, ...categoryDeps])
-  );
-  const recommended_modules = recommendedBase.filter(
-    (c) => !required_modules.includes(c)
-  );
-
-  const posRequired =
-    String(category?.pos_requirement || category?.pos_mode || "")
-      .trim()
-      .toLowerCase() === "required";
-
-  const feature_packs: BuilderFeaturePack[] = (profile?.featurePacks || []).map(
-    (name) => {
-      const code = slugifyLabel(name);
-      const required =
-        posRequired && /^(barcode|discount|promo)$/i.test(code.replace(/-/g, ""));
-      return {
-        code,
-        name,
-        description: `${name} capabilities for ${profile?.name || "this business type"}.`,
-        required,
-        // Feature packs are configuration labels until Engine publishes priced packs.
-        monthly_price: 0,
-        yearly_price: 0,
-        lifetime_price: 0,
-      };
-    }
-  );
-
-  return {
-    profile,
-    recommended_modules,
-    required_modules,
-    feature_packs,
-  };
-}
-
-/** Offline fallback when License Engine builder-recommendations is temporarily unavailable. */
-export function builderRecommendationsFromLocalFallback(
-  category: CatalogBusinessCategory,
-  modules: CatalogModule[]
-): CatalogBuilderRecommendations {
-  const local = buildCategoryRecommendation(category, modules);
-  return {
-    industry_id: category.industry_id || "",
-    category_id: category.id,
-    category_code: category.code,
-    category_name: category.name,
-    required_modules: local.required_modules,
-    recommended_modules: local.recommended_modules,
-    recommended_feature_packs: local.feature_packs.map((pack) => ({
-      code: pack.code,
-      name: pack.name,
-      description: pack.description,
-      required_module_codes: [],
-      monthly_price: pack.monthly_price,
-      yearly_price: pack.yearly_price,
-      lifetime_price: pack.lifetime_price,
-    })),
-    strategy: "local_fallback",
-    provisioning_note:
-      "Showing offline recommendations — live License Engine data is temporarily unavailable.",
-  };
 }
 
 export function normPackKey(value: string): string {

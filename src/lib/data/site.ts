@@ -79,7 +79,7 @@ export const otherMegaMenu: {
     category: "Resources",
     items: [
       { title: "Knowledge Base", href: "https://doc.waamto.com", description: "WAAMTO product documentation and guides.", icon: "FileText" },
-      { title: "Support Center", href: "/support", description: "Email, live chat & portal tickets.", icon: "ShieldCheck" },
+      { title: "Support Center", href: "/support", description: "Email, live chat, documentation & ERP support.", icon: "ShieldCheck" },
       { title: "FAQs", href: "/faqs", description: "Quick answers to common questions.", icon: "Sparkles" },
     ],
   },
@@ -381,7 +381,7 @@ export const faqs: FaqItem[] = [
     id: "2",
     question: "Can I switch plans later?",
     answer:
-      "Yes. You can upgrade or downgrade at any time. Changes are prorated and reflected on your next billing cycle through the customer portal.",
+      "Yes. You can request plan changes through the customer portal. Upgrades may require immediate payment, while approved downgrades take effect at the next billing cycle. Enterprise changes are coordinated with sales.",
     category: "Billing",
   },
   {

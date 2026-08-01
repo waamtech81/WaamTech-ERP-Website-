@@ -45,7 +45,7 @@ import {
   resolvePrimaryBillingCycle,
   showRenewalUi,
 } from "@/lib/portal/package-type";
-import { authConfig } from "@/lib/auth/config";
+import { authConfig, getAppLoginUrl } from "@/lib/auth/config";
 import { fetchPublicCommercialOverview, fetchPublicModules } from "@/lib/commercial/client";
 import {
   featurePackMatchesSelectedModules,
@@ -728,11 +728,11 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
         <div className="grid gap-4 sm:grid-cols-3">
           {[
             {
-              href: "/contact",
+              href: getAppLoginUrl({ email: data.identity.email }),
               label: "Open a ticket",
-              hint: "Contact WaamTech support",
+              hint: "Open support in your ERP workspace",
               icon: LifeBuoy,
-              external: false,
+              external: true,
             },
             {
               href: "/portal/licenses",

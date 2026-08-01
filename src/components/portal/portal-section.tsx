@@ -222,9 +222,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             lic.plan_name ||
             (String(lic.package_type || "").toLowerCase() === "custom"
               ? "Custom package"
-              : lic.modules.length
-                ? "Custom package"
-                : "Plan");
+              : "Plan");
           return (
           <article
             key={lic.id}

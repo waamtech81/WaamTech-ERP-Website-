@@ -82,7 +82,7 @@ export function SwiverHero() {
                 WT
               </span>
               <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{siteConfig.name}</span> powers 17 industries & 100+ business categories
+                <span className="font-medium text-foreground">{siteConfig.name}</span> uses the live industry and business category catalog
               </p>
             </div>
           </div>

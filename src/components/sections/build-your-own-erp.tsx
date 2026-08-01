@@ -65,7 +65,6 @@ import {
 import {
   BUILDER_STEPS,
   buildBuilderFeaturePacksForConfiguration,
-  builderRecommendationsFromLocalFallback,
   clampTenantLimits,
   defaultTenantLimitsFromCommercial,
   DEFAULT_TENANT_LIMITS,
@@ -860,7 +859,6 @@ export function BuildYourOwnErpBuilder() {
   const [builderRecommendedModules, setBuilderRecommendedModules] = useState<string[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
-  const [recommendationsFallback, setRecommendationsFallback] = useState(false);
   const [, startTransition] = useTransition();
   const restoreCategoryMetaRef = useRef(false);
   const pendingAddCodeRef = useRef<string | null>(null);
@@ -1363,7 +1361,6 @@ export function BuildYourOwnErpBuilder() {
     setBuilderRecommendedModules([]);
     setBuilderRecommendations(null);
     setRecommendationsError(null);
-    setRecommendationsFallback(false);
     setFeaturePacks([]);
     setSelectedPacks([]);
     setQuery("");
@@ -1378,7 +1375,6 @@ export function BuildYourOwnErpBuilder() {
   ) {
     setRecommendationsLoading(true);
     setRecommendationsError(null);
-    setRecommendationsFallback(false);
     try {
       const res = await fetch(
         `/api/commercial/builder-recommendations?category_id=${encodeURIComponent(cat.id)}`,
@@ -1393,26 +1389,17 @@ export function BuildYourOwnErpBuilder() {
         throw new Error(json.message || "Builder recommendations unavailable.");
       }
       applyBuilderRecommendations(json.data, opts);
-      setRecommendationsFallback(false);
     } catch (err) {
-      if (modules.length) {
-        const fallback = builderRecommendationsFromLocalFallback(cat, modules);
-        applyBuilderRecommendations(fallback, opts);
-        setRecommendationsError(null);
-        setRecommendationsFallback(true);
-      } else {
-        setBuilderRecommendations(null);
-        setBuilderRequiredModules([]);
-        setBuilderRecommendedModules([]);
-        setCategoryRequired([]);
-        setSelected([]);
-        setFeaturePacks([]);
-        setSelectedPacks([]);
-        setRecommendationsError(
-          err instanceof Error ? err.message : "Builder recommendations unavailable."
-        );
-        setRecommendationsFallback(false);
-      }
+      setBuilderRecommendations(null);
+      setBuilderRequiredModules([]);
+      setBuilderRecommendedModules([]);
+      setCategoryRequired([]);
+      setSelected([]);
+      setFeaturePacks([]);
+      setSelectedPacks([]);
+      setRecommendationsError(
+        err instanceof Error ? err.message : "Builder recommendations unavailable."
+      );
     } finally {
       setRecommendationsLoading(false);
     }
@@ -2350,12 +2337,6 @@ export function BuildYourOwnErpBuilder() {
                     </div>
                   ) : (
                     <div className="grid gap-4 sm:grid-cols-2">
-                      {recommendationsFallback ? (
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:col-span-2">
-                          Live License Engine recommendations are temporarily unavailable. Showing
-                          offline defaults until the service recovers.
-                        </div>
-                      ) : null}
                       <div className="rounded-2xl border border-border bg-white p-4">
                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           Required modules

@@ -105,7 +105,8 @@ export default function TermsPage() {
             <p>
               Paid plans renew according to the billing cycle you select (monthly, yearly, or lifetime
               where offered) unless canceled or changed through the customer portal or as otherwise
-              agreed. Plan upgrades and downgrades generally take effect at the next billing cycle.
+              agreed. Plan upgrades may require immediate payment; approved downgrades generally take
+              effect at the next billing cycle.
               Adding modules, feature packs, extra users, or other billable items may require immediate
               payment; removing items may apply as a credit on a future cycle as shown in the portal.
             </p>

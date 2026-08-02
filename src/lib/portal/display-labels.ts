@@ -2,6 +2,8 @@
  * End-user labels for portal — maps Engine / API values to readable copy.
  */
 
+import { formatPortalCommercialDate } from "@/lib/portal/commercial-dates";
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -133,20 +135,13 @@ export function formatPortalRenewalLabel(input: {
   payment_date?: string | null;
   completed_at?: string | null;
 }): string {
-  const date = [input.renewal_date, input.payment_date, input.completed_at]
-    .map((v) => (v ? String(v).slice(0, 10) : ""))
-    .find(Boolean) || "";
+  const date =
+    input.renewal_date ||
+    input.payment_date ||
+    (input.completed_at ? String(input.completed_at).slice(0, 10) : "");
   if (date) {
-    try {
-      const formatted = new Intl.DateTimeFormat(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      }).format(new Date(date));
-      return `Plan renewal · ${formatted}`;
-    } catch {
-      return "Plan renewal";
-    }
+    const formatted = formatPortalCommercialDate(date);
+    if (formatted) return `Plan renewal · ${formatted}`;
   }
   return "Plan renewal";
 }

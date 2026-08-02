@@ -25,6 +25,18 @@ export function normalizePortalCommercialDate(value: unknown): string | null {
   return `${y}-${m}-${day}`;
 }
 
+const MIN_PORTAL_COMMERCIAL_YEAR = 2010;
+const MAX_PORTAL_COMMERCIAL_YEAR = 2100;
+
+/** Reject epoch/garbage dates from renewal history display. */
+export function isPlausiblePortalCommercialDate(value?: string | null): boolean {
+  if (!value) return false;
+  const m = /^(\d{4})-\d{2}-\d{2}$/.exec(value);
+  if (!m) return false;
+  const year = Number(m[1]);
+  return year >= MIN_PORTAL_COMMERCIAL_YEAR && year <= MAX_PORTAL_COMMERCIAL_YEAR;
+}
+
 /** Format for portal UI — date-only stays date-only; timestamps include time + PKT. */
 export function formatPortalCommercialDate(value?: string | null): string | null {
   if (!value) return null;

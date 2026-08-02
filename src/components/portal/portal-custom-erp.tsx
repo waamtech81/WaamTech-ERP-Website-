@@ -600,12 +600,12 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                 billingCycleFallback={sub?.billing_cycle}
                 customerFacing
               />
-              {data.renewals?.length ? (
-                <div>
-                  <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                    <History className="h-4 w-4" />
-                    License history
-                  </p>
+              <div>
+                <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                  <History className="h-4 w-4" />
+                  License history
+                </p>
+                {data.renewals?.length ? (
                   <div className="portal-table-wrap">
                     <table className="portal-table">
                       <thead>
@@ -630,8 +630,10 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                       </tbody>
                     </table>
                   </div>
-                </div>
-              ) : null}
+                ) : (
+                  <p className="text-sm text-[var(--portal-muted)]">No renewal history yet.</p>
+                )}
+              </div>
             </div>
           </PortalPanel>
         ) : (

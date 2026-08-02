@@ -699,7 +699,9 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               </table>
             </div>
           </div>
-        ) : null}
+        ) : (
+          <p className="text-sm text-[var(--portal-muted)]">No renewal history yet.</p>
+        )}
         <div className="flex flex-wrap gap-2">
           {canRenew ? (
             isCustomJourney ? (

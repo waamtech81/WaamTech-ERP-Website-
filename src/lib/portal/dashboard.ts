@@ -16,7 +16,10 @@ import {
   resolvePortalTenantLimits,
   type PortalCommercialSnapshot,
 } from "@/lib/portal/commercial-snapshot";
-import { normalizePortalCommercialDate } from "@/lib/portal/commercial-dates";
+import {
+  isPlausiblePortalCommercialDate,
+  normalizePortalCommercialDate,
+} from "@/lib/portal/commercial-dates";
 import { authConfig, normalizeApiBase } from "@/lib/auth/config";
 import {
   fetchBillingCompany,
@@ -385,18 +388,35 @@ function extractFeaturePackNames(source: unknown): string[] {
     .filter(Boolean);
 }
 
-function normalizeCommercialRenewal(raw: Record<string, unknown>): CommercialRenewal {
-  const renewalDate = normalizePortalCommercialDate(
-    raw.new_renewal_date || raw.renewal_date || raw.new_expiry || raw.payment_date
-  );
+function normalizeCommercialRenewal(raw: Record<string, unknown>): CommercialRenewal | null {
+  const completedAtRaw = raw.completed_at;
+  const completedAt =
+    completedAtRaw != null && completedAtRaw !== ""
+      ? normalizePortalCommercialDate(String(completedAtRaw).slice(0, 10))
+      : null;
+  const paymentDate = normalizePortalCommercialDate(raw.payment_date || raw.paid_date);
+  const renewalDate =
+    paymentDate ||
+    completedAt ||
+    normalizePortalCommercialDate(raw.new_renewal_date || raw.renewal_date);
+  const previousExpiry = normalizePortalCommercialDate(raw.previous_expiry || raw.old_expiry);
+  const newExpiry = normalizePortalCommercialDate(raw.new_expiry);
+
+  if (!renewalDate || !isPlausiblePortalCommercialDate(renewalDate)) return null;
+  if (!previousExpiry || !isPlausiblePortalCommercialDate(previousExpiry)) return null;
+  if (newExpiry && !isPlausiblePortalCommercialDate(newExpiry)) return null;
+
+  const id = String(raw.id || "").trim();
+  if (!id) return null;
+
   return {
-    id: String(raw.id || ""),
+    id,
     subscription_id: raw.subscription_id ? String(raw.subscription_id) : undefined,
     license_id: raw.license_id ? String(raw.license_id) : null,
     status: raw.status ? String(raw.status) : undefined,
     renewal_date: renewalDate,
-    previous_expiry: normalizePortalCommercialDate(raw.previous_expiry || raw.old_expiry),
-    new_expiry: normalizePortalCommercialDate(raw.new_expiry || raw.new_renewal_date),
+    previous_expiry: previousExpiry,
+    new_expiry: newExpiry,
     amount: raw.amount != null ? Number(raw.amount) : null,
     currency: raw.currency ? String(raw.currency) : null,
   };
@@ -1230,9 +1250,11 @@ async function loadPortalDashboardUncached(
     normalizeCommercialPayment(row as unknown as Record<string, unknown>)
   );
   const commercialRenewals = renewalsRes.ok
-    ? (renewalsRes.data || []).map((row) =>
-        normalizeCommercialRenewal(row as unknown as Record<string, unknown>)
-      )
+    ? (renewalsRes.data || [])
+        .map((row) =>
+          normalizeCommercialRenewal(row as unknown as Record<string, unknown>)
+        )
+        .filter((row): row is CommercialRenewal => row != null)
     : [];
 
   // Backfill billing cycle / package type from commercial subscription when Engine

@@ -228,3 +228,216 @@ export function comparisonNoteFromRegistry(
   const manuals = (registry?.manual_products || ["ENTERPRISE", "WHITE_LABEL"]).join(", ");
   return `Predefined inheritance: ${hierarchy}. ${manuals} are contact-sales / manual products (not predefined upgrade targets). Custom ERP is independent and built from selected modules and packs.`;
 }
+
+/** Map a pricing-card plan to License Engine registry plan_code. */
+export function registryPlanCodeForPricingPlan(plan: {
+  id?: string | null;
+  name?: string | null;
+  slug?: string | null;
+  plan_code?: string | null;
+}): string | null {
+  const kind = classifyCommercialPlan(plan);
+  switch (kind) {
+    case "starter":
+      return "STARTER";
+    case "business":
+      return "BUSINESS";
+    case "lifetime":
+      return "LIFETIME";
+    case "enterprise":
+      return "ENTERPRISE";
+    case "white_label":
+      return "WHITE_LABEL";
+    case "custom_erp":
+      return "CUSTOM_ERP";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Comparison column order from License Engine commercial registry:
+ * self-serve hierarchy → Custom ERP → Enterprise. White Label stays off the matrix.
+ */
+export function orderComparisonPlans(
+  plans: PricingPlan[],
+  registry?: PublicCommercialRegistry | PublicCommercialRegistrySummary | null
+): PricingPlan[] {
+  const hierarchy = predefinedHierarchyFromRegistry(registry).map((s) =>
+    String(s).toLowerCase()
+  );
+  const filtered = plans.filter((p) => !isWhiteLabelPlan(p) && !isTrialLocal(p));
+
+  function rank(p: PricingPlan): number {
+    const kind = classifyCommercialPlan(p);
+    if (kind === "custom_erp") return 80;
+    if (kind === "enterprise") return 90;
+    if (kind === "white_label") return 95;
+    const slug = String(p.id || "").toLowerCase();
+    const hi = hierarchy.findIndex(
+      (h) => slug === h || slug.includes(h) || kind === h
+    );
+    if (hi >= 0) return hi;
+    if (kind === "starter") return 0;
+    if (kind === "business") return 1;
+    if (kind === "lifetime") return 2;
+    return 50;
+  }
+
+  return [...filtered].sort((a, b) => rank(a) - rank(b));
+}
+
+/**
+ * Modules / Feature Packs / commercial capabilities from License Engine
+ * `plan_entitlements` — never invent local commercial catalogues.
+ */
+export function registryEntitlementComparisonRows(
+  plans: PricingPlan[],
+  registry?: PublicCommercialRegistry | null
+): Array<Record<string, string | boolean>> {
+  if (!registry?.plan_entitlements?.length || !plans.length) return [];
+
+  const entitlementByCode = new Map(
+    registry.plan_entitlements.map((row) => [String(row.plan_code).toUpperCase(), row])
+  );
+  const planCodes = plans.map((p) => ({
+    plan: p,
+    code: registryPlanCodeForPricingPlan(p),
+  }));
+
+  const moduleMeta = new Map(
+    (registry.modules || []).map((m) => [String(m.code).toUpperCase(), m])
+  );
+  const packMeta = new Map(
+    (registry.feature_packs || []).map((p) => [String(p.code).toUpperCase(), p])
+  );
+
+  const moduleCodes = [
+    ...new Set(
+      registry.plan_entitlements.flatMap((r) =>
+        (r.modules || [])
+          .map((c) => String(c).toUpperCase())
+          .filter((code) => {
+            const meta = moduleMeta.get(code);
+            return !meta?.platform_builtin;
+          })
+      )
+    ),
+  ].sort((a, b) => {
+    const ao = moduleMeta.get(a)?.display_order ?? 999;
+    const bo = moduleMeta.get(b)?.display_order ?? 999;
+    if (ao !== bo) return ao - bo;
+    return (moduleMeta.get(a)?.name || a).localeCompare(moduleMeta.get(b)?.name || b);
+  });
+
+  const packCodes = [
+    ...new Set(
+      registry.plan_entitlements.flatMap((r) =>
+        (r.feature_packs || []).map((c) => String(c).toUpperCase())
+      )
+    ),
+  ].sort((a, b) => {
+    const ao = packMeta.get(a)?.display_order ?? 999;
+    const bo = packMeta.get(b)?.display_order ?? 999;
+    if (ao !== bo) return ao - bo;
+    return (packMeta.get(a)?.name || a).localeCompare(packMeta.get(b)?.name || b);
+  });
+
+  const featureCodes = [
+    ...new Set(
+      registry.plan_entitlements.flatMap((r) =>
+        (r.commercial_features || []).map((c) => String(c).toUpperCase())
+      )
+    ),
+  ].sort();
+
+  const rows: Array<Record<string, string | boolean>> = [];
+
+  function entitlementCell(
+    planCode: string | null,
+    list: string[] | undefined,
+    itemCode: string,
+    customMode: boolean
+  ): string | boolean {
+    // Custom ERP: leave unset/false so applyCustomErpColumnCells maps builder icon.
+    if (customMode) return false;
+    if (!planCode) return "—";
+    const entitled = (list || []).some(
+      (c) => String(c).toUpperCase() === itemCode
+    );
+    return entitled;
+  }
+
+  if (moduleCodes.length) {
+    rows.push({ name: "Modules", __section: true });
+    for (const code of moduleCodes) {
+      const meta = moduleMeta.get(code);
+      const row: Record<string, string | boolean> = {
+        name: meta?.name || code,
+      };
+      for (const { plan, code: planCode } of planCodes) {
+        const ent = planCode ? entitlementByCode.get(planCode) : undefined;
+        row[plan.id] = entitlementCell(
+          planCode,
+          ent?.modules,
+          code,
+          planCode === "CUSTOM_ERP"
+        );
+      }
+      rows.push(row);
+    }
+  }
+
+  if (packCodes.length) {
+    rows.push({ name: "Feature Packs", __section: true });
+    for (const code of packCodes) {
+      const meta = packMeta.get(code);
+      const row: Record<string, string | boolean> = {
+        name: meta?.name || code,
+      };
+      for (const { plan, code: planCode } of planCodes) {
+        const ent = planCode ? entitlementByCode.get(planCode) : undefined;
+        row[plan.id] = entitlementCell(
+          planCode,
+          ent?.feature_packs,
+          code,
+          planCode === "CUSTOM_ERP"
+        );
+      }
+      rows.push(row);
+    }
+  }
+
+  if (featureCodes.length) {
+    rows.push({ name: "Commercial capabilities", __section: true });
+    for (const code of featureCodes) {
+      const row: Record<string, string | boolean> = {
+        name: code === "WHITE_LABEL" ? "White Label capability" : code,
+      };
+      for (const { plan, code: planCode } of planCodes) {
+        const ent = planCode ? entitlementByCode.get(planCode) : undefined;
+        row[plan.id] = entitlementCell(
+          planCode,
+          ent?.commercial_features,
+          code,
+          planCode === "CUSTOM_ERP"
+        );
+      }
+      rows.push(row);
+    }
+  }
+
+  return rows;
+}
+
+export function customErpPricingCopy(
+  registry?: PublicCommercialRegistry | null
+): { title: string; body: string } {
+  const meta = registry?.plans?.find((p) => p.code === "CUSTOM_ERP");
+  return {
+    title: meta?.name || "Custom ERP",
+    body:
+      meta?.description ||
+      "Independent Build Your Own ERP offering — configure modules and feature packs from the License Engine registry; not a predefined Starter / Business / Lifetime upgrade.",
+  };
+}

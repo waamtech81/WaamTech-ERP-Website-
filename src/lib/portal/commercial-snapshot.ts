@@ -19,6 +19,8 @@ export type PortalCommercialSnapshot = {
   billing_cycle?: string | null;
   currency?: string | null;
   pricing?: Record<string, unknown> | null;
+  /** When License Engine includes it — used for “Last license sync” display only. */
+  generated_at?: string | null;
 };
 
 export type PortalSnapshotLimits = {
@@ -125,6 +127,13 @@ export function normalizePortalCommercialSnapshot(
       null,
     currency: (billing.currency as string | undefined) ?? null,
     pricing: (c.pricing as Record<string, unknown> | undefined) ?? null,
+    generated_at: (() => {
+      for (const key of ["created_at", "updated_at", "generated_at"] as const) {
+        const v = c[key];
+        if (typeof v === "string" && v.trim()) return v;
+      }
+      return null;
+    })(),
   };
 }
 

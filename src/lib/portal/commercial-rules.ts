@@ -292,20 +292,47 @@ export function entitledFeaturePacks(input: {
 export function licenseSnapshotMeta(
   snapshot: PortalCommercialSnapshot | null | undefined
 ): Array<{ label: string; value: string }> {
+  // Customer-safe package label only — IDs/versions belong in technicalLicenseMeta.
   if (!snapshot) return [];
   const rows: Array<{ label: string; value: string }> = [];
-  if (snapshot.snapshot_id) rows.push({ label: "Snapshot ID", value: String(snapshot.snapshot_id) });
-  if (snapshot.snapshot_version) {
-    rows.push({ label: "Snapshot version", value: String(snapshot.snapshot_version) });
-  }
   if (snapshot.package_type) {
     rows.push({
-      label: "Package type",
+      label: "Package",
       value: isCustomErpPackageType(snapshot.package_type) ? "Custom ERP" : String(snapshot.package_type),
     });
   }
-  if (snapshot.billing_cycle) {
-    rows.push({ label: "Snapshot billing cycle", value: String(snapshot.billing_cycle) });
-  }
   return rows;
+}
+
+/** Internal identifiers — show only inside collapsed Technical Details. */
+export function technicalLicenseMeta(input: {
+  snapshot?: PortalCommercialSnapshot | null;
+  licenseId?: string | null;
+  keyMasked?: string | null;
+  planType?: string | null;
+  deploymentType?: string | null;
+  packageMode?: string | null;
+}): Array<{ label: string; value: string }> {
+  const rows: Array<{ label: string; value: string }> = [];
+  const snap = input.snapshot;
+  if (input.keyMasked) rows.push({ label: "License key", value: input.keyMasked });
+  if (input.licenseId) rows.push({ label: "License ID", value: String(input.licenseId) });
+  if (snap?.snapshot_id) rows.push({ label: "Snapshot ID", value: String(snap.snapshot_id) });
+  if (snap?.snapshot_version != null && snap.snapshot_version !== "") {
+    rows.push({ label: "Snapshot version", value: String(snap.snapshot_version) });
+  }
+  if (snap?.package_type) {
+    rows.push({ label: "Package type (internal)", value: String(snap.package_type) });
+  }
+  if (input.packageMode || snap?.package_mode) {
+    rows.push({
+      label: "Package mode (internal)",
+      value: String(input.packageMode || snap?.package_mode),
+    });
+  }
+  if (input.planType) rows.push({ label: "Plan type (internal)", value: String(input.planType) });
+  if (input.deploymentType) {
+    rows.push({ label: "Deployment type (internal)", value: String(input.deploymentType) });
+  }
+  return rows.filter((r) => r.value && r.value !== "—");
 }

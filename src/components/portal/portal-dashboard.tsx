@@ -41,7 +41,6 @@ import {
 import {
   resolvePortalPlanTier,
   upgradeActionForPortal,
-  licenseSnapshotMeta,
 } from "@/lib/portal/commercial-rules";
 import { subscriptionActionsLocked } from "@/components/portal/portal-subscription-cancel";
 import { cn } from "@/lib/utils";
@@ -417,10 +416,10 @@ export function PortalDashboardView() {
           <PortalFadeIn>
             <PortalPanel
               title="License"
-              description="Primary entitlement for your account."
+              description="Your current plan, status, modules, and renewal information."
               action={
                 <Button asChild variant="outline" size="sm" className="rounded-xl">
-                  <Link href="/portal/licenses">License history</Link>
+                  <Link href="/portal/licenses">View licenses</Link>
                 </Button>
               }
             >
@@ -428,15 +427,15 @@ export function PortalDashboardView() {
                 <div className="space-y-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-base font-semibold tracking-tight sm:text-lg">
-                        {primary.product_name || "Product"} ·{" "}
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+                        Current plan
+                      </p>
+                      <p className="mt-1 text-base font-semibold tracking-tight sm:text-lg">
+                        {primary.product_name || "WAAMTO ERP"} ·{" "}
                         {primary.plan_name ||
                           (String(primary.package_type || "").toLowerCase() === "custom"
-                            ? "Custom package"
+                            ? "Custom ERP"
                             : "Plan")}
-                      </p>
-                      <p className="mt-2 break-all font-mono text-xs tracking-wide text-[var(--portal-muted)]">
-                        {license?.keyMasked || primary.keyMasked || "—"}
                       </p>
                     </div>
                     <div className="shrink-0">
@@ -446,10 +445,29 @@ export function PortalDashboardView() {
                   <PortalLicenseEntitlements
                     license={primary}
                     billingCycleFallback={data.subscriptions?.[0]?.billing_cycle}
-                    customerFacing={data.commercialJourney === "custom"}
+                    customerFacing
+                    snapshot={data.commercialSnapshot}
+                    renewalDate={
+                      activeSubscription?.renewal_date ||
+                      data.subscription?.renewalDate ||
+                      null
+                    }
+                    billingStatus={
+                      activeSubscription?.status || data.subscription?.status || null
+                    }
                     primaryMeta={[
-                      { label: "Activation", value: formatPortalDate(primary.activation_date) || "—" },
-                      { label: "Expiry", value: formatPortalDate(primary.expiry_date) || "—" },
+                      {
+                        label: "License status",
+                        value: String(primary.effective_status || primary.status || "—"),
+                      },
+                      {
+                        label: "Activation",
+                        value: formatPortalDate(primary.activation_date) || "—",
+                      },
+                      {
+                        label: "Expiry date",
+                        value: formatPortalDate(primary.expiry_date) || "—",
+                      },
                       {
                         label: "Days left",
                         value:
@@ -457,7 +475,6 @@ export function PortalDashboardView() {
                             ? String(primary.days_remaining)
                             : "—",
                       },
-                      ...licenseSnapshotMeta(data.commercialSnapshot),
                     ].filter((r) => r.value && r.value !== "—")}
                   />
                   <div className="flex flex-wrap items-center gap-2 border-t border-[var(--portal-border)] pt-4">

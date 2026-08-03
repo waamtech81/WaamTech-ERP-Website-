@@ -18,7 +18,9 @@ import {
   isEnterpriseManualPlan,
   isSelfServePredefinedPlan,
   isWhiteLabelPlan,
+  registryEntitlementComparisonRows,
 } from "@/lib/commercial/commercial-experience";
+import type { PublicCommercialRegistry } from "@/lib/commercial/types";
 
 /** Predefined public hierarchy only — Enterprise / White Label are manual products. */
 const TIER_ORDER = ["starter", "business", "lifetime"] as const;
@@ -1044,32 +1046,37 @@ export function comparisonHierarchyNote(
 }
 
 /**
- * Build Compare Plans rows from the License Engine comparison API only.
- * Returns [] when Engine comparison is unavailable — callers must show an
- * informative message instead of inventing a local matrix.
+ * Build Compare Plans rows from the License Engine comparison API +
+ * commercial registry entitlements (modules / feature packs / capabilities).
+ * Returns [] when neither source yields rows — callers must show unavailable.
  */
 export function buildDynamicComparison(
   plans: PricingPlan[],
   comparison?: CatalogComparisonBundle | null,
-  registryHierarchy?: string[] | null
+  registryHierarchy?: string[] | null,
+  registry?: PublicCommercialRegistry | null
 ): Array<Record<string, string | boolean>> {
   const visible = publicMarketingPlans(plans).filter(
     (p) => !isWhiteLabelPlan(p) || Boolean(comparison?.comparison?.length)
   );
-  // Prefer self-serve + enterprise columns from Engine; keep White Label off inheritance matrix.
+  // Prefer self-serve + enterprise + Custom ERP columns; keep White Label off inheritance matrix.
   const comparePlans = visible.filter((p) => !isWhiteLabelPlan(p));
   const keys = comparePlans.map((p) => p.id);
   const chain = hierarchyChain(comparison, comparison?.feature_matrix, registryHierarchy);
 
   const hasEngineRows = Boolean(comparison?.comparison?.length);
-  const matrix: Array<Record<string, string | boolean>> = hasEngineRows
-    ? [
-        ...engineDimensionRows(comparePlans, comparison),
-        ...engineFeatureMatrixRows(comparePlans, comparison),
-      ]
-    : [];
+  const entitlementRows = registryEntitlementComparisonRows(comparePlans, registry || null);
+  const matrix: Array<Record<string, string | boolean>> = [
+    ...(hasEngineRows
+      ? [
+          ...engineDimensionRows(comparePlans, comparison),
+          ...engineFeatureMatrixRows(comparePlans, comparison),
+        ]
+      : []),
+    ...entitlementRows,
+  ];
 
-  // No silent local fallback — Engine dimensions/matrix (or neither) only.
+  // Engine dimensions/matrix and/or registry entitlements only — no invented local catalog.
   if (!matrix.length) return [];
 
   for (const row of matrix) {

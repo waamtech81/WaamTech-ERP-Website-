@@ -36,6 +36,8 @@ import {
 } from "@/lib/commercial/mappers";
 import {
   comparisonNoteFromRegistry,
+  customErpPricingCopy,
+  orderComparisonPlans,
   pricingGuideFromRegistry,
   resolveManualPricingCards,
 } from "@/lib/commercial/commercial-experience";
@@ -74,26 +76,36 @@ export default function PricingPage() {
     () => catalog.data.whiteLabel || manuals.whiteLabel,
     [catalog.data.whiteLabel, manuals.whiteLabel]
   );
+  const fullRegistry = useMemo(() => {
+    const r = registry || catalog.data.commercial_registry;
+    if (r && "plan_entitlements" in r && Array.isArray(r.plan_entitlements)) {
+      return r as PublicCommercialRegistry;
+    }
+    return null;
+  }, [registry, catalog.data.commercial_registry]);
   const comparisonRows = useMemo(
     () =>
       buildDynamicComparison(
         pricingPlans,
         catalog.data.comparison,
-        registry?.predefined_hierarchy ||
+        fullRegistry?.predefined_hierarchy ||
+          registry?.predefined_hierarchy ||
           (catalog.data.commercial_registry as { predefined_hierarchy?: string[] } | null)
-            ?.predefined_hierarchy
+            ?.predefined_hierarchy,
+        fullRegistry
       ),
-    [pricingPlans, catalog.data.comparison, registry, catalog.data.commercial_registry]
+    [pricingPlans, catalog.data.comparison, fullRegistry, registry, catalog.data.commercial_registry]
   );
   const comparisonAvailable = useMemo(() => {
+    if (comparisonRows.length > 0) return true;
     const metaAvailable = catalog.data.meta?.comparisonAvailable;
-    if (metaAvailable === false) return false;
-    if (metaAvailable === true && comparisonRows.length > 0) return true;
+    if (metaAvailable === false && !fullRegistry?.plan_entitlements?.length) return false;
     return isEngineComparisonUsable(catalog.data.comparison) && comparisonRows.length > 0;
   }, [
     catalog.data.meta?.comparisonAvailable,
     catalog.data.comparison,
     comparisonRows.length,
+    fullRegistry?.plan_entitlements?.length,
   ]);
   const hierarchyNote = useMemo(() => {
     const engineNote = comparisonHierarchyNote(
@@ -102,8 +114,13 @@ export default function PricingPage() {
     );
     return comparisonNoteFromRegistry(catalog.data.commercial_registry, engineNote);
   }, [catalog.data.comparison, catalog.data.commercial_registry]);
-  const planColumns = pricingPlans.filter(
-    (p) => !/white[\s_-]?label/i.test(`${p.id} ${p.name}`)
+  const planColumns = useMemo(
+    () => orderComparisonPlans(pricingPlans, registry || catalog.data.commercial_registry),
+    [pricingPlans, registry, catalog.data.commercial_registry]
+  );
+  const customErpCopy = useMemo(
+    () => customErpPricingCopy(fullRegistry),
+    [fullRegistry]
   );
   const promo = useMemo(() => launchPromoFromPlans(pricingPlans), [pricingPlans]);
   const guideItems = useMemo(
@@ -228,14 +245,13 @@ export default function PricingPage() {
             <div className="flex flex-col rounded-2xl border border-border bg-white px-6 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.08)] md:px-8">
               <div className="flex-1">
                 <p className="text-sm font-semibold uppercase tracking-wide text-primary">
-                  Custom ERP
+                  {customErpCopy.title}
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold tracking-tight text-[#0b1f3a]">
-                  Build your own stack
+                  Build Your Own ERP
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Independent of Starter / Business / Lifetime. Pick industry, category, modules,
-                  and feature packs from the License Engine registries — pay for what you configure.
+                  {customErpCopy.body}
                 </p>
               </div>
               <Button asChild size="lg" className="mt-6 shrink-0 self-start rounded-full">

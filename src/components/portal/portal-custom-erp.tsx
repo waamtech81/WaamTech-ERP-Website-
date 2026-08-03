@@ -326,7 +326,7 @@ export function PortalCustomErpDashboardView() {
         <PortalFadeIn>
           <PortalPanel
             title="Custom ERP Package"
-            description="Active license and package composition for your account."
+            description="Your current Custom ERP plan, status, modules, and renewal dates."
             action={
               <Button asChild variant="outline" size="sm" className="rounded-xl">
                 <Link href="/portal/licenses">License detail</Link>
@@ -337,11 +337,11 @@ export function PortalCustomErpDashboardView() {
               <div className="space-y-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-lg font-semibold tracking-tight">
-                      {primary.product_name || "WAAMTO ERP"} · Custom ERP Package
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+                      Current plan
                     </p>
-                    <p className="mt-2 font-mono text-xs tracking-wide text-[var(--portal-muted)]">
-                      {data.license?.keyMasked || primary.keyMasked || "—"}
+                    <p className="mt-1 text-lg font-semibold tracking-tight">
+                      {primary.product_name || "WAAMTO ERP"} · Custom ERP
                     </p>
                   </div>
                   <PortalStatusBadge status={primary.effective_status || primary.status} />
@@ -350,7 +350,7 @@ export function PortalCustomErpDashboardView() {
                   {[
                     { label: "Activation", value: formatPortalDate(primary.activation_date) },
                     ...(canRenew
-                      ? [{ label: "Renewal / expiry", value: formatPortalDate(renewal) }]
+                      ? [{ label: "Renewal date", value: formatPortalDate(renewal) }]
                       : []),
                     {
                       label: "Days left",
@@ -377,6 +377,19 @@ export function PortalCustomErpDashboardView() {
                   license={primary}
                   billingCycleFallback={sub?.billing_cycle}
                   customerFacing
+                  snapshot={data.commercialSnapshot}
+                  renewalDate={renewal}
+                  billingStatus={sub?.status || data.subscription?.status || null}
+                  primaryMeta={[
+                    {
+                      label: "License status",
+                      value: String(primary.effective_status || primary.status || "—"),
+                    },
+                    {
+                      label: "Expiry date",
+                      value: formatPortalDate(primary.expiry_date) || "—",
+                    },
+                  ].filter((r) => r.value && r.value !== "—")}
                 />
                 <div className="flex flex-wrap gap-2">
                   {canRenew ? (
@@ -557,48 +570,41 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
         <PortalPageHeader
           eyebrow="Custom ERP"
           title="License"
-          description="License status, billing cycle, and your purchased package entitlements."
+          description="Your current plan, license status, modules, limits, and renewal dates."
         />
         {primary ? (
-          <PortalPanel title="Active license" description="Custom ERP package entitlement.">
+          <PortalPanel title="Active license" description="Your Custom ERP package at a glance.">
             <div className="space-y-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-lg font-semibold tracking-tight">Custom ERP Package</p>
-                    <p className="mt-2 font-mono text-xs tracking-wide text-[var(--portal-muted)]">
-                      {primary.keyMasked || "—"}
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+                      Current plan
                     </p>
+                    <p className="mt-1 text-lg font-semibold tracking-tight">Custom ERP</p>
                   </div>
                   <PortalStatusBadge status={primary.effective_status || primary.status} />
                 </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  { label: "Status", value: primary.effective_status || primary.status },
-                  { label: "Expires", value: formatPortalDate(primary.expiry_date) },
-                  { label: "Billing cycle", value: formatBillingCycleLabel(billingCycle) },
-                  ...(canRenew
-                    ? [{ label: "Renewal", value: formatPortalDate(renewal) }]
-                    : []),
-                  { label: "Activated", value: formatPortalDate(primary.activation_date) },
-                  { label: "Current package", value: "Custom ERP Package" },
-                ]
-                  .filter((r) => r.value && r.value !== "—")
-                  .map((r) => (
-                    <div
-                      key={r.label}
-                      className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3"
-                    >
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-                        {r.label}
-                      </p>
-                      <p className="mt-1.5 text-sm font-medium capitalize">{r.value}</p>
-                    </div>
-                  ))}
-              </div>
               <PortalLicenseEntitlements
                 license={primary}
                 billingCycleFallback={sub?.billing_cycle}
                 customerFacing
+                snapshot={data.commercialSnapshot}
+                renewalDate={renewal}
+                billingStatus={sub?.status || data.subscription?.status || null}
+                primaryMeta={[
+                  {
+                    label: "License status",
+                    value: String(primary.effective_status || primary.status || "—"),
+                  },
+                  {
+                    label: "Expiry date",
+                    value: formatPortalDate(primary.expiry_date) || "—",
+                  },
+                  {
+                    label: "Activation",
+                    value: formatPortalDate(primary.activation_date) || "—",
+                  },
+                ].filter((r) => r.value && r.value !== "—")}
               />
               <div>
                 <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -740,7 +746,7 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
             {
               href: "/portal/licenses",
               label: "Downloads",
-              hint: "License keys and entitlement detail",
+              hint: "License overview and renewal details",
               icon: FileText,
               external: false,
             },

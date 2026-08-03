@@ -44,7 +44,6 @@ import {
 import {
   entitledFeaturePacks,
   entitledModules,
-  licenseSnapshotMeta,
   resolvePortalPlanTier,
   upgradeActionForPortal,
 } from "@/lib/portal/commercial-rules";
@@ -95,14 +94,14 @@ const META: Record<
 > = {
   licenses: {
     title: "Licenses",
-    description: "Your entitlements, expiry dates, and masked license keys.",
+    description: "Your current plan, status, modules, limits, and renewal dates.",
     emptyTitle: "No licenses",
     emptyDescription: "Licenses will appear here once your account is activated.",
     eyebrow: "Entitlements",
   },
   subscriptions: {
     title: "Subscriptions",
-    description: "Current plan, trial status, renewal, and billing cycle.",
+    description: "Current plan, billing status, renewal, and auto-renewal settings.",
     emptyTitle: "No subscription data",
     emptyDescription: "Subscription details appear from your active licenses.",
     eyebrow: "Plan",
@@ -137,21 +136,21 @@ const META: Record<
   },
   modules: {
     title: "Modules",
-    description: "Modules entitled on your active License Engine license snapshot.",
+    description: "Active modules included with your current plan or Custom ERP package.",
     emptyTitle: "No modules assigned",
     emptyDescription: "Modules appear from your plan or custom package.",
     eyebrow: "Products",
   },
   "feature-packs": {
     title: "Feature Packs",
-    description: "Feature packs entitled on your active License Engine license snapshot.",
+    description: "Active feature packs included with your current plan or Custom ERP package.",
     emptyTitle: "No feature packs",
     emptyDescription: "Feature packs appear when included on your plan or custom package.",
     eyebrow: "Products",
   },
   limits: {
     title: "Usage & limits",
-    description: "Users, companies, branches, and warehouses against licensed limits.",
+    description: "User, company, branch, and warehouse limits for your account.",
     emptyTitle: "No limits data",
     emptyDescription: "Usage meters appear when licensed limits are available.",
     eyebrow: "Workspace",
@@ -239,8 +238,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           const planTitle =
             lic.plan_name ||
             (String(lic.package_type || "").toLowerCase() === "custom"
-              ? "Custom package"
-              : "Plan");
+              ? "Custom ERP"
+              : "Current plan");
           return (
           <article
             key={lic.id}
@@ -248,11 +247,11 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 flex-1">
-                <p className="font-semibold tracking-tight">
-                  {lic.product_name || "Product"} · {planTitle}
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+                  Current plan
                 </p>
-                <p className="mt-2 break-all font-mono text-xs tracking-wide text-[var(--portal-muted)]">
-                  {lic.keyMasked || "—"}
+                <p className="mt-1 font-semibold tracking-tight">
+                  {lic.product_name || "WAAMTO ERP"} · {planTitle}
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
@@ -265,12 +264,27 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             <PortalLicenseEntitlements
               license={lic}
               billingCycleFallback={linkedSub?.billing_cycle}
-              customerFacing={isCustomJourney}
+              customerFacing
+              snapshot={data.commercialSnapshot}
+              renewalDate={
+                linkedSub?.renewal_date ||
+                data.subscription?.renewalDate ||
+                null
+              }
+              billingStatus={linkedSub?.status || data.subscription?.status || null}
               primaryMeta={[
-                { label: "License type", value: lic.plan_type || lic.deployment_type || "—" },
-                { label: "Activation", value: formatPortalDate(lic.activation_date) || "—" },
-                { label: "Expiry", value: formatPortalDate(lic.expiry_date) || "—" },
-                ...licenseSnapshotMeta(data.commercialSnapshot),
+                {
+                  label: "License status",
+                  value: String(lic.effective_status || lic.status || "—"),
+                },
+                {
+                  label: "Activation",
+                  value: formatPortalDate(lic.activation_date) || "—",
+                },
+                {
+                  label: "Expiry date",
+                  value: formatPortalDate(lic.expiry_date) || "—",
+                },
               ].filter((r) => r.value && r.value !== "—")}
             />
             <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[var(--portal-border)] pt-5">
@@ -933,7 +947,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
       <div className="space-y-6">
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--portal-muted)]">
-            {isCustomJourney ? "Purchased modules (license snapshot)" : "Licensed modules"}
+            {isCustomJourney ? "Active modules" : "Active modules"}
           </p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {moduleItems.map((m) => (
@@ -953,7 +967,14 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           </div>
         </div>
         {typeof erp.version === "string" && !isCustomJourney ? (
-          <PortalDataRow label="Version" value={erp.version} />
+          <details className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)]/60 px-4 py-3">
+            <summary className="cursor-pointer select-none text-sm font-medium">
+              Technical details
+            </summary>
+            <div className="mt-3">
+              <PortalDataRow label="Internal version" value={erp.version} />
+            </div>
+          </details>
         ) : null}
         <div className="flex flex-wrap gap-2">
           {isCustomJourney ? (
@@ -1048,7 +1069,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     body = limitRows.length ? (
       <div className="space-y-4">
         <p className="text-xs text-[var(--portal-muted)]">
-          Usage against licensed limits from your active License Engine snapshot.
+          How much of your account limits you are using.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           {limitRows.map((row) => (

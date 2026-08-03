@@ -142,9 +142,13 @@ export default async function RootLayout({
   const pathname = headerStore.get("x-wt-pathname") || "";
   const isAuthSurface = isAuthSurfacePath(pathname);
   // Avoid competing License Engine calls on auth pages (login/signup must stay fast).
-  const searchIndex = isAuthSurface
-    ? getSiteSearchIndex()
-    : await buildSiteSearchIndexFromEngine();
+  // Marketing: serve warm Engine index when already cached; otherwise seed products
+  // immediately (no Promise.race) and warm Engine in the background. Client provider
+  // completes industries/categories via existing commercial BFF routes.
+  if (!isAuthSurface) {
+    void buildSiteSearchIndexFromEngine();
+  }
+  const searchIndex = getSiteSearchIndex();
 
   return (
     <html lang="en" dir="ltr" className={`${fontVariablesClassName} h-full antialiased`}>

@@ -11,7 +11,8 @@ export const fontHeading = Poppins({
   weight: ["600", "700"],
   variable: "--font-poppins",
   display: "swap",
-  preload: true,
+  // Body font stays preloaded for LCP text; heading loads on demand to cut critical bytes.
+  preload: false,
   adjustFontFallback: true,
 });
 

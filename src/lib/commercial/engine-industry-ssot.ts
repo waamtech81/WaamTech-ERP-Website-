@@ -100,6 +100,30 @@ function mapCategory(cat: CatalogBusinessCategory): PublicCategory {
   };
 }
 
+/** Map raw Engine catalog rows into the shared public industry/category shape. */
+export function buildPublicCatalogFromRows(
+  industriesRaw: CatalogIndustry[],
+  categoriesRaw: CatalogBusinessCategory[]
+): CatalogBundle {
+  const industries = industriesRaw.length ? industriesRaw.map(mapIndustry) : [];
+  const categories = categoriesRaw.length ? categoriesRaw.map(mapCategory) : [];
+
+  const byUuid = new Map<string, string>();
+  for (const raw of industriesRaw) {
+    const key = industryKey(raw);
+    if (raw.id) byUuid.set(String(raw.id).trim().toLowerCase(), key);
+  }
+  for (const cat of categories) {
+    if (byUuid.has(cat.industry_id)) {
+      cat.industry_id = byUuid.get(cat.industry_id) || cat.industry_id;
+    } else {
+      cat.industry_id = cat.industry_id.replace(/-/g, "_");
+    }
+  }
+
+  return { industries, categories };
+}
+
 /** Single shared Engine catalog fetch (industries + categories). */
 export async function loadEngineCatalogBundle(): Promise<CatalogBundle> {
   if (bundleCache) return bundleCache;
@@ -109,30 +133,11 @@ export async function loadEngineCatalogBundle(): Promise<CatalogBundle> {
         fetchPublicIndustries(),
         fetchPublicBusinessCategories(),
       ]);
-      const industries =
-        industriesResult.ok && industriesResult.data?.length
-          ? industriesResult.data.map(mapIndustry)
-          : [];
-      const categories =
-        categoriesResult.ok && categoriesResult.data?.length
-          ? categoriesResult.data.map(mapCategory)
-          : [];
-
-      // Resolve category.industry_id UUID → industry code key when needed.
-      const byUuid = new Map<string, string>();
-      for (const raw of industriesResult.data || []) {
-        const key = industryKey(raw);
-        if (raw.id) byUuid.set(String(raw.id).trim().toLowerCase(), key);
-      }
-      for (const cat of categories) {
-        if (byUuid.has(cat.industry_id)) {
-          cat.industry_id = byUuid.get(cat.industry_id) || cat.industry_id;
-        } else {
-          cat.industry_id = cat.industry_id.replace(/-/g, "_");
-        }
-      }
-
-      bundleCache = { industries, categories };
+      const industriesRaw =
+        industriesResult.ok && industriesResult.data?.length ? industriesResult.data : [];
+      const categoriesRaw =
+        categoriesResult.ok && categoriesResult.data?.length ? categoriesResult.data : [];
+      bundleCache = buildPublicCatalogFromRows(industriesRaw, categoriesRaw);
       return bundleCache;
     })();
   }

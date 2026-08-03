@@ -54,6 +54,18 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  compress: true,
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "framer-motion",
+      "@radix-ui/react-accordion",
+      "@radix-ui/react-checkbox",
+      "@radix-ui/react-label",
+      "@radix-ui/react-slot",
+      "@radix-ui/react-switch",
+    ],
+  },
   images: {
     // Prefer WebP for smaller files + sharp quality (AVIF as progressive enhancement)
     formats: ["image/webp", "image/avif"],
@@ -73,6 +85,16 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        // Hashed Next.js build assets — long immutable cache for repeat navigations.
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
       },
       {
         // Static marketing assets (favicons, logos, OG images) — not content-hashed,

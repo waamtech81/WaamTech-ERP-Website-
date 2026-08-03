@@ -4,10 +4,15 @@ import {
   getIndustryPresentation,
 } from "@/lib/data/business-hierarchy";
 import {
+  buildPublicCatalogFromRows,
   loadEngineCatalogBundle,
   type PublicCategory,
   type PublicIndustry,
 } from "@/lib/commercial/engine-industry-ssot";
+import type {
+  CatalogBusinessCategory,
+  CatalogIndustry,
+} from "@/lib/commercial/types";
 
 export type SiteSearchResult = {
   id: string;
@@ -22,6 +27,7 @@ export type SiteSearchResult = {
 
 let cachedIndex: SiteSearchResult[] | null = null;
 let cachePromise: Promise<SiteSearchResult[]> | null = null;
+let completePromise: Promise<SiteSearchResult[]> | null = null;
 
 function buildIndexFromEngine(
   industries: PublicIndustry[],
@@ -70,16 +76,30 @@ function buildIndexFromEngine(
   return [...productItems, ...industryItems, ...categoryItems];
 }
 
+/** True when industries and/or categories arrived from Engine/catalog (not products-only seed). */
+export function isEngineBackedSearchIndex(
+  index: SiteSearchResult[] | null | undefined
+): boolean {
+  return Boolean(index?.some((i) => i.type === "Industry" || i.type === "Category"));
+}
+
 /** Hydrate sync cache from a server-primed Engine index (no extra API call). */
 export function hydrateSiteSearchIndex(index: SiteSearchResult[]): void {
   if (!Array.isArray(index) || !index.length) return;
+  // Never replace a complete Engine-backed index with a products-only seed.
+  if (isEngineBackedSearchIndex(cachedIndex) && !isEngineBackedSearchIndex(index)) {
+    return;
+  }
   cachedIndex = index;
   cachePromise = Promise.resolve(index);
+  if (isEngineBackedSearchIndex(index)) {
+    completePromise = Promise.resolve(index);
+  }
 }
 
 export async function buildSiteSearchIndexFromEngine(): Promise<SiteSearchResult[]> {
-  if (cachedIndex) return cachedIndex;
-  if (!cachePromise) {
+  if (isEngineBackedSearchIndex(cachedIndex)) return cachedIndex as SiteSearchResult[];
+  if (!cachePromise || !isEngineBackedSearchIndex(cachedIndex)) {
     cachePromise = (async () => {
       const bundle = await loadEngineCatalogBundle();
       cachedIndex = buildIndexFromEngine(bundle.industries, bundle.categories);
@@ -91,6 +111,57 @@ export async function buildSiteSearchIndexFromEngine(): Promise<SiteSearchResult
 
 export function getSiteSearchIndex(): SiteSearchResult[] {
   return cachedIndex || buildIndexFromEngine([], []);
+}
+
+async function fetchCommercialJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const json = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    data?: T;
+    message?: string;
+  };
+  if (!res.ok || json.success === false) {
+    throw new Error(json.message || `Failed to load ${url}`);
+  }
+  return json.data as T;
+}
+
+/**
+ * Ensure the search index includes products + industries + categories.
+ * - Server: License Engine via existing SSOT loader
+ * - Browser: existing website BFF routes (no direct Engine/API key usage)
+ * Does not block callers that only need the products seed.
+ */
+export async function ensureSiteSearchIndexComplete(): Promise<SiteSearchResult[]> {
+  if (isEngineBackedSearchIndex(cachedIndex)) {
+    return cachedIndex as SiteSearchResult[];
+  }
+  if (completePromise) return completePromise;
+
+  completePromise = (async () => {
+    if (typeof window === "undefined") {
+      const full = await buildSiteSearchIndexFromEngine();
+      hydrateSiteSearchIndex(full);
+      return full;
+    }
+
+    const [industriesRaw, categoriesRaw] = await Promise.all([
+      fetchCommercialJson<CatalogIndustry[]>("/api/commercial/industries"),
+      fetchCommercialJson<CatalogBusinessCategory[]>("/api/commercial/business-categories"),
+    ]);
+    const bundle = buildPublicCatalogFromRows(
+      Array.isArray(industriesRaw) ? industriesRaw : [],
+      Array.isArray(categoriesRaw) ? categoriesRaw : []
+    );
+    const full = buildIndexFromEngine(bundle.industries, bundle.categories);
+    hydrateSiteSearchIndex(full);
+    return full;
+  })().catch((err) => {
+    completePromise = null;
+    throw err;
+  });
+
+  return completePromise;
 }
 
 export function searchSiteCatalog(query: string, limit = 12): SiteSearchResult[] {
@@ -126,6 +197,6 @@ export function getSearchCatalogStats() {
     industries: index.filter((i) => i.type === "Industry").length,
     categories: index.filter((i) => i.type === "Category").length,
     products: index.filter((i) => i.type === "Product").length,
-    ready: Boolean(cachedIndex && cachedIndex.some((i) => i.type === "Industry")),
+    ready: isEngineBackedSearchIndex(index),
   };
 }

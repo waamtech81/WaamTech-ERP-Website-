@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { deploymentOptions, faqs } from "@/lib/data/site";
@@ -8,9 +9,7 @@ import { getIcon } from "@/lib/icons";
 import { Container, Section, SectionHeader } from "@/components/shared/section";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { AnimateIn } from "@/components/shared/animate-in";
-import { CTASection } from "@/components/shared/cta-section";
 import { LaunchDiscountBanner, PricingCards } from "@/components/sections/pricing-cards";
-import { PricingComparisonTable } from "@/components/sections/pricing-comparison-table";
 import { PriceNote } from "@/components/shared/price-note";
 import { useLocale } from "@/components/providers/locale-provider";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { FaqAccordionList } from "@/components/sections/faq-accordion-list";
-import { TrustBadgesBand } from "@/components/sections/trust-badges-band";
 import { useCatalogBundle } from "@/hooks/use-commercial";
 import {
   CatalogEmptyState,
@@ -37,11 +34,39 @@ import {
   customErpPricingCopy,
   orderComparisonPlans,
   plansForCommercialComparison,
-  pricingGuideFromRegistry,
   resolveManualPricingCards,
 } from "@/lib/commercial/commercial-experience";
 import type { PublicCommercialRegistry } from "@/lib/commercial/types";
 import { isEngineComparisonUsable } from "@/lib/commercial/catalog-revision";
+
+const PricingComparisonTable = dynamic(
+  () =>
+    import("@/components/sections/pricing-comparison-table").then((m) => ({
+      default: m.PricingComparisonTable,
+    })),
+  { ssr: true }
+);
+const FaqAccordionList = dynamic(
+  () =>
+    import("@/components/sections/faq-accordion-list").then((m) => ({
+      default: m.FaqAccordionList,
+    })),
+  { ssr: true }
+);
+const TrustBadgesBand = dynamic(
+  () =>
+    import("@/components/sections/trust-badges-band").then((m) => ({
+      default: m.TrustBadgesBand,
+    })),
+  { ssr: true }
+);
+const CTASection = dynamic(
+  () =>
+    import("@/components/shared/cta-section").then((m) => ({
+      default: m.CTASection,
+    })),
+  { ssr: true }
+);
 
 export default function PricingPage() {
   const [yearly, setYearly] = useState(true);
@@ -133,10 +158,6 @@ export default function PricingPage() {
     [fullRegistry]
   );
   const promo = useMemo(() => launchPromoFromPlans(pricingPlans), [pricingPlans]);
-  const guideItems = useMemo(
-    () => pricingGuideFromRegistry(registry || null, pricingPlans),
-    [registry, pricingPlans]
-  );
 
   const yearlySavingsHint = useMemo(() => {
     const withSavings = displayCardPlans
@@ -161,28 +182,8 @@ export default function PricingPage() {
             eyebrow="Pricing"
             as="h1"
             title="Choose the plan that fits how you grow"
-            description="Choose the plan that best fits your business. Start with Starter, grow with Business, unlock more capabilities with Lifetime, or build your own solution with Custom ERP. Enterprise and White Label solutions are available through Contact Sales."
+            description="Compare Starter, Business, Lifetime, and Custom ERP — or contact sales for Enterprise and White Label."
           />
-
-          {guideItems.length > 0 ? (
-            <div className="mb-8 grid gap-3 rounded-2xl border border-border/80 bg-slate-50/80 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 sm:p-5">
-              {guideItems.map((item) => (
-                <div key={item.code} className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                    {item.name}
-                  </p>
-                  <p className="mt-1 text-sm leading-snug text-muted-foreground line-clamp-3">
-                    {item.line ||
-                      (item.mode === "manual"
-                        ? "Contact sales"
-                        : item.mode === "custom"
-                          ? "Configure modules and packs"
-                          : "Self-serve predefined plan")}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : null}
 
           {promo ? (
             <LaunchDiscountBanner

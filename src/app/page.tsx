@@ -1,17 +1,45 @@
 import dynamic from "next/dynamic";
 import { SwiverHero } from "@/components/sections/swiver-hero";
-import {
-  BusinessesSection,
-  SocialProofSection,
-  PricingTeaser,
-  SoftCTA,
-} from "@/components/sections/home-swiver";
-import { TrustBadgesBand } from "@/components/sections/trust-badges-band";
 
 const ModuleShowcase = dynamic(
   () =>
     import("@/components/sections/module-showcase").then((m) => ({
       default: m.ModuleShowcase,
+    })),
+  { ssr: true }
+);
+const BusinessesSection = dynamic(
+  () =>
+    import("@/components/sections/home-swiver").then((m) => ({
+      default: m.BusinessesSection,
+    })),
+  { ssr: true }
+);
+const SocialProofSection = dynamic(
+  () =>
+    import("@/components/sections/home-swiver").then((m) => ({
+      default: m.SocialProofSection,
+    })),
+  { ssr: true }
+);
+const TrustBadgesBand = dynamic(
+  () =>
+    import("@/components/sections/trust-badges-band").then((m) => ({
+      default: m.TrustBadgesBand,
+    })),
+  { ssr: true }
+);
+const PricingTeaser = dynamic(
+  () =>
+    import("@/components/sections/home-swiver").then((m) => ({
+      default: m.PricingTeaser,
+    })),
+  { ssr: true }
+);
+const SoftCTA = dynamic(
+  () =>
+    import("@/components/sections/home-swiver").then((m) => ({
+      default: m.SoftCTA,
     })),
   { ssr: true }
 );

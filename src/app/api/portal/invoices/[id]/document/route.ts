@@ -61,8 +61,9 @@ export const GET = withApiHandler(
         const faviconLinks =
           `<link rel="icon" href="/favicon.ico" sizes="any" />` +
           `<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />` +
-          `<link rel="icon" href="/favicon-waamto-v2-32.webp" type="image/webp" sizes="32x32" />` +
-          `<link rel="icon" href="/favicon-waamto-v2-48.webp" type="image/webp" sizes="48x48" />`;
+          `<link rel="icon" href="/favicon-waamto-v2-48.webp" type="image/webp" sizes="48x48" />` +
+          `<link rel="apple-touch-icon" href="/apple-touch-icon-waamto-v2.webp" type="image/webp" sizes="180x180" />` +
+          `<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />`;
         const branded = /<head([^>]*)>/i.test(html)
           ? html.replace(/<head([^>]*)>/i, `<head$1>${faviconLinks}`)
           : `${faviconLinks}${html}`;

@@ -99,30 +99,30 @@ export default function PricingPage() {
             eyebrow="Pricing"
             as="h1"
             title="Choose the plan that fits how you grow"
-            description="Five clear choices — Starter for basics, Business for growth (POS & Customer Portal), Lifetime for one-time premium value, Build Your Own for a custom stack, and Enterprise for White Label and custom deployment."
+            description="Five clear choices - Starter for basics, Business for growth (POS and Customer Portal), Lifetime for one-time premium value, Build Your Own for a custom stack, and Enterprise for White Label and custom deployment."
           />
 
           <div className="mb-8 grid gap-3 rounded-2xl border border-border/80 bg-slate-50/80 p-4 sm:grid-cols-2 lg:grid-cols-5 sm:p-5">
             {[
               {
                 name: "Starter",
-                line: "Solo / small shop — essential ERP, 1 user.",
+                line: "Solo / small shop - essential ERP, 1 user.",
               },
               {
                 name: "Business",
-                line: "Growing teams — POS, portal, multi-branch.",
+                line: "Growing teams - POS, portal, multi-branch.",
               },
               {
                 name: "Lifetime",
-                line: "One-time buy — Business + API & premium.",
+                line: "One-time buy - Business + API and premium.",
               },
               {
                 name: "Build Your Own",
-                line: "Pick modules & packs — pay for what you use.",
+                line: "Pick modules and packs - pay for what you use.",
               },
               {
                 name: "Enterprise",
-                line: "White Label, unlimited, SSO & custom SLA.",
+                line: "White Label, unlimited, SSO and custom SLA.",
               },
             ].map((item) => (
               <div key={item.name} className="min-w-0">
@@ -181,7 +181,7 @@ export default function PricingPage() {
               className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
               role="status"
             >
-              Showing last known plans — live catalog refresh failed.{" "}
+              Showing last known plans - live catalog refresh failed.{" "}
               <button
                 type="button"
                 className="font-medium underline underline-offset-2"
@@ -214,7 +214,7 @@ export default function PricingPage() {
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                   Configuration-driven ERP: pick modules and feature packs, see live
-                  totals, and provision only what you buy. No fixed tier packing —
+                  totals, and provision only what you buy. No fixed tier packing -
                   White Label and specialty capabilities are selected when needed.
                 </p>
               </div>
@@ -232,8 +232,8 @@ export default function PricingPage() {
                   <h3 className="mt-2 text-2xl font-semibold tracking-tight text-[#0b1f3a]">
                     {enterprise.subtitle || enterprise.name || "Enterprise"}
                   </h3>
-                  <p className="mt-2 text-sm font-medium text-[#0b1f3a]/
-                    White Label branding, unlimited scale, SSO, and custom deployment —
+                  <p className="mt-2 text-sm font-medium text-[#0b1f3a]">
+                    White Label branding, unlimited scale, SSO, and custom deployment -
                     Contact Sales.
                   </p>
                   {(enterprise.marketingSummary || enterprise.description) ? (
@@ -258,7 +258,7 @@ export default function PricingPage() {
           <SectionHeader
             eyebrow="Deployment options"
             title="How you want to run WaamTech"
-            description="Cloud SaaS for quick start — or contact us for own cloud server, whitelabel, and local on-premise deployment."
+            description="Cloud SaaS for quick start - or contact us for own cloud server, whitelabel, and local on-premise deployment."
           />
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             {deploymentOptions.map((opt, i) => {
@@ -305,7 +305,7 @@ export default function PricingPage() {
         <Container>
           <SectionHeader
             eyebrow="Compare plans"
-            title="What you get — side by side"
+            title="What you get - side by side"
             description="Ticks inherit upward: Starter → Business → Lifetime → Enterprise. White Label stays Enterprise-only. The layers icon means available when you build Custom ERP."
           />
           {catalog.loading && !comparisonAvailable ? (

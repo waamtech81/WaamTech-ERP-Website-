@@ -127,6 +127,38 @@ export function CatalogEmptyState({
   );
 }
 
+/** Compare Plans section when License Engine comparison API is down (plans may still work). */
+export function CatalogComparisonUnavailable({
+  message =
+    "Plan comparison is temporarily unavailable. Please refresh or try again shortly.",
+  onRetry,
+  className,
+}: {
+  message?: string;
+  onRetry?: () => void;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-100 bg-amber-50/70 px-6 py-10 text-center",
+        className
+      )}
+      role="status"
+      aria-live="polite"
+    >
+      <AlertTriangle className="h-7 w-7 text-amber-600" aria-hidden />
+      <p className="max-w-lg text-sm leading-relaxed text-amber-950">{message}</p>
+      {onRetry ? (
+        <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onRetry}>
+          <RefreshCw className="mr-2 h-3.5 w-3.5" />
+          Refresh
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function CatalogLoadingInline({ label = "Loading…" }: { label?: string }) {
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="polite">

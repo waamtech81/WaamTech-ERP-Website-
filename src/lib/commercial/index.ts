@@ -8,4 +8,10 @@ export {
   CATALOG_REVALIDATE_SECONDS,
   CATALOG_STALE_MS,
   CATALOG_MAX_AGE_MS,
+  CATALOG_VERSION_POLL_MS,
 } from "@/lib/commercial/config";
+export {
+  COMMERCIAL_CATALOG_CACHE_TAG,
+  computeCatalogRevision,
+  isEngineComparisonUsable,
+} from "@/lib/commercial/catalog-revision";

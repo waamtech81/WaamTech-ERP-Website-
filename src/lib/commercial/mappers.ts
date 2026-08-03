@@ -837,129 +837,6 @@ export function mapPricingRowsToPlans(
 }
 
 /** Build comparison matrix from License Engine comparison payload when available. */
-function planHasFeature(plan: PricingPlan, featureName: string): boolean {
-  const needle = featureName.trim().toLowerCase();
-  if (!needle) return false;
-  if (
-    (plan.featureGroups || []).some((g) =>
-      g.features.some((f) => f.name.trim().toLowerCase() === needle)
-    )
-  ) {
-    return true;
-  }
-  return (plan.features || []).some((f) => f.trim().toLowerCase() === needle);
-}
-
-/** Detailed feature matrix from Engine-mapped plan feature groups. */
-function featureGroupComparisonRows(
-  plans: PricingPlan[],
-  chain: string[] = [...TIER_ORDER]
-): Array<Record<string, string | boolean>> {
-  const groupOrder: string[] = [];
-  const featuresByGroup = new Map<string, string[]>();
-  const seenFeatures = new Set<string>();
-
-  for (const plan of plans) {
-    for (const group of plan.featureGroups || []) {
-      const gName = group.name.trim() || "Features";
-      if (!featuresByGroup.has(gName)) {
-        featuresByGroup.set(gName, []);
-        groupOrder.push(gName);
-      }
-      const list = featuresByGroup.get(gName)!;
-      for (const feature of group.features) {
-        const key = feature.name.trim().toLowerCase();
-        if (!key || seenFeatures.has(key)) continue;
-        seenFeatures.add(key);
-        list.push(feature.name);
-      }
-    }
-  }
-
-  if (!groupOrder.length) {
-    const flat: string[] = [];
-    for (const plan of plans) {
-      for (const name of plan.features || []) {
-        const key = name.trim().toLowerCase();
-        if (!key || seenFeatures.has(key)) continue;
-        seenFeatures.add(key);
-        flat.push(name);
-      }
-    }
-    if (flat.length) {
-      groupOrder.push("Features");
-      featuresByGroup.set("Features", flat);
-    }
-  }
-
-  const rows: Array<Record<string, string | boolean>> = [];
-  for (const gName of groupOrder) {
-    const features = featuresByGroup.get(gName) || [];
-    if (!features.length) continue;
-    rows.push({ name: gName, __section: true });
-    for (const featureName of features) {
-      const row: Record<string, string | boolean> = { name: featureName };
-      for (const plan of plans) {
-        row[plan.id] = planHasFeature(plan, featureName);
-      }
-      rows.push(applyBooleanHierarchy(plans, row, chain));
-    }
-  }
-  return rows;
-}
-
-function baseLimitComparisonRows(
-  plans: PricingPlan[]
-): Array<Record<string, string | boolean>> {
-  return [
-    {
-      name: "Users",
-      ...Object.fromEntries(
-        plans.map((p) => [
-          p.id,
-          p.usersIncluded === "unlimited"
-            ? "Unlimited Users"
-            : typeof p.usersIncluded === "number"
-              ? p.usersIncluded === 1
-                ? "1 Included User"
-                : `${p.usersIncluded} Included Users`
-              : "—",
-        ])
-      ),
-    },
-    {
-      name: "Support",
-      ...Object.fromEntries(plans.map((p) => [p.id, p.supportLevel || "—"])),
-    },
-    {
-      name: "Free trial",
-      ...Object.fromEntries(
-        plans.map((p) => [
-          p.id,
-          p.hasFreeTrial
-            ? p.trialDays
-              ? `${p.trialDays}-day trial`
-              : true
-            : false,
-        ])
-      ),
-    },
-    {
-      name: "Extra user price",
-      ...Object.fromEntries(
-        plans.map((p) => [
-          p.id,
-          p.extraUserPrice != null
-            ? `$${p.extraUserPrice}`
-            : p.usersIncluded === "unlimited"
-              ? "Included"
-              : "—",
-        ])
-      ),
-    },
-  ];
-}
-
 function cellIncluded(
   cell: { included?: boolean; inherited?: boolean } | undefined
 ): boolean {
@@ -1148,6 +1025,11 @@ export function comparisonHierarchyNote(
   return "Each plan includes everything from the previous plan plus additional features.";
 }
 
+/**
+ * Build Compare Plans rows from the License Engine comparison API only.
+ * Returns [] when Engine comparison is unavailable — callers must show an
+ * informative message instead of inventing a local matrix.
+ */
 export function buildDynamicComparison(
   plans: PricingPlan[],
   comparison?: CatalogComparisonBundle | null
@@ -1156,47 +1038,26 @@ export function buildDynamicComparison(
   const keys = visible.map((p) => p.id);
   const chain = hierarchyChain(comparison, comparison?.feature_matrix);
 
-  if (comparison?.comparison?.length) {
-    const matrix: Array<Record<string, string | boolean>> = [
-      ...engineDimensionRows(visible, comparison),
-      ...engineFeatureMatrixRows(visible, comparison),
-    ];
+  const hasEngineRows = Boolean(comparison?.comparison?.length);
+  const matrix: Array<Record<string, string | boolean>> = hasEngineRows
+    ? [
+        ...engineDimensionRows(visible, comparison),
+        ...engineFeatureMatrixRows(visible, comparison),
+      ]
+    : [];
 
-    // Soft fallback only when Engine dimensions/matrix are empty.
-    if (!matrix.length) {
-      matrix.push(...baseLimitComparisonRows(visible));
-      matrix.push(...featureGroupComparisonRows(visible, chain));
-    }
+  // No silent local fallback — Engine dimensions/matrix (or neither) only.
+  if (!matrix.length) return [];
 
-    for (const row of matrix) {
-      if (row.__section === true) continue;
-      applyBooleanHierarchy(visible, row, chain);
-      for (const key of keys) {
-        if (row[key] === undefined) row[key] = "—";
-      }
-    }
-    const cleaned = dedupeComparisonRows(
-      matrix.filter((row) => !/\bstorage\b/i.test(String(row.name || "")))
-    );
-    applyCustomErpColumnCells(visible, cleaned);
-    return cleaned;
-  }
-
-  // Fallback when comparison API is unavailable — limits + full feature groups from plans.
-  const rows: Array<Record<string, string | boolean>> = [
-    ...baseLimitComparisonRows(visible),
-    ...featureGroupComparisonRows(visible, chain),
-  ];
-
-  for (const row of rows) {
+  for (const row of matrix) {
     if (row.__section === true) continue;
     applyBooleanHierarchy(visible, row, chain);
     for (const key of keys) {
-      if (row[key] === undefined) row[key] = false;
+      if (row[key] === undefined) row[key] = "—";
     }
   }
   const cleaned = dedupeComparisonRows(
-    rows.filter((row) => !/\bstorage\b/i.test(String(row.name || "")))
+    matrix.filter((row) => !/\bstorage\b/i.test(String(row.name || "")))
   );
   applyCustomErpColumnCells(visible, cleaned);
   return cleaned;

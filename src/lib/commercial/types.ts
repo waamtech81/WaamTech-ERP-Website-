@@ -243,7 +243,8 @@ export type CatalogComparisonRow = {
   commercial_features?: CatalogFeatureItem[];
   feature_groups?: CatalogFeatureGroup[];
   green_tick_features?: CatalogFeatureItem[];
-  modules?: Array<{ code?: string; name?: string; slug?: string }>;
+  modules?: Array<{ code?: string; name?: string; slug?: string; id?: string }>;
+  feature_packs?: Array<{ code?: string; name?: string; slug?: string; id?: string }>;
   support_level?: string | null;
   highlights?: string[];
   mobile_app_included?: boolean;

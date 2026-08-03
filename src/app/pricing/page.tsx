@@ -24,6 +24,7 @@ import { useCatalogBundle } from "@/hooks/use-commercial";
 import {
   CatalogEmptyState,
   CatalogErrorState,
+  CatalogComparisonUnavailable,
   CatalogSkeleton,
 } from "@/components/commercial/catalog-states";
 import {
@@ -34,6 +35,7 @@ import {
   launchPromoFromPlans,
   publicMarketingPlans,
 } from "@/lib/commercial/mappers";
+import { isEngineComparisonUsable } from "@/lib/commercial/catalog-revision";
 
 export default function PricingPage() {
   const [yearly, setYearly] = useState(true);
@@ -57,6 +59,16 @@ export default function PricingPage() {
     () => buildDynamicComparison(pricingPlans, catalog.data.comparison),
     [pricingPlans, catalog.data.comparison]
   );
+  const comparisonAvailable = useMemo(() => {
+    const metaAvailable = catalog.data.meta?.comparisonAvailable;
+    if (metaAvailable === false) return false;
+    if (metaAvailable === true && comparisonRows.length > 0) return true;
+    return isEngineComparisonUsable(catalog.data.comparison) && comparisonRows.length > 0;
+  }, [
+    catalog.data.meta?.comparisonAvailable,
+    catalog.data.comparison,
+    comparisonRows.length,
+  ]);
   const hierarchyNote = useMemo(
     () => comparisonHierarchyNote(catalog.data.comparison),
     [catalog.data.comparison]
@@ -257,12 +269,20 @@ export default function PricingPage() {
             title="Plans, modules, and limits — side by side"
             description="Compare predefined plans, Custom ERP modules, feature packs, seat and storage limits, white-label options, and enterprise controls — updated for the current WAAMTO cloud ecosystem."
           />
-          <PricingComparisonTable
-            plans={planColumns}
-            rows={comparisonRows}
-            hierarchyNote={hierarchyNote}
-            loading={catalog.loading && comparisonRows.length === 0}
-          />
+          {catalog.loading && !comparisonAvailable ? (
+            <CatalogSkeleton rows={2} className="xl:grid-cols-1" />
+          ) : null}
+          {!catalog.loading && !comparisonAvailable && planColumns.length > 0 ? (
+            <CatalogComparisonUnavailable onRetry={catalog.retry} />
+          ) : null}
+          {comparisonAvailable ? (
+            <PricingComparisonTable
+              plans={planColumns}
+              rows={comparisonRows}
+              hierarchyNote={hierarchyNote}
+              loading={false}
+            />
+          ) : null}
           {!catalog.loading && planColumns.length === 0 ? (
             <CatalogEmptyState message="No Plans Available" />
           ) : null}

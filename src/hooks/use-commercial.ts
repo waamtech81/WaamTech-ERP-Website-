@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { swrGet, swrInvalidate, swrPeek } from "@/lib/commercial/swr-cache";
+import { CATALOG_VERSION_POLL_MS } from "@/lib/commercial/config";
 import {
   friendlyNetworkError,
   isOffline,
@@ -44,7 +45,8 @@ export type CatalogBundle = {
   featuredProducts: Product[];
   popularPlans: PricingPlan[];
   enterprise: PricingPlan | null;
-  meta?: Record<string, boolean>;
+  revision?: string | null;
+  meta?: Record<string, boolean | string | null | undefined>;
 };
 
 const EMPTY_ARRAY: never[] = [];
@@ -60,6 +62,7 @@ const EMPTY_BUNDLE: CatalogBundle = {
   featuredProducts: [],
   popularPlans: [],
   enterprise: null,
+  revision: null,
 };
 
 async function browserFetchJson<T>(url: string): Promise<T> {
@@ -298,12 +301,138 @@ export function useCatalogBusinessTypes(industryId?: string | null) {
 }
 
 export function useCatalogBundle(productSlug?: string | null, enabled = true) {
-  const qs = productSlug ? `?product=${encodeURIComponent(productSlug)}` : "";
-  return useCommercialQuery<CatalogBundle>(
-    enabled ? (productSlug ? `catalog:bundle:${productSlug}` : "catalog:bundle") : null,
-    enabled ? `/api/commercial/catalog${qs}` : null,
-    EMPTY_BUNDLE
-  );
+  const [freshTick, setFreshTick] = useState(0);
+  const baseQs = productSlug ? `?product=${encodeURIComponent(productSlug)}` : "";
+  const freshQs = freshTick
+    ? `${baseQs ? "&" : "?"}fresh=1&_r=${freshTick}`
+    : "";
+  const key = enabled
+    ? productSlug
+      ? `catalog:bundle:${productSlug}`
+      : "catalog:bundle"
+    : null;
+  const path = enabled ? `/api/commercial/catalog${baseQs}${freshQs}` : null;
+  const query = useCommercialQuery<CatalogBundle>(key, path, EMPTY_BUNDLE);
+
+  const refreshFromRevision = useCallback(() => {
+    setFreshTick(Date.now());
+  }, []);
+
+  useCatalogRevisionWatcher({
+    enabled,
+    productSlug: productSlug || null,
+    currentRevision:
+      typeof query.data.revision === "string"
+        ? query.data.revision
+        : typeof query.data.meta?.revision === "string"
+          ? query.data.meta.revision
+          : null,
+    onInvalidate: refreshFromRevision,
+  });
+
+  return query;
+}
+
+/**
+ * Poll Engine-backed catalog revision; on change clear BFF cache + client SWR
+ * and refresh Website / Portal commercial views.
+ */
+function useCatalogRevisionWatcher(opts: {
+  enabled: boolean;
+  productSlug?: string | null;
+  currentRevision?: string | null;
+  onInvalidate: () => void;
+}) {
+  const lastSeen = useRef<string | null>(null);
+  const refreshing = useRef(false);
+  const onInvalidateRef = useRef(opts.onInvalidate);
+  onInvalidateRef.current = opts.onInvalidate;
+  const productSlug = opts.productSlug || null;
+
+  useEffect(() => {
+    if (opts.currentRevision) {
+      lastSeen.current = opts.currentRevision;
+    }
+  }, [opts.currentRevision]);
+
+  useEffect(() => {
+    if (!opts.enabled || typeof window === "undefined") return;
+    if (!Number.isFinite(CATALOG_VERSION_POLL_MS) || CATALOG_VERSION_POLL_MS <= 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function checkRevision() {
+      if (cancelled || refreshing.current || isOffline()) return;
+      const qs = productSlug
+        ? `?product=${encodeURIComponent(productSlug)}`
+        : "";
+      try {
+        const res = await fetch(`/api/commercial/catalog/version${qs}`, {
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          success?: boolean;
+          data?: { revision?: string };
+        };
+        const next = String(json.data?.revision || "").trim();
+        if (!next) return;
+
+        if (!lastSeen.current) {
+          lastSeen.current = next;
+          return;
+        }
+        if (next === lastSeen.current) return;
+
+        refreshing.current = true;
+        lastSeen.current = next;
+        try {
+          await fetch("/api/commercial/catalog/revalidate", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              product: productSlug || undefined,
+            }),
+          }).catch(() => {
+            /* client SWR refresh still proceeds */
+          });
+          swrInvalidate("catalog:");
+          onInvalidateRef.current();
+        } finally {
+          refreshing.current = false;
+        }
+      } catch {
+        /* ignore transient version poll failures */
+      }
+    }
+
+    void checkRevision();
+    const id = window.setInterval(() => {
+      void checkRevision();
+    }, CATALOG_VERSION_POLL_MS);
+
+    const onFocus = () => {
+      void checkRevision();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void checkRevision();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [opts.enabled, productSlug]);
 }
 
 export function useCatalogModules(productSlug?: string | null) {

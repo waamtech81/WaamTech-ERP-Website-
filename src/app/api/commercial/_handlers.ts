@@ -19,6 +19,12 @@ import {
   fetchPublicPlanComparison,
   submitCustomPackageRequest,
 } from "@/lib/commercial/client";
+import {
+  COMMERCIAL_CATALOG_CACHE_TAG,
+  computeCatalogRevision,
+  isEngineComparisonUsable,
+} from "@/lib/commercial/catalog-revision";
+import { CATALOG_REVALIDATE_SECRET } from "@/lib/commercial/config";
 import { normalizeCatalogModules } from "@/lib/commercial/module-builder";
 import { validateCustomErpBillingCycle } from "@/lib/commercial/custom-erp-billing";
 import type {
@@ -49,6 +55,12 @@ function jsonOk(data: unknown, init?: { status?: number; cacheSeconds?: number }
   return res;
 }
 
+function jsonFreshOk(data: unknown) {
+  const res = apiSuccess("OK", { data, status: 200 });
+  res.headers.set("Cache-Control", "private, no-store, max-age=0");
+  return res;
+}
+
 function jsonFail(message: string, status = 502) {
   return apiFail(message || PUBLIC_MESSAGES[ApiErrorCode.SERVICE_UNAVAILABLE], {
     status,
@@ -70,12 +82,22 @@ function jsonFail(message: string, status = 502) {
   });
 }
 
-/** Last successful catalog payload — soft-serve when License Engine is briefly down. */
+/** Last successful *fully healthy* catalog payload — soft-serve only on Engine outage. */
 const catalogLastGood = new Map<string, unknown>();
+
+export function clearCatalogLastGood(product?: string) {
+  if (product?.trim()) {
+    catalogLastGood.delete(product.trim());
+    catalogLastGood.delete("__default__");
+    return;
+  }
+  catalogLastGood.clear();
+}
 
 function buildCatalogPayload(
   bundle: Awaited<ReturnType<typeof fetchPublicCatalogBundle>>
 ) {
+  const comparisonUsable = isEngineComparisonUsable(bundle.comparison);
   const marketingCatalogPlans = publicMarketingPlans(bundle.plans);
   const marketingPricingRows = publicMarketingPlans(bundle.pricing);
   const mappedPlans =
@@ -83,10 +105,12 @@ function buildCatalogPayload(
       ? mapPricingRowsToPlans(
           marketingPricingRows,
           marketingCatalogPlans,
-          bundle.comparison
+          comparisonUsable ? bundle.comparison : null
         )
       : sortPlansByTier(marketingCatalogPlans).map((p) => {
-          const row = bundle.comparison?.comparison.find((c) => c.plan.id === p.id);
+          const row = comparisonUsable
+            ? bundle.comparison?.comparison.find((c) => c.plan.id === p.id)
+            : undefined;
           return mapCatalogPlanToPricingPlan(p, {
             limits: row?.limits,
             featureGroups: row?.feature_groups,
@@ -99,20 +123,31 @@ function buildCatalogPayload(
   const featuredProducts = bundle.products.slice(0, 6).map(mapCatalogProductToUi);
   const popular = popularPlans(pricingPlans, 3);
   const enterprise = enterprisePlan(pricingPlans) || null;
+  const revision = computeCatalogRevision({
+    plans: bundle.plans,
+    pricing: bundle.pricing,
+    comparison: bundle.comparison,
+  });
 
   return {
     products: bundle.products,
     plans: bundle.plans,
     pricing: bundle.pricing,
     industries: bundle.industries,
-    comparison: bundle.comparison,
+    comparison: comparisonUsable ? bundle.comparison : null,
     productSlug: bundle.productSlug,
     pricingPlans,
     cardPlans: cardPlans(pricingPlans),
     featuredProducts,
     popularPlans: popular,
     enterprise,
-    meta: bundle.meta,
+    revision,
+    meta: {
+      ...bundle.meta,
+      comparisonOk: Boolean(bundle.meta?.comparisonOk),
+      comparisonAvailable: comparisonUsable && Boolean(bundle.meta?.comparisonOk),
+      revision,
+    },
   };
 }
 
@@ -147,9 +182,14 @@ export async function GET_comparison(req: Request) {
         .filter(Boolean)
     : undefined;
   const result = await fetchPublicPlanComparison({ product, ids });
-  // Soft-empty when Engine comparison is down — pricing UI builds a local matrix.
   if (!result.ok && result.data.comparison.length === 0) {
-    return jsonOk({ plans: [], comparison: [], limit_keys: [] });
+    return jsonFail(
+      result.message || "Plan comparison is temporarily unavailable.",
+      result.status || 502
+    );
+  }
+  if (!isEngineComparisonUsable(result.data)) {
+    return jsonFail("Plan comparison is temporarily unavailable.", 503);
   }
   return jsonOk(result.data);
 }
@@ -303,31 +343,49 @@ export async function GET_commercial(req: Request) {
 }
 
 export async function GET_catalog(req: Request) {
-  const product = new URL(req.url).searchParams.get("product") || undefined;
+  const url = new URL(req.url);
+  const product = url.searchParams.get("product") || undefined;
+  const fresh =
+    url.searchParams.get("fresh") === "1" ||
+    url.searchParams.get("fresh") === "true";
   const cacheKey = product?.trim() || "__default__";
 
   try {
-    const bundle = await fetchPublicCatalogBundle(product);
+    const bundle = await fetchPublicCatalogBundle(product, { fresh });
     const payload = buildCatalogPayload(bundle);
     const hasContent =
       payload.pricingPlans.length > 0 || payload.featuredProducts.length > 0;
+    const catalogHealthy =
+      Boolean(bundle.meta?.plansOk) &&
+      Boolean(bundle.meta?.pricingOk) &&
+      Boolean(bundle.meta?.comparisonOk) &&
+      isEngineComparisonUsable(bundle.comparison);
 
+    // Full Engine outage only — never use last-good for partial comparison failures.
     if (!bundle.ok && !hasContent) {
       const stale = catalogLastGood.get(cacheKey);
       if (stale) {
-        return jsonOk({ ...(stale as object), meta: { ...(stale as { meta?: object }).meta, stale: true } });
+        return jsonOk({
+          ...(stale as object),
+          meta: { ...(stale as { meta?: object }).meta, stale: true },
+        });
       }
       return jsonFail(bundle.message || "Commercial catalog unavailable.");
     }
 
-    if (hasContent) {
+    // Store last-good only when catalog + comparison are fully healthy.
+    if (hasContent && catalogHealthy) {
       catalogLastGood.set(cacheKey, payload);
     }
-    return jsonOk(payload);
+
+    return fresh ? jsonFreshOk(payload) : jsonOk(payload);
   } catch (error) {
     const stale = catalogLastGood.get(cacheKey);
     if (stale) {
-      return jsonOk({ ...(stale as object), meta: { ...(stale as { meta?: object }).meta, stale: true } });
+      return jsonOk({
+        ...(stale as object),
+        meta: { ...(stale as { meta?: object }).meta, stale: true },
+      });
     }
     logApiError(error, {
       endpoint: "/api/commercial/catalog",
@@ -337,4 +395,106 @@ export async function GET_catalog(req: Request) {
     });
     return jsonFail(PUBLIC_MESSAGES[ApiErrorCode.INTERNAL_ERROR], 502);
   }
+}
+
+/**
+ * Lightweight revision stamp — always reads Engine fresh so Website/Portal
+ * can detect plan/price/limit/comparison updates before SWR hard expiry.
+ */
+export async function GET_catalogVersion(req: Request) {
+  const product = new URL(req.url).searchParams.get("product") || undefined;
+  try {
+    const [plans, pricing, comparison] = await Promise.all([
+      fetchPublicPlans(product, { fresh: true }),
+      fetchPublicPricing(product, { fresh: true }),
+      fetchPublicPlanComparison({ product, fresh: true }),
+    ]);
+
+    const revision = computeCatalogRevision({
+      plans: plans.data,
+      pricing: pricing.data,
+      comparison: comparison.data,
+    });
+
+    return jsonOk(
+      {
+        revision,
+        comparisonAvailable:
+          comparison.ok && isEngineComparisonUsable(comparison.data),
+        generatedAt: new Date().toISOString(),
+      },
+      { cacheSeconds: 15 }
+    );
+  } catch (error) {
+    logApiError(error, {
+      endpoint: "/api/commercial/catalog/version",
+      httpStatus: 502,
+      technicalMessage:
+        error instanceof Error ? error.message : "Catalog version unavailable.",
+    });
+    return jsonFail("Catalog version unavailable.", 502);
+  }
+}
+
+/**
+ * Clear in-memory last-good + Next.js commercial catalog data cache.
+ * Ops: send `x-catalog-revalidate-key` when COMMERCIAL_CATALOG_REVALIDATE_SECRET is set.
+ * Same-origin browser calls after revision change may omit the secret.
+ */
+export async function POST_catalogRevalidate(req: Request) {
+  const secret = CATALOG_REVALIDATE_SECRET.trim();
+  if (secret) {
+    const provided =
+      req.headers.get("x-catalog-revalidate-key") ||
+      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
+      "";
+    if (provided !== secret) {
+      // Allow same-origin unauthenticated refresh (browser auto-sync) without ops secret.
+      const origin = req.headers.get("origin") || "";
+      const host = req.headers.get("host") || "";
+      const sameOrigin =
+        origin &&
+        host &&
+        (origin.includes(host) ||
+          (() => {
+            try {
+              return new URL(origin).host === host;
+            } catch {
+              return false;
+            }
+          })());
+      if (!sameOrigin) {
+        return apiFail("Unauthorized catalog revalidate.", {
+          status: 401,
+          code: ApiErrorCode.UNAUTHORIZED,
+        });
+      }
+    }
+  }
+
+  const body = (await req.json().catch(() => ({}))) as { product?: string };
+  clearCatalogLastGood(body.product);
+
+  try {
+    const { revalidateTag } = await import("next/cache");
+    revalidateTag(COMMERCIAL_CATALOG_CACHE_TAG, "max");
+  } catch (error) {
+    logApiError(error, {
+      endpoint: "/api/commercial/catalog/revalidate",
+      httpStatus: 200,
+      technicalMessage:
+        error instanceof Error
+          ? error.message
+          : "revalidateTag unavailable — last-good cleared only.",
+    });
+  }
+
+  return apiSuccess("Commercial catalog cache cleared.", {
+    data: {
+      cleared: true,
+      tag: COMMERCIAL_CATALOG_CACHE_TAG,
+      product: body.product || null,
+    },
+    status: 200,
+  });
 }

@@ -3,6 +3,7 @@ import {
   commercialApiBase,
   commercialHeaders,
 } from "@/lib/commercial/config";
+import { COMMERCIAL_CATALOG_CACHE_TAG } from "@/lib/commercial/catalog-revision";
 import { normalizeCustomPackageQuote } from "@/lib/commercial/custom-package-quote";
 import { toPublicError } from "@/lib/api/errors";
 import { logApiError } from "@/lib/api/logger";
@@ -72,7 +73,12 @@ function publicUpstreamMessage(
 async function getPublic<T>(
   path: string,
   query?: Record<string, string | undefined>,
-  options?: { revalidate?: number | false; accessToken?: string }
+  options?: {
+    revalidate?: number | false;
+    accessToken?: string;
+    /** Skip Next.js data cache (fresh Engine read for revision / forced refresh). */
+    fresh?: boolean;
+  }
 ): Promise<CatalogFetchResult<T | null>> {
   const base = commercialApiBase();
   const params = new URLSearchParams();
@@ -88,13 +94,15 @@ async function getPublic<T>(
   const timeout = setTimeout(() => controller.abort(), 12_000);
 
   try {
-    const fetchInit: RequestInit & { next?: { revalidate?: number } } = {
+    const fetchInit: RequestInit & {
+      next?: { revalidate?: number; tags?: string[] };
+    } = {
       method: "GET",
       headers: commercialHeaders(options?.accessToken),
       signal: controller.signal,
     };
 
-    if (options?.revalidate === false || options?.accessToken) {
+    if (options?.revalidate === false || options?.accessToken || options?.fresh) {
       fetchInit.cache = "no-store";
     } else {
       fetchInit.next = {
@@ -102,6 +110,7 @@ async function getPublic<T>(
           typeof options?.revalidate === "number"
             ? options.revalidate
             : CATALOG_REVALIDATE_SECONDS,
+        tags: [COMMERCIAL_CATALOG_CACHE_TAG],
       };
     }
 
@@ -557,20 +566,30 @@ export async function submitCustomPackageRequest(
 }
 
 export async function fetchPublicPlans(
-  productSlug?: string
+  productSlug?: string,
+  options?: { fresh?: boolean }
 ): Promise<CatalogFetchResult<CatalogPlan[]>> {
-  const result = await getPublic<CatalogPlan[]>("/v1/public/catalog/plans", {
-    product: productSlug,
-  });
+  const result = await getPublic<CatalogPlan[]>(
+    "/v1/public/catalog/plans",
+    {
+      product: productSlug,
+    },
+    options?.fresh ? { fresh: true } : undefined
+  );
   return { ...result, data: asArray(result.data) };
 }
 
 export async function fetchPublicPricing(
-  productSlug?: string
+  productSlug?: string,
+  options?: { fresh?: boolean }
 ): Promise<CatalogFetchResult<CatalogPricing[]>> {
-  const result = await getPublic<CatalogPricing[]>("/v1/public/catalog/pricing", {
-    product: productSlug,
-  });
+  const result = await getPublic<CatalogPricing[]>(
+    "/v1/public/catalog/pricing",
+    {
+      product: productSlug,
+    },
+    options?.fresh ? { fresh: true } : undefined
+  );
   return { ...result, data: asArray(result.data) };
 }
 
@@ -610,13 +629,15 @@ export async function fetchPublicPlanLimits(
 export async function fetchPublicPlanComparison(opts?: {
   product?: string;
   ids?: string[];
+  fresh?: boolean;
 }): Promise<CatalogFetchResult<CatalogComparisonBundle>> {
   const result = await getPublic<CatalogComparisonBundle>(
     "/v1/public/catalog/plans/comparison",
     {
       product: opts?.product,
       ids: opts?.ids?.length ? opts.ids.join(",") : undefined,
-    }
+    },
+    opts?.fresh ? { fresh: true } : undefined
   );
   return {
     ...result,
@@ -1331,8 +1352,12 @@ export function resolvePrimaryProductSlug(
 }
 
 /** Aggregate public catalog for home / pricing pages. */
-export async function fetchPublicCatalogBundle(productSlug?: string) {
+export async function fetchPublicCatalogBundle(
+  productSlug?: string,
+  options?: { fresh?: boolean }
+) {
   const knownSlug = productSlug?.trim() || undefined;
+  const fresh = Boolean(options?.fresh);
 
   // When the caller already knows the product, overlap products with catalog GETs.
   let products: Awaited<ReturnType<typeof fetchPublicProducts>>;
@@ -1346,18 +1371,18 @@ export async function fetchPublicCatalogBundle(productSlug?: string) {
     preferredSlug = knownSlug;
     [products, plans, pricing, comparison, industries] = await Promise.all([
       fetchPublicProducts(),
-      fetchPublicPlans(preferredSlug),
-      fetchPublicPricing(preferredSlug),
-      fetchPublicPlanComparison({ product: preferredSlug }),
+      fetchPublicPlans(preferredSlug, { fresh }),
+      fetchPublicPricing(preferredSlug, { fresh }),
+      fetchPublicPlanComparison({ product: preferredSlug, fresh }),
       fetchPublicIndustries(),
     ]);
   } else {
     products = await fetchPublicProducts();
     preferredSlug = resolvePrimaryProductSlug(products.data) || undefined;
     [plans, pricing, comparison, industries] = await Promise.all([
-      fetchPublicPlans(preferredSlug),
-      fetchPublicPricing(preferredSlug),
-      fetchPublicPlanComparison({ product: preferredSlug }),
+      fetchPublicPlans(preferredSlug, { fresh }),
+      fetchPublicPricing(preferredSlug, { fresh }),
+      fetchPublicPlanComparison({ product: preferredSlug, fresh }),
       fetchPublicIndustries(),
     ]);
   }
@@ -1379,10 +1404,12 @@ export async function fetchPublicCatalogBundle(productSlug?: string) {
 
   if (needPlansFallback || needPricingFallback || needComparisonFallback) {
     const [allPlans, allPricing, allComparison] = await Promise.all([
-      needPlansFallback ? fetchPublicPlans() : Promise.resolve(null),
-      needPricingFallback ? fetchPublicPricing() : Promise.resolve(null),
+      needPlansFallback ? fetchPublicPlans(undefined, { fresh }) : Promise.resolve(null),
+      needPricingFallback
+        ? fetchPublicPricing(undefined, { fresh })
+        : Promise.resolve(null),
       needComparisonFallback
-        ? fetchPublicPlanComparison()
+        ? fetchPublicPlanComparison({ fresh })
         : Promise.resolve(null),
     ]);
 
@@ -1422,6 +1449,9 @@ export async function fetchPublicCatalogBundle(productSlug?: string) {
                 plans: filtered.map((r) => r.plan),
                 comparison: filtered,
                 limit_keys: allComparison.data.limit_keys,
+                dimensions: allComparison.data.dimensions,
+                feature_matrix: allComparison.data.feature_matrix,
+                hierarchy: allComparison.data.hierarchy,
               }
             : allComparison.data,
       };

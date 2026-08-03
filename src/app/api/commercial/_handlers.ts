@@ -16,6 +16,7 @@ import {
   fetchCustomPackageQuote,
   fetchPublicCatalogBundle,
   fetchPublicCommercialOverview,
+  fetchPublicCommercialRegistry,
   fetchPublicPlanComparison,
   submitCustomPackageRequest,
 } from "@/lib/commercial/client";
@@ -31,6 +32,7 @@ import type {
   CustomPackageQuotePayload,
   CustomPackageRequestPayload,
 } from "@/lib/commercial/types";
+import { resolveManualPricingCards } from "@/lib/commercial/commercial-experience";
 import {
   cardPlans,
   enterprisePlan,
@@ -95,7 +97,8 @@ export function clearCatalogLastGood(product?: string) {
 }
 
 function buildCatalogPayload(
-  bundle: Awaited<ReturnType<typeof fetchPublicCatalogBundle>>
+  bundle: Awaited<ReturnType<typeof fetchPublicCatalogBundle>>,
+  registry: Awaited<ReturnType<typeof fetchPublicCommercialRegistry>>["data"]
 ) {
   const comparisonUsable = isEngineComparisonUsable(bundle.comparison);
   const marketingCatalogPlans = publicMarketingPlans(bundle.plans);
@@ -122,7 +125,16 @@ function buildCatalogPayload(
   const pricingPlans = publicMarketingPlans(mappedPlans);
   const featuredProducts = bundle.products.slice(0, 6).map(mapCatalogProductToUi);
   const popular = popularPlans(pricingPlans, 3);
-  const enterprise = enterprisePlan(pricingPlans) || null;
+  const commercial_registry =
+    registry ||
+    (bundle as { commercial_registry?: typeof registry }).commercial_registry ||
+    null;
+  const manuals = resolveManualPricingCards({
+    plans: pricingPlans,
+    registry: commercial_registry,
+  });
+  const enterprise = manuals.enterprise || enterprisePlan(pricingPlans) || null;
+  const whiteLabel = manuals.whiteLabel || null;
   const revision = computeCatalogRevision({
     plans: bundle.plans,
     pricing: bundle.pricing,
@@ -141,6 +153,8 @@ function buildCatalogPayload(
     featuredProducts,
     popularPlans: popular,
     enterprise,
+    whiteLabel,
+    commercial_registry,
     revision,
     meta: {
       ...bundle.meta,
@@ -325,6 +339,20 @@ export async function GET_businessTypes(req: Request) {
   return jsonOk(result.data);
 }
 
+export async function GET_commercialRegistry(req: Request) {
+  const includeMappings = new URL(req.url).searchParams.get("include_mappings") !== "0";
+  const result = await fetchPublicCommercialRegistry({
+    include_mappings: includeMappings,
+  });
+  if (!result.ok || !result.data) {
+    return jsonFail(
+      result.message || "Commercial registry unavailable.",
+      result.status >= 400 ? result.status : 502
+    );
+  }
+  return jsonOk(result.data, { cacheSeconds: 60 });
+}
+
 export async function GET_commercial(req: Request) {
   const url = new URL(req.url);
   const product = url.searchParams.get("product") || "waamto-erp";
@@ -351,8 +379,11 @@ export async function GET_catalog(req: Request) {
   const cacheKey = product?.trim() || "__default__";
 
   try {
-    const bundle = await fetchPublicCatalogBundle(product, { fresh });
-    const payload = buildCatalogPayload(bundle);
+    const [bundle, registryResult] = await Promise.all([
+      fetchPublicCatalogBundle(product, { fresh }),
+      fetchPublicCommercialRegistry({ include_mappings: true }),
+    ]);
+    const payload = buildCatalogPayload(bundle, registryResult.data);
     const hasContent =
       payload.pricingPlans.length > 0 || payload.featuredProducts.length > 0;
     const catalogHealthy =

@@ -20,6 +20,8 @@ import type {
   CatalogPricing,
   CatalogProduct,
   PublicCommercialOverview,
+  PublicCommercialRegistry,
+  PublicCommercialRegistrySummary,
 } from "@/lib/commercial/types";
 import type { PricingPlan, Product } from "@/types";
 
@@ -45,6 +47,8 @@ export type CatalogBundle = {
   featuredProducts: Product[];
   popularPlans: PricingPlan[];
   enterprise: PricingPlan | null;
+  whiteLabel?: PricingPlan | null;
+  commercial_registry?: PublicCommercialRegistry | PublicCommercialRegistrySummary | null;
   revision?: string | null;
   meta?: Record<string, boolean | string | null | undefined>;
 };
@@ -62,6 +66,8 @@ const EMPTY_BUNDLE: CatalogBundle = {
   featuredProducts: [],
   popularPlans: [],
   enterprise: null,
+  whiteLabel: null,
+  commercial_registry: null,
   revision: null,
 };
 
@@ -267,6 +273,16 @@ export function useCommercialOverview(
   return useCommercialQuery<PublicCommercialOverview | null>(
     enabled ? `catalog:commercial:${productSlug}:${billingCycle}` : null,
     enabled ? `/api/commercial/commercial${qs}` : null,
+    null
+  );
+}
+
+/** Full commercial registry foundation from License Engine. */
+export function useCommercialRegistry(includeMappings = true) {
+  const qs = includeMappings ? "" : "?include_mappings=0";
+  return useCommercialQuery<PublicCommercialRegistry | null>(
+    `catalog:commercial-registry:${includeMappings ? "full" : "compact"}`,
+    `/api/commercial/commercial-registry${qs}`,
     null
   );
 }

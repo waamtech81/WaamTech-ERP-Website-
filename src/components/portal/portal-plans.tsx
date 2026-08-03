@@ -14,6 +14,16 @@ import {
   cardPlans,
   publicMarketingPlans,
 } from "@/lib/commercial/mappers";
+import {
+  filterPlansForPortalFlow,
+  recommendedUpgradePlan,
+  resolvePortalPlanTier,
+  upgradeActionForPortal,
+} from "@/lib/portal/commercial-rules";
+import {
+  primaryPortalLicense,
+  resolvePortalJourneyFromDashboard,
+} from "@/lib/portal/package-type";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import {
   PortalFlash,
@@ -212,13 +222,30 @@ export function PortalPlansView() {
     [catalog.data.pricingPlans]
   );
 
+  const registry = catalog.data.commercial_registry || null;
+  const journey = resolvePortalJourneyFromDashboard(portal);
+  const currentTier = useMemo(
+    () =>
+      resolvePortalPlanTier({
+        plan_name: activeSub?.plan_name || portal?.subscription?.currentPlan,
+        plan_id: activeSub?.plan_id,
+        package_type: primaryPortalLicense(portal?.licenses)?.package_type,
+        billing_cycle: activeSub?.billing_cycle,
+        currentPlan: portal?.subscription?.currentPlan,
+      }),
+    [activeSub, portal]
+  );
+
   const displayPlans = useMemo(() => {
-    const cards = cardPlans(pricingPlans).filter(
-      (p) => !/enterprise/i.test(p.id) && p.planId
-    );
-    // Always show the full License catalog list for upgrade / renew / new place.
-    return cards;
-  }, [pricingPlans]);
+    const cards = cardPlans(pricingPlans).filter((p) => Boolean(p.planId));
+    return filterPlansForPortalFlow({
+      plans: cards,
+      mode,
+      currentTier,
+      registry,
+      currentPlanId: activeSub?.plan_id,
+    });
+  }, [pricingPlans, mode, currentTier, registry, activeSub?.plan_id]);
 
   const selectedPlan =
     displayPlans.find((p) => p.planId === selectedPlanId) || null;
@@ -228,12 +255,13 @@ export function PortalPlansView() {
 
   const recommendedUpgrade = useMemo(() => {
     if (mode !== "upgrade") return null;
-    const business =
-      displayPlans.find((p) => /business/i.test(p.id) || /business/i.test(p.name)) ||
+    const target =
+      recommendedUpgradePlan(displayPlans, currentTier, registry) ||
       displayPlans.find((p) => p.popular) ||
+      displayPlans[0] ||
       null;
-    if (!business?.planId) return null;
-    const rec = priceForCycle(business, billingCycle);
+    if (!target?.planId) return null;
+    const rec = priceForCycle(target, billingCycle);
     if (rec.price == null || rec.contactSales) return null;
     const currentAmount = Number(activeSub?.unit_price ?? NaN);
     const savings =
@@ -241,14 +269,25 @@ export function PortalPlansView() {
         ? currentAmount - rec.price
         : null;
     return {
-      plan: business,
+      plan: target,
       price: rec.price,
       unitLabel: rec.unitLabel,
       currentAmount: Number.isFinite(currentAmount) ? currentAmount : null,
       savings,
-      isCurrent: business.planId === activeSub?.plan_id,
+      isCurrent: target.planId === activeSub?.plan_id,
     };
-  }, [mode, displayPlans, billingCycle, activeSub]);
+  }, [mode, displayPlans, billingCycle, activeSub, currentTier, registry]);
+
+  const upgradeGate = useMemo(
+    () =>
+      upgradeActionForPortal({
+        journey,
+        currentTier,
+        registry,
+        subscriptionId: activeSub?.id,
+      }),
+    [journey, currentTier, registry, activeSub?.id]
+  );
 
   const industries = (industriesQuery.data || []).filter(
     (i) => i.is_public !== false && String(i.status || "active").toLowerCase() !== "inactive"
@@ -407,6 +446,57 @@ export function PortalPlansView() {
     );
   }
 
+  if (mode === "upgrade" && upgradeGate.kind === "contact_sales") {
+    return (
+      <PortalPanel
+        title="Contact Sales"
+        description="Enterprise and White Label are manual commercial products. Self-serve upgrades stay on Starter, Business, and Lifetime only."
+      >
+        <div className="flex flex-wrap gap-2">
+          {upgradeGate.href ? (
+            <Button asChild className="rounded-xl">
+              <Link href={upgradeGate.href}>{upgradeGate.label}</Link>
+            </Button>
+          ) : null}
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link href="/portal/subscriptions">Back to subscriptions</Link>
+          </Button>
+        </div>
+      </PortalPanel>
+    );
+  }
+
+  if (mode === "upgrade" && upgradeGate.kind === "none") {
+    return (
+      <PortalPanel
+        title="No self-serve upgrade"
+        description="Your current plan has no License Engine self-serve upgrade path. Lifetime customers stay on Lifetime; Enterprise and White Label are sold via Contact Sales."
+      >
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link href="/portal/subscriptions">Back to subscriptions</Link>
+          </Button>
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link href="/contact?intent=pricing">Contact Sales</Link>
+          </Button>
+        </div>
+      </PortalPanel>
+    );
+  }
+
+  if (mode === "upgrade" && upgradeGate.kind === "custom_modify") {
+    return (
+      <PortalPanel
+        title="Custom ERP package"
+        description="Custom ERP is independent of predefined plans. Modify modules, feature packs, and limits instead of changing Starter / Business / Lifetime."
+      >
+        <Button asChild className="rounded-xl">
+          <Link href="/portal/custom-erp">Modify package</Link>
+        </Button>
+      </PortalPanel>
+    );
+  }
+
   const title =
     mode === "new_place"
       ? "Create New Business"
@@ -429,9 +519,9 @@ export function PortalPlansView() {
             {title}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--portal-muted)]">
-            Choose industry, business type, plan, and price. Then continue to billing
-            checkout with your preferred payment method. Your account stays the
-            source of truth — WAAMTO ERP Cloud picks up the update after payment.
+            {mode === "upgrade"
+              ? "Self-serve upgrades follow License Engine rules: Starter → Business or Lifetime, Business → Lifetime. Enterprise and White Label require Contact Sales."
+              : "Choose industry, business type, plan, and price. Then continue to billing checkout with your preferred payment method."}
           </p>
           {isTrial ? (
             <p className="mt-2 text-sm text-[var(--portal-fg)]">

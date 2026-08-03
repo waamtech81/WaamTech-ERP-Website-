@@ -31,10 +31,15 @@ import {
   buildDynamicComparison,
   cardPlans,
   comparisonHierarchyNote,
-  enterprisePlan,
   launchPromoFromPlans,
   publicMarketingPlans,
 } from "@/lib/commercial/mappers";
+import {
+  comparisonNoteFromRegistry,
+  pricingGuideFromRegistry,
+  resolveManualPricingCards,
+} from "@/lib/commercial/commercial-experience";
+import type { PublicCommercialRegistry } from "@/lib/commercial/types";
 import { isEngineComparisonUsable } from "@/lib/commercial/catalog-revision";
 
 export default function PricingPage() {
@@ -43,21 +48,42 @@ export default function PricingPage() {
   const { t, formatPrice } = useLocale();
   const catalog = useCatalogBundle();
 
+  const registry = catalog.data.commercial_registry as
+    | PublicCommercialRegistry
+    | null
+    | undefined;
+
   const pricingPlans = useMemo(
     () => publicMarketingPlans(catalog.data.pricingPlans || []),
     [catalog.data.pricingPlans]
   );
-  const displayCardPlans = useMemo(
-    () => cardPlans(pricingPlans).filter((p) => !/enterprise/i.test(p.id)),
-    [pricingPlans]
+  const displayCardPlans = useMemo(() => cardPlans(pricingPlans), [pricingPlans]);
+  const manuals = useMemo(
+    () =>
+      resolveManualPricingCards({
+        plans: pricingPlans,
+        registry: registry || catalog.data.commercial_registry,
+      }),
+    [pricingPlans, registry, catalog.data.commercial_registry]
   );
   const enterprise = useMemo(
-    () => catalog.data.enterprise || enterprisePlan(pricingPlans),
-    [catalog.data.enterprise, pricingPlans]
+    () => catalog.data.enterprise || manuals.enterprise,
+    [catalog.data.enterprise, manuals.enterprise]
+  );
+  const whiteLabel = useMemo(
+    () => catalog.data.whiteLabel || manuals.whiteLabel,
+    [catalog.data.whiteLabel, manuals.whiteLabel]
   );
   const comparisonRows = useMemo(
-    () => buildDynamicComparison(pricingPlans, catalog.data.comparison),
-    [pricingPlans, catalog.data.comparison]
+    () =>
+      buildDynamicComparison(
+        pricingPlans,
+        catalog.data.comparison,
+        registry?.predefined_hierarchy ||
+          (catalog.data.commercial_registry as { predefined_hierarchy?: string[] } | null)
+            ?.predefined_hierarchy
+      ),
+    [pricingPlans, catalog.data.comparison, registry, catalog.data.commercial_registry]
   );
   const comparisonAvailable = useMemo(() => {
     const metaAvailable = catalog.data.meta?.comparisonAvailable;
@@ -69,12 +95,21 @@ export default function PricingPage() {
     catalog.data.comparison,
     comparisonRows.length,
   ]);
-  const hierarchyNote = useMemo(
-    () => comparisonHierarchyNote(catalog.data.comparison),
-    [catalog.data.comparison]
+  const hierarchyNote = useMemo(() => {
+    const engineNote = comparisonHierarchyNote(
+      catalog.data.comparison,
+      catalog.data.commercial_registry
+    );
+    return comparisonNoteFromRegistry(catalog.data.commercial_registry, engineNote);
+  }, [catalog.data.comparison, catalog.data.commercial_registry]);
+  const planColumns = pricingPlans.filter(
+    (p) => !/white[\s_-]?label/i.test(`${p.id} ${p.name}`)
   );
-  const planColumns = pricingPlans;
   const promo = useMemo(() => launchPromoFromPlans(pricingPlans), [pricingPlans]);
+  const guideItems = useMemo(
+    () => pricingGuideFromRegistry(registry || null, pricingPlans),
+    [registry, pricingPlans]
+  );
 
   const yearlySavingsHint = useMemo(() => {
     const withSavings = displayCardPlans
@@ -99,42 +134,28 @@ export default function PricingPage() {
             eyebrow="Pricing"
             as="h1"
             title="Choose the plan that fits how you grow"
-            description="Five clear choices - Starter for basics, Business for growth (POS and Customer Portal), Lifetime for one-time premium value, Build Your Own for a custom stack, and Enterprise for White Label and custom deployment."
+            description="Live License Engine catalog: self-serve Starter, Business, and Lifetime; independent Custom ERP; Enterprise and White Label via Contact Sales."
           />
 
-          <div className="mb-8 grid gap-3 rounded-2xl border border-border/80 bg-slate-50/80 p-4 sm:grid-cols-2 lg:grid-cols-5 sm:p-5">
-            {[
-              {
-                name: "Starter",
-                line: "Solo / small shop - essential ERP, 1 user.",
-              },
-              {
-                name: "Business",
-                line: "Growing teams - POS, portal, multi-branch.",
-              },
-              {
-                name: "Lifetime",
-                line: "One-time buy - Business + API and premium.",
-              },
-              {
-                name: "Build Your Own",
-                line: "Pick modules and packs - pay for what you use.",
-              },
-              {
-                name: "Enterprise",
-                line: "White Label, unlimited, SSO and custom SLA.",
-              },
-            ].map((item) => (
-              <div key={item.name} className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                  {item.name}
-                </p>
-                <p className="mt-1 text-sm leading-snug text-muted-foreground">
-                  {item.line}
-                </p>
-              </div>
-            ))}
-          </div>
+          {guideItems.length > 0 ? (
+            <div className="mb-8 grid gap-3 rounded-2xl border border-border/80 bg-slate-50/80 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 sm:p-5">
+              {guideItems.map((item) => (
+                <div key={item.code} className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                    {item.name}
+                  </p>
+                  <p className="mt-1 text-sm leading-snug text-muted-foreground line-clamp-3">
+                    {item.line ||
+                      (item.mode === "manual"
+                        ? "Contact sales"
+                        : item.mode === "custom"
+                          ? "Configure modules and packs"
+                          : "Self-serve predefined plan")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           {promo ? (
             <LaunchDiscountBanner
@@ -203,19 +224,18 @@ export default function PricingPage() {
             />
           ) : null}
 
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
             <div className="flex flex-col rounded-2xl border border-border bg-white px-6 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.08)] md:px-8">
               <div className="flex-1">
                 <p className="text-sm font-semibold uppercase tracking-wide text-primary">
-                  Build your own custom ERP
+                  Custom ERP
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold tracking-tight text-[#0b1f3a]">
-                  Assemble modules instead of a fixed plan
+                  Build your own stack
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Configuration-driven ERP: pick modules and feature packs, see live
-                  totals, and provision only what you buy. No fixed tier packing -
-                  White Label and specialty capabilities are selected when needed.
+                  Independent of Starter / Business / Lifetime. Pick industry, category, modules,
+                  and feature packs from the License Engine registries — pay for what you configure.
                 </p>
               </div>
               <Button asChild size="lg" className="mt-6 shrink-0 self-start rounded-full">
@@ -233,8 +253,7 @@ export default function PricingPage() {
                     {enterprise.subtitle || enterprise.name || "Enterprise"}
                   </h3>
                   <p className="mt-2 text-sm font-medium text-[#0b1f3a]">
-                    White Label branding, unlimited scale, SSO, and custom deployment -
-                    Contact Sales.
+                    Manual commercial product — Contact Sales (not a self-serve upgrade).
                   </p>
                   {(enterprise.marketingSummary || enterprise.description) ? (
                     <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
@@ -245,6 +264,32 @@ export default function PricingPage() {
                 <Button asChild size="lg" variant="outline" className="mt-6 self-start rounded-full">
                   <Link href={enterprise.href || "/contact?intent=enterprise"}>
                     {enterprise.cta || "Contact Sales"}
+                  </Link>
+                </Button>
+              </div>
+            ) : null}
+
+            {whiteLabel ? (
+              <div className="flex flex-col rounded-2xl border border-border bg-white px-6 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.08)] md:px-8">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+                    {whiteLabel.ribbon || "White Label"}
+                  </p>
+                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-[#0b1f3a]">
+                    {whiteLabel.name || "White Label"}
+                  </h3>
+                  <p className="mt-2 text-sm font-medium text-[#0b1f3a]">
+                    Manual branded deployment — Contact Sales only.
+                  </p>
+                  {(whiteLabel.marketingSummary || whiteLabel.description) ? (
+                    <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                      {whiteLabel.marketingSummary || whiteLabel.description}
+                    </p>
+                  ) : null}
+                </div>
+                <Button asChild size="lg" variant="outline" className="mt-6 self-start rounded-full">
+                  <Link href={whiteLabel.href || "/contact?intent=white-label"}>
+                    {whiteLabel.cta || "Contact Sales"}
                   </Link>
                 </Button>
               </div>
@@ -306,7 +351,7 @@ export default function PricingPage() {
           <SectionHeader
             eyebrow="Compare plans"
             title="What you get - side by side"
-            description="Ticks inherit upward: Starter → Business → Lifetime → Enterprise. White Label stays Enterprise-only. The layers icon means available when you build Custom ERP."
+            description={hierarchyNote}
           />
           {catalog.loading && !comparisonAvailable ? (
             <CatalogSkeleton rows={2} className="xl:grid-cols-1" />
@@ -341,7 +386,7 @@ export default function PricingPage() {
       <TrustBadgesBand />
       <CTASection
         title="Ready to start?"
-        description="Pick a plan from the live catalog and begin your free trial."
+        description="Pick a self-serve plan from the live catalog, or build Custom ERP independently."
         primaryLabel="Start free trial"
         primaryHref="/signup"
         secondaryLabel="Talk to sales"

@@ -14,8 +14,14 @@ import type {
 } from "@/lib/commercial/types";
 import { planAllowsFreeTrial } from "@/lib/signup/commercial-mode";
 import { buildAppPath, buildSignupPath } from "@/lib/urls";
+import {
+  isEnterpriseManualPlan,
+  isSelfServePredefinedPlan,
+  isWhiteLabelPlan,
+} from "@/lib/commercial/commercial-experience";
 
-const TIER_ORDER = ["starter", "business", "lifetime", "enterprise"] as const;
+/** Predefined public hierarchy only — Enterprise / White Label are manual products. */
+const TIER_ORDER = ["starter", "business", "lifetime"] as const;
 
 /** Sentinel for Compare Plans: available via Custom ERP builder (render icon, not text). */
 export const CUSTOM_ERP_COMPARE_CELL = "custom";
@@ -38,11 +44,15 @@ export function isBuildYourOwnPlan(plan: {
 
 function hierarchyChain(
   comparison?: CatalogComparisonBundle | null,
-  featureMatrix?: CatalogFeatureMatrix | null
+  featureMatrix?: CatalogFeatureMatrix | null,
+  registryHierarchy?: string[] | null
 ): string[] {
+  const fromRegistry = Array.isArray(registryHierarchy) ? registryHierarchy : [];
   const fromBundle = comparison?.hierarchy;
   let chain: string[] = [];
-  if (Array.isArray(fromBundle) && fromBundle.length) {
+  if (fromRegistry.length) {
+    chain = fromRegistry.map((s) => String(s).toLowerCase());
+  } else if (Array.isArray(fromBundle) && fromBundle.length) {
     chain = fromBundle.map((s) => String(s).toLowerCase());
   } else if (
     fromBundle &&
@@ -56,9 +66,14 @@ function hierarchyChain(
   } else {
     chain = [...TIER_ORDER];
   }
-  // Custom ERP is modular — never participate in Starter→Enterprise inheritance.
+  // Custom ERP / White Label / Enterprise are not predefined inheritance steps.
   return chain.filter(
-    (s) => !s.includes("custom-erp") && !s.includes("build-your-own")
+    (s) =>
+      !s.includes("custom-erp") &&
+      !s.includes("build-your-own") &&
+      !s.includes("white-label") &&
+      !s.includes("whitelabel") &&
+      s !== "enterprise"
   );
 }
 
@@ -1010,7 +1025,8 @@ function engineDimensionRows(
 
 /** Hierarchy note from License Engine when present. */
 export function comparisonHierarchyNote(
-  comparison?: CatalogComparisonBundle | null
+  comparison?: CatalogComparisonBundle | null,
+  registry?: { predefined_hierarchy?: string[]; manual_products?: string[] } | null
 ): string {
   const hierarchy = comparison?.hierarchy;
   if (
@@ -1022,7 +1038,9 @@ export function comparisonHierarchyNote(
   ) {
     return hierarchy.rule.trim();
   }
-  return "Higher plans include everything from lower tiers, plus their own extras. White Label is Enterprise-only; Custom ERP is built from selected modules and packs.";
+  const chain = (registry?.predefined_hierarchy || [...TIER_ORDER]).join(" → ");
+  const manuals = (registry?.manual_products || ["ENTERPRISE", "WHITE_LABEL"]).join(", ");
+  return `Higher predefined plans include everything from lower tiers (${chain}). ${manuals} are contact-sales products outside the self-serve upgrade path. Custom ERP is built from selected modules and packs.`;
 }
 
 /**
@@ -1032,17 +1050,22 @@ export function comparisonHierarchyNote(
  */
 export function buildDynamicComparison(
   plans: PricingPlan[],
-  comparison?: CatalogComparisonBundle | null
+  comparison?: CatalogComparisonBundle | null,
+  registryHierarchy?: string[] | null
 ): Array<Record<string, string | boolean>> {
-  const visible = publicMarketingPlans(plans);
-  const keys = visible.map((p) => p.id);
-  const chain = hierarchyChain(comparison, comparison?.feature_matrix);
+  const visible = publicMarketingPlans(plans).filter(
+    (p) => !isWhiteLabelPlan(p) || Boolean(comparison?.comparison?.length)
+  );
+  // Prefer self-serve + enterprise columns from Engine; keep White Label off inheritance matrix.
+  const comparePlans = visible.filter((p) => !isWhiteLabelPlan(p));
+  const keys = comparePlans.map((p) => p.id);
+  const chain = hierarchyChain(comparison, comparison?.feature_matrix, registryHierarchy);
 
   const hasEngineRows = Boolean(comparison?.comparison?.length);
   const matrix: Array<Record<string, string | boolean>> = hasEngineRows
     ? [
-        ...engineDimensionRows(visible, comparison),
-        ...engineFeatureMatrixRows(visible, comparison),
+        ...engineDimensionRows(comparePlans, comparison),
+        ...engineFeatureMatrixRows(comparePlans, comparison),
       ]
     : [];
 
@@ -1051,7 +1074,7 @@ export function buildDynamicComparison(
 
   for (const row of matrix) {
     if (row.__section === true) continue;
-    applyBooleanHierarchy(visible, row, chain);
+    applyBooleanHierarchy(comparePlans, row, chain);
     for (const key of keys) {
       if (row[key] === undefined) row[key] = "—";
     }
@@ -1059,7 +1082,7 @@ export function buildDynamicComparison(
   const cleaned = dedupeComparisonRows(
     matrix.filter((row) => !/\bstorage\b/i.test(String(row.name || "")))
   );
-  applyCustomErpColumnCells(visible, cleaned);
+  applyCustomErpColumnCells(comparePlans, cleaned);
   return cleaned;
 }
 
@@ -1112,20 +1135,17 @@ export function industryDisplayIcon(industry: CatalogIndustry): string {
 }
 
 export function popularPlans(plans: PricingPlan[], limit = 3): PricingPlan[] {
-  const nonEnterprise = publicMarketingPlans(plans).filter(
-    (p) => !/enterprise/i.test(p.id) && !p.contactSales
+  const selfServe = publicMarketingPlans(plans).filter(
+    (p) => isSelfServePredefinedPlan(p) && !p.contactSales
   );
-  return sortCardDisplayOrder(nonEnterprise).slice(0, limit);
+  return sortCardDisplayOrder(selfServe).slice(0, limit);
 }
 
 export function enterprisePlan(plans: PricingPlan[]): PricingPlan | undefined {
-  return publicMarketingPlans(plans).find(
-    (p) =>
-      /enterprise/i.test(p.id) ||
-      /enterprise/i.test(p.name) ||
-      Boolean(p.contactSales)
-  );
+  return publicMarketingPlans(plans).find((p) => isEnterpriseManualPlan(p));
 }
+
+export { isWhiteLabelPlan, whiteLabelPlan } from "@/lib/commercial/commercial-experience";
 
 /** Card grid order: Starter | Most popular (Business) | Lifetime */
 function sortCardDisplayOrder(plans: PricingPlan[]): PricingPlan[] {
@@ -1150,10 +1170,11 @@ export function cardPlans(plans: PricingPlan[]): PricingPlan[] {
   const marketing = publicMarketingPlans(plans);
   return sortCardDisplayOrder(
     marketing.filter((p) => {
-      if (p === enterprisePlan(marketing)) return false;
+      if (isEnterpriseManualPlan(p) || isWhiteLabelPlan(p) || p.contactSales) return false;
       // Dedicated /build-your-own-erp surface — keep fixed-plan cards unchanged.
       if (isBuildYourOwnPlan(p)) return false;
-      return true;
+      // Self-serve predefined cards only (Starter / Business / Lifetime).
+      return isSelfServePredefinedPlan(p);
     })
   );
 }

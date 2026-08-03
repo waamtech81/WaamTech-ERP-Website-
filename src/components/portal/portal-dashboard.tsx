@@ -34,6 +34,15 @@ import { PortalLicenseEntitlements } from "@/components/portal/portal-license-de
 import { TrustBadgeStrip } from "@/components/trust-badges";
 import { PortalDashboardPayBanner } from "@/components/portal/portal-dashboard-pay-banner";
 import { PortalEmailDeliveryNotice } from "@/components/portal/portal-email-delivery-notice";
+import {
+  primaryPortalLicense,
+  resolvePortalJourneyFromDashboard,
+} from "@/lib/portal/package-type";
+import {
+  resolvePortalPlanTier,
+  upgradeActionForPortal,
+  licenseSnapshotMeta,
+} from "@/lib/portal/commercial-rules";
 import { subscriptionActionsLocked } from "@/components/portal/portal-subscription-cancel";
 import { cn } from "@/lib/utils";
 
@@ -301,6 +310,18 @@ export function PortalDashboardView() {
   const activeSubscription =
     data.subscriptions?.find((s) => s.id === renewSubId) || data.subscriptions?.[0] || null;
   const subscriptionActionsBlocked = subscriptionActionsLocked(activeSubscription);
+  const dashboardTier = resolvePortalPlanTier({
+    plan_name: activeSubscription?.plan_name || data.subscription?.currentPlan,
+    plan_id: activeSubscription?.plan_id,
+    package_type: primaryPortalLicense(data.licenses)?.package_type,
+    billing_cycle: activeSubscription?.billing_cycle,
+    currentPlan: data.subscription?.currentPlan,
+  });
+  const upgradeAction = upgradeActionForPortal({
+    journey: resolvePortalJourneyFromDashboard(data),
+    currentTier: dashboardTier,
+    subscriptionId: renewSubId,
+  });
 
   const accountActionItems =
     data.commercialJourney === "custom"
@@ -327,16 +348,19 @@ export function PortalDashboardView() {
           },
         ]
       : [
-          {
-            href: renewSubId
-              ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
-              : "/portal/plans?intent=upgrade",
-            label: "Upgrade plan",
-            hint: subscriptionActionsBlocked
-              ? "Keep subscription to unlock upgrades"
-              : "Industry · category · plan · price",
-            disabled: subscriptionActionsBlocked,
-          },
+          ...(upgradeAction.href
+            ? [
+                {
+                  href: upgradeAction.href,
+                  label: upgradeAction.label,
+                  hint: subscriptionActionsBlocked
+                    ? "Keep subscription to unlock upgrades"
+                    : upgradeAction.hint,
+                  disabled:
+                    subscriptionActionsBlocked && upgradeAction.kind === "self_serve_upgrade",
+                },
+              ]
+            : []),
           {
             href: "/portal/plans?intent=new_place",
             label: "Create New Business",
@@ -433,6 +457,7 @@ export function PortalDashboardView() {
                             ? String(primary.days_remaining)
                             : "—",
                       },
+                      ...licenseSnapshotMeta(data.commercialSnapshot),
                     ].filter((r) => r.value && r.value !== "—")}
                   />
                   <div className="flex flex-wrap items-center gap-2 border-t border-[var(--portal-border)] pt-4">
@@ -458,7 +483,16 @@ export function PortalDashboardView() {
                           <Link href="/portal/custom-erp">Modify configuration</Link>
                         </Button>
                       </>
-                    ) : (
+                    ) : upgradeAction.kind === "contact_sales" && upgradeAction.href ? (
+                      <>
+                        <Button asChild size="sm" variant="outline" className="rounded-xl">
+                          <Link href={upgradeAction.href}>{upgradeAction.label}</Link>
+                        </Button>
+                        <Button asChild size="sm" variant="outline" className="rounded-xl">
+                          <Link href="/portal/plans?intent=new_place">Create New Business</Link>
+                        </Button>
+                      </>
+                    ) : upgradeAction.kind === "self_serve_upgrade" && upgradeAction.href ? (
                       <>
                         <Button
                           asChild={!subscriptionActionsBlocked}
@@ -469,27 +503,23 @@ export function PortalDashboardView() {
                           title={
                             subscriptionActionsBlocked
                               ? "Keep subscription to upgrade again."
-                              : undefined
+                              : upgradeAction.hint
                           }
                         >
                           {subscriptionActionsBlocked ? (
                             <span>Upgrade</span>
                           ) : (
-                            <Link
-                              href={
-                                renewSubId
-                                  ? `/portal/plans?intent=upgrade&subscription_id=${encodeURIComponent(renewSubId)}`
-                                  : "/portal/plans?intent=upgrade"
-                              }
-                            >
-                              Upgrade
-                            </Link>
+                            <Link href={upgradeAction.href}>{upgradeAction.label}</Link>
                           )}
                         </Button>
                         <Button asChild size="sm" variant="outline" className="rounded-xl">
                           <Link href="/portal/plans?intent=new_place">Create New Business</Link>
                         </Button>
                       </>
+                    ) : (
+                      <Button asChild size="sm" variant="outline" className="rounded-xl">
+                        <Link href="/portal/plans?intent=new_place">Create New Business</Link>
+                      </Button>
                     )}
                     <Button asChild size="sm" variant="ghost" className="rounded-xl">
                       <Link href="/portal/billing">Payments</Link>

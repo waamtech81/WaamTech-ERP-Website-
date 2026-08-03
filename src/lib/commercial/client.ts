@@ -32,6 +32,7 @@ import type {
   CustomPackageRequestPayload,
   CustomPackageRequestResult,
   PublicCommercialOverview,
+  PublicCommercialRegistry,
   BillingCycle,
   CustomerBillingHistory,
   PaginatedResult,
@@ -266,6 +267,20 @@ export async function fetchPublicCommercialOverview(opts?: {
     product: opts?.product || "waamto-erp",
     billing_cycle: opts?.billing_cycle || "monthly",
   });
+  return { ...result, data: result.data ?? null };
+}
+
+/** Commercial Registry & Entitlement Foundation (License Engine SSOT). */
+export async function fetchPublicCommercialRegistry(opts?: {
+  include_mappings?: boolean;
+}): Promise<CatalogFetchResult<PublicCommercialRegistry | null>> {
+  const result = await getPublic<PublicCommercialRegistry>(
+    "/v1/public/catalog/commercial-registry",
+    {
+      include_mappings: opts?.include_mappings === false ? "0" : "1",
+    },
+    { revalidate: CATALOG_REVALIDATE_SECONDS }
+  );
   return { ...result, data: result.data ?? null };
 }
 

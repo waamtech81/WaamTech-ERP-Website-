@@ -135,6 +135,12 @@ function CompactSignupSummary({
             </Badge>
             <Badge
               variant="outline"
+              className="border-sky-300 bg-white text-[11px] font-medium text-sky-800"
+            >
+              Independent of predefined plans
+            </Badge>
+            <Badge
+              variant="outline"
               className="border-sky-300 bg-white text-[11px] font-medium capitalize text-sky-800"
             >
               Custom package · {cycle}
@@ -255,6 +261,12 @@ export function CustomErpPackageSummary({
           <h2 className="text-sm font-semibold text-[#0b1f3a]">Package summary</h2>
           <Badge className="bg-sky-700 text-white hover:bg-sky-700">
             Build your own custom ERP
+          </Badge>
+          <Badge
+            variant="outline"
+            className="border-sky-300 bg-white text-[11px] font-medium text-sky-800"
+          >
+            Independent of predefined plans
           </Badge>
         </div>
         {showEditLink ? (

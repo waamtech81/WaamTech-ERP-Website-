@@ -374,11 +374,20 @@ export type CatalogBuilderRecommendations = {
   category_name?: string;
   required_modules: string[];
   recommended_modules: string[];
+  /** Optional / available modules — never auto-installed. */
+  optional_modules?: string[];
+  /** Full provisioning recommended set when foundation mapping is present. */
+  provisioning_recommended_modules?: string[];
   recommended_feature_packs: CatalogBuilderRecommendationPackInput[];
   /** Full pack rows with numeric pricing from License Engine. */
   recommended_feature_pack_details?: CatalogBuilderRecommendationPack[];
   strategy?: string;
   provisioning_note?: string;
+  commercial_registry?: {
+    version?: string;
+    custom_erp_independent?: boolean;
+    module_default_feature_packs?: Record<string, string>;
+  };
 };
 
 export type CatalogBusinessProfile = {
@@ -755,4 +764,87 @@ export type PublicCommercialOverview = {
   };
   feature_packs: PublicCommercialFeaturePack[];
   bundle_config?: Record<string, unknown>;
+  /** Compact Commercial Registry & Entitlement Foundation summary (License Engine SSOT). */
+  commercial_registry?: PublicCommercialRegistrySummary;
+};
+
+/** Compact foundation summary embedded in overview / catalog tree responses. */
+export type PublicCommercialRegistrySummary = {
+  version: string;
+  plan_codes: string[];
+  predefined_hierarchy: string[];
+  predefined_upgrade_paths: Array<{ from: string; to: string }>;
+  manual_products: string[];
+  custom_erp_independent: true;
+  module_default_feature_packs: Record<string, string>;
+};
+
+/** Full Commercial Registry & Entitlement Foundation projection. */
+export type PublicCommercialRegistry = {
+  version: string;
+  source: "license_engine_commercial_registry_foundation";
+  plans: Array<{
+    code: string;
+    slug: string;
+    name: string;
+    tier: string;
+    commercial_mode: string;
+    self_serve: boolean;
+    predefined_upgrade_target: boolean;
+    public_predefined_hierarchy: boolean;
+    sort_order: number;
+    description: string;
+  }>;
+  /** Present on summary embedded payloads; full payload may derive from plans. */
+  predefined_hierarchy?: string[];
+  modules: Array<{
+    code: string;
+    name: string;
+    slug: string;
+    category: string;
+    legacy_aliases: string[];
+    platform_builtin: boolean;
+    display_order: number;
+  }>;
+  feature_packs: Array<{
+    code: string;
+    name: string;
+    slug: string;
+    kind: string;
+    default_for_modules: string[];
+    display_order: number;
+  }>;
+  module_default_feature_packs: Record<string, string>;
+  plan_entitlements: Array<{
+    plan_code: string;
+    modules: string[];
+    feature_packs: string[];
+    commercial_features: string[];
+  }>;
+  predefined_upgrade_paths: Array<{ from: string; to: string }>;
+  predefined_upgrade_targets_by_plan: Record<string, string[]>;
+  custom_erp: {
+    independent_of_predefined_plans: true;
+    compare_to_predefined_plans: false;
+    predefined_upgrade_path: null;
+    purchased_modules_fully_enabled: true;
+    purchased_feature_packs_fully_enabled: true;
+  };
+  manual_products: string[];
+  industries: Array<{
+    code: string;
+    name: string;
+    suite_code: string;
+    categories: Array<{
+      code: string;
+      name: string;
+      recommended_modules: string[];
+      optional_modules: string[];
+      recommended_feature_packs: string[];
+    }>;
+  }>;
+  validation: {
+    ok: boolean;
+    summary: Record<string, number | string>;
+  };
 };

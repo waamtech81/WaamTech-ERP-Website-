@@ -37,9 +37,18 @@ import {
 } from "@/components/portal/portal-subscription-cancel";
 import {
   primaryPortalLicense,
+  resolvePortalJourneyFromDashboard,
   resolvePrimaryBillingCycle,
   showRenewalUi,
 } from "@/lib/portal/package-type";
+import {
+  entitledFeaturePacks,
+  entitledModules,
+  licenseSnapshotMeta,
+  resolvePortalPlanTier,
+  upgradeActionForPortal,
+} from "@/lib/portal/commercial-rules";
+import { resolvePurchasedLimits } from "@/lib/portal/commercial-snapshot";
 import {
   PortalDataRow,
   PortalEmptyState,
@@ -128,23 +137,23 @@ const META: Record<
   },
   modules: {
     title: "Modules",
-    description: "Licensed modules enabled on your WAAMTO workspace.",
+    description: "Modules entitled on your active License Engine license snapshot.",
     emptyTitle: "No modules assigned",
     emptyDescription: "Modules appear from your plan or custom package.",
     eyebrow: "Products",
   },
   "feature-packs": {
     title: "Feature Packs",
-    description: "Optional capability packs included on your license.",
+    description: "Feature packs entitled on your active License Engine license snapshot.",
     emptyTitle: "No feature packs",
     emptyDescription: "Feature packs appear when included on your plan or custom package.",
     eyebrow: "Products",
   },
   limits: {
-    title: "Limits",
-    description: "User, company, branch, and warehouse limits on your account.",
+    title: "Usage & limits",
+    description: "Users, companies, branches, and warehouses against licensed limits.",
     emptyTitle: "No limits data",
-    emptyDescription: "Limits appear when available on your license or subscription.",
+    emptyDescription: "Usage meters appear when licensed limits are available.",
     eyebrow: "Workspace",
   },
   "business-profile": {
@@ -196,6 +205,18 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
     data.subscriptions?.find((s) => s.id === activeSubId) ||
     data.subscriptions?.[0] ||
     null;
+  const currentTier = resolvePortalPlanTier({
+    plan_name: activeSub?.plan_name || data.subscription?.currentPlan || primaryLicense?.plan_name,
+    plan_id: activeSub?.plan_id || primaryLicense?.id,
+    package_type: primaryLicense?.package_type,
+    billing_cycle: billingCycle,
+    currentPlan: data.subscription?.currentPlan,
+  });
+  const upgradeAction = upgradeActionForPortal({
+    journey: resolvePortalJourneyFromDashboard(data),
+    currentTier,
+    subscriptionId: activeSubId,
+  });
   let body: React.ReactNode = null;
   let flush = false;
 
@@ -249,6 +270,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 { label: "License type", value: lic.plan_type || lic.deployment_type || "—" },
                 { label: "Activation", value: formatPortalDate(lic.activation_date) || "—" },
                 { label: "Expiry", value: formatPortalDate(lic.expiry_date) || "—" },
+                ...licenseSnapshotMeta(data.commercialSnapshot),
               ].filter((r) => r.value && r.value !== "—")}
             />
             <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[var(--portal-border)] pt-5">
@@ -300,7 +322,16 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                     )}
                   </Button>
                 </>
-              ) : (
+              ) : upgradeAction.kind === "contact_sales" && upgradeAction.href ? (
+                <>
+                  <Button asChild size="sm" variant="outline" className="rounded-xl">
+                    <Link href={upgradeAction.href}>{upgradeAction.label}</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="rounded-xl">
+                    <Link href={plansHref("new_place", null, journey)}>Create New Business</Link>
+                  </Button>
+                </>
+              ) : upgradeAction.kind === "self_serve_upgrade" && upgradeAction.href ? (
                 <>
                   <Button
                     asChild={!actionsLocked}
@@ -309,19 +340,25 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                     className="rounded-xl"
                     disabled={actionsLocked}
                     title={
-                      actionsLocked ? "Turn auto-renewal on to upgrade again." : undefined
+                      actionsLocked
+                        ? "Turn auto-renewal on to upgrade again."
+                        : upgradeAction.hint
                     }
                   >
                     {actionsLocked ? (
                       <span>Upgrade</span>
                     ) : (
-                      <Link href={plansHref("upgrade", linkedSubId, journey)}>Upgrade</Link>
+                      <Link href={upgradeAction.href}>{upgradeAction.label}</Link>
                     )}
                   </Button>
                   <Button asChild size="sm" variant="outline" className="rounded-xl">
                     <Link href={plansHref("new_place", null, journey)}>Create New Business</Link>
                   </Button>
                 </>
+              ) : (
+                <Button asChild size="sm" variant="outline" className="rounded-xl">
+                  <Link href={plansHref("new_place", null, journey)}>Create New Business</Link>
+                </Button>
               )}
               {linkedSub ? <PortalSubscriptionCancelActions subscription={linkedSub} /> : null}
               <Button size="sm" variant="outline" className="rounded-xl" disabled title="Available when downloadable license files are enabled for your account">
@@ -417,7 +454,18 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                             <Link href="/portal/custom-erp">Modify package</Link>
                           )}
                         </Button>
-                      ) : (
+                      ) : upgradeAction.kind === "contact_sales" && upgradeAction.href ? (
+                        <>
+                          <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
+                            <Link href={upgradeAction.href}>{upgradeAction.label}</Link>
+                          </Button>
+                          <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
+                            <Link href={plansHref("new_place", null, journey)}>
+                              Create New Business
+                            </Link>
+                          </Button>
+                        </>
+                      ) : upgradeAction.kind === "self_serve_upgrade" && upgradeAction.href ? (
                         <>
                           <Button
                             asChild={!actionsLocked}
@@ -426,19 +474,29 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                             className="rounded-lg h-8"
                             disabled={actionsLocked}
                             title={
-                              actionsLocked ? "Turn auto-renewal on to upgrade again." : undefined
+                              actionsLocked
+                                ? "Turn auto-renewal on to upgrade again."
+                                : upgradeAction.hint
                             }
                           >
                             {actionsLocked ? (
                               <span>Upgrade</span>
                             ) : (
-                              <Link href={plansHref("upgrade", sub.id, journey)}>Upgrade</Link>
+                              <Link href={upgradeAction.href}>{upgradeAction.label}</Link>
                             )}
                           </Button>
                           <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
-                            <Link href={plansHref("new_place", null, journey)}>Create New Business</Link>
+                            <Link href={plansHref("new_place", null, journey)}>
+                              Create New Business
+                            </Link>
                           </Button>
                         </>
+                      ) : (
+                        <Button asChild size="sm" variant="outline" className="rounded-lg h-8">
+                          <Link href={plansHref("new_place", null, journey)}>
+                            Create New Business
+                          </Link>
+                        </Button>
                       )}
                     </div>
                   </td>
@@ -505,7 +563,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 </Button>
               )
             ) : null}
-              {isCustomJourney ? (
+              {isCustomJourney || upgradeAction.kind === "custom_modify" ? (
                 <Button
                   asChild={!subscriptionActionsLocked(activeSub)}
                   size="sm"
@@ -519,23 +577,30 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                     <Link href="/portal/custom-erp">Modify package</Link>
                   )}
                 </Button>
-              ) : (
+              ) : upgradeAction.kind === "contact_sales" && upgradeAction.href ? (
+                <Button asChild size="sm" variant="outline" className="rounded-xl">
+                  <Link href={upgradeAction.href}>{upgradeAction.label}</Link>
+                </Button>
+              ) : upgradeAction.kind === "self_serve_upgrade" && upgradeAction.href ? (
                 <Button
                   asChild={!subscriptionActionsLocked(activeSub)}
                   size="sm"
                   variant="outline"
                   className="rounded-xl"
                   disabled={subscriptionActionsLocked(activeSub)}
+                  title={
+                    subscriptionActionsLocked(activeSub)
+                      ? "Turn auto-renewal on to upgrade again."
+                      : upgradeAction.hint
+                  }
                 >
                   {subscriptionActionsLocked(activeSub) ? (
                     <span>Upgrade</span>
                   ) : (
-                    <Link href={plansHref("upgrade", data.subscriptions?.[0]?.id, journey)}>
-                      Upgrade
-                    </Link>
+                    <Link href={upgradeAction.href}>{upgradeAction.label}</Link>
                   )}
                 </Button>
-              )}
+              ) : null}
             {activeSub ? <PortalSubscriptionCancelActions subscription={activeSub} /> : null}
           </div>
           <p className="text-xs text-[var(--portal-muted)]">
@@ -857,21 +922,18 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
 
   if (section === "modules") {
     const primary = primaryPortalLicense(data.licenses);
-    // License Engine entitlements only (plan / custom package) — never catalog/ERP union.
-    const moduleItems = Array.from(
-      new Set(
-        (
-          primary?.modules?.length
-            ? primary.modules
-            : data.licenses.flatMap((l) => l.modules)
-        ).filter(Boolean)
-      )
-    );
+    // License Engine entitlements / active snapshot only — never catalog union.
+    const moduleItems = entitledModules({
+      journey,
+      license: primary,
+      snapshot: data.commercialSnapshot,
+      fallbackLicenses: data.licenses,
+    });
     body = moduleItems.length ? (
       <div className="space-y-6">
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--portal-muted)]">
-            Licensed modules
+            {isCustomJourney ? "Purchased modules (license snapshot)" : "Licensed modules"}
           </p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {moduleItems.map((m) => (
@@ -893,33 +955,33 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
         {typeof erp.version === "string" && !isCustomJourney ? (
           <PortalDataRow label="Version" value={erp.version} />
         ) : null}
-        {!isCustomJourney ? (
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
+          {isCustomJourney ? (
             <Button asChild size="sm" variant="outline" className="rounded-xl">
-              <Link href="/portal/plans?intent=upgrade">Upgrade plan</Link>
+              <Link href="/portal/custom-erp">Modify package</Link>
             </Button>
+          ) : upgradeAction.href ? (
             <Button asChild size="sm" variant="outline" className="rounded-xl">
-              <Link href="/portal/feature-packs">View feature packs</Link>
+              <Link href={upgradeAction.href}>{upgradeAction.label}</Link>
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+          <Button asChild size="sm" variant="outline" className="rounded-xl">
+            <Link href="/portal/feature-packs">View feature packs</Link>
+          </Button>
+        </div>
       </div>
     ) : null;
   }
 
   if (section === "feature-packs") {
     const primary = primaryPortalLicense(data.licenses);
-    const packs = Array.from(
-      new Set(
-        (
-          primary?.feature_packs?.length
-            ? primary.feature_packs
-            : data.featurePacks?.length
-              ? data.featurePacks
-              : data.licenses.flatMap((l) => l.feature_packs)
-        ).filter(Boolean)
-      )
-    );
+    const packs = entitledFeaturePacks({
+      journey,
+      license: primary,
+      snapshot: data.commercialSnapshot,
+      fallbackPacks: data.featurePacks,
+      fallbackLicenses: data.licenses,
+    });
     body = packs.length ? (
       <div className="space-y-6">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -938,9 +1000,13 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             </div>
           ))}
         </div>
-        {!isCustomJourney ? (
+        {isCustomJourney ? (
           <Button asChild size="sm" variant="outline" className="rounded-xl">
-            <Link href="/portal/plans?intent=upgrade">Add packs via plan upgrade</Link>
+            <Link href="/portal/custom-erp">Modify feature packs</Link>
+          </Button>
+        ) : upgradeAction.href ? (
+          <Button asChild size="sm" variant="outline" className="rounded-xl">
+            <Link href={upgradeAction.href}>{upgradeAction.label}</Link>
           </Button>
         ) : null}
       </div>
@@ -949,40 +1015,66 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
 
   if (section === "limits") {
     const primary = primaryPortalLicense(data.licenses);
-    const limits = primary?.tenant_limits;
+    const limits = resolvePurchasedLimits(
+      data.commercialSnapshot,
+      primary?.tenant_limits || null
+    );
     const userLimit = limits?.users ?? (typeof erp.user_limit === "number" ? erp.user_limit : null);
     const licensed = data.counts.licensedUsers ?? data.workspaceUsers?.length ?? null;
     const limitRows = [
       { label: "Users", max: userLimit, used: licensed },
       { label: "Companies", max: limits?.companies ?? null, used: data.counts.registeredBusinesses },
-      { label: "Branches", max: limits?.branches ?? null, used: typeof erp.branches === "number" ? erp.branches : typeof erp.branch_count === "number" ? erp.branch_count : null },
-      { label: "Warehouses", max: limits?.warehouses ?? null, used: typeof erp.warehouses === "number" ? erp.warehouses : typeof erp.warehouse_count === "number" ? erp.warehouse_count : null },
+      {
+        label: "Branches",
+        max: limits?.branches ?? null,
+        used:
+          typeof erp.branches === "number"
+            ? erp.branches
+            : typeof erp.branch_count === "number"
+              ? erp.branch_count
+              : null,
+      },
+      {
+        label: "Warehouses",
+        max: limits?.warehouses ?? null,
+        used:
+          typeof erp.warehouses === "number"
+            ? erp.warehouses
+            : typeof erp.warehouse_count === "number"
+              ? erp.warehouse_count
+              : null,
+      },
     ].filter((r) => r.max != null || r.used != null);
     body = limitRows.length ? (
-      <div className="grid gap-3 sm:grid-cols-2">
-        {limitRows.map((row) => (
-          <div
-            key={row.label}
-            className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4"
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-              {row.label}
-            </p>
-            {row.max != null && row.max > 0 && row.used != null ? (
-              <div className="mt-3">
-                <PortalUsageMeter
-                  label={`${row.label} usage`}
-                  used={Number(row.used)}
-                  limit={Number(row.max)}
-                />
-              </div>
-            ) : (
-              <p className="mt-2 text-sm font-medium text-[var(--portal-fg)]">
-                {row.max != null ? `Limit: ${row.max}` : `In use: ${row.used}`}
+      <div className="space-y-4">
+        <p className="text-xs text-[var(--portal-muted)]">
+          Usage against licensed limits from your active License Engine snapshot.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {limitRows.map((row) => (
+            <div
+              key={row.label}
+              className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+                {row.label}
               </p>
-            )}
-          </div>
-        ))}
+              {row.max != null && row.max > 0 && row.used != null ? (
+                <div className="mt-3">
+                  <PortalUsageMeter
+                    label={`${row.label} usage`}
+                    used={Number(row.used)}
+                    limit={Number(row.max)}
+                  />
+                </div>
+              ) : (
+                <p className="mt-2 text-sm font-medium text-[var(--portal-fg)]">
+                  {row.max != null ? `Limit: ${row.max}` : `In use: ${row.used}`}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     ) : null;
   }

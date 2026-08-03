@@ -865,6 +865,7 @@ export function BuildYourOwnErpBuilder() {
   const recommendationsError = recommendationsQuery.error;
   const [builderRequiredModules, setBuilderRequiredModules] = useState<string[]>([]);
   const [builderRecommendedModules, setBuilderRecommendedModules] = useState<string[]>([]);
+  const [builderOptionalModules, setBuilderOptionalModules] = useState<string[]>([]);
   const [, startTransition] = useTransition();
   const restoreCategoryMetaRef = useRef(false);
   const preserveRecSelectionsRef = useRef(false);
@@ -967,14 +968,35 @@ export function BuildYourOwnErpBuilder() {
       new Set([
         ...builderRequiredModules,
         ...builderRecommendedModules,
+        ...builderOptionalModules,
       ]),
-    [builderRequiredModules, builderRecommendedModules]
+    [builderRequiredModules, builderRecommendedModules, builderOptionalModules]
   );
 
   const additionalModules = useMemo(
     () => modules.filter((m) => !builderModuleSet.has(m.code)),
     [modules, builderModuleSet]
   );
+
+  const optionalAvailableModules = useMemo(
+    () =>
+      builderOptionalModules
+        .map((code) => modules.find((m) => m.code === code))
+        .filter((m): m is CatalogModule => Boolean(m)),
+    [builderOptionalModules, modules]
+  );
+
+  /** Additional catalog modules + foundation optional codes first for Module Selector. */
+  const moduleSelectorPool = useMemo(() => {
+    const seen = new Set<string>();
+    const out: CatalogModule[] = [];
+    for (const m of [...optionalAvailableModules, ...additionalModules]) {
+      if (seen.has(m.code)) continue;
+      seen.add(m.code);
+      out.push(m);
+    }
+    return out;
+  }, [optionalAvailableModules, additionalModules]);
   /** Display totals — License Engine quote only (never local arithmetic). */
   const totals = useMemo(() => {
     const fromQuote = quoteCycleTotals(liveQuote);
@@ -1115,10 +1137,10 @@ export function BuildYourOwnErpBuilder() {
 
   const filteredAdditionalModules = useMemo(
     () =>
-      additionalModules.filter((m) =>
+      moduleSelectorPool.filter((m) =>
         matchesSearch([m.name, m.code, m.description, m.industry, m.category], searchQ)
       ),
-    [additionalModules, searchQ]
+    [moduleSelectorPool, searchQ]
   );
 
   const activePacks = useMemo(
@@ -1395,6 +1417,7 @@ export function BuildYourOwnErpBuilder() {
     setCategoryRequired([]);
     setBuilderRequiredModules([]);
     setBuilderRecommendedModules([]);
+    setBuilderOptionalModules([]);
     setFeaturePacks([]);
     setSelectedPacks([]);
     setQuery("");
@@ -1415,6 +1438,7 @@ export function BuildYourOwnErpBuilder() {
     );
     setCategoryRequired(mapped.required_modules);
     setBuilderRecommendedModules(mapped.recommended_modules);
+    setBuilderOptionalModules(mapped.optional_modules);
     const pendingAdd = pendingAddCodeRef.current;
     const nextSelected = pendingAdd
       ? Array.from(new Set([...mapped.recommended_modules, pendingAdd]))
@@ -1583,6 +1607,7 @@ export function BuildYourOwnErpBuilder() {
     if (recommendationsQuery.error && !recommendationsQuery.data) {
       setBuilderRequiredModules([]);
       setBuilderRecommendedModules([]);
+      setBuilderOptionalModules([]);
       setCategoryRequired([]);
       setSelected([]);
       setFeaturePacks([]);
@@ -1591,7 +1616,7 @@ export function BuildYourOwnErpBuilder() {
     }
     const rec = recommendationsQuery.data;
     if (!rec) return;
-    const fingerprint = `${categoryId}:${JSON.stringify(rec.required_modules || [])}:${JSON.stringify(rec.recommended_modules || [])}:${JSON.stringify(rec.recommended_feature_packs || [])}`;
+    const fingerprint = `${categoryId}:${JSON.stringify(rec.required_modules || [])}:${JSON.stringify(rec.recommended_modules || [])}:${JSON.stringify(rec.optional_modules || [])}:${JSON.stringify(rec.recommended_feature_packs || [])}`;
     const preserve = preserveRecSelectionsRef.current;
     if (!preserve && lastAppliedRecRef.current === fingerprint) return;
     preserveRecSelectionsRef.current = false;
@@ -2331,16 +2356,54 @@ export function BuildYourOwnErpBuilder() {
                             <li key={code} className="flex items-center gap-2">
                               <Check className="h-3.5 w-3.5 text-amber-700" />
                               {byCode.get(code)?.name || code}
+                              <Badge className="ml-auto bg-amber-50 text-amber-900 text-[10px]">
+                                Pre-selected
+                              </Badge>
                             </li>
                           ))}
                           {!filteredRecommendedCodes.length ? (
                             <li className="text-muted-foreground">
                               {searchQ
                                 ? "No recommended modules match"
-                                : "No optional recommendations — customize in the next step"}
+                                : "No recommended modules — customize in the next step"}
                             </li>
                           ) : null}
                         </ul>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-white p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Optional modules
+                        </p>
+                        <ul className="mt-2 space-y-1.5 text-sm text-[#0b1f3a]">
+                          {builderOptionalModules
+                            .filter((code) => {
+                              if (!searchQ) return true;
+                              const mod = byCode.get(code);
+                              return matchesSearch(
+                                [mod?.name, mod?.description, code],
+                                searchQ
+                              );
+                            })
+                            .map((code) => (
+                              <li key={code} className="flex items-center gap-2">
+                                <Plus className="h-3.5 w-3.5 text-slate-500" />
+                                {byCode.get(code)?.name || code}
+                                <Badge className="ml-auto bg-slate-100 text-slate-700 text-[10px]">
+                                  Available
+                                </Badge>
+                              </li>
+                            ))}
+                          {!builderOptionalModules.length ? (
+                            <li className="text-muted-foreground">
+                              {searchQ
+                                ? "No optional modules match"
+                                : "No extra optional modules for this business type"}
+                            </li>
+                          ) : null}
+                        </ul>
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          Optional modules are never auto-installed. Add them in the next step if needed.
+                        </p>
                       </div>
                       <div className="rounded-2xl border border-border bg-white p-4 sm:col-span-2">
                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

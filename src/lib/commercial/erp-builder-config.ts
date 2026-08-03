@@ -276,16 +276,24 @@ export function mapBuilderRecommendations(
   rec: CatalogBuilderRecommendations,
   modules: CatalogModule[],
   _overview?: PublicCommercialOverview | null
-): { required_modules: string[]; recommended_modules: string[] } {
+): {
+  required_modules: string[];
+  recommended_modules: string[];
+  optional_modules: string[];
+} {
   const requiredRaw = resolveModuleCodesFromLabels(rec.required_modules || [], modules);
   const recommendedRaw = resolveModuleCodesFromLabels(
     rec.recommended_modules || [],
     modules
   );
+  const optionalRaw = resolveModuleCodesFromLabels(rec.optional_modules || [], modules);
   const deps = resolveRequiredDependencies(requiredRaw, modules);
   const required_modules = Array.from(new Set([...requiredRaw, ...deps]));
   const recommended_modules = recommendedRaw.filter((c) => !required_modules.includes(c));
-  return { required_modules, recommended_modules };
+  const optional_modules = optionalRaw.filter(
+    (c) => !required_modules.includes(c) && !recommended_modules.includes(c)
+  );
+  return { required_modules, recommended_modules, optional_modules };
 }
 
 export function resolveBuilderEligiblePackCodes(

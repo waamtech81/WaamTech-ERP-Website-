@@ -1,6 +1,7 @@
 export * from "@/lib/commercial/types";
 export * from "@/lib/commercial/client";
 export * from "@/lib/commercial/mappers";
+export * from "@/lib/commercial/commercial-experience";
 export * from "@/lib/commercial/plan-selection";
 export * from "@/lib/commercial/custom-erp-billing";
 export { swrGet, swrInvalidate, swrPeek } from "@/lib/commercial/swr-cache";

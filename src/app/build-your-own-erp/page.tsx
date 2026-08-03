@@ -73,7 +73,7 @@ export default function BuildYourOwnErpPage() {
 
       <CTASection
         title={`Prefer a ready-made ${siteConfig.name} plan?`}
-        description="Starter, Business, Lifetime, and Enterprise remain unchanged — start a free trial anytime."
+        description="Starter, Business, and Lifetime remain self-serve on Pricing. Enterprise and White Label stay contact-sales. Custom ERP is independent."
         primaryLabel="View pricing"
         primaryHref="/pricing"
         secondaryLabel="Start free trial"

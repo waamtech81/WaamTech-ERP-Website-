@@ -40,7 +40,8 @@ export default function BuildYourOwnErpPage() {
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
                 Industry → business type → modules → feature packs → limits → billing. Live totals
-                before signup. Fixed plans stay on Pricing.
+                before signup. Purchased selections are fully enabled. Fixed plans stay on
+                Pricing; industry modules come from Industry/Category mapping.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button

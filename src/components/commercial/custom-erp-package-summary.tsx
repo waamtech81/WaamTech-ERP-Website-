@@ -277,6 +277,8 @@ export function CustomErpPackageSummary({
       </div>
       <p className="mt-1 text-xs leading-snug text-muted-foreground">
         Live total updates as industry, modules, packs, seats, and billing change.
+        Selected modules and feature packs are fully enabled — independent of
+        Starter / Business / Lifetime.
       </p>
 
       <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#0b1f3a] px-3.5 py-3 text-white">

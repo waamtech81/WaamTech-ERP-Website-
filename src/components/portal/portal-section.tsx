@@ -42,8 +42,10 @@ import {
   showRenewalUi,
 } from "@/lib/portal/package-type";
 import {
+  annotateEntitledModulesWithCapability,
   entitledFeaturePacks,
   entitledModules,
+  formatCapabilityLabel,
   resolvePortalPlanTier,
   upgradeActionForPortal,
 } from "@/lib/portal/commercial-rules";
@@ -97,7 +99,7 @@ const META: Record<
     description: "Your current plan, status, modules, limits, and renewal dates.",
     emptyTitle: "No licenses",
     emptyDescription: "Licenses will appear here once your account is activated.",
-    eyebrow: "Entitlements",
+    eyebrow: "Your plan",
   },
   subscriptions: {
     title: "Subscriptions",
@@ -136,14 +138,16 @@ const META: Record<
   },
   modules: {
     title: "Modules",
-    description: "Active modules included with your current plan or Custom ERP package.",
+    description:
+      "Active modules with Basic / Full / Advanced levels for your current plan. Industry modules stay independent of predefined plans.",
     emptyTitle: "No modules assigned",
     emptyDescription: "Modules appear from your plan or custom package.",
     eyebrow: "Products",
   },
   "feature-packs": {
     title: "Feature Packs",
-    description: "Active feature packs included with your current plan or Custom ERP package.",
+    description:
+      "Active feature packs included with your plan or Custom ERP package. Custom ERP purchases remain fully enabled.",
     emptyTitle: "No feature packs",
     emptyDescription: "Feature packs appear when included on your plan or custom package.",
     eyebrow: "Products",
@@ -214,6 +218,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   const upgradeAction = upgradeActionForPortal({
     journey: resolvePortalJourneyFromDashboard(data),
     currentTier,
+    registry: data.commercialRegistry,
     subscriptionId: activeSubId,
   });
   let body: React.ReactNode = null;
@@ -266,6 +271,18 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               billingCycleFallback={linkedSub?.billing_cycle}
               customerFacing
               snapshot={data.commercialSnapshot}
+              registry={data.commercialRegistry}
+              planTier={resolvePortalPlanTier({
+                plan_name:
+                  lic.plan_name ||
+                  linkedSub?.plan_name ||
+                  data.subscription?.currentPlan,
+                plan_id: linkedSub?.plan_id,
+                package_type: lic.package_type,
+                billing_cycle: linkedSub?.billing_cycle || billingCycle,
+                currentPlan: data.subscription?.currentPlan,
+              })}
+              journey={isCustomJourney ? "custom" : "predefined"}
               renewalDate={
                 linkedSub?.renewal_date ||
                 data.subscription?.renewalDate ||
@@ -943,39 +960,57 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
       snapshot: data.commercialSnapshot,
       fallbackLicenses: data.licenses,
     });
+    const annotated = annotateEntitledModulesWithCapability({
+      modules: moduleItems,
+      planTier: currentTier,
+      journey: isCustomJourney ? "custom" : "predefined",
+      registry: data.commercialRegistry,
+    });
     body = moduleItems.length ? (
       <div className="space-y-6">
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--portal-muted)]">
-            {isCustomJourney ? "Active modules" : "Active modules"}
+            Active modules
+          </p>
+          <p className="mb-3 text-xs text-[var(--portal-muted)]">
+            {isCustomJourney
+              ? "Custom ERP purchased modules are fully enabled. Industry packs stay independent of predefined plans."
+              : "Module levels (Basic / Full / Advanced) match your current plan."}
           </p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {moduleItems.map((m) => (
-              <div
-                key={m}
-                className="flex items-center gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--portal-primary-soft)] text-[var(--portal-primary)]">
-                  <Package className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{m}</p>
-                  <p className="text-xs text-[var(--portal-muted)]">Active on license</p>
+            {annotated.map(({ label: m, capability }) => {
+              const cap = formatCapabilityLabel(capability, {
+                moduleCode: m,
+                registry: data.commercialRegistry,
+                customErp: isCustomJourney,
+              });
+              return (
+                <div
+                  key={m}
+                  className="flex items-center gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--portal-primary-soft)] text-[var(--portal-primary)]">
+                    <Package className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{m}</p>
+                    <p
+                      className={
+                        cap === "Advanced"
+                          ? "text-xs font-medium text-emerald-700"
+                          : cap === "Full" || cap === "Fully Enabled"
+                            ? "text-xs font-medium text-sky-700"
+                            : "text-xs text-[var(--portal-muted)]"
+                      }
+                    >
+                      {cap ? `${cap} · Active on license` : "Active on license"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
-        {typeof erp.version === "string" && !isCustomJourney ? (
-          <details className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)]/60 px-4 py-3">
-            <summary className="cursor-pointer select-none text-sm font-medium">
-              Technical details
-            </summary>
-            <div className="mt-3">
-              <PortalDataRow label="Internal version" value={erp.version} />
-            </div>
-          </details>
-        ) : null}
         <div className="flex flex-wrap gap-2">
           {isCustomJourney ? (
             <Button asChild size="sm" variant="outline" className="rounded-xl">
@@ -1016,7 +1051,11 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               </span>
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{pack}</p>
-                <p className="text-xs text-[var(--portal-muted)]">Purchased · active</p>
+                <p className="text-xs text-[var(--portal-muted)]">
+                  {isCustomJourney
+                    ? "Purchased · fully enabled"
+                    : "Purchased · active on plan"}
+                </p>
               </div>
             </div>
           ))}

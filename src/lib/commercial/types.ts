@@ -777,12 +777,18 @@ export type PublicCommercialRegistrySummary = {
   manual_products: string[];
   custom_erp_independent: true;
   module_default_feature_packs: Record<string, string>;
+  /** Optional FINAL V1 marker when summary includes it. */
+  commercial_model?: string;
 };
 
 /** Full Commercial Registry & Entitlement Foundation projection. */
 export type PublicCommercialRegistry = {
   version: string;
   source: "license_engine_commercial_registry_foundation";
+  /** License Engine FINAL V1 marker (v1.2.0+). */
+  commercial_model?: string;
+  /** Plans never block primary workflows; Advanced/Premium upgrades stay optional. */
+  primary_workflow_policy?: "non_blocking";
   plans: Array<{
     code: string;
     slug: string;
@@ -820,6 +826,20 @@ export type PublicCommercialRegistry = {
     modules: string[];
     feature_packs: string[];
     commercial_features: string[];
+    /** Present on License Engine registry v1.1.0+ / FINAL v1.2.0 */
+    module_capabilities?: Array<{ module_code: string; level: "basic" | "advanced" }>;
+  }>;
+  /** Full Module → Capability matrix (License Engine v1.1.0+ / FINAL v1.2.0). */
+  module_capabilities?: Array<{
+    module_code: string;
+    name: string;
+    category: string;
+    industry_independent: boolean;
+    platform_builtin: boolean;
+    custom_erp_purchasable: boolean;
+    basic_from_plan: string | null;
+    advanced_from_plan: string | null;
+    levels_by_plan: Array<{ plan_code: string; level: "basic" | "advanced" | null }>;
   }>;
   predefined_upgrade_paths: Array<{ from: string; to: string }>;
   predefined_upgrade_targets_by_plan: Record<string, string[]>;
@@ -829,6 +849,7 @@ export type PublicCommercialRegistry = {
     predefined_upgrade_path: null;
     purchased_modules_fully_enabled: true;
     purchased_feature_packs_fully_enabled: true;
+    purchased_modules_capability_level?: "advanced";
   };
   manual_products: string[];
   industries: Array<{

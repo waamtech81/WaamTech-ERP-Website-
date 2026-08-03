@@ -2608,8 +2608,9 @@ export function BuildYourOwnErpBuilder() {
                   <div>
                     <h3 className="text-lg font-semibold text-[#0b1f3a]">Feature packs</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Optional capability packs that match your industry, business type, and modules.
-                      Enable only what improves your operations — prices update live.
+                      Optional capability packs from the License Engine for your industry, business
+                      type, and modules. Packs that match entitled modules stay enabled when
+                      purchased — prices update live.
                     </p>
                   </div>
 

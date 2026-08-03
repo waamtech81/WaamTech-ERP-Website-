@@ -68,20 +68,22 @@ function codeKey(mod: Pick<CatalogModule, "code" | "slug">): string {
 }
 
 export function isIndustryPackModule(
-  mod: Pick<CatalogModule, "code" | "slug">
+  mod: Pick<CatalogModule, "code" | "slug" | "category">
 ): boolean {
+  if (/^industry$/i.test(String(mod.category || ""))) return true;
   return Boolean(INDUSTRY_BY_CODE[codeKey(mod)]);
 }
 
-/** Browse category used on Modules by Category. */
+/** Browse category used on Modules by Category. Prefer License Engine category when set. */
 export function browseCategoryForModule(
   mod: Pick<CatalogModule, "code" | "slug" | "name" | "category">
 ): ModuleBrowseCategory {
   const key = codeKey(mod);
-  if (CATEGORY_BY_CODE[key]) return CATEGORY_BY_CODE[key];
-  if (INDUSTRY_BY_CODE[key]) return "Industry packs";
-  // Fallback: keep Engine category only when it is not the flat "ERP" bucket.
   const raw = String(mod.category || "").trim();
+  // License Engine Industry category = industry packs (never predefined-plan modules).
+  if (/^industry$/i.test(raw) || INDUSTRY_BY_CODE[key]) return "Industry packs";
+  if (CATEGORY_BY_CODE[key]) return CATEGORY_BY_CODE[key];
+  // Fallback: keep Engine category only when it is not the flat "ERP" bucket.
   if (raw && !/^erp$/i.test(raw) && !/^general$/i.test(raw)) {
     return raw as ModuleBrowseCategory;
   }
@@ -90,10 +92,13 @@ export function browseCategoryForModule(
 
 /** Industry label for industry-pack modules; null for shared/core modules. */
 export function browseIndustryForModule(
-  mod: Pick<CatalogModule, "code" | "slug" | "name" | "industry">
+  mod: Pick<CatalogModule, "code" | "slug" | "name" | "industry" | "category">
 ): string | null {
   const key = codeKey(mod);
   if (INDUSTRY_BY_CODE[key]) return INDUSTRY_BY_CODE[key];
+  if (/^industry$/i.test(String(mod.category || ""))) {
+    return String(mod.name || key).trim() || key;
+  }
   const raw = String(mod.industry || "").trim();
   if (raw && !/^general$/i.test(raw) && !/^erp$/i.test(raw)) return raw;
   return null;

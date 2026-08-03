@@ -42,9 +42,29 @@ function CompareCellValue({ value }: { value: string | boolean | undefined }) {
       <Minus className="mx-auto h-4 w-4 text-slate-300" aria-label="Not included" />
     );
   }
-  return (
-    <span className="text-xs sm:text-sm">{String(value ?? "—")}</span>
-  );
+  const text = String(value ?? "—").trim();
+  if (/^basic$/i.test(text)) {
+    return (
+      <span className="text-xs font-medium text-slate-700 sm:text-sm" aria-label="Basic capability">
+        Basic
+      </span>
+    );
+  }
+  if (/^full$/i.test(text)) {
+    return (
+      <span className="text-xs font-semibold text-sky-700 sm:text-sm" aria-label="Full capability">
+        Full
+      </span>
+    );
+  }
+  if (/^advanced$/i.test(text)) {
+    return (
+      <span className="text-xs font-semibold text-emerald-700 sm:text-sm" aria-label="Advanced capability">
+        Advanced
+      </span>
+    );
+  }
+  return <span className="text-xs sm:text-sm">{text || "—"}</span>;
 }
 
 export function PricingComparisonTable({
@@ -52,7 +72,7 @@ export function PricingComparisonTable({
   rows,
   loading,
   hierarchyNote =
-    "Higher predefined plans include prior-tier capabilities. White Label is Enterprise-only. Custom ERP (layers icon) stays configuration-driven.",
+    "Higher predefined plans inherit lower-tier modules. Module cells show Basic / Full / Advanced. Industry modules stay outside predefined plans. Enterprise and White Label are Contact Sales columns. Custom ERP purchased modules are fully enabled.",
 }: PricingComparisonTableProps) {
   if (loading) {
     return <CatalogSkeleton rows={2} className="xl:grid-cols-1" />;

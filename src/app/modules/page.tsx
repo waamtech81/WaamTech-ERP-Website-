@@ -41,8 +41,10 @@ export default function AllModulesPage() {
                   Every module you can add to your ERP
                 </h1>
                 <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                  Live catalog of modules and categories for Custom ERP and plan upgrades. For
-                  platform capability stories and industry preinstalls, see{" "}
+                  Live License Engine catalog for Custom ERP and plan upgrades. Shared commercial
+                  modules appear on predefined plans with Basic / Full / Advanced capability; industry packs
+                  stay independent and attach via Industry/Category selection. For platform
+                  capability stories, see{" "}
                   <Link href="/erp-features" className="font-medium text-primary hover:underline">
                     ERP Features
                   </Link>

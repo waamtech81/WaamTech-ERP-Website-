@@ -1,11 +1,17 @@
 import type { PortalLicense } from "@/lib/portal/dashboard";
 import {
+  annotateEntitledModulesWithCapability,
+  formatCapabilityLabel,
   licenseSnapshotMeta,
+  resolvePortalPlanTier,
   technicalLicenseMeta,
+  type PortalPlanTier,
 } from "@/lib/portal/commercial-rules";
 import type { PortalCommercialSnapshot } from "@/lib/portal/commercial-snapshot";
 import { resolvePurchasedLimits } from "@/lib/portal/commercial-snapshot";
 import { formatPortalDate } from "@/components/portal/use-portal-data";
+import type { PublicCommercialRegistry } from "@/lib/commercial/types";
+import { isCustomErpPackageType } from "@/lib/portal/package-type";
 
 type MetaRow = { label: string; value: string };
 
@@ -72,6 +78,9 @@ export function PortalLicenseEntitlements({
   renewalDate = null,
   billingStatus = null,
   technicalExtra = [],
+  registry = null,
+  planTier = null,
+  journey = "predefined",
 }: {
   license: PortalLicense;
   industry?: string | null;
@@ -85,11 +94,31 @@ export function PortalLicenseEntitlements({
   renewalDate?: string | null;
   billingStatus?: string | null;
   technicalExtra?: MetaRow[];
+  registry?: PublicCommercialRegistry | null;
+  planTier?: PortalPlanTier | null;
+  journey?: "custom" | "predefined";
 }) {
   const pkg = packageLabel(lic);
   const cycle = formatCycle(lic.billing_cycle || billingCycleFallback);
   const tenantRows = tenantLimitRows(lic, snapshot);
   const snapFriendly = licenseSnapshotMeta(snapshot);
+  const resolvedJourney: "custom" | "predefined" =
+    journey === "custom" || isCustomErpPackageType(lic.package_type)
+      ? "custom"
+      : "predefined";
+  const resolvedTier =
+    planTier ||
+    resolvePortalPlanTier({
+      plan_name: lic.plan_name,
+      package_type: lic.package_type,
+      billing_cycle: lic.billing_cycle,
+    });
+  const modulesWithCapability = annotateEntitledModulesWithCapability({
+    modules: lic.modules,
+    planTier: resolvedTier,
+    journey: resolvedJourney,
+    registry,
+  });
 
   const syncDate = snapshot?.generated_at
     ? formatPortalDate(snapshot.generated_at)
@@ -103,7 +132,7 @@ export function PortalLicenseEntitlements({
       ? { label: "Renewal date", value: formatPortalDate(renewalDate) || String(renewalDate) }
       : null,
     billingStatus ? { label: "Billing status", value: billingStatus } : null,
-    syncDate ? { label: "Last license sync", value: syncDate } : null,
+    syncDate ? { label: "Last updated", value: syncDate } : null,
     !customerFacing && industry ? { label: "Industry", value: industry } : null,
     !customerFacing && category ? { label: "Category", value: category } : null,
     ...snapFriendly.filter((r) => !pkg || r.label !== "Package"),
@@ -145,14 +174,34 @@ export function PortalLicenseEntitlements({
             Active modules
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {lic.modules.map((m) => (
-              <span
-                key={m}
-                className="rounded-full border border-[var(--portal-border)] bg-white px-2.5 py-1 text-[11px] font-medium"
-              >
-                {m}
-              </span>
-            ))}
+            {modulesWithCapability.map(({ label: m, capability }) => {
+              const cap = formatCapabilityLabel(capability, {
+                moduleCode: m,
+                registry: registry ?? null,
+                customErp: resolvedJourney === "custom",
+              });
+              return (
+                <span
+                  key={m}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[var(--portal-border)] bg-white px-2.5 py-1 text-[11px] font-medium"
+                >
+                  <span>{m}</span>
+                  {cap ? (
+                    <span
+                      className={
+                        cap === "Advanced"
+                          ? "rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
+                          : cap === "Full" || cap === "Fully Enabled"
+                            ? "rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700"
+                            : "rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600"
+                      }
+                    >
+                      {cap}
+                    </span>
+                  ) : null}
+                </span>
+              );
+            })}
           </div>
         </div>
       ) : null}
@@ -196,10 +245,10 @@ export function PortalLicenseEntitlements({
         </div>
       ) : null}
 
-      {technical.length ? (
+      {technical.length && !customerFacing ? (
         <details className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)]/60 px-4 py-3">
           <summary className="cursor-pointer select-none text-sm font-medium text-[var(--portal-fg)]">
-            Technical details
+            More account details
           </summary>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {technical.map((r) => (

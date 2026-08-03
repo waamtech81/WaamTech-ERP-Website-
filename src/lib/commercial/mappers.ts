@@ -883,7 +883,11 @@ function applyBooleanHierarchy(
   chain: string[]
 ): Record<string, string | boolean> {
   if (row.__section === true) return row;
-  const tierPlans = plans.filter((p) => !isBuildYourOwnPlan(p));
+  // Predefined inheritance only — Enterprise / White Label / Custom ERP stay plan-specific.
+  const tierPlans = plans.filter(
+    (p) =>
+      !isBuildYourOwnPlan(p) && !isEnterpriseManualPlan(p) && !isWhiteLabelPlan(p)
+  );
   if (!tierPlans.length) return row;
   if (!tierPlans.every((p) => typeof row[p.id] === "boolean")) return row;
 
@@ -1056,11 +1060,8 @@ export function buildDynamicComparison(
   registryHierarchy?: string[] | null,
   registry?: PublicCommercialRegistry | null
 ): Array<Record<string, string | boolean>> {
-  const visible = publicMarketingPlans(plans).filter(
-    (p) => !isWhiteLabelPlan(p) || Boolean(comparison?.comparison?.length)
-  );
-  // Prefer self-serve + enterprise + Custom ERP columns; keep White Label off inheritance matrix.
-  const comparePlans = visible.filter((p) => !isWhiteLabelPlan(p));
+  // Self-serve + Enterprise + White Label + Custom ERP (Engine SSOT / registry manuals).
+  const comparePlans = publicMarketingPlans(plans);
   const keys = comparePlans.map((p) => p.id);
   const chain = hierarchyChain(comparison, comparison?.feature_matrix, registryHierarchy);
 

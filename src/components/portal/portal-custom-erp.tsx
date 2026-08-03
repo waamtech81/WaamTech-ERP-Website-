@@ -378,6 +378,9 @@ export function PortalCustomErpDashboardView() {
                   billingCycleFallback={sub?.billing_cycle}
                   customerFacing
                   snapshot={data.commercialSnapshot}
+                  registry={data.commercialRegistry}
+                  journey="custom"
+                  planTier="custom"
                   renewalDate={renewal}
                   billingStatus={sub?.status || data.subscription?.status || null}
                   primaryMeta={[
@@ -429,7 +432,7 @@ export function PortalCustomErpDashboardView() {
         </PortalFadeIn>
 
         <PortalFadeIn>
-          <PortalPanel title="Usage & limits" description="Current usage against entitlement caps.">
+          <PortalPanel title="Usage & limits" description="Current usage against your plan limits.">
             <div className="space-y-3">
               {usage.map((row) =>
                 row.max != null && row.max > 0 && row.used != null ? (
@@ -589,6 +592,9 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                 billingCycleFallback={sub?.billing_cycle}
                 customerFacing
                 snapshot={data.commercialSnapshot}
+                registry={data.commercialRegistry}
+                journey="custom"
+                planTier="custom"
                 renewalDate={renewal}
                 billingStatus={sub?.status || data.subscription?.status || null}
                 primaryMeta={[

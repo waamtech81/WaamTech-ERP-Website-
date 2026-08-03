@@ -131,8 +131,8 @@ function resolveStatusCard(
       title: "Pending payment",
       status: "Action required",
       message: amountLabel
-        ? `Complete checkout (${amountLabel}) to activate your license, entitlements, and ERP workspace.`
-        : "Complete checkout to activate your license, entitlements, and ERP workspace.",
+        ? `Complete checkout (${amountLabel}) to activate your license, features, and ERP workspace.`
+        : "Complete checkout to activate your license, features, and ERP workspace.",
       level: "danger",
       actionLabel: "Continue checkout",
       onAction: () => opts.openSignupCheckout(pendingCheckout!.session_token),
@@ -326,8 +326,8 @@ function resolveStatusCard(
       title: "Active",
       status: "In good standing",
       message: planName
-        ? `${planName} is active. License entitlements and ERP access are in good standing.`
-        : "Your license entitlements and ERP access are in good standing.",
+        ? `${planName} is active. Your license features and ERP access are in good standing.`
+        : "Your license features and ERP access are in good standing.",
       level: "success",
       actionLabel: "View payment status",
       actionHref: "/portal/billing",

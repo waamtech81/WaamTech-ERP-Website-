@@ -39,6 +39,8 @@ import {
   resolvePortalJourneyFromDashboard,
 } from "@/lib/portal/package-type";
 import {
+  annotateEntitledModulesWithCapability,
+  formatCapabilityLabel,
   resolvePortalPlanTier,
   upgradeActionForPortal,
 } from "@/lib/portal/commercial-rules";
@@ -319,6 +321,7 @@ export function PortalDashboardView() {
   const upgradeAction = upgradeActionForPortal({
     journey: resolvePortalJourneyFromDashboard(data),
     currentTier: dashboardTier,
+    registry: data.commercialRegistry,
     subscriptionId: renewSubId,
   });
 
@@ -328,7 +331,7 @@ export function PortalDashboardView() {
           {
             href: "/portal/modules",
             label: "Manage modules",
-            hint: "Add modules · Custom ERP only",
+            hint: "Fully enabled · Custom ERP",
           },
           {
             href: "/portal/custom-erp",
@@ -387,7 +390,7 @@ export function PortalDashboardView() {
       <PortalPageHeader
         eyebrow="Customer success"
         title={`Welcome back, ${firstName}`}
-        description={`${overview.company} · Live entitlements for your signed-in account.`}
+        description={`${overview.company} · Your live plan and features for this account.`}
         actions={
           <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={reload}>
             <RefreshCw className="h-4 w-4" />
@@ -447,6 +450,13 @@ export function PortalDashboardView() {
                     billingCycleFallback={data.subscriptions?.[0]?.billing_cycle}
                     customerFacing
                     snapshot={data.commercialSnapshot}
+                    registry={data.commercialRegistry}
+                    journey={
+                      String(primary.package_type || "").toLowerCase() === "custom"
+                        ? "custom"
+                        : "predefined"
+                    }
+                    planTier={undefined}
                     renewalDate={
                       activeSubscription?.renewal_date ||
                       data.subscription?.renewalDate ||
@@ -667,14 +677,49 @@ export function PortalDashboardView() {
             <PortalPanel title="Modules & Feature Packs">
               {modules.length || featurePacks.length ? (
                 <div className="flex max-h-72 flex-wrap gap-2 overflow-y-auto pr-1">
-                  {modules.map((m) => (
-                    <span
-                      key={`m-${m}`}
-                      className="rounded-full border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-1.5 text-xs font-medium"
-                    >
-                      {m}
-                    </span>
-                  ))}
+                  {annotateEntitledModulesWithCapability({
+                    modules,
+                    planTier: resolvePortalPlanTier({
+                      plan_name:
+                        licenses[0]?.plan_name || data.subscription?.currentPlan,
+                      package_type: licenses[0]?.package_type,
+                      billing_cycle: data.subscriptions?.[0]?.billing_cycle,
+                      currentPlan: data.subscription?.currentPlan,
+                    }),
+                    journey:
+                      resolvePortalJourneyFromDashboard(data) === "custom"
+                        ? "custom"
+                        : "predefined",
+                    registry: data.commercialRegistry,
+                  }).map(({ label: m, capability }) => {
+                    const cap = formatCapabilityLabel(capability, {
+                      moduleCode: m,
+                      registry: data.commercialRegistry,
+                      customErp:
+                        resolvePortalJourneyFromDashboard(data) === "custom",
+                    });
+                    return (
+                      <span
+                        key={`m-${m}`}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-1.5 text-xs font-medium"
+                      >
+                        <span>{m}</span>
+                        {cap ? (
+                          <span
+                            className={
+                              cap === "Advanced"
+                                ? "text-[10px] font-semibold text-emerald-700"
+                                : cap === "Full" || cap === "Fully Enabled"
+                                  ? "text-[10px] font-semibold text-sky-700"
+                                  : "text-[10px] font-semibold text-[var(--portal-muted)]"
+                            }
+                          >
+                            {cap}
+                          </span>
+                        ) : null}
+                      </span>
+                    );
+                  })}
                   {featurePacks.map((f) => (
                     <span
                       key={`f-${f}`}
@@ -720,7 +765,7 @@ export function PortalDashboardView() {
             >
               {licenseSummary.length ? (
                 <DashboardSummarySection
-                  title="Licenses & entitlements"
+                  title="Licenses & features"
                   items={licenseSummary}
                   columns={1}
                   compact

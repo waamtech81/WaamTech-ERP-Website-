@@ -11,6 +11,7 @@ import {
   isWhiteLabelPlan,
   type CommercialPlanKind,
 } from "@/lib/commercial/commercial-experience";
+import { formatCommercialCapabilityLabel } from "@/lib/commercial/capability-labels";
 import type {
   PublicCommercialRegistry,
   PublicCommercialRegistrySummary,
@@ -216,7 +217,7 @@ export function upgradeActionForPortal(input: {
       kind: "custom_modify",
       href: "/portal/custom-erp",
       label: "Modify package",
-      hint: "Modules · feature packs · limits (Custom ERP)",
+      hint: "Modules · feature packs · limits — Custom ERP stays independent; purchases are fully enabled",
     };
   }
   if (isManualCommercialTier(input.currentTier)) {
@@ -224,7 +225,7 @@ export function upgradeActionForPortal(input: {
       kind: "contact_sales",
       href: manualProductContactHref(input.currentTier),
       label: "Contact Sales",
-      hint: "Enterprise / White Label are manual commercial products",
+      hint: "Enterprise / White Label are arranged with Waamto Sales (not self-serve plan upgrades)",
     };
   }
   if (!canSelfServeUpgrade(input.currentTier, input.registry)) {
@@ -232,7 +233,7 @@ export function upgradeActionForPortal(input: {
       kind: "none",
       href: null,
       label: "Upgrade",
-      hint: "No self-serve upgrade path for this plan",
+      hint: "No self-serve upgrade path for this plan in the License Engine registry",
     };
   }
   const q = new URLSearchParams({ intent: "upgrade" });
@@ -241,7 +242,7 @@ export function upgradeActionForPortal(input: {
     kind: "self_serve_upgrade",
     href: `/portal/plans?${q.toString()}`,
     label: "Upgrade plan",
-    hint: "Starter → Business / Lifetime · Business → Lifetime",
+    hint: "Starter → Business / Lifetime · Business → Lifetime · Industry modules stay separate",
   };
 }
 
@@ -287,6 +288,125 @@ export function entitledFeaturePacks(input: {
   }
   const flat = (input.fallbackLicenses || []).flatMap((l) => l.feature_packs || []);
   return Array.from(new Set(flat.filter(Boolean)));
+}
+
+const TIER_TO_PLAN_CODE: Record<PortalPlanTier, string | null> = {
+  starter: "STARTER",
+  business: "BUSINESS",
+  lifetime: "LIFETIME",
+  enterprise: "ENTERPRISE",
+  white_label: "WHITE_LABEL",
+  custom: "CUSTOM_ERP",
+  unknown: null,
+};
+
+export function registryPlanCodeFromPortalTier(tier: PortalPlanTier): string | null {
+  return TIER_TO_PLAN_CODE[tier] ?? null;
+}
+
+function canonicalizeRegistryModuleCode(
+  registry: PublicCommercialRegistry | null | undefined,
+  raw: string
+): string | null {
+  const key = String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, "_");
+  if (!key || !registry?.modules?.length) return key || null;
+  for (const mod of registry.modules) {
+    if (String(mod.code).toLowerCase() === key) return mod.code;
+    if (String(mod.slug || "").toLowerCase() === key) return mod.code;
+    if (String(mod.name || "").toLowerCase() === key) return mod.code;
+    for (const alias of mod.legacy_aliases || []) {
+      if (String(alias).toLowerCase() === key) return mod.code;
+    }
+  }
+  return key;
+}
+
+/**
+ * Resolve engine basic|advanced for an active license module from License Engine registry v1.2.
+ * Display uses formatCapabilityLabel → Basic | Full | Advanced.
+ * Custom ERP → advanced (display Full) when purchased. Industry modules → null (independent of plans).
+ */
+export function resolvePortalModuleCapability(input: {
+  moduleLabelOrCode: string;
+  planTier: PortalPlanTier;
+  journey: "custom" | "predefined";
+  registry?: PublicCommercialRegistry | null;
+}): "basic" | "advanced" | null {
+  const registry = input.registry;
+  if (!registry) {
+    return input.journey === "custom" ? "advanced" : null;
+  }
+
+  if (input.journey === "custom" || input.planTier === "custom") {
+    return registry.custom_erp?.purchased_modules_capability_level === "advanced"
+      ? "advanced"
+      : "advanced";
+  }
+
+  const planCode = registryPlanCodeFromPortalTier(input.planTier);
+  if (!planCode) return null;
+
+  const canonical = canonicalizeRegistryModuleCode(registry, input.moduleLabelOrCode);
+  if (!canonical) return null;
+
+  const meta = registry.modules?.find(
+    (m) => String(m.code).toLowerCase() === canonical.toLowerCase()
+  );
+  if (meta?.category === "Industry") return null;
+
+  const fromMatrix = registry.module_capabilities?.find(
+    (r) => String(r.module_code).toLowerCase() === canonical.toLowerCase()
+  );
+  if (fromMatrix?.industry_independent) return null;
+  if (fromMatrix) {
+    const hit = fromMatrix.levels_by_plan.find(
+      (l) => String(l.plan_code).toUpperCase() === planCode
+    );
+    if (hit?.level) return hit.level;
+  }
+
+  const ent = registry.plan_entitlements?.find(
+    (r) => String(r.plan_code).toUpperCase() === planCode
+  );
+  const embedded = ent?.module_capabilities?.find(
+    (c) => String(c.module_code).toLowerCase() === canonical.toLowerCase()
+  );
+  return embedded?.level ?? null;
+}
+
+export function annotateEntitledModulesWithCapability(input: {
+  modules: string[];
+  planTier: PortalPlanTier;
+  journey: "custom" | "predefined";
+  registry?: PublicCommercialRegistry | null;
+}): Array<{ label: string; capability: "basic" | "advanced" | null }> {
+  return input.modules.map((label) => ({
+    label,
+    capability: resolvePortalModuleCapability({
+      moduleLabelOrCode: label,
+      planTier: input.planTier,
+      journey: input.journey,
+      registry: input.registry || null,
+    }),
+  }));
+}
+
+export function formatCapabilityLabel(
+  level: "basic" | "advanced" | null,
+  opts?: {
+    moduleCode?: string | null;
+    registry?: PublicCommercialRegistry | null;
+    customErp?: boolean;
+  }
+): string | null {
+  return formatCommercialCapabilityLabel(level, {
+    moduleCode: opts?.moduleCode,
+    registry: opts?.registry || null,
+    customErp: opts?.customErp === true,
+  });
 }
 
 export function licenseSnapshotMeta(

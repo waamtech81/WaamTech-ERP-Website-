@@ -520,7 +520,7 @@ export function PortalPlansView() {
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--portal-muted)]">
             {mode === "upgrade"
-              ? "Self-serve upgrades follow License Engine rules: Starter → Business or Lifetime, Business → Lifetime. Enterprise and White Label require Contact Sales."
+              ? "Self-serve upgrades follow License Engine rules: Starter → Business or Lifetime, Business → Lifetime. Enterprise and White Label require Contact Sales. Industry modules stay outside predefined plan upgrades."
               : "Choose industry, business type, plan, and price. Then continue to billing checkout with your preferred payment method."}
           </p>
           {isTrial ? (

@@ -31,10 +31,12 @@ import {
   fetchMyRenewals,
   fetchMySubscriptions,
   fetchPublicCommercialOverview,
+  fetchPublicCommercialRegistry,
   fetchPublicModules,
   portalInvoiceDocumentPath,
   portalInvoicePdfPath,
 } from "@/lib/commercial/client";
+import type { PublicCommercialRegistry } from "@/lib/commercial/types";
 import {
   fetchMyNotifications,
   type PortalCustomerNotification,
@@ -218,6 +220,8 @@ export type PortalDashboard = {
   }>;
   /** License Engine Commercial Snapshot SSOT (from GET /public/billing/company). */
   commercialSnapshot: PortalCommercialSnapshot | null;
+  /** License Engine Commercial Registry foundation (v1.1+ Plan → Module → Capability). */
+  commercialRegistry: PublicCommercialRegistry | null;
   /**
    * Portal rendering journey — SSOT: active license package_type (via resolveJourneyFromLicenses).
    * Does not change License Engine commercial logic.
@@ -957,14 +961,22 @@ async function loadPortalDashboardUncached(
 
   let modulesCatalogRes: Awaited<ReturnType<typeof fetchPublicModules>>;
   let commercialOverviewRes: Awaited<ReturnType<typeof fetchPublicCommercialOverview>>;
+  let commercialRegistryRes: Awaited<ReturnType<typeof fetchPublicCommercialRegistry>>;
   if (earlyCatalogPromise && earlyProductSlug === String(productSlugHint)) {
     [modulesCatalogRes, commercialOverviewRes] = await earlyCatalogPromise;
+    commercialRegistryRes = await fetchPublicCommercialRegistry({ include_mappings: false });
   } else {
-    [modulesCatalogRes, commercialOverviewRes] = await Promise.all([
+    [modulesCatalogRes, commercialOverviewRes, commercialRegistryRes] = await Promise.all([
       fetchPublicModules(String(productSlugHint)),
       fetchPublicCommercialOverview({ product: String(productSlugHint) }),
+      fetchPublicCommercialRegistry({ include_mappings: false }),
     ]);
   }
+
+  const commercialRegistry =
+    commercialRegistryRes.ok && commercialRegistryRes.data
+      ? commercialRegistryRes.data
+      : null;
 
   const [invoicesRes, paymentsRes, renewalsRes, engineDashboardRes, notificationsRes] =
     await Promise.all([
@@ -1623,6 +1635,7 @@ async function loadPortalDashboardUncached(
     catalogModules,
     catalogFeaturePacks,
     commercialSnapshot,
+    commercialRegistry,
     commercialJourney,
     quickActions,
     erp: erp && Object.keys(erp).length ? erp : null,

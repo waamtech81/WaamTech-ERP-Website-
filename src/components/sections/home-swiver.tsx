@@ -33,7 +33,8 @@ import {
   CatalogSkeleton,
 } from "@/components/commercial/catalog-states";
 import { industryDisplayIcon } from "@/lib/commercial/mappers";
-import type { CatalogIndustry } from "@/lib/commercial/types";
+import { resolveManualPricingCards } from "@/lib/commercial/commercial-experience";
+import type { CatalogIndustry, PublicCommercialRegistry } from "@/lib/commercial/types";
 
 export function StatsBand() {
   const catalog = useCatalogBundle();
@@ -344,7 +345,19 @@ export function PricingTeaser() {
   const plans = catalog.data.popularPlans?.length
     ? catalog.data.popularPlans
     : (catalog.data.cardPlans || []).slice(0, 3);
-  const enterprise = catalog.data.enterprise;
+  const manuals = useMemo(
+    () =>
+      resolveManualPricingCards({
+        plans: catalog.data.pricingPlans || [],
+        registry: catalog.data.commercial_registry as
+          | PublicCommercialRegistry
+          | null
+          | undefined,
+      }),
+    [catalog.data.pricingPlans, catalog.data.commercial_registry]
+  );
+  const enterprise = catalog.data.enterprise || manuals.enterprise;
+  const whiteLabel = catalog.data.whiteLabel || manuals.whiteLabel;
   const prices = plans
     .map((p) => (yearly ? p.yearlyPrice : p.monthlyPrice) ?? p.yearlyPrice ?? p.monthlyPrice)
     .filter((v): v is number => typeof v === "number" && v > 0);
@@ -383,8 +396,8 @@ export function PricingTeaser() {
             No card required · Start your {authConfig.trialDays}-day free trial
           </p>
           <p className="mt-2 text-muted-foreground leading-relaxed text-pretty">
-            Pick Starter, Business, Lifetime, Custom, or Enterprise. Billing cycles load live —
-            Enterprise is always Contact Sales.
+            Pick Starter, Business, Lifetime, Custom, Enterprise, or White Label. Billing cycles load
+            live — Enterprise and White Label are always Contact Sales.
           </p>
         </div>
         {catalog.loading ? <CatalogSkeleton rows={3} /> : null}
@@ -423,7 +436,7 @@ export function PricingTeaser() {
             <PricingCards plans={plans} yearly={yearly} compact columns="sm:grid-cols-2 xl:grid-cols-3" />
           </>
         ) : null}
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary to-[#0b1f3a] px-6 py-6 text-white flex flex-col">
             <div className="flex-1">
               <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
@@ -433,7 +446,8 @@ export function PricingTeaser() {
                 Assemble modules instead of a fixed plan
               </p>
               <p className="mt-1 text-sm text-white/80">
-                Pick CRM, Inventory, POS, and more — live prices, clear recommendations.
+                Pick Customer Relationship Management, Inventory Management, Point of Sale, and more —
+                live prices, clear recommendations.
               </p>
             </div>
             <Button
@@ -465,6 +479,35 @@ export function PricingTeaser() {
               >
                 <Link href={enterprise.href || "/contact?intent=enterprise"}>
                   {enterprise.cta || "Contact Sales"}
+                </Link>
+              </Button>
+            </div>
+          ) : null}
+          {whiteLabel ? (
+            <div className="rounded-2xl border border-border bg-[#0b1f3a] px-6 py-6 text-white flex flex-col">
+              <div className="flex-1">
+                <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
+                  {whiteLabel.ribbon || whiteLabel.badge || "White Label"}
+                </p>
+                <p className="mt-1.5 font-semibold tracking-tight">
+                  {whiteLabel.name || "White Label"}
+                  {whiteLabel.subtitle ? ` — ${whiteLabel.subtitle}` : ""}
+                </p>
+                <p className="mt-1 text-sm font-medium text-sky-100/90">
+                  Manual branded deployment — Contact Sales only.
+                </p>
+                {(whiteLabel.marketingSummary || whiteLabel.description) ? (
+                  <p className="mt-1 text-sm text-white/70">
+                    {whiteLabel.marketingSummary || whiteLabel.description}
+                  </p>
+                ) : null}
+              </div>
+              <Button
+                asChild
+                className="mt-4 self-start rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
+              >
+                <Link href={whiteLabel.href || "/contact?intent=white-label"}>
+                  {whiteLabel.cta || "Contact Sales"}
                 </Link>
               </Button>
             </div>

@@ -38,6 +38,7 @@ import {
   comparisonNoteFromRegistry,
   customErpPricingCopy,
   orderComparisonPlans,
+  plansForCommercialComparison,
   pricingGuideFromRegistry,
   resolveManualPricingCards,
 } from "@/lib/commercial/commercial-experience";
@@ -83,10 +84,18 @@ export default function PricingPage() {
     }
     return null;
   }, [registry, catalog.data.commercial_registry]);
+  const compareSourcePlans = useMemo(
+    () =>
+      plansForCommercialComparison({
+        plans: pricingPlans,
+        registry: registry || catalog.data.commercial_registry,
+      }),
+    [pricingPlans, registry, catalog.data.commercial_registry]
+  );
   const comparisonRows = useMemo(
     () =>
       buildDynamicComparison(
-        pricingPlans,
+        compareSourcePlans,
         catalog.data.comparison,
         fullRegistry?.predefined_hierarchy ||
           registry?.predefined_hierarchy ||
@@ -94,7 +103,13 @@ export default function PricingPage() {
             ?.predefined_hierarchy,
         fullRegistry
       ),
-    [pricingPlans, catalog.data.comparison, fullRegistry, registry, catalog.data.commercial_registry]
+    [
+      compareSourcePlans,
+      catalog.data.comparison,
+      fullRegistry,
+      registry,
+      catalog.data.commercial_registry,
+    ]
   );
   const comparisonAvailable = useMemo(() => {
     if (comparisonRows.length > 0) return true;
@@ -115,8 +130,12 @@ export default function PricingPage() {
     return comparisonNoteFromRegistry(catalog.data.commercial_registry, engineNote);
   }, [catalog.data.comparison, catalog.data.commercial_registry]);
   const planColumns = useMemo(
-    () => orderComparisonPlans(pricingPlans, registry || catalog.data.commercial_registry),
-    [pricingPlans, registry, catalog.data.commercial_registry]
+    () =>
+      orderComparisonPlans(
+        compareSourcePlans,
+        registry || catalog.data.commercial_registry
+      ),
+    [compareSourcePlans, registry, catalog.data.commercial_registry]
   );
   const customErpCopy = useMemo(
     () => customErpPricingCopy(fullRegistry),
@@ -151,7 +170,7 @@ export default function PricingPage() {
             eyebrow="Pricing"
             as="h1"
             title="Choose the plan that fits how you grow"
-            description="Live License Engine catalog: self-serve Starter, Business, and Lifetime; independent Custom ERP; Enterprise and White Label via Contact Sales."
+            description="Live License Engine catalog (registry v1.2 FINAL): self-serve Starter, Business, and Lifetime with Basic / Full / Advanced module capabilities; independent Custom ERP; Enterprise and White Label via Contact Sales. Industry modules stay outside predefined plans."
           />
 
           {guideItems.length > 0 ? (

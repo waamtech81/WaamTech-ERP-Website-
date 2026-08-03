@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
-import { formatPortalDate } from "@/components/portal/use-portal-data";
+import { formatPortalDate, formatPortalDateTime } from "@/components/portal/use-portal-data";
 import { formatPortalRenewalLabel } from "@/lib/portal/display-labels";
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
 import { PortalCustomErpRenewButton } from "@/components/portal/portal-custom-erp-renew";
@@ -461,7 +461,7 @@ export function PortalCustomErpDashboardView() {
                 >
                   <span className="font-medium">{item.title}</span>
                   <span className="shrink-0 text-xs text-[var(--portal-muted)]">
-                    {formatPortalDate(item.created_at) || "—"}
+                    {formatPortalDateTime(item.created_at) || "—"}
                   </span>
                 </li>
               ))}

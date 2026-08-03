@@ -76,7 +76,7 @@ function buildFilterParams(filter: FilterId): URLSearchParams {
   } else if (filter === "all") {
     params.set("filter", "all");
   } else if (filter === "payment") {
-    params.set("type", "billing");
+    params.set("type", "payment");
   } else {
     params.set("type", filter);
   }

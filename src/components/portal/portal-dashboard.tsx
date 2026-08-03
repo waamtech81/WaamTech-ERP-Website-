@@ -19,7 +19,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Counter } from "@/components/shared/counter";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
-import { formatPortalDate } from "@/components/portal/use-portal-data";
+import { formatPortalDate, formatPortalDateTime } from "@/components/portal/use-portal-data";
 import {
   PortalEmptyState,
   PortalErrorState,
@@ -531,7 +531,7 @@ export function PortalDashboardView() {
                       </div>
                       {n.created_at ? (
                         <p className="mt-1 text-xs text-[var(--portal-muted)]">
-                          {formatPortalDate(n.created_at)}
+                          {formatPortalDateTime(n.created_at)}
                         </p>
                       ) : null}
                     </div>
@@ -597,7 +597,7 @@ export function PortalDashboardView() {
                       <span className="inline-flex min-w-0 items-center gap-2 text-[var(--portal-muted)]">
                         <Shield className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate">
-                          {formatPortalDate(session.created_at) || `Session ${idx + 1}`}
+                          {formatPortalDateTime(session.created_at) || `Session ${idx + 1}`}
                         </span>
                       </span>
                       <span className="shrink-0 text-xs text-[var(--portal-muted)]">

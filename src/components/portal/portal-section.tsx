@@ -40,7 +40,6 @@ import {
   resolvePrimaryBillingCycle,
   showRenewalUi,
 } from "@/lib/portal/package-type";
-import { isNonPurchasableCustomErpPack } from "@/lib/commercial/erp-builder-config";
 import {
   PortalDataRow,
   PortalEmptyState,
@@ -790,8 +789,8 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                     <td>
                       <PortalStatusBadge status={user.status} />
                     </td>
-                    <td>{formatPortalDate(user.last_login_at) || "—"}</td>
-                    <td>{formatPortalDate(user.created_at) || "—"}</td>
+                    <td>{formatPortalDateTime(user.last_login_at) || "—"}</td>
+                    <td>{formatPortalDateTime(user.created_at) || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -915,10 +914,12 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
         (
           primary?.feature_packs?.length
             ? primary.feature_packs
-            : data.licenses.flatMap((l) => l.feature_packs)
+            : data.featurePacks?.length
+              ? data.featurePacks
+              : data.licenses.flatMap((l) => l.feature_packs)
         ).filter(Boolean)
       )
-    ).filter((pack) => !isNonPurchasableCustomErpPack(pack, pack));
+    );
     body = packs.length ? (
       <div className="space-y-6">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

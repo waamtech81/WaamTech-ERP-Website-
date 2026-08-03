@@ -45,6 +45,7 @@ type LicenseEnvelope<T> = {
   page?: number;
   limit?: number;
   totalPages?: number;
+  unread_count?: number;
   error?: { message?: string; code?: string };
 };
 
@@ -214,6 +215,8 @@ async function getPublicPaginated<T>(
         page: json.page,
         limit: json.limit,
         totalPages: json.totalPages,
+        unread_count:
+          typeof json.unread_count === "number" ? json.unread_count : undefined,
       },
     };
   } catch (error) {

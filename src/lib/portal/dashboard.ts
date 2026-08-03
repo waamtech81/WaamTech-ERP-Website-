@@ -57,7 +57,6 @@ import {
   showRenewalUi,
   type PortalCommercialJourney,
 } from "@/lib/portal/package-type";
-import { isNonPurchasableCustomErpPack } from "@/lib/commercial/erp-builder-config";
 
 export type PortalBusinessCard = {
   businessName: string;
@@ -302,9 +301,8 @@ function toPortalLicense(
     )
   ).filter(Boolean);
   const modules = codes.map((code) => moduleLabels?.get(code) || code);
-  const packCodes = extractFeaturePackNames(lic.feature_packs).filter(
-    (code) => !isNonPurchasableCustomErpPack(code)
-  );
+  // Installed/provisioned packs only — do not hide plan packs with Custom ERP purchase filters.
+  const packCodes = extractFeaturePackNames(lic.feature_packs);
   return {
     id: lic.id,
     keyMasked: maskLicenseKey(lic.license_key),
@@ -1071,9 +1069,7 @@ async function loadPortalDashboardUncached(
   if (commercialJourneyEarly === "custom") {
     const snapSelected = (commercialSnapshot?.selected_modules || []).filter(Boolean);
     const snapDeps = (commercialSnapshot?.dependency_modules || []).filter(Boolean);
-    const snapPacks = (commercialSnapshot?.feature_packs || []).filter(
-      (code) => !isNonPurchasableCustomErpPack(code)
-    );
+    const snapPacks = (commercialSnapshot?.feature_packs || []).filter(Boolean);
     const primaryRawId = primaryLicense(rawLicenses)?.id;
     licenses = licenses.map((lic) => {
       if (primaryRawId && lic.id !== primaryRawId) {
@@ -1083,7 +1079,10 @@ async function loadPortalDashboardUncached(
         snapSelected.length > 0
           ? Array.from(new Set([...snapSelected, ...snapDeps]))
           : lic.module_codes;
-      const packCodes = snapPacks.length > 0 ? snapPacks : lic.feature_pack_codes;
+      const packCodes =
+        snapPacks.length > 0
+          ? snapPacks
+          : lic.feature_pack_codes;
       return {
         ...lic,
         package_type: "custom",
@@ -1095,6 +1094,23 @@ async function loadPortalDashboardUncached(
         ),
       };
     });
+  } else {
+    // Predefined: fill Feature Packs from snapshot only when license packs are empty.
+    const snapPacks = (commercialSnapshot?.feature_packs || []).filter(Boolean);
+    if (snapPacks.length > 0) {
+      const primaryRawId = primaryLicense(rawLicenses)?.id;
+      licenses = licenses.map((lic) => {
+        if (primaryRawId && lic.id !== primaryRawId) return lic;
+        if (lic.feature_pack_codes.length > 0) return lic;
+        return {
+          ...lic,
+          feature_pack_codes: snapPacks,
+          feature_packs: snapPacks.map((code) =>
+            formatFeaturePackLabel(code, featurePackLabels)
+          ),
+        };
+      });
+    }
   }
   const primaryRaw = primaryLicense(rawLicenses);
   const portalTenantLimits = resolvePortalTenantLimits(

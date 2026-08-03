@@ -53,11 +53,29 @@ export const GET = withApiHandler(
           status: upstream.status || 502,
         });
       }
+      const contentType =
+        upstream.headers.get("content-type") || "text/html; charset=utf-8";
+      // Inject Waamto favicon for browser tab branding (does not affect print/PDF CSS).
+      if (contentType.includes("text/html")) {
+        const html = await upstream.text();
+        const faviconLinks =
+          `<link rel="icon" href="/favicon-waamto-v2-32.webp" type="image/webp" sizes="32x32" />` +
+          `<link rel="icon" href="/favicon-waamto-v2-48.webp" type="image/webp" sizes="48x48" />`;
+        const branded = /<head([^>]*)>/i.test(html)
+          ? html.replace(/<head([^>]*)>/i, `<head$1>${faviconLinks}`)
+          : `${faviconLinks}${html}`;
+        return new Response(branded, {
+          status: 200,
+          headers: {
+            "Content-Type": contentType,
+            "Cache-Control": "private, no-store",
+          },
+        });
+      }
       return new Response(upstream.body, {
         status: 200,
         headers: {
-          "Content-Type":
-            upstream.headers.get("content-type") || "text/html; charset=utf-8",
+          "Content-Type": contentType,
           "Cache-Control": "private, no-store",
         },
       });

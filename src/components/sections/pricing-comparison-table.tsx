@@ -52,7 +52,7 @@ export function PricingComparisonTable({
   rows,
   loading,
   hierarchyNote =
-    "Compare predefined plans with Custom ERP modules, feature packs, seats, storage, and enterprise controls. Higher packages generally include prior-tier capabilities plus more.",
+    "Higher predefined plans include prior-tier capabilities. White Label is Enterprise-only. Custom ERP (layers icon) stays configuration-driven.",
 }: PricingComparisonTableProps) {
   if (loading) {
     return <CatalogSkeleton rows={2} className="xl:grid-cols-1" />;

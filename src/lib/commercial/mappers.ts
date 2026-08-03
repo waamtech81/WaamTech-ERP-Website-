@@ -1022,7 +1022,7 @@ export function comparisonHierarchyNote(
   ) {
     return hierarchy.rule.trim();
   }
-  return "Each plan includes everything from the previous plan plus additional features.";
+  return "Higher plans include everything from lower tiers, plus their own extras. White Label is Enterprise-only; Custom ERP is built from selected modules and packs.";
 }
 
 /**

@@ -388,7 +388,7 @@ export const faqs: FaqItem[] = [
     id: "3",
     question: "How do predefined plans differ from Custom ERP?",
     answer:
-      "Starter, Business, Lifetime, and Enterprise are packaged plans with fixed modules, seats, and storage. Custom ERP is à la carte — you choose modules, feature packs, and limits. Compare everything side by side on the Pricing page.",
+      "Starter, Business, Lifetime, and Enterprise are packaged plans with fixed modules, seats, and storage — each with a clear job (basics → growth → one-time premium → White Label / scale). Custom ERP is à la carte: you choose modules, feature packs, and limits. Compare them side by side on the Pricing page.",
     category: "Billing",
   },
   {
@@ -409,7 +409,7 @@ export const faqs: FaqItem[] = [
     id: "6",
     question: "How do seats, storage, and feature packs work?",
     answer:
-      "Each plan or Custom ERP quote includes seat and storage limits. Feature packs unlock advanced capabilities on top of modules. Extra seats or storage can be purchased from the portal when your plan allows.",
+      "Each plan or Custom ERP quote includes seat and storage limits. Feature packs unlock advanced capabilities on top of modules (packs stay independent of module licenses). Extra seats or storage can be purchased from the portal when your plan allows.",
     category: "Billing",
   },
   {
@@ -423,7 +423,7 @@ export const faqs: FaqItem[] = [
     id: "8",
     question: "Do you support multi-company and multi-branch?",
     answer:
-      "Yes. Business, Lifetime, Custom ERP (when entitled), and Enterprise support multi-company, multi-branch, and multi-warehouse structures with role-based permissions.",
+      "Multi-branch and multi-warehouse operations start on Business (and inherit on Lifetime and Enterprise). Custom ERP can include them when those modules/packs are selected. Starter is designed for a single-branch foundation.",
     category: "Product",
   },
   {
@@ -437,21 +437,21 @@ export const faqs: FaqItem[] = [
     id: "10",
     question: "How does support work?",
     answer:
-      "All plans include email support at support@waamto.com. Higher tiers unlock priority response, WhatsApp support, dedicated success management, and optional SLAs.",
+      "Starter includes standard email support (support@waamto.com). Business unlocks priority support. Lifetime adds premium support. Enterprise can include dedicated success management and custom SLAs.",
     category: "Support",
   },
   {
     id: "11",
     question: "Is WAAMTO secure?",
     answer:
-      "We use TLS encryption, RBAC, OTP where required, tenant isolation, audit trails, and continuous platform updates. See the Security & Trust page for details. Enterprise customers can discuss additional controls such as SSO.",
+      "We use TLS encryption, RBAC, OTP where required, tenant isolation, audit trails, and continuous platform updates. See the Security & Trust page for details. Enterprise customers can discuss additional controls such as SSO and White Label branding.",
     category: "Security",
   },
   {
     id: "12",
     question: "Can we integrate with existing tools?",
     answer:
-      "Yes. API access is available on Business, Lifetime, Custom ERP (when entitled), and Enterprise for accounting tools, e-commerce, payment gateways, and custom systems.",
+      "Yes. REST API access is included on Lifetime and Enterprise (and Custom ERP when API is selected). Use it for accounting tools, e-commerce, payment gateways, and custom systems.",
     category: "Integrations",
   },
   {
@@ -460,6 +460,13 @@ export const faqs: FaqItem[] = [
     answer:
       "Full product docs live at https://doc.waamto.com. Video walkthroughs are on https://youtube.com/@waamto. Higher plans include guided onboarding; Enterprise includes tailored training.",
     category: "Support",
+  },
+  {
+    id: "14",
+    question: "What is White Label, and which plan includes it?",
+    answer:
+      "White Label full branding is an Enterprise capability. Lifetime inherits Business features (including POS and Customer Portal) but does not include White Label — upgrade to Enterprise when you need customer-facing brand control at that level.",
+    category: "Product",
   },
 ];
 

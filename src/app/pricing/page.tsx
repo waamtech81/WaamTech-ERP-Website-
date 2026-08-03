@@ -99,8 +99,42 @@ export default function PricingPage() {
             eyebrow="Pricing"
             as="h1"
             title="Choose the plan that fits how you grow"
-            description="Starter, Business, Lifetime, Build Your Own, and Enterprise — clear live pricing. Start a free trial without a card. Enterprise is always Contact Sales."
+            description="Five clear choices — Starter for basics, Business for growth (POS & Customer Portal), Lifetime for one-time premium value, Build Your Own for a custom stack, and Enterprise for White Label and custom deployment."
           />
+
+          <div className="mb-8 grid gap-3 rounded-2xl border border-border/80 bg-slate-50/80 p-4 sm:grid-cols-2 lg:grid-cols-5 sm:p-5">
+            {[
+              {
+                name: "Starter",
+                line: "Solo / small shop — essential ERP, 1 user.",
+              },
+              {
+                name: "Business",
+                line: "Growing teams — POS, portal, multi-branch.",
+              },
+              {
+                name: "Lifetime",
+                line: "One-time buy — Business + API & premium.",
+              },
+              {
+                name: "Build Your Own",
+                line: "Pick modules & packs — pay for what you use.",
+              },
+              {
+                name: "Enterprise",
+                line: "White Label, unlimited, SSO & custom SLA.",
+              },
+            ].map((item) => (
+              <div key={item.name} className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  {item.name}
+                </p>
+                <p className="mt-1 text-sm leading-snug text-muted-foreground">
+                  {item.line}
+                </p>
+              </div>
+            ))}
+          </div>
 
           {promo ? (
             <LaunchDiscountBanner
@@ -179,8 +213,9 @@ export default function PricingPage() {
                   Assemble modules instead of a fixed plan
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Choose CRM, Inventory, POS, and the modules you need. Related essentials
-                  stay included automatically. Live totals update as you build.
+                  Configuration-driven ERP: pick modules and feature packs, see live
+                  totals, and provision only what you buy. No fixed tier packing —
+                  White Label and specialty capabilities are selected when needed.
                 </p>
               </div>
               <Button asChild size="lg" className="mt-6 shrink-0 self-start rounded-full">
@@ -197,6 +232,10 @@ export default function PricingPage() {
                   <h3 className="mt-2 text-2xl font-semibold tracking-tight text-[#0b1f3a]">
                     {enterprise.subtitle || enterprise.name || "Enterprise"}
                   </h3>
+                  <p className="mt-2 text-sm font-medium text-[#0b1f3a]/
+                    White Label branding, unlimited scale, SSO, and custom deployment —
+                    Contact Sales.
+                  </p>
                   {(enterprise.marketingSummary || enterprise.description) ? (
                     <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
                       {enterprise.marketingSummary || enterprise.description}
@@ -266,8 +305,8 @@ export default function PricingPage() {
         <Container>
           <SectionHeader
             eyebrow="Compare plans"
-            title="Plans, modules, and limits — side by side"
-            description="Compare predefined plans, Custom ERP modules, feature packs, seat and storage limits, white-label options, and enterprise controls — updated for the current WAAMTO cloud ecosystem."
+            title="What you get — side by side"
+            description="Ticks inherit upward: Starter → Business → Lifetime → Enterprise. White Label stays Enterprise-only. The layers icon means available when you build Custom ERP."
           />
           {catalog.loading && !comparisonAvailable ? (
             <CatalogSkeleton rows={2} className="xl:grid-cols-1" />

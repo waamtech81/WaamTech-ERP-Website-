@@ -59,6 +59,8 @@ export const GET = withApiHandler(
       if (contentType.includes("text/html")) {
         const html = await upstream.text();
         const faviconLinks =
+          `<link rel="icon" href="/favicon.ico" sizes="any" />` +
+          `<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />` +
           `<link rel="icon" href="/favicon-waamto-v2-32.webp" type="image/webp" sizes="32x32" />` +
           `<link rel="icon" href="/favicon-waamto-v2-48.webp" type="image/webp" sizes="48x48" />`;
         const branded = /<head([^>]*)>/i.test(html)

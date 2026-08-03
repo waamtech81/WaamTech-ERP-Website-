@@ -30,12 +30,10 @@ import {
 import {
   buildDynamicComparison,
   cardPlans,
-  comparisonHierarchyNote,
   launchPromoFromPlans,
   publicMarketingPlans,
 } from "@/lib/commercial/mappers";
 import {
-  comparisonNoteFromRegistry,
   customErpPricingCopy,
   orderComparisonPlans,
   plansForCommercialComparison,
@@ -122,13 +120,6 @@ export default function PricingPage() {
     comparisonRows.length,
     fullRegistry?.plan_entitlements?.length,
   ]);
-  const hierarchyNote = useMemo(() => {
-    const engineNote = comparisonHierarchyNote(
-      catalog.data.comparison,
-      catalog.data.commercial_registry
-    );
-    return comparisonNoteFromRegistry(catalog.data.commercial_registry, engineNote);
-  }, [catalog.data.comparison, catalog.data.commercial_registry]);
   const planColumns = useMemo(
     () =>
       orderComparisonPlans(
@@ -170,7 +161,7 @@ export default function PricingPage() {
             eyebrow="Pricing"
             as="h1"
             title="Choose the plan that fits how you grow"
-            description="Live License Engine catalog (registry v1.2 FINAL): self-serve Starter, Business, and Lifetime with Basic / Full / Advanced module capabilities; independent Custom ERP; Enterprise and White Label via Contact Sales. Industry modules stay outside predefined plans."
+            description="Choose the plan that best fits your business. Start with Starter, grow with Business, unlock more capabilities with Lifetime, or build your own solution with Custom ERP. Enterprise and White Label solutions are available through Contact Sales."
           />
 
           {guideItems.length > 0 ? (
@@ -386,7 +377,6 @@ export default function PricingPage() {
           <SectionHeader
             eyebrow="Compare plans"
             title="What you get - side by side"
-            description={hierarchyNote}
           />
           {catalog.loading && !comparisonAvailable ? (
             <CatalogSkeleton rows={2} className="xl:grid-cols-1" />
@@ -398,7 +388,7 @@ export default function PricingPage() {
             <PricingComparisonTable
               plans={planColumns}
               rows={comparisonRows}
-              hierarchyNote={hierarchyNote}
+              hierarchyNote={null}
               loading={false}
             />
           ) : null}

@@ -67,12 +67,14 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     icons: {
       icon: [
+        { url: "/favicon.ico", sizes: "any" },
+        { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
         { url: "/favicon-waamto-v2-32.webp", type: "image/webp", sizes: "32x32" },
         { url: "/favicon-waamto-v2-48.webp", type: "image/webp", sizes: "48x48" },
         { url: "/icon-512.webp", type: "image/webp", sizes: "512x512" },
       ],
       apple: [{ url: "/apple-touch-icon-waamto-v2.webp", type: "image/webp", sizes: "180x180" }],
-      shortcut: ["/favicon-waamto-v2-32.webp"],
+      shortcut: ["/favicon.ico"],
     },
     alternates: {
       canonical: origin,

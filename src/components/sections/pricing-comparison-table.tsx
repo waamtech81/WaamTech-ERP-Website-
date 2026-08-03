@@ -71,8 +71,7 @@ export function PricingComparisonTable({
   plans,
   rows,
   loading,
-  hierarchyNote =
-    "Higher predefined plans inherit lower-tier modules. Module cells show Basic / Full / Advanced. Industry modules stay outside predefined plans. Enterprise and White Label are Contact Sales columns. Custom ERP purchased modules are fully enabled.",
+  hierarchyNote = null,
 }: PricingComparisonTableProps) {
   if (loading) {
     return <CatalogSkeleton rows={2} className="xl:grid-cols-1" />;

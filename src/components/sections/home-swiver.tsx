@@ -437,46 +437,40 @@ export function PricingTeaser() {
           </>
         ) : null}
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary to-[#0b1f3a] px-6 py-6 text-white flex flex-col">
+          <div className="flex flex-col rounded-2xl border border-border bg-white px-6 py-6 shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
             <div className="flex-1">
-              <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
+              <p className="text-sm font-semibold uppercase tracking-wide text-primary">
                 Build your own custom ERP
               </p>
-              <p className="mt-1.5 font-semibold tracking-tight">
+              <p className="mt-1.5 font-semibold tracking-tight text-[#0b1f3a]">
                 Assemble modules instead of a fixed plan
               </p>
-              <p className="mt-1 text-sm text-white/80">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Pick Customer Relationship Management, Inventory Management, Point of Sale, and more —
                 live prices, clear recommendations.
               </p>
             </div>
-            <Button
-              asChild
-              className="mt-4 self-start rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
-            >
+            <Button asChild className="mt-4 self-start rounded-full">
               <Link href="/build-your-own-erp">Build your own custom ERP</Link>
             </Button>
           </div>
           {enterprise ? (
-            <div className="rounded-2xl border border-border bg-[#0b1f3a] px-6 py-6 text-white flex flex-col">
+            <div className="flex flex-col rounded-2xl border border-border bg-white px-6 py-6 shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
               <div className="flex-1">
-                <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
+                <p className="text-sm font-semibold uppercase tracking-wide text-primary">
                   {enterprise.ribbon || enterprise.badge || "Enterprise"}
                 </p>
-                <p className="mt-1.5 font-semibold tracking-tight">
+                <p className="mt-1.5 font-semibold tracking-tight text-[#0b1f3a]">
                   {enterprise.name || "Enterprise"}
                   {enterprise.subtitle ? ` — ${enterprise.subtitle}` : ""}
                 </p>
                 {(enterprise.marketingSummary || enterprise.description) ? (
-                  <p className="mt-1 text-sm text-white/70">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {enterprise.marketingSummary || enterprise.description}
                   </p>
                 ) : null}
               </div>
-              <Button
-                asChild
-                className="mt-4 self-start rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
-              >
+              <Button asChild variant="outline" className="mt-4 self-start rounded-full">
                 <Link href={enterprise.href || "/contact?intent=enterprise"}>
                   {enterprise.cta || "Contact Sales"}
                 </Link>
@@ -484,28 +478,25 @@ export function PricingTeaser() {
             </div>
           ) : null}
           {whiteLabel ? (
-            <div className="rounded-2xl border border-border bg-[#0b1f3a] px-6 py-6 text-white flex flex-col">
+            <div className="flex flex-col rounded-2xl border border-border bg-white px-6 py-6 shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
               <div className="flex-1">
-                <p className="text-sm font-semibold uppercase tracking-wide text-sky-200/90">
+                <p className="text-sm font-semibold uppercase tracking-wide text-primary">
                   {whiteLabel.ribbon || whiteLabel.badge || "White Label"}
                 </p>
-                <p className="mt-1.5 font-semibold tracking-tight">
+                <p className="mt-1.5 font-semibold tracking-tight text-[#0b1f3a]">
                   {whiteLabel.name || "White Label"}
                   {whiteLabel.subtitle ? ` — ${whiteLabel.subtitle}` : ""}
                 </p>
-                <p className="mt-1 text-sm font-medium text-sky-100/90">
+                <p className="mt-1 text-sm font-medium text-[#0b1f3a]">
                   Manual branded deployment — Contact Sales only.
                 </p>
                 {(whiteLabel.marketingSummary || whiteLabel.description) ? (
-                  <p className="mt-1 text-sm text-white/70">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {whiteLabel.marketingSummary || whiteLabel.description}
                   </p>
                 ) : null}
               </div>
-              <Button
-                asChild
-                className="mt-4 self-start rounded-full bg-white text-[#0b1f3a] hover:bg-slate-100"
-              >
+              <Button asChild variant="outline" className="mt-4 self-start rounded-full">
                 <Link href={whiteLabel.href || "/contact?intent=white-label"}>
                   {whiteLabel.cta || "Contact Sales"}
                 </Link>

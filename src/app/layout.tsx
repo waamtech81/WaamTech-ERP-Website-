@@ -67,19 +67,19 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     icons: {
       icon: [
-        { url: "/favicon.ico", sizes: "any" },
-        { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
-        { url: "/favicon-waamto-v2-48.webp", type: "image/webp", sizes: "48x48" },
-        { url: "/icon-512.webp", type: "image/webp", sizes: "512x512" },
+        { url: "/favicon.ico?v=20260804", sizes: "any" },
+        { url: "/favicon-32.png?v=20260804", type: "image/png", sizes: "32x32" },
+        { url: "/favicon-waamto-v2-48.webp?v=20260804", type: "image/webp", sizes: "48x48" },
+        { url: "/icon-512.webp?v=20260804", type: "image/webp", sizes: "512x512" },
       ],
       apple: [
         {
-          url: "/apple-touch-icon-waamto-v2.webp",
+          url: "/apple-touch-icon-waamto-v2.webp?v=20260804",
           type: "image/webp",
           sizes: "180x180",
         },
       ],
-      shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
+      shortcut: [{ url: "/favicon.ico?v=20260804", type: "image/x-icon" }],
     },
     alternates: {
       canonical: origin,

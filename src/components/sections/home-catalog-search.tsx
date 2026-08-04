@@ -243,7 +243,7 @@ export function HomeCatalogSearch({
   );
 
   if (variant === "hero") {
-    return <div className="mx-auto w-full max-w-2xl px-0">{inner}</div>;
+    return <div className="relative z-30 mx-auto w-full max-w-2xl px-0">{inner}</div>;
   }
 
   return (

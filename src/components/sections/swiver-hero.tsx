@@ -11,18 +11,21 @@ import { cn } from "@/lib/utils";
 export function SwiverHero() {
   return (
     <section
-      className="relative overflow-hidden bg-[linear-gradient(180deg,#f7fafc_0%,#ffffff_42%,#ffffff_100%)]"
+      className="relative overflow-hidden bg-white"
       aria-labelledby="home-hero-heading"
     >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[560px] bg-[radial-gradient(ellipse_70%_55%_at_50%_-8%,rgba(5,73,164,0.11),transparent_68%)]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] opacity-[0.35] [background-image:linear-gradient(rgba(11,31,58,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(11,31,58,0.035)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:linear-gradient(180deg,black,transparent)]"
-        aria-hidden
-      />
-      <Container className="relative pt-11 pb-4 md:pt-14 md:pb-6 text-center">
+      {/* Soft blue gradient mesh — first version, slightly deeper */}
+      <div className="home-hero-mesh" aria-hidden>
+        <div className="home-hero-mesh__base" />
+        <div className="home-hero-mesh__blob home-hero-mesh__blob--a" />
+        <div className="home-hero-mesh__blob home-hero-mesh__blob--b" />
+        <div className="home-hero-mesh__blob home-hero-mesh__blob--c" />
+        <div className="home-hero-mesh__grid" />
+        <div className="home-hero-mesh__sheen" />
+        <div className="home-hero-mesh__vignette" />
+      </div>
+
+      <Container className="relative z-20 pt-11 pb-4 md:pt-14 md:pb-6 text-center">
         <p className="mb-1 font-heading text-hero font-bold tracking-tight text-[#0b1f3a] leading-none">
           {siteConfig.name}
         </p>
@@ -36,7 +39,7 @@ export function SwiverHero() {
         >
           Control your business. Optimize operations. Unlock growth.
         </h1>
-        <p className="mx-auto mt-3 max-w-[22rem] font-sans text-sm font-normal leading-snug text-muted-foreground sm:max-w-xl sm:text-base md:max-w-2xl md:leading-relaxed">
+        <p className="mx-auto mt-3 max-w-[22rem] font-sans text-sm font-normal leading-snug text-[#334155] sm:max-w-xl sm:text-base md:max-w-2xl md:leading-relaxed">
           One secure cloud workspace for inventory, POS, sales, finance, and CRM —
           <br />
           start from your industry or{" "}
@@ -64,7 +67,7 @@ export function SwiverHero() {
             asChild
             variant="outline"
             size="xl"
-            className="rounded-full px-8 border-[#0b1f3a]/15 text-[#0b1f3a] hover:bg-[#0b1f3a]/[0.03]"
+            className="rounded-full px-8 border-[#0b1f3a]/15 bg-white/70 text-[#0b1f3a] backdrop-blur-sm hover:bg-white/90"
           >
             <Link href="/products">
               Explore modules
@@ -88,18 +91,18 @@ export function SwiverHero() {
           </Link>
         </nav>
 
-        <p className="mx-auto mt-3.5 max-w-md font-sans text-sm text-muted-foreground">
+        <p className="mx-auto mt-3.5 max-w-md font-sans text-sm text-[#475569]">
           No card required · {authConfig.trialDays}-day free trial · Start instantly
         </p>
       </Container>
 
-      <Container className="relative pb-8 md:pb-12">
+      <Container className="relative z-0 pb-8 md:pb-12">
         <div className="relative mx-auto max-w-5xl">
           <div
-            className="absolute -inset-3 rounded-[1.75rem] bg-gradient-to-b from-primary/12 via-sky-100/40 to-transparent blur-xl md:-inset-5 md:rounded-[2rem]"
+            className="absolute -inset-3 rounded-[1.75rem] bg-gradient-to-b from-primary/18 via-sky-200/35 to-transparent blur-xl md:-inset-5 md:rounded-[2rem]"
             aria-hidden
           />
-          <div className="relative overflow-hidden rounded-2xl border border-[#0b1f3a]/10 bg-white shadow-[0_28px_90px_rgba(11,31,58,0.14)] md:rounded-[1.75rem]">
+          <div className="relative overflow-hidden rounded-2xl border border-[#0b1f3a]/10 bg-white shadow-[0_28px_90px_rgba(11,31,58,0.18)] md:rounded-[1.75rem]">
             <div className="flex items-center gap-1.5 border-b border-slate-200/80 bg-[#0b1f3a] px-3.5 py-2.5">
               <span className="h-2 w-2 rounded-full bg-white/25" aria-hidden />
               <span className="h-2 w-2 rounded-full bg-white/25" aria-hidden />
@@ -110,7 +113,7 @@ export function SwiverHero() {
             </div>
             <ProductShell />
           </div>
-          <p className="mt-3.5 text-center text-sm text-muted-foreground">
+          <p className="mt-3.5 text-center text-sm text-[#475569]">
             Live catalog of industries and business types — configured for how you operate.
           </p>
         </div>

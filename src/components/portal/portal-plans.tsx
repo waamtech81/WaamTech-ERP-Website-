@@ -50,10 +50,20 @@ type Step = "mode" | "industry" | "category" | "plan" | "confirm";
  * - Monthly: monthlyPrice
  * - Yearly: full annual (yearlyTotal), else yearlyPrice×12, else monthly×12
  * - Lifetime: lifetimePrice (one-time)
+ * Lifetime catalog plans always stay one-time (ignore monthly/yearly toggle).
  * Do not reuse marketing resolveCyclePrice (it prefers lifetime whenever set).
  */
 function priceForCycle(plan: PricingPlan, cycle: BillingCycle) {
-  if (cycle === "lifetime") {
+  const planTier = resolvePortalPlanTier({
+    plan_name: plan.name,
+    plan_slug: plan.id,
+    plan_id: plan.planId,
+  });
+  // Lifetime SKU is fixed one-time; monthly/yearly UI period must not rewrite it.
+  const effectiveCycle: BillingCycle =
+    planTier === "lifetime" ? "lifetime" : cycle;
+
+  if (effectiveCycle === "lifetime") {
     return {
       billingCycle: "lifetime" as BillingCycle,
       price: plan.lifetimePrice,
@@ -61,7 +71,7 @@ function priceForCycle(plan: PricingPlan, cycle: BillingCycle) {
       unitLabel: "one-time",
     };
   }
-  if (cycle === "yearly") {
+  if (effectiveCycle === "yearly") {
     const annual =
       plan.yearlyTotal != null && Number.isFinite(plan.yearlyTotal)
         ? plan.yearlyTotal
@@ -374,7 +384,7 @@ export function PortalPlansView() {
           plan_id: selectedPlan.planId,
           to_plan_id: selectedPlan.planId,
           product_id: selectedPlan.productId,
-          billing_cycle: billingCycle,
+          billing_cycle: selectedPrice?.billingCycle ?? billingCycle,
           industry_id: industryId || undefined,
           category_id: categoryId || undefined,
           business_profile_id: profileId || undefined,
@@ -935,7 +945,7 @@ export function PortalPlansView() {
               </p>
               <p className="mt-1 font-medium tabular-nums">
                 {selectedPrice?.price != null
-                  ? `${formatPrice(selectedPrice.price, { showCode: true })} (${billingCycle})`
+                  ? `${formatPrice(selectedPrice.price, { showCode: true })} (${selectedPrice.billingCycle})`
                   : "Custom"}
               </p>
               {selectedPrice?.price != null ? (

@@ -1,0 +1,50 @@
+---
+description: Tenant Isolation by Default - mandatory framework for all ERP SaaS data access
+alwaysApply: true
+---
+
+# Tenant Isolation by Default
+
+**Status: MANDATORY — PERMANENT FRAMEWORK**
+
+Authority: `docs/architecture/TENANT_ISOLATION_BY_DEFAULT.md`  
+SSOT: `backend/src/utils/tenantIsolationPolicy.js` (WaamTech SaaS Core)
+
+## Rule
+
+Every new or changed **controller, service, repository, query, export, import, report, print/PDF, background job, notification, activity log, and audit path** MUST inherit tenant isolation by default.
+
+Cross-tenant access is forbidden unless the path is **explicitly** marked as an approved global system resource.
+
+## Required APIs
+
+- Context: `assertTenantContext` / `resolveRequiredBusinessTenantId` / middleware `tenantRequired()`
+- Rows: `appendBusinessTenantFilter` · `tenantPredicate` · `withTenantWhere` · `byIdAndTenant`
+- Inserts: `businessTenantIdForInsert` · `withTenantInsert` (never trust body `tenant_id`)
+- Jobs: `runForEachTenant` / `runInTenantJob` (never scan all tenants' rows in one unscoped query)
+- Global only: `runAsGlobalSystem('reason', fn)` or register in `GLOBAL_SYSTEM_TABLES` / `GLOBAL_EXPORT_RESOURCES` / `GLOBAL_IMPORT_RESOURCES`
+
+## Forbidden
+
+- Business `SELECT`/`UPDATE`/`DELETE` by id alone without `tenant_id`
+- New export/report/print without tenant filter
+- `skipTenantFilter: true` unless resource is in `GLOBAL_EXPORT_RESOURCES`
+- Client-supplied tenant id as sole scope
+- Background jobs without per-tenant `runWithContext` / `runForEachTenant`
+
+## Validation
+
+Run (release blocking): `npm run gate:tenant-isolation`
+
+Also: `npm run validate:tenant-isolation` (backend)
+
+Strict SQL reject: `TENANT_ISOLATION_STRICT=true`
+
+CI/build/deploy fail automatically when the gate detects a bypass. `SKIP_TENANT_ISOLATION_GATE` is forbidden in CI/release.
+
+## Do not
+
+- Redesign tenancy, commercial SSOT, RBAC, or Feature Packs under this rule
+- Bypass for "temporary" features
+- Disable this rule (`alwaysApply: true` must remain) unless an explicit architecture CR removes it
+- Ship a build/release that skipped `gate:tenant-isolation`

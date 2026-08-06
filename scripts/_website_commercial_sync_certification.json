@@ -1,0 +1,237 @@
+{
+  "generated_at": "2026-08-06T06:48:58.686Z",
+  "website_commercial_score": 100,
+  "portal_commercial_score": 100,
+  "score_raw": "146/146",
+  "certification": "PASS",
+  "score_breakdown": [
+    {
+      "area": "LE commercial-registry",
+      "pts": 12,
+      "max": 12,
+      "status": "PASS",
+      "note": "HTTP 200 v=1.2.0"
+    },
+    {
+      "area": "LE public plans",
+      "pts": 8,
+      "max": 8,
+      "status": "PASS",
+      "note": "count=5"
+    },
+    {
+      "area": "Registry plan coverage",
+      "pts": 10,
+      "max": 10,
+      "status": "PASS",
+      "note": "STARTER, BUSINESS, LIFETIME, ENTERPRISE, WHITE_LABEL, CUSTOM_ERP"
+    },
+    {
+      "area": "Self-serve pricing (monthly/yearly/lifetime)",
+      "pts": 10,
+      "max": 10,
+      "status": "PASS",
+      "note": "priced=STARTER,BUSINESS,LIFETIME"
+    },
+    {
+      "area": "Enterprise contact-sales",
+      "pts": 6,
+      "max": 6,
+      "status": "PASS",
+      "note": "contact_sales=true"
+    },
+    {
+      "area": "Manual products WHITE_LABEL+ENTERPRISE",
+      "pts": 6,
+      "max": 6,
+      "status": "PASS",
+      "note": "manuals=ENTERPRISE,WHITE_LABEL"
+    },
+    {
+      "area": "Feature pack stacks",
+      "pts": 8,
+      "max": 8,
+      "status": "PASS",
+      "note": "CORE_OPS→GROWTH→LIFETIME→ENTERPRISE; Custom empty"
+    },
+    {
+      "area": "Industry/chat not plan modules",
+      "pts": 8,
+      "max": 8,
+      "status": "PASS",
+      "note": "polluted_plans=0"
+    },
+    {
+      "area": "Upgrade paths (registry)",
+      "pts": 8,
+      "max": 8,
+      "status": "PASS",
+      "note": "STARTER→BUSINESS, STARTER→LIFETIME, BUSINESS→LIFETIME"
+    },
+    {
+      "area": "Portal upgrade consumer",
+      "pts": 10,
+      "max": 10,
+      "status": "PASS",
+      "note": "starter→[business,lifetime] business→[lifetime] lifetime→[]"
+    },
+    {
+      "area": "Website plan classifiers",
+      "pts": 8,
+      "max": 8,
+      "status": "PASS",
+      "note": "kinds=starter,business,custom_erp,lifetime,enterprise"
+    },
+    {
+      "area": "WHITE_LABEL synthetic / catalog card",
+      "pts": 6,
+      "max": 6,
+      "status": "PASS",
+      "note": "White Label"
+    },
+    {
+      "area": "Plan comparison from registry entitlements",
+      "pts": 8,
+      "max": 8,
+      "status": "PASS",
+      "note": "rows=23 columns=6"
+    },
+    {
+      "area": "Portal journey sticky custom + license SSOT",
+      "pts": 8,
+      "max": 8,
+      "status": "PASS",
+      "note": "custom=custom predefined=predefined"
+    },
+    {
+      "area": "Comparison fallback path",
+      "pts": 6,
+      "max": 6,
+      "status": "PASS",
+      "note": "Engine comparison usable"
+    },
+    {
+      "area": "No hardcoded prices in commercial-experience",
+      "pts": 6,
+      "max": 6,
+      "status": "PASS",
+      "note": "prices only null/engine-driven"
+    },
+    {
+      "area": "Pricing cards consume plan props",
+      "pts": 6,
+      "max": 6,
+      "status": "PASS",
+      "note": "Engine-mapped PricingPlan props"
+    },
+    {
+      "area": "Industry catalog from LE",
+      "pts": 6,
+      "max": 6,
+      "status": "PASS",
+      "note": "industries=18"
+    },
+    {
+      "area": "Portal upgrade filter excludes manuals/custom",
+      "pts": 6,
+      "max": 6,
+      "status": "PASS",
+      "note": "targets=Business,Lifetime"
+    }
+  ],
+  "findings": [],
+  "plan_matrix": [
+    {
+      "plan": "STARTER",
+      "modules": 20,
+      "feature_packs": [
+        "CORE_OPS"
+      ],
+      "public_plan": true,
+      "monthly": 7,
+      "yearly": 60,
+      "lifetime": null,
+      "contact_sales": false,
+      "website_sync": "ALIGNED"
+    },
+    {
+      "plan": "BUSINESS",
+      "modules": 26,
+      "feature_packs": [
+        "CORE_OPS",
+        "GROWTH"
+      ],
+      "public_plan": true,
+      "monthly": 9,
+      "yearly": 84,
+      "lifetime": null,
+      "contact_sales": false,
+      "website_sync": "ALIGNED"
+    },
+    {
+      "plan": "LIFETIME",
+      "modules": 27,
+      "feature_packs": [
+        "CORE_OPS",
+        "GROWTH",
+        "LIFETIME_SUITE"
+      ],
+      "public_plan": true,
+      "monthly": null,
+      "yearly": null,
+      "lifetime": 499,
+      "contact_sales": false,
+      "website_sync": "ALIGNED"
+    },
+    {
+      "plan": "ENTERPRISE",
+      "modules": 27,
+      "feature_packs": [
+        "CORE_OPS",
+        "GROWTH",
+        "LIFETIME_SUITE",
+        "ENTERPRISE_SUITE"
+      ],
+      "public_plan": true,
+      "monthly": null,
+      "yearly": null,
+      "lifetime": null,
+      "contact_sales": true,
+      "website_sync": "ALIGNED"
+    },
+    {
+      "plan": "WHITE_LABEL",
+      "modules": 27,
+      "feature_packs": [
+        "CORE_OPS",
+        "GROWTH",
+        "LIFETIME_SUITE",
+        "ENTERPRISE_SUITE"
+      ],
+      "public_plan": false,
+      "monthly": null,
+      "yearly": null,
+      "lifetime": null,
+      "contact_sales": true,
+      "website_sync": "ALIGNED"
+    },
+    {
+      "plan": "CUSTOM_ERP",
+      "modules": 1,
+      "feature_packs": [],
+      "public_plan": true,
+      "monthly": 0,
+      "yearly": 0,
+      "lifetime": 0,
+      "contact_sales": false,
+      "website_sync": "ALIGNED"
+    }
+  ],
+  "upgrade_paths": [
+    "STARTER→BUSINESS",
+    "STARTER→LIFETIME",
+    "BUSINESS→LIFETIME"
+  ],
+  "comparison_rows": 23,
+  "registry_version": "1.2.0"
+}

@@ -727,7 +727,7 @@ export function Header() {
               asChild
               variant="outline"
               size="sm"
-              className="hidden sm:inline-flex rounded-full px-4 lg:px-5 notranslate"
+              className="hidden sm:inline-flex rounded-full border-primary/35 bg-sky-50 px-4 font-semibold text-primary shadow-sm hover:border-primary/45 hover:bg-sky-100 hover:text-primary lg:px-5 notranslate"
             >
               <a
                 href={`${siteConfig.appUrl.replace(/\/+$/, "")}/login`}
@@ -866,7 +866,11 @@ export function Header() {
               </MobileAccordion>
 
               <div className="flex flex-col gap-2 pt-2 notranslate" translate="no">
-                <Button asChild variant="outline" className="w-full rounded-full">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full rounded-full border-primary/35 bg-sky-50 font-semibold text-primary shadow-sm hover:border-primary/45 hover:bg-sky-100 hover:text-primary"
+                >
                   <a
                     href={`${siteConfig.appUrl.replace(/\/+$/, "")}/login`}
                     target="_blank"

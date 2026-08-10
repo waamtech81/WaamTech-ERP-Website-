@@ -54,6 +54,7 @@ import { MobileAppProfileCallout } from "@/components/shared/mobile-app-callout"
 import { PosProfileCallout } from "@/components/shared/pos-profile-callout";
 import { apiMessageFromJson, friendlyNetworkError } from "@/lib/network/errors";
 import {
+  ensureRecaptchaReady,
   executeRecaptcha,
   hasRecaptchaV3SiteKey,
   RecaptchaV3,
@@ -1136,17 +1137,32 @@ function SignUpForm({
     }
   }
 
+  function isCaptchaVerifyFailure(message: string): boolean {
+    return /captcha verification failed|captcha expired|captcha verification required/i.test(
+      message
+    );
+  }
+
   async function withSignupCaptcha(
     action: string
   ): Promise<{ ok: true; token: string | null } | { ok: false }> {
     if (!hasRecaptchaV3SiteKey()) return { ok: true, token: null };
-    const token = await executeRecaptcha(action);
+    let token = await executeRecaptcha(action);
+    if (!token) {
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+      token = await executeRecaptcha(action);
+    }
     if (!token) {
       setError("Captcha failed to load. Please refresh and try again.");
       return { ok: false };
     }
     return { ok: true, token };
   }
+
+  useEffect(() => {
+    if (!otpStep || !hasRecaptchaV3SiteKey()) return;
+    void ensureRecaptchaReady();
+  }, [otpStep]);
 
   async function onVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
@@ -1164,23 +1180,40 @@ function SignUpForm({
     setLoading(true);
     try {
       // Must match License Engine expected action: portal_signup_verify_otp
-      const captcha = await withSignupCaptcha("portal_signup_verify_otp");
-      if (!captcha.ok) {
+      const firstCaptcha = await withSignupCaptcha("portal_signup_verify_otp");
+      if (!firstCaptcha.ok) {
         setLoading(false);
         return;
       }
 
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          registration_id: registrationId,
-          otp: otpCode.trim(),
-          email,
-          ...(captcha.token ? { captcha_token: captcha.token } : {}),
-        }),
-      });
-      const json = await res.json();
+      const postVerifyOtp = async (captchaToken: string | null) => {
+        const res = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            registration_id: registrationId,
+            otp: otpCode.trim(),
+            email,
+            ...(captchaToken ? { captcha_token: captchaToken } : {}),
+          }),
+        });
+        const json = await res.json();
+        return { res, json };
+      };
+
+      let attempt = await postVerifyOtp(firstCaptcha.token);
+      if (
+        attempt.json?.success === false &&
+        isCaptchaVerifyFailure(String(attempt.json.message || ""))
+      ) {
+        await new Promise((resolve) => window.setTimeout(resolve, 800));
+        const secondCaptcha = await withSignupCaptcha("portal_signup_verify_otp");
+        if (secondCaptcha.ok) {
+          attempt = await postVerifyOtp(secondCaptcha.token);
+        }
+      }
+
+      const { json } = attempt;
       if (!json.success) {
         setError(apiMessageFromJson(json, "Verification failed."));
         setLoading(false);
@@ -1264,23 +1297,40 @@ function SignUpForm({
     setError("");
     setLoading(true);
     try {
-      const captcha = await withSignupCaptcha("portal_signup_resend_otp");
-      if (!captcha.ok) {
+      const firstCaptcha = await withSignupCaptcha("portal_signup_resend_otp");
+      if (!firstCaptcha.ok) {
         setLoading(false);
         return;
       }
 
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "resend",
-          registration_id: registrationId,
-          email,
-          ...(captcha.token ? { captcha_token: captcha.token } : {}),
-        }),
-      });
-      const json = await res.json();
+      const postResendOtp = async (captchaToken: string | null) => {
+        const res = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "resend",
+            registration_id: registrationId,
+            email,
+            ...(captchaToken ? { captcha_token: captchaToken } : {}),
+          }),
+        });
+        const json = await res.json();
+        return { res, json };
+      };
+
+      let attempt = await postResendOtp(firstCaptcha.token);
+      if (
+        attempt.json?.success === false &&
+        isCaptchaVerifyFailure(String(attempt.json.message || ""))
+      ) {
+        await new Promise((resolve) => window.setTimeout(resolve, 800));
+        const secondCaptcha = await withSignupCaptcha("portal_signup_resend_otp");
+        if (secondCaptcha.ok) {
+          attempt = await postResendOtp(secondCaptcha.token);
+        }
+      }
+
+      const { json } = attempt;
       if (!json.success) {
         setError(apiMessageFromJson(json, "Could not resend code."));
       } else {
@@ -1294,7 +1344,7 @@ function SignUpForm({
   }
 
   const captchaLoading = hasRecaptchaV3SiteKey() && captcha.status === "loading";
-  const submitBlocked = captchaLoading;
+  const submitBlocked = captchaLoading && !otpStep;
 
   if (paidCheckoutReady) {
     return (
@@ -1456,26 +1506,16 @@ function SignUpForm({
                     {success}
                   </div>
                 ) : null}
-                {captchaLoading ? (
-                  <div className="rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
-                    Preparing security check...
-                  </div>
-                ) : null}
                 <Button
                   type="submit"
                   className="w-full"
                   size="lg"
-                  disabled={loading || submitBlocked || otpCode.length < 4}
+                  disabled={loading || otpCode.length < 4}
                 >
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Verifying...
-                    </>
-                  ) : captchaLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading security check...
                     </>
                   ) : isPaidSignup ? (
                     "Verify & create account"
@@ -1490,7 +1530,7 @@ function SignUpForm({
                   variant="outline"
                   size="lg"
                   className="rounded-full px-8"
-                  disabled={loading || !registrationId || submitBlocked}
+                  disabled={loading || !registrationId}
                   onClick={onResendOtp}
                 >
                   Resend code

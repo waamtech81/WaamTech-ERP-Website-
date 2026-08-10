@@ -85,6 +85,11 @@ import {
 import { buildCustomSignupPricingSummary } from "@/lib/signup/custom-pricing-summary";
 import { saveCheckoutSessionToken } from "@/lib/portal/checkout-session";
 import { markPortalEmailDeliveryNoticePending } from "@/lib/portal/email-delivery-notice";
+import {
+  canStartOtpVerifySubmit,
+  isRegistrationAlreadyCompletedResponse,
+  shouldRetryCaptchaAfterVerifyFailure,
+} from "@/lib/signup/otp-verify-submit";
 
 export type SignUpClientProps = {
   /** Pre-resolved Engine UUIDs from server slug lookup (never from public URL). */
@@ -416,6 +421,10 @@ function SignUpForm({
   >(null);
   const countryTouchedRef = useRef(false);
   const phoneDialTouchedRef = useRef(false);
+  /** Sync guard — React `loading` alone cannot block rapid double-submit. */
+  const otpVerifyInFlightRef = useRef(false);
+  const otpVerifyCompletedRef = useRef(false);
+  const [otpVerifyLocked, setOtpVerifyLocked] = useState(false);
 
   const productsQuery = useCatalogProducts();
   const plansQuery = useCatalogPlans(productSlug || null);
@@ -1137,10 +1146,88 @@ function SignUpForm({
     }
   }
 
-  function isCaptchaVerifyFailure(message: string): boolean {
-    return /captcha verification failed|captcha expired|captcha verification required/i.test(
-      message
-    );
+  function releaseOtpVerifySubmitLock() {
+    if (otpVerifyCompletedRef.current) return;
+    otpVerifyInFlightRef.current = false;
+    setOtpVerifyLocked(false);
+  }
+
+  function lockOtpVerifySubmit() {
+    otpVerifyInFlightRef.current = true;
+    setOtpVerifyLocked(true);
+  }
+
+  function markOtpVerifySubmitCompleted() {
+    otpVerifyCompletedRef.current = true;
+    otpVerifyInFlightRef.current = true;
+    setOtpVerifyLocked(true);
+  }
+
+  function finishOtpVerification(json: {
+    message?: unknown;
+    data?: Record<string, unknown>;
+  }) {
+    markOtpVerifySubmitCompleted();
+
+    const data = json.data || {};
+    setUsername(String(data.username || ""));
+    setTrialEndsAt(String(data.trialEndsAt || ""));
+    setOtpStep(false);
+    clearSignupDraft();
+    clearCustomErpPackage();
+
+    const checkoutToken = String(data.checkout_session_token || "").trim();
+    const isPaid =
+      data.signup_mode === "paid" ||
+      data.payment_required === true ||
+      Boolean(checkoutToken);
+
+    if (checkoutToken) saveCheckoutSessionToken(checkoutToken);
+
+    let redirectTo =
+      String(data.redirectUrl || data.loginUrl || "").trim() ||
+      getPortalLoginPath({ email, next: "/portal" });
+
+    if (isPaid && checkoutToken) {
+      try {
+        const parsed = new URL(redirectTo, window.location.origin);
+        if (
+          parsed.pathname.startsWith("/portal/checkout") &&
+          !parsed.searchParams.get("session")
+        ) {
+          parsed.searchParams.set("session", checkoutToken);
+          if (!parsed.searchParams.get("mode")) {
+            parsed.searchParams.set("mode", "signup");
+          }
+          redirectTo = `${parsed.pathname}?${parsed.searchParams.toString()}`;
+        } else if (!parsed.pathname.startsWith("/portal/checkout")) {
+          redirectTo = `/portal/checkout?session=${encodeURIComponent(checkoutToken)}&mode=signup`;
+        }
+      } catch {
+        redirectTo = `/portal/checkout?session=${encodeURIComponent(checkoutToken)}&mode=signup`;
+      }
+    }
+
+    setPostVerifyRedirect(redirectTo);
+    setLoading(false);
+
+    if (isPaid) {
+      setPaidCheckoutReady(true);
+      setSuccess(
+        String(json.message || "Email verified. Opening checkout…")
+      );
+      window.setTimeout(() => {
+        window.location.assign(redirectTo);
+      }, 1200);
+      return;
+    }
+
+    setTrialReady(true);
+    setSuccess(String(json.message || "Trial activated."));
+    markPortalEmailDeliveryNoticePending();
+    window.setTimeout(() => {
+      window.location.assign(redirectTo);
+    }, 3500);
   }
 
   async function withSignupCaptcha(
@@ -1166,8 +1253,6 @@ function SignUpForm({
 
   async function onVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setSuccess("");
     if (!registrationId) {
       setError("Registration session expired. Please start again.");
       return;
@@ -1176,12 +1261,24 @@ function SignUpForm({
       setError("Enter the verification code from your email.");
       return;
     }
+    if (
+      !canStartOtpVerifySubmit(
+        otpVerifyInFlightRef.current,
+        otpVerifyCompletedRef.current
+      )
+    ) {
+      return;
+    }
 
+    lockOtpVerifySubmit();
+    setError("");
+    setSuccess("");
     setLoading(true);
     try {
       // Must match License Engine expected action: portal_signup_verify_otp
       const firstCaptcha = await withSignupCaptcha("portal_signup_verify_otp");
       if (!firstCaptcha.ok) {
+        releaseOtpVerifySubmitLock();
         setLoading(false);
         return;
       }
@@ -1204,7 +1301,7 @@ function SignUpForm({
       let attempt = await postVerifyOtp(firstCaptcha.token);
       if (
         attempt.json?.success === false &&
-        isCaptchaVerifyFailure(String(attempt.json.message || ""))
+        shouldRetryCaptchaAfterVerifyFailure(attempt.json, attempt.res.status)
       ) {
         await new Promise((resolve) => window.setTimeout(resolve, 800));
         const secondCaptcha = await withSignupCaptcha("portal_signup_verify_otp");
@@ -1213,78 +1310,32 @@ function SignUpForm({
         }
       }
 
-      const { json } = attempt;
+      const { json, res } = attempt;
+      if (
+        json?.success !== true &&
+        isRegistrationAlreadyCompletedResponse(json, res.status)
+      ) {
+        finishOtpVerification({
+          message: "Your account is ready. Redirecting…",
+          data: {
+            email,
+            redirectUrl: getPortalLoginPath({ email, next: "/portal" }),
+          },
+        });
+        return;
+      }
+
       if (!json.success) {
         setError(apiMessageFromJson(json, "Verification failed."));
+        releaseOtpVerifySubmitLock();
         setLoading(false);
         return;
       }
 
-      setUsername(json.data?.username || "");
-      setTrialEndsAt(json.data?.trialEndsAt || "");
-      setOtpStep(false);
-      clearSignupDraft();
-      clearCustomErpPackage();
-
-      const checkoutToken = String(
-        json.data?.checkout_session_token || ""
-      ).trim();
-      const isPaid =
-        json.data?.signup_mode === "paid" ||
-        json.data?.payment_required === true ||
-        Boolean(checkoutToken);
-
-      // Persist token in this tab before navigation (checkout page also accepts ?session=).
-      if (checkoutToken) saveCheckoutSessionToken(checkoutToken);
-
-      let redirectTo =
-        json.data?.redirectUrl ||
-        json.data?.loginUrl ||
-        getPortalLoginPath({ email, next: "/portal" });
-
-      // Guarantee session token is on the checkout URL even if the API omitted it.
-      if (isPaid && checkoutToken) {
-        try {
-          const parsed = new URL(redirectTo, window.location.origin);
-          if (
-            parsed.pathname.startsWith("/portal/checkout") &&
-            !parsed.searchParams.get("session")
-          ) {
-            parsed.searchParams.set("session", checkoutToken);
-            if (!parsed.searchParams.get("mode")) {
-              parsed.searchParams.set("mode", "signup");
-            }
-            redirectTo = `${parsed.pathname}?${parsed.searchParams.toString()}`;
-          } else if (!parsed.pathname.startsWith("/portal/checkout")) {
-            redirectTo = `/portal/checkout?session=${encodeURIComponent(checkoutToken)}&mode=signup`;
-          }
-        } catch {
-          redirectTo = `/portal/checkout?session=${encodeURIComponent(checkoutToken)}&mode=signup`;
-        }
-      }
-
-      setPostVerifyRedirect(redirectTo);
-      setLoading(false);
-
-      if (isPaid) {
-        setPaidCheckoutReady(true);
-        setSuccess(json.message || "Email verified. Opening checkout…");
-        // Session cookies are already set by verify-otp when Engine returned tokens.
-        window.setTimeout(() => {
-          window.location.assign(redirectTo);
-        }, 1200);
-        return;
-      }
-
-      setTrialReady(true);
-      setSuccess(json.message || "Trial activated.");
-      // One-time dashboard email notice for trial signup (predefined + custom).
-      markPortalEmailDeliveryNoticePending();
-      window.setTimeout(() => {
-        window.location.assign(redirectTo);
-      }, 3500);
+      finishOtpVerification(json);
     } catch (err) {
       setError(friendlyNetworkError(err, "Something went wrong. Please try again."));
+      releaseOtpVerifySubmitLock();
       setLoading(false);
     }
   }
@@ -1321,7 +1372,7 @@ function SignUpForm({
       let attempt = await postResendOtp(firstCaptcha.token);
       if (
         attempt.json?.success === false &&
-        isCaptchaVerifyFailure(String(attempt.json.message || ""))
+        shouldRetryCaptchaAfterVerifyFailure(attempt.json, attempt.res.status)
       ) {
         await new Promise((resolve) => window.setTimeout(resolve, 800));
         const secondCaptcha = await withSignupCaptcha("portal_signup_resend_otp");
@@ -1510,9 +1561,9 @@ function SignUpForm({
                   type="submit"
                   className="w-full"
                   size="lg"
-                  disabled={loading || otpCode.length < 4}
+                  disabled={loading || otpVerifyLocked || otpCode.length < 4}
                 >
-                  {loading ? (
+                  {loading || otpVerifyLocked ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Verifying...

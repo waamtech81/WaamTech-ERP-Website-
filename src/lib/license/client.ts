@@ -4,6 +4,7 @@ import { authConfig } from "@/lib/auth/config";
 import { licenseConfig, normalizeLicenseBase } from "@/lib/license/config";
 import {
   fetchLicenseUpstream,
+  LICENSE_REGISTRATION_VERIFY_TIMEOUT_MS,
   licenseUpstreamErrorMessage,
 } from "@/lib/license/upstream-fetch";
 
@@ -163,7 +164,8 @@ function licenseHeaders(): Record<string, string> {
 
 async function postLicense<T>(
   paths: string[],
-  body: unknown
+  body: unknown,
+  options?: { timeoutMs?: number }
 ): Promise<{ ok: boolean; status: number; message: string; code?: string; data?: T }> {
   const base = normalizeLicenseBase(licenseConfig.apiUrl);
   let lastError = "License service unavailable.";
@@ -172,12 +174,16 @@ async function postLicense<T>(
 
   for (const path of paths) {
     try {
-      const res = await fetchLicenseUpstream(`${base}${path}`, {
-        method: "POST",
-        headers: licenseHeaders(),
-        body: JSON.stringify(body),
-        cache: "no-store",
-      });
+      const res = await fetchLicenseUpstream(
+        `${base}${path}`,
+        {
+          method: "POST",
+          headers: licenseHeaders(),
+          body: JSON.stringify(body),
+          cache: "no-store",
+        },
+        options?.timeoutMs
+      );
       lastStatus = res.status;
 
       let json: LicenseApiResponse<T> = {};
@@ -209,6 +215,9 @@ async function postLicense<T>(
       const extracted = extractLicenseError(json, res.status, technical);
       lastError = extracted.message;
       lastCode = extracted.code;
+      // Only try an alternate path when the route itself is missing.
+      // Never fan out after timeout/5xx/business errors — the first upstream may
+      // already be provisioning and a reused captcha_token fails Siteverify.
       if (res.status !== 404) break;
     } catch (error) {
       const technical = licenseUpstreamErrorMessage(error);
@@ -220,6 +229,9 @@ async function postLicense<T>(
       const publicError = toPublicError(technical, 502);
       lastError = publicError.message;
       lastCode = publicError.code;
+      lastStatus = 502;
+      // Abort/timeout/network: do not hit alternate paths with the same body.
+      break;
     }
   }
 
@@ -401,7 +413,8 @@ export async function verifyRegistrationOtp(input: {
       email: input.email,
       // Engine is the sole reCAPTCHA verifier (tokens are single-use).
       ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),
-    }
+    },
+    { timeoutMs: LICENSE_REGISTRATION_VERIFY_TIMEOUT_MS }
   );
 
   if (!result.ok || !result.data) return result;

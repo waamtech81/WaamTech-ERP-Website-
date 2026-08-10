@@ -3,6 +3,15 @@ export const LICENSE_UPSTREAM_TIMEOUT_MS = Number(
   process.env.LICENSE_REQUEST_TIMEOUT_MS || 8_000
 );
 
+/**
+ * OTP verify + trial provision (ERP tenant, invoice, welcome mail) needs far longer
+ * than the default. Aborting early and retrying an alternate path reuses a spent
+ * reCAPTCHA token → false "CAPTCHA verification failed" while Engine keeps going.
+ */
+export const LICENSE_REGISTRATION_VERIFY_TIMEOUT_MS = Number(
+  process.env.LICENSE_REGISTRATION_VERIFY_TIMEOUT_MS || 120_000
+);
+
 export async function fetchLicenseUpstream(
   url: string,
   init: RequestInit = {},

@@ -88,6 +88,7 @@ import { markPortalEmailDeliveryNoticePending } from "@/lib/portal/email-deliver
 import {
   canStartOtpVerifySubmit,
   isRegistrationAlreadyCompletedResponse,
+  shouldRecoverCompletedRegistrationAfterFailure,
   shouldRetryCaptchaAfterVerifyFailure,
 } from "@/lib/signup/otp-verify-submit";
 
@@ -1307,6 +1308,46 @@ function SignUpForm({
         const secondCaptcha = await withSignupCaptcha("portal_signup_verify_otp");
         if (secondCaptcha.ok) {
           attempt = await postVerifyOtp(secondCaptcha.token);
+        }
+      }
+
+      // Engine may finish provision after a false CAPTCHA/timeout response
+      // (alternate-path token reuse or slow ERP provision). Recover before
+      // showing an error — avoids a second Verify click creating another invoice.
+      if (
+        attempt.json?.success !== true &&
+        shouldRecoverCompletedRegistrationAfterFailure(
+          attempt.json,
+          attempt.res.status
+        )
+      ) {
+        for (let i = 0; i < 8; i += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 2000));
+          const recoverCaptcha = await withSignupCaptcha("portal_signup_verify_otp");
+          if (!recoverCaptcha.ok) continue;
+          const recoverAttempt = await postVerifyOtp(recoverCaptcha.token);
+          if (recoverAttempt.json?.success === true) {
+            attempt = recoverAttempt;
+            break;
+          }
+          if (
+            isRegistrationAlreadyCompletedResponse(
+              recoverAttempt.json,
+              recoverAttempt.res.status
+            )
+          ) {
+            attempt = recoverAttempt;
+            break;
+          }
+          if (
+            !shouldRecoverCompletedRegistrationAfterFailure(
+              recoverAttempt.json,
+              recoverAttempt.res.status
+            )
+          ) {
+            attempt = recoverAttempt;
+            break;
+          }
         }
       }
 

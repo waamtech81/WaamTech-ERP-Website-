@@ -7,6 +7,8 @@ import {
   canStartOtpVerifySubmit,
   isCaptchaVerifyFailure,
   isRegistrationAlreadyCompletedResponse,
+  isUpstreamVerifyTimeout,
+  shouldRecoverCompletedRegistrationAfterFailure,
   shouldRetryCaptchaAfterVerifyFailure,
 } from "../src/lib/signup/otp-verify-submit.ts";
 
@@ -31,6 +33,11 @@ test("isCaptchaVerifyFailure matches genuine captcha errors", () => {
   assert.equal(isCaptchaVerifyFailure("CAPTCHA verification failed"), true);
   assert.equal(isCaptchaVerifyFailure("Captcha expired"), true);
   assert.equal(isCaptchaVerifyFailure("Invalid verification code."), false);
+});
+
+test("isUpstreamVerifyTimeout matches BFF abort messages", () => {
+  assert.equal(isUpstreamVerifyTimeout("License service timed out."), true);
+  assert.equal(isUpstreamVerifyTimeout("CAPTCHA verification failed"), false);
 });
 
 test("isRegistrationAlreadyCompletedResponse detects completed registration", () => {
@@ -75,6 +82,30 @@ test("shouldRetryCaptchaAfterVerifyFailure preserves captcha retry without bypas
       { message: "Invalid verification code." },
       400
     ),
+    false
+  );
+});
+
+test("shouldRecoverCompletedRegistrationAfterFailure covers captcha and timeout races", () => {
+  assert.equal(
+    shouldRecoverCompletedRegistrationAfterFailure({
+      success: false,
+      message: "CAPTCHA verification failed",
+    }),
+    true
+  );
+  assert.equal(
+    shouldRecoverCompletedRegistrationAfterFailure({
+      success: false,
+      message: "License service timed out.",
+    }),
+    true
+  );
+  assert.equal(
+    shouldRecoverCompletedRegistrationAfterFailure({
+      success: true,
+      message: "OK",
+    }),
     false
   );
 });

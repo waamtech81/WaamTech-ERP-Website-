@@ -163,7 +163,10 @@ type LicenseApiResponse<T = Record<string, unknown>> = {
   error?: { message?: string; code?: string };
 };
 
-function licenseHeaders(accessToken?: string): Record<string, string> {
+function licenseHeaders(
+  accessToken?: string,
+  clientIp?: string
+): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -172,6 +175,20 @@ function licenseHeaders(accessToken?: string): Record<string, string> {
     headers.Authorization = `Bearer ${accessToken}`;
   } else if (licenseConfig.apiKey) {
     headers.Authorization = `Bearer ${licenseConfig.apiKey}`;
+  }
+  const ip = String(clientIp || "")
+    .split(",")[0]
+    .trim()
+    .replace(/^::ffff:/i, "");
+  if (
+    ip &&
+    ip !== "unknown" &&
+    ip !== "::1" &&
+    !ip.startsWith("127.") &&
+    !/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(ip)
+  ) {
+    headers["X-Forwarded-For"] = ip;
+    headers["X-Real-IP"] = ip;
   }
   return headers;
 }
@@ -227,6 +244,7 @@ async function requestLicense<T>(
   options?: {
     body?: unknown;
     accessToken?: string;
+    clientIp?: string;
   }
 ): Promise<{ ok: boolean; status: number; message: string; code?: string; data?: T }> {
   const base = normalizeLicenseBase(licenseConfig.apiUrl);
@@ -238,7 +256,7 @@ async function requestLicense<T>(
     try {
       const res = await fetchLicenseUpstream(`${base}${path}`, {
         method,
-        headers: licenseHeaders(options?.accessToken),
+        headers: licenseHeaders(options?.accessToken, options?.clientIp),
         body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
         cache: "no-store",
       });
@@ -309,10 +327,12 @@ export async function identityLogin(input: {
   captcha_token?: string;
   trust_device?: boolean;
   device_token?: string;
+  clientIp?: string;
 }) {
   const result = await requestLicense<
     IdentityLoginSuccess & Partial<IdentityLoginChallenge>
   >("POST", ["/v1/identity/login", "/identity/login"], {
+    clientIp: input.clientIp,
     body: {
       username: input.username,
       email: input.email,
@@ -343,6 +363,7 @@ export async function identityLogin(input: {
 export async function identityResendLoginOtp(input: {
   challenge_token: string;
   captcha_token?: string;
+  clientIp?: string;
 }) {
   return requestLicense<IdentityLoginChallenge>(
     "POST",
@@ -354,6 +375,7 @@ export async function identityResendLoginOtp(input: {
       "/v1/auth/resend-otp",
     ],
     {
+      clientIp: input.clientIp,
       body: {
         challenge_token: input.challenge_token,
         ...(input.captcha_token ? { captcha_token: input.captcha_token } : {}),

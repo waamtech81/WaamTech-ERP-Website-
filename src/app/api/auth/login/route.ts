@@ -244,6 +244,7 @@ export const POST = withApiHandler(async (req) => {
         trust_device: trustDevice,
         device_token: deviceToken || undefined,
         captcha_token: captchaToken || undefined,
+        clientIp: ip,
       });
 
       if (result.ok && isCustomerMfaChallenge(result.data)) {
@@ -344,6 +345,7 @@ export const POST = withApiHandler(async (req) => {
       password,
       captcha_token: captchaToken || undefined,
       device_token: deviceToken || undefined,
+      clientIp: ip,
     });
 
     if (!result.ok) {

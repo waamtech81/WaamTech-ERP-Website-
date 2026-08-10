@@ -357,12 +357,70 @@ function LoginForm() {
     action: string
   ): Promise<{ ok: true; token: string | null } | { ok: false }> {
     if (!hasRecaptchaV3SiteKey()) return { ok: true, token: null };
-    const token = await executeRecaptcha(action);
+    let token = await executeRecaptcha(action);
+    if (!token) {
+      // One retry after a brief settle — cold execute / script race on OTP step.
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+      token = await executeRecaptcha(action);
+    }
     if (!token) {
       setError("Captcha failed to load. Please refresh and try again.");
       return { ok: false };
     }
     return { ok: true, token };
+  }
+
+  function isCaptchaVerifyFailure(message: string): boolean {
+    return /captcha verification failed|captcha expired|captcha verification required/i.test(
+      message
+    );
+  }
+
+  async function submitLoginWithCaptchaRetry(
+    action: string,
+    buildBody: (captchaToken: string | null) => Record<string, unknown>
+  ): Promise<{
+    res: Response;
+    json: {
+      success?: boolean;
+      message?: string;
+      requires2fa?: boolean;
+      requires_2fa?: boolean;
+      data?: Record<string, unknown>;
+    };
+  }> {
+    const first = await withLoginCaptcha(action);
+    if (!first.ok) {
+      return {
+        res: new Response(null, { status: 0 }),
+        json: { success: false, message: "" },
+      };
+    }
+
+    const post = async (captchaToken: string | null) => {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildBody(captchaToken)),
+        credentials: "include",
+        cache: "no-store",
+      });
+      const json = await res.json();
+      return { res, json };
+    };
+
+    let attempt = await post(first.token);
+    if (
+      attempt.json?.success === false &&
+      isCaptchaVerifyFailure(String(attempt.json.message || ""))
+    ) {
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
+      const second = await withLoginCaptcha(action);
+      if (second.ok) {
+        attempt = await post(second.token);
+      }
+    }
+    return attempt;
   }
 
   async function submitOtp(e: React.FormEvent) {
@@ -372,32 +430,24 @@ function LoginForm() {
 
     try {
       // Engine identity.login expects action portal_login; staff auth expects admin_login.
-      const captcha = await withLoginCaptcha(
-        accountKind === "platform" ? "admin_login" : "portal_login"
-      );
-      if (!captcha.ok) {
+      const action =
+        accountKind === "platform" ? "admin_login" : "portal_login";
+      const { res, json } = await submitLoginWithCaptchaRetry(action, (captchaToken) => ({
+        username,
+        password,
+        challenge_token: challengeToken,
+        email_code: otp,
+        otp,
+        remember,
+        trust_device: trustDevice,
+        account_kind: accountKind,
+        ...(captchaToken ? { captcha_token: captchaToken } : {}),
+      }));
+
+      if (!res.status) {
         setLoading(false);
         return;
       }
-
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username,
-          password,
-          challenge_token: challengeToken,
-          email_code: otp,
-          otp,
-          remember,
-          trust_device: trustDevice,
-          account_kind: accountKind,
-          ...(captcha.token ? { captcha_token: captcha.token } : {}),
-        }),
-        credentials: "include",
-        cache: "no-store",
-      });
-      const json = await res.json();
 
       if (!json.success) {
         setError(apiMessageFromJson(json, "Invalid verification code."));
@@ -424,32 +474,24 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const captcha = await withLoginCaptcha(
-        accountKind === "platform" ? "admin_login" : "portal_login"
-      );
-      if (!captcha.ok) {
+      const action =
+        accountKind === "platform" ? "admin_login" : "portal_login";
+      const { res, json } = await submitLoginWithCaptchaRetry(action, (captchaToken) => ({
+        username,
+        password,
+        challenge_token: challengeToken,
+        totp_code: totp || undefined,
+        recovery_code: recoveryCode.trim() || undefined,
+        remember,
+        trust_device: accountKind === "customer" ? trustDevice : false,
+        account_kind: accountKind,
+        ...(captchaToken ? { captcha_token: captchaToken } : {}),
+      }));
+
+      if (!res.status) {
         setLoading(false);
         return;
       }
-
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username,
-          password,
-          challenge_token: challengeToken,
-          totp_code: totp || undefined,
-          recovery_code: recoveryCode.trim() || undefined,
-          remember,
-          trust_device: accountKind === "customer" ? trustDevice : false,
-          account_kind: accountKind,
-          ...(captcha.token ? { captcha_token: captcha.token } : {}),
-        }),
-        credentials: "include",
-        cache: "no-store",
-      });
-      const json = await res.json();
 
       if (!json.success) {
         setError(apiMessageFromJson(json, "Invalid authenticator code."));

@@ -67,6 +67,7 @@ export async function POST(req: Request) {
     const result = await identityResendLoginOtp({
       challenge_token: challengeToken,
       captcha_token: captchaToken || undefined,
+      clientIp: ip,
     });
     if (!result.ok) {
       return NextResponse.json(

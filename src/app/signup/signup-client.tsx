@@ -132,6 +132,11 @@ type SignupDraft = {
   categoryId?: string;
   agree?: boolean;
   marketingOptIn?: boolean;
+  /** Pending OTP session — required so Resend OTP survives refresh/back. */
+  registrationId?: string;
+  otpStep?: boolean;
+  maskedEmail?: string;
+  signupModeHint?: "trial" | "paid" | null;
 };
 
 function clearSignupDraft() {
@@ -497,6 +502,20 @@ function SignUpForm({
       if (typeof draft.categoryId === "string") setCategoryId(draft.categoryId);
       if (typeof draft.agree === "boolean") setAgree(draft.agree);
       if (typeof draft.marketingOptIn === "boolean") setMarketingOptIn(draft.marketingOptIn);
+      const restoredRegistrationId =
+        typeof draft.registrationId === "string" ? draft.registrationId.trim() : "";
+      if (restoredRegistrationId && draft.otpStep === true) {
+        setRegistrationId(restoredRegistrationId);
+        setOtpStep(true);
+        if (typeof draft.maskedEmail === "string" && draft.maskedEmail.trim()) {
+          setMaskedEmail(draft.maskedEmail);
+        } else if (typeof draft.email === "string" && draft.email.trim()) {
+          setMaskedEmail(draft.email);
+        }
+        if (draft.signupModeHint === "paid" || draft.signupModeHint === "trial") {
+          setSignupModeHint(draft.signupModeHint);
+        }
+      }
     } catch {
       window.sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
     } finally {
@@ -522,6 +541,10 @@ function SignUpForm({
       categoryId,
       agree,
       marketingOptIn,
+      registrationId: otpStep ? registrationId || undefined : undefined,
+      otpStep: otpStep || undefined,
+      maskedEmail: otpStep ? maskedEmail || undefined : undefined,
+      signupModeHint: otpStep ? signupModeHint : undefined,
     };
     try {
       window.sessionStorage.setItem(SIGNUP_DRAFT_KEY, JSON.stringify(draft));
@@ -538,13 +561,17 @@ function SignUpForm({
     email,
     industryId,
     marketingOptIn,
+    maskedEmail,
     name,
+    otpStep,
     phone,
     phoneDialCode,
     planId,
     planSlug,
     productId,
     productSlug,
+    registrationId,
+    signupModeHint,
   ]);
 
   const sortedProducts = useMemo(

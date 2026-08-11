@@ -81,6 +81,8 @@ export function PortalLicenseEntitlements({
   registry = null,
   planTier = null,
   journey = "predefined",
+  /** When false, hide module/pack chips (use on overview dashboards; detail pages keep full lists). */
+  showEntitlementLists = true,
 }: {
   license: PortalLicense;
   industry?: string | null;
@@ -97,6 +99,7 @@ export function PortalLicenseEntitlements({
   registry?: PublicCommercialRegistry | null;
   planTier?: PortalPlanTier | null;
   journey?: "custom" | "predefined";
+  showEntitlementLists?: boolean;
 }) {
   const pkg = packageLabel(lic);
   const cycle = formatCycle(lic.billing_cycle || billingCycleFallback);
@@ -150,8 +153,8 @@ export function PortalLicenseEntitlements({
     ...technicalExtra,
   ];
 
-  const hasModules = lic.modules.length > 0;
-  const hasPacks = lic.feature_packs.length > 0;
+  const hasModules = showEntitlementLists && lic.modules.length > 0;
+  const hasPacks = showEntitlementLists && lic.feature_packs.length > 0;
   const hasTenant = tenantRows.length > 0;
 
   if (!meta.length && !hasModules && !hasPacks && !hasTenant && !technical.length) {

@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
-  ArrowUpRight,
   Bell,
   Building2,
   Calendar,
@@ -12,10 +11,8 @@ import {
   KeyRound,
   Package,
   RefreshCw,
-  Shield,
   Users,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Counter } from "@/components/shared/counter";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
@@ -31,7 +28,6 @@ import {
   PortalStatusBadge,
 } from "@/components/portal/portal-ui";
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
-import { TrustBadgeStrip } from "@/components/trust-badges";
 import { PortalDashboardPayBanner } from "@/components/portal/portal-dashboard-pay-banner";
 import { PortalEmailDeliveryNotice } from "@/components/portal/portal-email-delivery-notice";
 import {
@@ -39,13 +35,12 @@ import {
   resolvePortalJourneyFromDashboard,
 } from "@/lib/portal/package-type";
 import {
-  annotateEntitledModulesWithCapability,
-  formatCapabilityLabel,
   resolvePortalPlanTier,
   upgradeActionForPortal,
 } from "@/lib/portal/commercial-rules";
 import { subscriptionActionsLocked } from "@/components/portal/portal-subscription-cancel";
 import { cn } from "@/lib/utils";
+import { authConfig } from "@/lib/auth/config";
 
 type DashboardSummaryItem = {
   label: string;
@@ -117,31 +112,16 @@ export function PortalDashboardView() {
   const {
     overview,
     subscription,
-    license,
     licenses,
-    sessions,
     counts,
-    modules,
-    featurePacks,
-    quickActions,
-    erp,
     billing,
     businesses,
     invoices,
     notifications,
     unreadNotifications,
     renewals,
-    payments,
     workspaceUsers,
   } = data;
-
-  const erpObj = (erp || {}) as Record<string, unknown>;
-  const branches =
-    typeof erpObj.branches === "number"
-      ? erpObj.branches
-      : typeof erpObj.branch_count === "number"
-        ? erpObj.branch_count
-        : null;
 
   const expiringLicenses = licenses.filter(
     (l) =>
@@ -159,10 +139,6 @@ export function PortalDashboardView() {
           l.days_remaining <= 60
       ).length;
 
-  const paidTotal = (payments || [])
-    .filter((p) => String(p.status).toLowerCase() === "completed" || String(p.status).toLowerCase() === "paid")
-    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-
   type SummaryItem = DashboardSummaryItem;
 
   const filterSummary = (items: SummaryItem[]) =>
@@ -177,6 +153,13 @@ export function PortalDashboardView() {
   const planName = subscription?.currentPlan || null;
   const subStatus = String(subscription?.status || "").toLowerCase();
   const isActivePlan = ["active", "trial", "trialing", "grace"].includes(subStatus);
+  const outstanding = String(billing?.outstandingBalance || "").trim();
+  const hasOutstanding =
+    outstanding &&
+    outstanding !== "—" &&
+    outstanding !== "0" &&
+    outstanding !== "0.00" &&
+    !/^0+(\.0+)?\s*[a-z]*$/i.test(outstanding);
 
   const currentPlanValue = planName ? (
     <span className="block leading-tight">
@@ -189,6 +172,7 @@ export function PortalDashboardView() {
     </span>
   ) : null;
 
+  /** Attention + plan health only — detail lives on Licenses / Billing / Invoices. */
   const subscriptionSummary = filterSummary([
     {
       label: "Current plan",
@@ -219,24 +203,24 @@ export function PortalDashboardView() {
       href: "/portal/subscriptions",
     },
     {
-      label: "Upcoming renewals",
-      value: upcomingRenewals || null,
+      label: "Needs attention",
+      value: upcomingRenewals || expiringLicenses || null,
+      hint:
+        expiringLicenses > 0
+          ? `${expiringLicenses} license(s) expiring soon`
+          : upcomingRenewals
+            ? "Upcoming renewals"
+            : null,
       icon: Calendar,
       tone: "warning" as const,
       href: "/portal/plans?intent=renew",
     },
     {
-      label: "Payment summary",
-      value: paidTotal > 0 ? paidTotal.toFixed(2) : billing?.outstandingBalance || null,
-      hint: paidTotal > 0 ? "Total paid (recent)" : "Outstanding",
+      label: "Outstanding balance",
+      value: hasOutstanding ? outstanding : null,
       icon: CreditCard,
+      tone: "warning" as const,
       href: "/portal/billing",
-    },
-    {
-      label: "Recent invoices",
-      value: invoices?.length || null,
-      icon: CreditCard,
-      href: "/portal/invoices",
     },
   ]);
 
@@ -253,47 +237,29 @@ export function PortalDashboardView() {
       href: "/portal/licenses",
     },
     {
-      label: "Expiring licenses",
+      label: "Expiring soon",
       value: expiringLicenses || null,
       icon: Calendar,
       tone: "warning" as const,
       href: "/portal/licenses",
     },
-    {
-      label: "Modules",
-      value: modules?.length || licenses[0]?.modules?.length || null,
-      icon: Package,
-      href: "/portal/modules",
-    },
-    {
-      label: "Feature Packs",
-      value: featurePacks?.length || licenses[0]?.feature_packs?.length || null,
-      icon: Package,
-      href: "/portal/feature-packs",
-    },
   ]);
 
   const workspaceSummary = filterSummary([
     {
-      label: "Active businesses",
+      label: "Businesses",
       value: businesses?.length || counts.registeredBusinesses,
       icon: Building2,
       href: "/portal/business-profile",
     },
     {
-      label: "Registered users",
+      label: "Users",
       value: workspaceUsers?.length || counts.registeredUsers,
       icon: Users,
       href: "/portal/users",
     },
     {
-      label: "Branches",
-      value: branches,
-      icon: Building2,
-      href: "/portal/organization",
-    },
-    {
-      label: "Unread notifications",
+      label: "Unread alerts",
       value: unreadNotifications || null,
       icon: Bell,
       href: "/portal/notifications",
@@ -325,9 +291,19 @@ export function PortalDashboardView() {
     subscriptionId: renewSubId,
   });
 
+  const openErpHref = `${authConfig.appUrl.replace(/\/+$/, "")}/login?email=${encodeURIComponent(
+    String(data.identity?.email || "")
+  )}`;
+
   const accountActionItems =
     data.commercialJourney === "custom"
       ? [
+          {
+            href: openErpHref,
+            label: "Open WAAMTO ERP",
+            hint: "Launch your workspace",
+            external: true,
+          },
           {
             href: "/portal/modules",
             label: "Manage modules",
@@ -341,15 +317,16 @@ export function PortalDashboardView() {
           {
             href: "/portal/billing",
             label: "Billing & payments",
-            hint: "Gateways · payment history",
-          },
-          {
-            href: "/portal/settings",
-            label: "Security & password",
-            hint: "2FA · Email OTP · strength",
+            hint: "Invoices · payment history",
           },
         ]
       : [
+          {
+            href: openErpHref,
+            label: "Open WAAMTO ERP",
+            hint: "Launch your workspace",
+            external: true,
+          },
           ...(upgradeAction.href
             ? [
                 {
@@ -371,12 +348,7 @@ export function PortalDashboardView() {
           {
             href: "/portal/billing",
             label: "Billing & payments",
-            hint: "Gateways · payment history",
-          },
-          {
-            href: "/portal/settings",
-            label: "Security & password",
-            hint: "2FA · Email OTP · strength",
+            hint: "Invoices · payment history",
           },
         ];
 
@@ -388,9 +360,9 @@ export function PortalDashboardView() {
       <PortalEmailDeliveryNotice />
       <PortalDashboardPayBanner data={data} />
       <PortalPageHeader
-        eyebrow="Customer success"
+        eyebrow="Overview"
         title={`Welcome back, ${firstName}`}
-        description={`${overview.company} · Your live plan and features for this account.`}
+        description={`${overview.company} · Plan status, what needs attention, and your next steps.`}
         actions={
           <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={reload}>
             <RefreshCw className="h-4 w-4" />
@@ -449,6 +421,7 @@ export function PortalDashboardView() {
                     license={primary}
                     billingCycleFallback={data.subscriptions?.[0]?.billing_cycle}
                     customerFacing
+                    showEntitlementLists={false}
                     snapshot={data.commercialSnapshot}
                     registry={data.commercialRegistry}
                     journey={
@@ -487,6 +460,17 @@ export function PortalDashboardView() {
                       },
                     ].filter((r) => r.value && r.value !== "—")}
                   />
+                  <p className="text-xs text-[var(--portal-muted)]">
+                    Modules and Feature Packs are listed under{" "}
+                    <Link href="/portal/modules" className="font-medium text-[var(--portal-primary)] underline-offset-2 hover:underline">
+                      Modules
+                    </Link>
+                    {" · "}
+                    <Link href="/portal/feature-packs" className="font-medium text-[var(--portal-primary)] underline-offset-2 hover:underline">
+                      Feature Packs
+                    </Link>
+                    .
+                  </p>
                   <div className="flex flex-wrap items-center gap-2 border-t border-[var(--portal-border)] pt-4">
                     <Button asChild size="sm" className="rounded-xl">
                       <Link
@@ -567,37 +551,37 @@ export function PortalDashboardView() {
 
           <div className="grid gap-6 md:grid-cols-2">
             <PortalPanel
-              title="Recent notifications"
-              description="License and billing alerts."
+              title="Needs your attention"
+              description="Unread alerts that may need action."
               action={
                 <Button asChild variant="outline" size="sm" className="rounded-xl">
                   <Link href="/portal/notifications">View all</Link>
                 </Button>
               }
             >
-              {(notifications || []).length ? (
+              {(notifications || []).filter((n) => !n.read).length ? (
                 <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-                  {(notifications || []).slice(0, 5).map((n) => (
-                    <div
-                      key={n.id}
-                      className="rounded-xl border border-[var(--portal-border)] px-4 py-3 text-sm"
-                    >
-                      <div className="flex items-start justify-between gap-2">
+                  {(notifications || [])
+                    .filter((n) => !n.read)
+                    .slice(0, 5)
+                    .map((n) => (
+                      <div
+                        key={n.id}
+                        className="rounded-xl border border-[var(--portal-border)] px-4 py-3 text-sm"
+                      >
                         <p className="min-w-0 font-medium">{n.title}</p>
-                        <PortalStatusBadge status={n.read ? "Read" : "Unread"} />
+                        {n.created_at ? (
+                          <p className="mt-1 text-xs text-[var(--portal-muted)]">
+                            {formatPortalDateTime(n.created_at)}
+                          </p>
+                        ) : null}
                       </div>
-                      {n.created_at ? (
-                        <p className="mt-1 text-xs text-[var(--portal-muted)]">
-                          {formatPortalDateTime(n.created_at)}
-                        </p>
-                      ) : null}
-                    </div>
-                  ))}
+                    ))}
                 </div>
               ) : (
                 <PortalEmptyState
-                  title="No notifications"
-                  description="Account alerts and reminders will appear here."
+                  title="You're all caught up"
+                  description="No unread alerts right now."
                   icon={Bell}
                 />
               )}
@@ -605,7 +589,7 @@ export function PortalDashboardView() {
 
             <PortalPanel
               title="Recent invoices"
-              description="Billing documents for your account."
+              description="Latest billing documents."
               action={
                 <Button asChild variant="outline" size="sm" className="rounded-xl">
                   <Link href="/portal/invoices">View all</Link>
@@ -614,7 +598,7 @@ export function PortalDashboardView() {
             >
               {(invoices || []).length ? (
                 <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-                  {(invoices || []).slice(0, 5).map((inv) => (
+                  {(invoices || []).slice(0, 4).map((inv) => (
                     <div
                       key={inv.id}
                       className="flex flex-col gap-2 rounded-xl border border-[var(--portal-border)] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
@@ -641,118 +625,6 @@ export function PortalDashboardView() {
               )}
             </PortalPanel>
           </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <PortalPanel title="Recent sessions" description="Active refresh sessions.">
-              {sessions.length ? (
-                <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-                  {sessions.slice(0, 5).map((session, idx) => (
-                    <div
-                      key={session.id || String(idx)}
-                      className="flex flex-col gap-1 rounded-xl border border-[var(--portal-border)] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <span className="inline-flex min-w-0 items-center gap-2 text-[var(--portal-muted)]">
-                        <Shield className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">
-                          {formatPortalDateTime(session.created_at) || `Session ${idx + 1}`}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-xs text-[var(--portal-muted)]">
-                        {session.expires_at
-                          ? `Expires ${formatPortalDate(session.expires_at)}`
-                          : "Active"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <PortalEmptyState
-                  title="No sessions listed"
-                  description="Session history will appear when available for your account."
-                  icon={Shield}
-                />
-              )}
-            </PortalPanel>
-
-            <PortalPanel title="Modules & Feature Packs">
-              {modules.length || featurePacks.length ? (
-                <div className="flex max-h-72 flex-wrap gap-2 overflow-y-auto pr-1">
-                  {annotateEntitledModulesWithCapability({
-                    modules,
-                    planTier: resolvePortalPlanTier({
-                      plan_name:
-                        licenses[0]?.plan_name || data.subscription?.currentPlan,
-                      package_type: licenses[0]?.package_type,
-                      billing_cycle: data.subscriptions?.[0]?.billing_cycle,
-                      currentPlan: data.subscription?.currentPlan,
-                    }),
-                    journey:
-                      resolvePortalJourneyFromDashboard(data) === "custom"
-                        ? "custom"
-                        : "predefined",
-                    registry: data.commercialRegistry,
-                  }).map(({ label: m, capability }) => {
-                    const cap = formatCapabilityLabel(capability, {
-                      moduleCode: m,
-                      registry: data.commercialRegistry,
-                      customErp:
-                        resolvePortalJourneyFromDashboard(data) === "custom",
-                    });
-                    return (
-                      <span
-                        key={`m-${m}`}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3 py-1.5 text-xs font-medium"
-                      >
-                        <span>{m}</span>
-                        {cap ? (
-                          <span
-                            className={
-                              cap === "Advanced"
-                                ? "text-[10px] font-semibold text-emerald-700"
-                                : cap === "Full" || cap === "Fully Enabled"
-                                  ? "text-[10px] font-semibold text-sky-700"
-                                  : "text-[10px] font-semibold text-[var(--portal-muted)]"
-                            }
-                          >
-                            {cap}
-                          </span>
-                        ) : null}
-                      </span>
-                    );
-                  })}
-                  {featurePacks.map((f) => (
-                    <span
-                      key={`f-${f}`}
-                      className="rounded-full bg-[var(--portal-primary-soft)] px-3 py-1.5 text-xs font-medium text-[var(--portal-primary)]"
-                    >
-                      {f}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <PortalEmptyState
-                  title="No modules assigned"
-                  description="Installed modules and Feature Packs will show here."
-                  actionLabel="View modules"
-                  actionHref="/portal/modules"
-                  icon={Package}
-                />
-              )}
-            </PortalPanel>
-          </div>
-
-          <PortalPanel
-            title="Account trust"
-            description="WaamTech platform security features protecting your customer portal."
-          >
-            <TrustBadgeStrip
-              set="portal"
-              tone="auto"
-              size="sm"
-              href={false}
-              className="justify-start sm:justify-center"
-            />
-          </PortalPanel>
         </div>
 
         <aside className="order-1 w-full shrink-0 space-y-4 lg:order-2 lg:sticky lg:top-4 lg:w-[min(100%,22rem)] lg:self-start xl:w-[26rem]">
@@ -765,7 +637,7 @@ export function PortalDashboardView() {
             >
               {licenseSummary.length ? (
                 <DashboardSummarySection
-                  title="Licenses & features"
+                  title="License health"
                   items={licenseSummary}
                   columns={1}
                   compact
@@ -773,7 +645,7 @@ export function PortalDashboardView() {
               ) : null}
               {workspaceSummary.length ? (
                 <DashboardSummarySection
-                  title="Workspace & alerts"
+                  title="Workspace"
                   items={workspaceSummary}
                   columns={1}
                   compact
@@ -783,16 +655,16 @@ export function PortalDashboardView() {
           ) : null}
 
           <section
-            aria-label="Portal actions"
+            aria-label="Next steps"
             className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-4 sm:p-5"
           >
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--portal-muted)]">
-              Account actions
+              Next steps
             </p>
             <p className="mt-1 text-sm text-[var(--portal-muted)]">
               {data.commercialJourney === "custom"
-                ? "Modules, configuration, billing, and security."
-                : "Upgrade, new business, billing, and security."}
+                ? "Open ERP, manage modules, or update billing."
+                : "Open ERP, upgrade, or manage billing."}
             </p>
             <div className="mt-3 space-y-2">
               {accountActionItems.map((item) =>
@@ -805,6 +677,20 @@ export function PortalDashboardView() {
                     <p className="text-sm font-semibold text-[var(--portal-fg)]">{item.label}</p>
                     <p className="mt-1 text-xs text-[var(--portal-muted)]">{item.hint}</p>
                   </div>
+                ) : "external" in item && item.external ? (
+                  <a
+                    key={item.href + item.label}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="portal-focus-ring flex items-start justify-between gap-2 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 transition hover:border-[var(--portal-primary)]/40 hover:bg-[var(--portal-primary-soft)]"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--portal-fg)]">{item.label}</p>
+                      <p className="mt-1 text-xs text-[var(--portal-muted)]">{item.hint}</p>
+                    </div>
+                    <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-[var(--portal-muted)]" />
+                  </a>
                 ) : (
                   <Link
                     key={item.href + item.label}
@@ -818,43 +704,6 @@ export function PortalDashboardView() {
               )}
             </div>
           </section>
-
-          <PortalPanel title="Quick actions" description="Common customer success tasks.">
-            <div className="max-h-[min(24rem,calc(100vh-12rem))] space-y-2 overflow-y-auto pr-1">
-              {quickActions.map((action, i) =>
-                action.external ? (
-                  <motion.a
-                    key={action.id}
-                    href={action.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    initial={{ opacity: 0, x: 6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                    className="portal-focus-ring flex items-center justify-between rounded-xl border border-[var(--portal-border)] px-4 py-3 text-sm font-medium transition hover:border-[var(--portal-primary)]/25 hover:bg-[var(--portal-soft)]"
-                  >
-                    <span className="min-w-0 pr-2">{action.label}</span>
-                    <ExternalLink className="h-4 w-4 shrink-0 text-[var(--portal-muted)]" />
-                  </motion.a>
-                ) : (
-                  <motion.div
-                    key={action.id}
-                    initial={{ opacity: 0, x: 6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                  >
-                    <Link
-                      href={action.href}
-                      className="portal-focus-ring flex items-center justify-between rounded-xl border border-[var(--portal-border)] px-4 py-3 text-sm font-medium transition hover:border-[var(--portal-primary)]/25 hover:bg-[var(--portal-soft)]"
-                    >
-                      <span className="min-w-0 pr-2">{action.label}</span>
-                      <ArrowUpRight className="h-4 w-4 shrink-0 text-[var(--portal-muted)]" />
-                    </Link>
-                  </motion.div>
-                )
-              )}
-            </div>
-          </PortalPanel>
         </aside>
       </div>
     </div>

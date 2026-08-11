@@ -5,7 +5,6 @@ import {
   Bell,
   Building2,
   CreditCard,
-  Download,
   FileText,
   Gauge,
   KeyRound,
@@ -392,13 +391,6 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 </Button>
               )}
               {linkedSub ? <PortalSubscriptionCancelActions subscription={linkedSub} /> : null}
-              <Button size="sm" variant="outline" className="rounded-xl" disabled title="Available when downloadable license files are enabled for your account">
-                <Download className="h-4 w-4" />
-                Download license
-              </Button>
-              <Button asChild size="sm" variant="ghost" className="rounded-xl">
-                <Link href="/portal/licenses">License history</Link>
-              </Button>
             </div>
           </article>
           );
@@ -934,16 +926,32 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
       },
     ].filter((r): r is { label: string; value: string | null } => Boolean(r && r.value));
     body = rows.length ? (
-      <div className="space-y-8">
+      <div className="space-y-6">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((r) => (
             <PortalDataRow key={r.label} label={r.label} value={r.value} />
           ))}
         </div>
-        <PortalBusinessProfileView embedded />
+        <div className="rounded-xl border border-dashed border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-4">
+          <p className="text-sm font-medium text-[var(--portal-fg)]">Business profile</p>
+          <p className="mt-1 text-xs text-[var(--portal-muted)]">
+            Company identity, industry, and registered businesses are managed on the Business Profile page.
+          </p>
+          <Button asChild size="sm" variant="outline" className="mt-3 rounded-xl">
+            <Link href="/portal/business-profile">Open business profile</Link>
+          </Button>
+        </div>
       </div>
     ) : (
-      <PortalBusinessProfileView />
+      <div className="space-y-4">
+        <PortalEmptyState
+          title={meta.emptyTitle}
+          description={meta.emptyDescription}
+          actionLabel="Open business profile"
+          actionHref="/portal/business-profile"
+          icon={Building2}
+        />
+      </div>
     );
   }
 

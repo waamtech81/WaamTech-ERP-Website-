@@ -170,17 +170,41 @@ export function PortalCustomErpDashboardView() {
   const usage = resolveUsage(data);
   const invoices = data.invoices || [];
 
+  const openErpHref = `${authConfig.appUrl.replace(/\/+$/, "")}/login?email=${encodeURIComponent(
+    data.identity.email
+  )}`;
+  const outstanding = String(data.billing?.outstandingBalance || "").trim();
+  const hasOutstanding =
+    outstanding &&
+    outstanding !== "—" &&
+    outstanding !== "0" &&
+    outstanding !== "0.00" &&
+    !/^0+(\.0+)?\s*[a-z]*$/i.test(outstanding);
+
   const actions = [
     {
+      href: openErpHref,
+      label: "Open WAAMTO ERP",
+      hint: "Launch your workspace",
+      icon: ExternalLink,
+      external: true,
+    },
+    {
+      href: "/portal/custom-erp",
+      label: "Modify configuration",
+      hint: "Modules · Feature Packs · limits",
+      icon: SlidersHorizontal,
+    },
+    {
       href: "/portal/modules",
-      label: "Manage modules",
-      hint: "Add or review installed modules",
+      label: "Modules",
+      hint: `${moduleCount} installed`,
       icon: Boxes,
     },
     {
       href: "/portal/feature-packs",
       label: "Feature Packs",
-      hint: "Active and available capabilities",
+      hint: `${packCount} active`,
       icon: Puzzle,
     },
     {
@@ -190,22 +214,10 @@ export function PortalCustomErpDashboardView() {
       icon: Gauge,
     },
     {
-      href: "/portal/custom-erp",
-      label: "Modify ERP configuration",
-      hint: "Quote preview · pricing changes",
-      icon: SlidersHorizontal,
-    },
-    {
       href: "/portal/billing",
-      label: "Billing & renewal",
-      hint: canRenew ? "Subscription · invoices · payments" : "Invoices · payments",
+      label: canRenew ? "Billing & renewal" : "Billing",
+      hint: canRenew ? "Renew · invoices · payments" : "Invoices · payments",
       icon: CreditCard,
-    },
-    {
-      href: "/portal/support",
-      label: "Support",
-      hint: "Tickets · documentation",
-      icon: LifeBuoy,
     },
   ];
 
@@ -213,9 +225,9 @@ export function PortalCustomErpDashboardView() {
     <div className="space-y-6">
       <PortalDashboardPayBanner data={data} />
       <PortalPageHeader
-        eyebrow="Custom ERP"
+        eyebrow="Overview"
         title="Custom ERP Package"
-        description="Your workspace was built from modules, Feature Packs, and limits — not a predefined Starter / Business / Enterprise plan."
+        description="Your product, health status, and next steps — details live on License, Modules, and Billing."
         actions={
           <Button size="sm" variant="outline" className="rounded-xl" onClick={() => reload()}>
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
@@ -225,31 +237,49 @@ export function PortalCustomErpDashboardView() {
       />
 
       <section
-        aria-label="Custom ERP actions"
+        aria-label="Next steps"
         className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-panel)] p-4 sm:p-5"
       >
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--portal-muted)]">
-          Package actions
+          Next steps
         </p>
         <p className="mt-1 text-sm text-[var(--portal-muted)]">
-          Upgrade through modules, Feature Packs, and limits only — predefined plans are not offered.
+          Change your package through modules, Feature Packs, and limits — not predefined plans.
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {actions.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="portal-focus-ring rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 transition hover:border-[var(--portal-primary)]/40 hover:bg-[var(--portal-primary-soft)]"
-            >
-              <div className="flex items-start gap-3">
-                <item.icon className="mt-0.5 h-4 w-4 text-[var(--portal-primary)]" />
-                <div>
-                  <p className="text-sm font-semibold text-[var(--portal-fg)]">{item.label}</p>
-                  <p className="mt-1 text-xs text-[var(--portal-muted)]">{item.hint}</p>
+          {actions.map((item) =>
+            item.external ? (
+              <a
+                key={item.href}
+                href={item.href}
+                target="_blank"
+                rel="noreferrer"
+                className="portal-focus-ring rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 transition hover:border-[var(--portal-primary)]/40 hover:bg-[var(--portal-primary-soft)]"
+              >
+                <div className="flex items-start gap-3">
+                  <item.icon className="mt-0.5 h-4 w-4 text-[var(--portal-primary)]" />
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--portal-fg)]">{item.label}</p>
+                    <p className="mt-1 text-xs text-[var(--portal-muted)]">{item.hint}</p>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </a>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="portal-focus-ring rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-4 py-3 transition hover:border-[var(--portal-primary)]/40 hover:bg-[var(--portal-primary-soft)]"
+              >
+                <div className="flex items-start gap-3">
+                  <item.icon className="mt-0.5 h-4 w-4 text-[var(--portal-primary)]" />
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--portal-fg)]">{item.label}</p>
+                    <p className="mt-1 text-xs text-[var(--portal-muted)]">{item.hint}</p>
+                  </div>
+                </div>
+              </Link>
+            )
+          )}
         </div>
       </section>
 
@@ -267,12 +297,6 @@ export function PortalCustomErpDashboardView() {
           icon={Package}
           href="/portal/subscriptions"
         />
-        <PortalStatCard
-          label="Billing cycle"
-          value={formatBillingCycleLabel(billingCycle)}
-          icon={CreditCard}
-          href="/portal/billing"
-        />
         {canRenew ? (
           <PortalStatCard
             label="Renewal date"
@@ -282,51 +306,28 @@ export function PortalCustomErpDashboardView() {
           />
         ) : (
           <PortalStatCard
-            label="Package type"
+            label="Billing cycle"
             value="Lifetime"
             hint="No renewal required"
             icon={RefreshCw}
             href="/portal/subscriptions"
           />
         )}
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <PortalStatCard
-          label="Modules"
-          value={String(moduleCount)}
-          hint="Installed on this package"
-          icon={Boxes}
-          href="/portal/modules"
-        />
-        <PortalStatCard
-          label="Feature Packs"
-          value={String(packCount)}
-          hint="Active packs"
-          icon={Puzzle}
-          href="/portal/feature-packs"
-        />
-        <PortalStatCard
-          label="Invoices"
-          value={invoices.length ? String(invoices.length) : "—"}
-          hint="Recent billing documents"
-          icon={FileText}
-          href="/portal/invoices"
-        />
         <PortalStatCard
           label="Outstanding"
-          value={data.billing?.outstandingBalance || "—"}
-          hint="From your license"
+          value={hasOutstanding ? outstanding : "None"}
+          hint={hasOutstanding ? "Balance due" : "All clear"}
           icon={CreditCard}
           href="/portal/billing"
+          tone={hasOutstanding ? "warning" : "success"}
         />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.45fr_1fr]">
         <PortalFadeIn>
           <PortalPanel
-            title="Custom ERP Package"
-            description="Your current Custom ERP plan, status, modules, and renewal dates."
+            title="Your product"
+            description="Package status and key dates. Full module lists are on Modules and Feature Packs."
             action={
               <Button asChild variant="outline" size="sm" className="rounded-xl">
                 <Link href="/portal/licenses">License detail</Link>
@@ -338,7 +339,7 @@ export function PortalCustomErpDashboardView() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-                      Current plan
+                      Current package
                     </p>
                     <p className="mt-1 text-lg font-semibold tracking-tight">
                       {primary.product_name || "WAAMTO ERP"} · Custom ERP
@@ -346,37 +347,11 @@ export function PortalCustomErpDashboardView() {
                   </div>
                   <PortalStatusBadge status={primary.effective_status || primary.status} />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {[
-                    { label: "Activation", value: formatPortalDate(primary.activation_date) },
-                    ...(canRenew
-                      ? [{ label: "Renewal date", value: formatPortalDate(renewal) }]
-                      : []),
-                    {
-                      label: "Days left",
-                      value:
-                        typeof primary.days_remaining === "number"
-                          ? String(primary.days_remaining)
-                          : null,
-                    },
-                  ]
-                    .filter((r) => r.value)
-                    .map((r) => (
-                      <div
-                        key={r.label}
-                        className="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-soft)] px-3.5 py-3"
-                      >
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-                          {r.label}
-                        </p>
-                        <p className="mt-1.5 text-sm font-medium">{r.value}</p>
-                      </div>
-                    ))}
-                </div>
                 <PortalLicenseEntitlements
                   license={primary}
                   billingCycleFallback={sub?.billing_cycle}
                   customerFacing
+                  showEntitlementLists={false}
                   snapshot={data.commercialSnapshot}
                   registry={data.commercialRegistry}
                   journey="custom"
@@ -389,8 +364,19 @@ export function PortalCustomErpDashboardView() {
                       value: String(primary.effective_status || primary.status || "—"),
                     },
                     {
+                      label: "Activation",
+                      value: formatPortalDate(primary.activation_date) || "—",
+                    },
+                    {
                       label: "Expiry date",
                       value: formatPortalDate(primary.expiry_date) || "—",
+                    },
+                    {
+                      label: "Days left",
+                      value:
+                        typeof primary.days_remaining === "number"
+                          ? String(primary.days_remaining)
+                          : "—",
                     },
                   ].filter((r) => r.value && r.value !== "—")}
                 />
@@ -402,17 +388,10 @@ export function PortalCustomErpDashboardView() {
                     />
                   ) : null}
                   <Button asChild size="sm" variant="outline" className="rounded-xl">
-                    <Link href="/portal/modules">Add modules</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline" className="rounded-xl">
-                    <Link href="/portal/custom-erp">Modify configuration</Link>
+                    <Link href="/portal/licenses">View license</Link>
                   </Button>
                   <Button asChild size="sm" variant="ghost" className="rounded-xl">
-                    <a
-                      href={`${authConfig.appUrl.replace(/\/+$/, "")}/login?email=${encodeURIComponent(data.identity.email)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <a href={openErpHref} target="_blank" rel="noreferrer">
                       Open ERP
                       <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
                     </a>

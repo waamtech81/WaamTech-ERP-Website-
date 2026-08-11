@@ -544,7 +544,10 @@ function SignUpForm({
       registrationId: otpStep ? registrationId || undefined : undefined,
       otpStep: otpStep || undefined,
       maskedEmail: otpStep ? maskedEmail || undefined : undefined,
-      signupModeHint: otpStep ? signupModeHint : undefined,
+      signupModeHint:
+        otpStep && (signupModeHint === "trial" || signupModeHint === "paid")
+          ? signupModeHint
+          : undefined,
     };
     try {
       window.sessionStorage.setItem(SIGNUP_DRAFT_KEY, JSON.stringify(draft));

@@ -121,6 +121,7 @@ export function PortalInvoicesView() {
       if (!q) return true;
       return (
         normalize(inv.number).includes(q) ||
+        normalize(inv.businessName).includes(q) ||
         normalize(inv.status).includes(q) ||
         normalize(inv.paymentStatus).includes(q)
       );
@@ -159,7 +160,7 @@ export function PortalInvoicesView() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by invoice number or status…"
+            placeholder="Search by business, invoice number or status…"
             className="h-11 bg-[var(--portal-panel)] pl-10 focus-visible:border-[var(--portal-border)] focus-visible:ring-0"
             aria-label="Search invoices"
             autoComplete="off"
@@ -195,6 +196,7 @@ export function PortalInvoicesView() {
           <table className="portal-table">
             <thead>
               <tr>
+                <th scope="col">Business Name</th>
                 <th scope="col">Number</th>
                 <th scope="col">Status</th>
                 <th scope="col">Date</th>
@@ -214,6 +216,9 @@ export function PortalInvoicesView() {
                   key={invoice.id}
                   className={cn(selected?.id === invoice.id && "bg-[var(--portal-primary-soft)]/40")}
                 >
+                  <td className="font-medium">
+                    {invoice.businessName || "—"}
+                  </td>
                   <td className="whitespace-nowrap font-medium">{invoice.number}</td>
                   <td>
                     <PortalStatusBadge status={invoice.status} />
@@ -347,6 +352,7 @@ export function PortalInvoicesView() {
               ) : null}
 
               <div className="grid gap-3 sm:grid-cols-2">
+                <PortalDataRow label="Business Name" value={selected.businessName || "—"} />
                 <PortalDataRow label="Invoice number" value={selected.number} />
                 <PortalDataRow label="Status" value={selected.status} />
                 <PortalDataRow label="Issue date" value={formatPortalDate(selected.date)} />

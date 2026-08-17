@@ -24,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { usePortalContext } from "@/components/portal/portal-data-provider";
 import { formatPortalDate, formatPortalDateTime } from "@/components/portal/use-portal-data";
-import { formatPortalRenewalLabel } from "@/lib/portal/display-labels";
+import { formatPortalRenewalLabel, resolvePortalBusinessNameForSubscription } from "@/lib/portal/display-labels";
 import { PortalLicenseEntitlements } from "@/components/portal/portal-license-detail";
 import { PortalCustomErpRenewButton } from "@/components/portal/portal-custom-erp-renew";
 import { PortalDashboardPayBanner } from "@/components/portal/portal-dashboard-pay-banner";
@@ -601,6 +601,7 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                     <table className="portal-table">
                       <thead>
                         <tr>
+                          <th scope="col">Business Name</th>
                           <th scope="col">Renewal</th>
                           <th scope="col">Status</th>
                           <th scope="col">Date</th>
@@ -610,7 +611,14 @@ export function PortalCustomErpSectionView({ section }: { section: CustomErpSect
                       <tbody>
                         {data.renewals.slice(0, 10).map((r) => (
                           <tr key={r.id}>
-                            <td className="font-medium">{formatPortalRenewalLabel(r)}</td>
+                            <td className="font-medium">
+                              {resolvePortalBusinessNameForSubscription(
+                                data.subscriptions,
+                                r.subscription_id,
+                                data.overview?.company || "—"
+                              )}
+                            </td>
+                            <td>{formatPortalRenewalLabel(r)}</td>
                             <td>
                               <PortalStatusBadge status={r.status} />
                             </td>

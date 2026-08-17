@@ -1074,6 +1074,8 @@ export async function requestAdditionalSubscription(
     success_url: body.success_url,
     cancel_url: body.cancel_url,
     company_name: body.company_name,
+    // Engine additional-subscription accepts place_name; mirror company_name so the place is labeled.
+    place_name: body.company_name,
     notes: body.notes,
     purpose: "new_place",
     mode: "additional_subscription",

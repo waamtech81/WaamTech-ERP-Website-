@@ -9,7 +9,7 @@ import {
   type IdentitySession,
 } from "@/lib/license/identity";
 import { maskLicenseKey } from "@/lib/auth/session";
-import { formatFeaturePackLabel } from "@/lib/portal/display-labels";
+import { formatFeaturePackLabel, resolvePortalBusinessName } from "@/lib/portal/display-labels";
 import {
   normalizePortalCommercialSnapshot,
   normalizeSnapshotLimits,
@@ -276,6 +276,9 @@ export type PortalInvoice = {
   amountPaid?: number | string | null;
   currency?: string | null;
   total?: number | string | null;
+  /** Associated business/place when the account has multiple businesses. */
+  businessName?: string | null;
+  subscriptionId?: string | null;
 };
 
 export type PortalNotification = {
@@ -584,7 +587,7 @@ function buildBusinessCards(
             l.product_name === sub.product_name
         );
       return {
-        businessName: sub.company_name || names.businessName,
+        businessName: resolvePortalBusinessName(sub, names.businessName),
         industry: names.industry,
         category: names.category,
         businessProfile: names.businessProfile,
@@ -663,7 +666,12 @@ function mapEngineNotifications(
   }));
 }
 
-function toPortalInvoice(inv: CommercialInvoice, index: number): PortalInvoice {
+function toPortalInvoice(
+  inv: CommercialInvoice,
+  index: number,
+  subscriptions: CommercialSubscription[] = [],
+  fallbackBusinessName = "—"
+): PortalInvoice {
   const id = inv.id || String(index);
   const status = String(inv.status || "").toLowerCase();
   const total = Number(inv.grand_total ?? inv.total ?? 0);
@@ -672,6 +680,13 @@ function toPortalInvoice(inv: CommercialInvoice, index: number): PortalInvoice {
   const isPaid =
     status === "paid" ||
     (total > 0 && amountDue <= 0 && amountPaid > 0);
+  const linkedSub = inv.subscription_id
+    ? subscriptions.find((s) => s.id === inv.subscription_id)
+    : null;
+  const businessName =
+    resolvePortalBusinessName(linkedSub, "") ||
+    String(inv.company_name || "").trim() ||
+    fallbackBusinessName;
   return {
     id,
     number: inv.invoice_number || inv.id || `INV-${index + 1}`,
@@ -696,6 +711,8 @@ function toPortalInvoice(inv: CommercialInvoice, index: number): PortalInvoice {
     amountPaid: inv.amount_paid ?? null,
     currency: "USD",
     total: inv.grand_total ?? inv.total ?? null,
+    businessName: businessName || null,
+    subscriptionId: inv.subscription_id || null,
   };
 }
 
@@ -1356,7 +1373,14 @@ async function loadPortalDashboardUncached(
         }
       : null);
 
-  const invoicesFromCommercial: PortalInvoice[] = commercialInvoices.map(toPortalInvoice);
+  const invoicesFromCommercial: PortalInvoice[] = commercialInvoices.map((inv, index) =>
+    toPortalInvoice(
+      inv,
+      index,
+      commercialSubs,
+      resolvePortalBusinessName(primarySub, companyNames.businessName)
+    )
+  );
 
   const invoices =
     invoicesFromCommercial.length > 0

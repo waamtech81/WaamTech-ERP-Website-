@@ -20,6 +20,8 @@ import { formatPortalDate, formatPortalDateTime } from "@/components/portal/use-
 import {
   formatPortalReference,
   formatPortalRenewalLabel,
+  resolvePortalBusinessName,
+  resolvePortalBusinessNameForSubscription,
 } from "@/lib/portal/display-labels";
 import { PortalBusinessProfileView } from "@/components/portal/portal-business-profile";
 import { PortalInvoicesView } from "@/components/portal/portal-invoices";
@@ -252,9 +254,18 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
-                  Current plan
+                  Business
                 </p>
                 <p className="mt-1 font-semibold tracking-tight">
+                  {resolvePortalBusinessName(
+                    linkedSub,
+                    data.overview?.company || data.overview?.customerName || "Business"
+                  )}
+                </p>
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--portal-muted)]">
+                  Current plan
+                </p>
+                <p className="mt-1 text-sm font-medium text-[var(--portal-fg)]">
                   {lic.product_name || "WAAMTO ERP"} · {planTitle}
                 </p>
               </div>
@@ -402,7 +413,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
   if (section === "subscriptions") {
     const commercial = data.subscriptions || [];
     const customerLabel =
-      data.overview?.company || data.overview?.customerName || "Customer";
+      data.overview?.company || data.overview?.customerName || "Business";
     if (commercial.length) {
       flush = true;
       body = (
@@ -410,7 +421,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
           <table className="portal-table">
             <thead>
               <tr>
-                <th scope="col">Customer</th>
+                <th scope="col">Business Name</th>
                 {!isCustomJourney ? <th scope="col">Plan</th> : null}
                 <th scope="col">Type</th>
                 <th scope="col">Status</th>
@@ -426,7 +437,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 return (
                 <tr key={sub.id}>
                   <td className="font-medium">
-                    {sub.company_name || customerLabel}
+                    {resolvePortalBusinessName(sub, customerLabel)}
                   </td>
                   {!isCustomJourney ? <td>{sub.plan_name || "—"}</td> : null}
                   <td className="capitalize">{sub.billing_cycle || sub.product_name || "—"}</td>
@@ -724,6 +735,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               <table className="portal-table">
                 <thead>
                   <tr>
+                    <th scope="col">Business Name</th>
                     <th scope="col">Transaction</th>
                     <th scope="col">Amount</th>
                     <th scope="col">Gateway</th>
@@ -735,6 +747,16 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                   {payments.slice(0, 15).map((p) => (
                     <tr key={p.id}>
                       <td className="font-medium">
+                        {resolvePortalBusinessNameForSubscription(
+                          data.subscriptions,
+                          p.subscription_id,
+                          resolvePortalBusinessName(
+                            { company_name: p.company_name },
+                            data.overview?.company || "—"
+                          )
+                        )}
+                      </td>
+                      <td>
                         {formatPortalReference(
                           p.transaction_id || p.reference_number || p.id
                         )}
@@ -765,6 +787,7 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
               <table className="portal-table">
                 <thead>
                   <tr>
+                    <th scope="col">Business Name</th>
                     <th scope="col">Renewal</th>
                     <th scope="col">Status</th>
                     <th scope="col">Date</th>
@@ -774,7 +797,14 @@ export function PortalSectionPage({ section }: { section: PortalSectionKey }) {
                 <tbody>
                   {renewals.slice(0, 10).map((r) => (
                     <tr key={r.id}>
-                      <td className="font-medium">{formatPortalRenewalLabel(r)}</td>
+                      <td className="font-medium">
+                        {resolvePortalBusinessNameForSubscription(
+                          data.subscriptions,
+                          r.subscription_id,
+                          data.overview?.company || "—"
+                        )}
+                      </td>
+                      <td>{formatPortalRenewalLabel(r)}</td>
                       <td>
                         <PortalStatusBadge status={r.status} />
                       </td>

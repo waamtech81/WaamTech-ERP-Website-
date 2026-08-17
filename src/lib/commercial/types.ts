@@ -436,6 +436,9 @@ export type CommercialSubscription = {
   currency?: string;
   unit_price?: number | null;
   company_name?: string | null;
+  /** Additional place / business label from License Engine commercial_subscriptions. */
+  place_name?: string | null;
+  is_additional_place?: boolean | number | null;
   product_name?: string | null;
   plan_name?: string | null;
   notes?: string | null;

@@ -145,3 +145,45 @@ export function formatPortalRenewalLabel(input: {
   }
   return "Plan renewal";
 }
+
+/**
+ * Business / place label for portal tables when an account has multiple businesses.
+ * Prefers Engine place_name (additional place), then company_name, then notes.
+ */
+export function resolvePortalBusinessName(
+  input?: {
+    place_name?: string | null;
+    company_name?: string | null;
+    business_name?: string | null;
+    notes?: string | null;
+  } | null,
+  fallback = "—"
+): string {
+  if (!input) return fallback;
+  const place = String(input.place_name || "").trim();
+  if (place) return place;
+  const company = String(input.company_name || input.business_name || "").trim();
+  if (company) return company;
+  const notes = String(input.notes || "").trim();
+  const fromNotes = notes.match(/^Additional place\s*[—\-–]\s*(.+)$/i);
+  if (fromNotes?.[1]?.trim()) return fromNotes[1].trim();
+  return fallback;
+}
+
+/** Look up a subscription row and resolve its business name. */
+export function resolvePortalBusinessNameForSubscription(
+  subscriptions: Array<{
+    id?: string | null;
+    place_name?: string | null;
+    company_name?: string | null;
+    business_name?: string | null;
+    notes?: string | null;
+  }> | null | undefined,
+  subscriptionId?: string | null,
+  fallback = "—"
+): string {
+  const id = String(subscriptionId || "").trim();
+  if (!id || !subscriptions?.length) return fallback;
+  const sub = subscriptions.find((s) => String(s.id || "") === id);
+  return resolvePortalBusinessName(sub, fallback);
+}
